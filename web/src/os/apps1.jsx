@@ -9,6 +9,8 @@ import * as vfs from "./vfs.js";
 import { useVfs, ROOT, DESKTOP, fmtSize, fmtDate } from "./vfs.js";
 import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl } from "./files-ui.jsx";
 import { makeEvaluator, display, parseRef, refName, numToCol, isErr } from "./formula.js";
+import { api } from "./api.js";
+import { withOnlyOffice } from "./onlyoffice.jsx";
 const { useState: useS1, useRef: useR1, useEffect: useE1, useMemo: useM1, useCallback: useC1 } = React;
 
 /* hook: guardado automático con estado visible */
@@ -61,6 +63,8 @@ function FilesApp({ openApp, openItem, update, folderId }) {
   const [view, setView] = useS1(() => localStorage.getItem("sotos_files_view") || "grid");
   const [sort, setSort] = useS1(() => { try { return JSON.parse(localStorage.getItem("sotos_files_sort")) || { k: "name", d: 1 }; } catch { return { k: "name", d: 1 }; } });
   const [quota, setQuota] = useS1(null);
+  const [special, setSpecial] = useS1(null); // "shared"
+  const mode = useVfs(s => s.mode), sync = useVfs(s => s.sync);
   const fileInput = useR1(null), dirInput = useR1(null), rootRef = useR1(null);
 
   useE1(() => { if (folderId && vfs.node(folderId)) go(folderId); }, [folderId]);
@@ -84,7 +88,7 @@ function FilesApp({ openApp, openItem, update, folderId }) {
   }[sort.k];
   items = [...items].sort((a, b) => ((b.type === "folder") - (a.type === "folder")) || cmp(a, b) * sort.d || a.name.localeCompare(b.name));
 
-  const go = (id) => { if (id === cur) return; setHist(h => ({ back: [...h.back, cur], fwd: [] })); setCur(id); setSel([]); setQ(""); };
+  const go = (id) => { setSpecial(null); if (id === cur) return; setHist(h => ({ back: [...h.back, cur], fwd: [] })); setCur(id); setSel([]); setQ(""); };
   const back = () => { const b = hist.back; if (!b.length) return; setHist({ back: b.slice(0, -1), fwd: [cur, ...hist.fwd] }); setCur(b[b.length - 1]); setSel([]); };
   const fwd = () => { const f = hist.fwd; if (!f.length) return; setHist({ back: [...hist.back, cur], fwd: f.slice(1) }); setCur(f[0]); setSel([]); };
   const up = () => { const p = vfs.parentOf(cur); if (p) go(p.id); };
@@ -103,8 +107,9 @@ function FilesApp({ openApp, openItem, update, folderId }) {
   const doPaste = async () => { const n = await vfs.paste(cur); if (n) toast(`${n} elemento(s) pegado(s)`, { icon: "content_paste" }); };
   const newFolder = () => startRename(vfs.mkdir(cur));
   const newFile = async (kind) => {
-    const name = { docx: "Documento sin título.docx", xlsx: "Libro sin título.xlsx", pptx: "Presentación sin título.pptx", txt: "Nota sin título.txt" }[kind];
-    const id = await vfs.create(cur, name, new Blob([])); setSel([id]); startRename(id);
+    const { blankFile } = await import("./office.js");
+    const { name, blob } = await blankFile(kind);
+    const id = await vfs.create(cur, name, blob); setSel([id]); startRename(id);
   };
   const onKey = (e) => {
     if (renaming || e.target.closest("input")) return;
@@ -126,7 +131,6 @@ function FilesApp({ openApp, openItem, update, folderId }) {
   };
 
   const crumbs = vfs.pathOf(cur);
-  const special = vfs.resolve("/Escritorio");
   const selSize = sel.reduce((s, id) => { const n = vfs.node(id); return s + (n ? (n.children ? vfs.folderSize(n) : n.size || 0) : 0); }, 0);
   const cutIds = clipboard?.mode === "cut" ? clipboard.ids : [];
 
@@ -170,15 +174,16 @@ function FilesApp({ openApp, openItem, update, folderId }) {
         </div>
         <div className="side-group">
           <div className="side-label">Ubicaciones</div>
-          <SideItem icon="group" label="Compartido conmigo" color="#34c759" onClick={() => toast("Compartir llega con las cuentas de Sotos", { icon: "group" })} />
+          <SideItem icon="group" label="Compartido conmigo" color="#34c759" active={special === "shared"} onClick={() => setSpecial("shared")} />
           <SideItem icon="delete" label={`Papelera${trashCount ? ` (${trashCount})` : ""}`} color="#7d8590" onClick={() => openApp("trash")} />
         </div>
         <div className="side-group">
           <div className="side-label">Almacenamiento</div>
           <div style={{ padding: "4px 10px" }}>
-            <div style={{ height: 6, borderRadius: 4, background: "var(--surface-3)", overflow: "hidden" }}>
-              <div style={{ width: quota ? Math.max(1.5, Math.min(100, used / quota * 100)) + "%" : "2%", height: "100%", background: "var(--accent)" }} /></div>
-            <div className="faint" style={{ fontSize: 11, marginTop: 6 }}>{fmtSize(used)} usados{quota ? ` de ${fmtSize(quota)} disponibles en este navegador` : ""}</div>
+            {(() => { const q = mode === "cloud" ? sync.quota : quota; return <>
+              <div style={{ height: 6, borderRadius: 4, background: "var(--surface-3)", overflow: "hidden" }}>
+                <div style={{ width: q ? Math.max(1.5, Math.min(100, used / q * 100)) + "%" : "2%", height: "100%", background: "var(--accent)" }} /></div>
+              <div className="faint" style={{ fontSize: 11, marginTop: 6 }}>{fmtSize(used)} usados{q ? ` de ${fmtSize(q)}` : ""} · {mode === "cloud" ? "en tu nube" : "en este navegador"}</div></>; })()}
           </div>
         </div>
       </div>
@@ -201,6 +206,7 @@ function FilesApp({ openApp, openItem, update, folderId }) {
           <div className="search-box" style={{ minWidth: 120, width: 170 }}><Ic name="search" size={17} /><input placeholder={`Buscar en ${node.name}`} value={q} onChange={e => setQ(e.target.value)} />
             {q && <Ic name="close" size={15} style={{ cursor: "pointer" }} onClick={() => setQ("")} />}</div>
         </Toolbar>
+        {special === "shared" ? <SharedWithMe openApp={openApp} /> :
         <div className="files-body" {...dropTarget(cur)}
           onMouseDown={e => { if (e.target === e.currentTarget || e.target.classList.contains("file-grid")) { setSel([]); rootRef.current?.focus(); } }}
           onContextMenu={e => { if (e.target.closest(".file-cell,.file-row")) return; e.preventDefault(); setSel([]); setCtx({ x: e.clientX, y: e.clientY, nodes: null }); }}>
@@ -230,7 +236,7 @@ function FilesApp({ openApp, openItem, update, folderId }) {
             </div>
           )}
           {!items.length && <EmptyState icon={q ? "search_off" : "folder_open"} text={q ? "Sin resultados" : "Carpeta vacía · arrastra archivos o carpetas desde tu PC"} />}
-        </div>
+        </div>}
         <div className="files-status">
           <span>{items.length} elemento(s){sel.length ? ` · ${sel.length} seleccionado(s) · ${fmtSize(selSize)}` : ""}</span>
           <div className="tb-spacer" />
@@ -274,6 +280,34 @@ function FilesApp({ openApp, openItem, update, folderId }) {
           { id: "uploaddir", label: "Subir carpeta…", icon: "drive_folder_upload" }]}
         onSelect={(id) => id === "folder" ? newFolder() : id === "uploaddir" ? dirInput.current.click() : newFile(id)} onClose={() => setNewMenu(null)} />}
       {props && <PropertiesModal id={props} onClose={() => setProps(null)} />}
+    </div>
+  );
+}
+
+const OFFICE_APP = { docx: "docs", xlsx: "sheets", csv: "sheets", pptx: "slides" };
+function SharedWithMe({ openApp }) {
+  const mode = useVfs(s => s.mode);
+  const [items, setItems] = useS1(null);
+  useE1(() => { if (mode === "cloud") api("GET", "shares/with-me").then(r => setItems(r.items)).catch(e => { toast(e.message, { error: true }); setItems([]); }); }, [mode]);
+  if (mode !== "cloud") return <div className="files-body"><EmptyState icon="group" text="Inicia sesión con una cuenta de Sotos para ver lo que otros comparten contigo" /></div>;
+  if (!items) return <div className="files-body"><EmptyState icon="hourglass_empty" text="Cargando…" /></div>;
+  const open = (it) => {
+    const app = OFFICE_APP[it.node.type];
+    if (app) openApp(app, { share: it.token, sharedNode: it.node, fileId: "share:" + it.token });
+    else window.open(`${location.origin}/#/s/${it.token}`, "_blank", "noopener");
+  };
+  return (
+    <div className="files-body">
+      <div className="file-list">
+        <div className="file-row head" style={{ gridTemplateColumns: "1fr 160px 110px 110px" }}><span>Nombre</span><span>Compartido por</span><span>Permiso</span><span>Fecha</span></div>
+        {items.map(it => (
+          <div key={it.token} className="file-row" style={{ gridTemplateColumns: "1fr 160px 110px 110px" }} onDoubleClick={() => open(it)}>
+            <span className="fl-name"><NodeGlyph node={it.node} size={20} /><div className="fname">{it.node.name}</div></span>
+            <span>{it.owner}</span><span>{it.perm === "edit" ? "Puede editar" : "Solo ver"}</span><span>{fmtDate(it.created)}</span>
+          </div>
+        ))}
+      </div>
+      {!items.length && <EmptyState icon="group" text="Nadie ha compartido nada contigo todavía" />}
     </div>
   );
 }
@@ -635,4 +669,5 @@ function GalleryApp({ fileId, update }) {
   );
 }
 
-export { FilesApp, EditorApp, SheetsApp, GalleryApp };
+const SheetsOffice = withOnlyOffice(SheetsApp);
+export { FilesApp, EditorApp, SheetsOffice as SheetsApp, GalleryApp };

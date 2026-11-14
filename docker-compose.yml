@@ -1,0 +1,65 @@
+# Sotos OS — despliegue en un servidor (VPS) con Docker
+# © 2026 Sebastian Sotomontes
+#
+#   cp .env.example .env   (rellenar dominios y secreto)
+#   docker compose up -d --build
+#
+# Necesita 3 subdominios apuntando al servidor (registros A/AAAA):
+#   SOTOS_DOMAIN   el escritorio         p. ej. os.midominio.com
+#   PX_DOMAIN      proxy del navegador   p. ej. px.midominio.com
+#   OFFICE_DOMAIN  ONLYOFFICE            p. ej. office.midominio.com
+# Caddy obtiene y renueva los certificados HTTPS solo.
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443", "443:443/udp"]
+    environment:
+      SOTOS_DOMAIN: ${SOTOS_DOMAIN}
+      PX_DOMAIN: ${PX_DOMAIN}
+      OFFICE_DOMAIN: ${OFFICE_DOMAIN}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on: [sotos, onlyoffice]
+
+  sotos:
+    build:
+      context: .
+      args:
+        VITE_PX_ORIGIN: https://${PX_DOMAIN}
+    restart: unless-stopped
+    environment:
+      PX_HOST: ${PX_DOMAIN}
+      TRUST_PROXY: "1"
+      OO_URL: https://${OFFICE_DOMAIN}
+      OO_INTERNAL: http://onlyoffice
+      SOTOS_INTERNAL: http://sotos:8787
+      SOTOS_OO_JWT: ${OO_JWT_SECRET}
+      SOTOS_REGISTRATION: ${SOTOS_REGISTRATION:-open}
+      SOTOS_QUOTA_MB: ${SOTOS_QUOTA_MB:-2048}
+    volumes:
+      - sotos_data:/data
+
+  onlyoffice:
+    image: onlyoffice/documentserver:${OO_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${OO_JWT_SECRET}
+      JWT_HEADER: Authorization
+      ALLOW_PRIVATE_IP_ADDRESS: "true"   # para descargar archivos de "sotos" por la red interna
+    volumes:
+      - oo_data:/var/www/onlyoffice/Data
+      - oo_lib:/var/lib/onlyoffice
+      - oo_db:/var/lib/postgresql
+
+volumes:
+  caddy_data:
+  caddy_config:
+  sotos_data:
+  oo_data:
+  oo_lib:
+  oo_db:

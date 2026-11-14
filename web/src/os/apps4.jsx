@@ -4,7 +4,10 @@
 import React from "react";
 import { APPS, WALLPAPERS, ACCENTS, STORE_APPS } from "./data.jsx";
 import { SotosLogo } from "./logo.jsx";
-import { Tile, Ic, SideItem, Avatar } from "./ui.jsx";
+import { Tile, Ic, SideItem, Avatar, Modal, toast } from "./ui.jsx";
+import * as vfs from "./vfs.js";
+import { useVfs, fmtSize } from "./vfs.js";
+import { api } from "./api.js";
 const { useState: useS4, useRef: useR4 } = React;
 
 function Row({ label, desc, children }) {
@@ -34,11 +37,56 @@ function Segmented({ options, value, onChange }) {
   );
 }
 
-function SettingsApp({ settings, update, profile, setProfile }) {
+function AccountPanel({ user, env, onLogout }) {
+  const sync = useVfs(s => s.sync);
+  const [cur, setCur] = useS4(""), [next, setNext] = useS4(""), [busy, setBusy] = useS4(false), [confirm, setConfirm] = useS4(false);
+  if (!user) return <>
+    <h2 style={{ fontSize: 19, fontWeight: 800 }}>Cuenta</h2>
+    <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, maxWidth: 520 }}>Estás usando Sotos como <b>invitado</b>: tus archivos viven solo en este navegador. {env?.server ? "Con una cuenta tus archivos te siguen a cualquier dispositivo y puedes compartirlos con enlaces." : "Este Sotos funciona sin servidor, así que las cuentas no están disponibles aquí."}</div>
+    {env?.server && <div className="wl-btns" style={{ justifyContent: "flex-start" }}><button className="tb-btn primary" onClick={onLogout}><Ic name="login" /> Iniciar sesión o crear cuenta</button></div>}
+    <Row label="Restablecer Sotos" desc="Borra todos los archivos y ajustes de este navegador">
+      <button className="tb-btn danger" onClick={() => setConfirm(true)}><Ic name="restart_alt" /> Restablecer</button>
+    </Row>
+    {confirm && <Modal title="¿Restablecer Sotos?" icon="restart_alt" onClose={() => setConfirm(false)}
+      actions={<><button className="tb-btn" onClick={() => setConfirm(false)}>Cancelar</button><button className="tb-btn danger" onClick={async () => { await vfs.factoryReset(); Object.keys(localStorage).filter(k => k.startsWith("sotos")).forEach(k => localStorage.removeItem(k)); location.reload(); }}>Borrar todo</button></>}>
+      <div className="muted" style={{ fontSize: 13.5 }}>Se borrarán todos los archivos de invitado de este navegador. No se puede deshacer.</div></Modal>}
+  </>;
+  const changePw = async () => {
+    setBusy(true);
+    try { await api("POST", "auth/password", { current: cur, next }); toast("Contraseña cambiada. Las demás sesiones se cerraron.", { icon: "lock" }); setCur(""); setNext(""); }
+    catch (e) { toast(e.message, { error: true }); }
+    setBusy(false);
+  };
+  const pct = sync.quota ? Math.min(100, (sync.used || vfs.usedBytes()) / sync.quota * 100) : 0;
+  return <>
+    <h2 style={{ fontSize: 19, fontWeight: 800 }}>Cuenta</h2>
+    <Row label={user.name} desc={user.email}><button className="tb-btn" onClick={onLogout}><Ic name="logout" /> Cerrar sesión</button></Row>
+    <Row label="Espacio en la nube" desc={sync.quota ? `${fmtSize(vfs.usedBytes())} de ${fmtSize(sync.quota)}` : "—"}>
+      <div style={{ width: 180, height: 8, borderRadius: 5, background: "var(--surface-3)", overflow: "hidden" }}><div style={{ width: Math.max(1, pct) + "%", height: "100%", background: "var(--accent)" }} /></div>
+    </Row>
+    <Row label="Sincronización" desc={{ ok: "Todo está guardado en la nube", syncing: `Enviando ${sync.pending} cambio(s)…`, offline: `Sin conexión · ${sync.pending} cambio(s) esperando`, auth: "La sesión caducó", full: "Sin espacio" }[sync.status] || "—"}>
+      <button className="tb-btn" onClick={() => vfs.flush()}><Ic name="sync" /> Sincronizar ahora</button>
+    </Row>
+    <Row label="Archivos de invitado" desc="Copia a tu cuenta lo que creaste sin iniciar sesión en este navegador">
+      <button className="tb-btn" onClick={async () => { try { const n = await vfs.importGuest(); toast(n ? `${n} archivo(s) copiados a “Archivos de invitado”` : "No hay archivos de invitado en este navegador"); } catch { toast("No hay archivos de invitado en este navegador"); } }}><Ic name="drive_folder_upload" /> Importar</button>
+    </Row>
+    <div style={{ padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
+      <div style={{ fontWeight: 600, fontSize: 14 }}>Cambiar contraseña</div>
+      <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap", alignItems: "flex-end" }}>
+        <label className="field" style={{ maxWidth: 200 }}>Actual<input type="password" autoComplete="current-password" value={cur} onChange={e => setCur(e.target.value)} /></label>
+        <label className="field" style={{ maxWidth: 200 }}>Nueva (mín. 8)<input type="password" autoComplete="new-password" value={next} onChange={e => setNext(e.target.value)} /></label>
+        <button className="tb-btn primary" disabled={busy || !cur || next.length < 8} onClick={changePw}>Cambiar</button>
+      </div>
+    </div>
+  </>;
+}
+
+function SettingsApp({ settings, update, profile, setProfile, user, env, onLogout }) {
   const [tab, setTab] = useS4("perfil");
   const avatarInput = useR4(null);
   const tabs = [
     { id: "perfil", icon: "account_circle", label: "Perfil" },
+    { id: "cuenta", icon: user ? "cloud_done" : "cloud_off", label: "Cuenta" },
     { id: "fondo", icon: "wallpaper", label: "Fondo" },
     { id: "apariencia", icon: "palette", label: "Apariencia" },
     { id: "escritorio", icon: "desktop_windows", label: "Escritorio" },
@@ -57,7 +105,7 @@ function SettingsApp({ settings, update, profile, setProfile }) {
       <div className="app-side" style={{ width: 180, flexBasis: 180 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px 14px" }}>
           <Avatar profile={profile} size={40} />
-          <div><div style={{ fontWeight: 700, fontSize: 13.5 }}>{profile.name}</div><div className="faint" style={{ fontSize: 11.5 }}>Plan Pro</div></div>
+          <div><div style={{ fontWeight: 700, fontSize: 13.5 }}>{profile.name}</div><div className="faint" style={{ fontSize: 11.5 }}>{user ? user.email : "Invitado"}</div></div>
         </div>
         {tabs.map(t => <SideItem key={t.id} icon={t.icon} label={t.label} active={tab === t.id} onClick={() => setTab(t.id)} />)}
       </div>
@@ -84,6 +132,7 @@ function SettingsApp({ settings, update, profile, setProfile }) {
               <input className="sc-input" style={{ margin: 0, width: 220 }} value={profile.name} onChange={e => setProfile({ name: e.target.value })} />
             </Row>
           </>}
+          {tab === "cuenta" && <AccountPanel user={user} env={env} onLogout={onLogout} />}
           {tab === "fondo" && <>
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>Fondo de escritorio</h2>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 12, marginTop: 8 }}>
@@ -138,9 +187,9 @@ function SettingsApp({ settings, update, profile, setProfile }) {
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 0", gap: 12 }}>
               <div className="about-logo"><SotosLogo size={96} animate /></div>
               <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-.02em" }}>Sotos OS</div>
-              <div className="muted" style={{ fontSize: 14 }}>Tu ordenador en la nube · Versión 3.0</div>
+              <div className="muted" style={{ fontSize: 14 }}>Tu ordenador en la nube · Versión 2.0</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, width: 320, marginTop: 8, border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
-                {[["Usuario", profile.name], ["Plan", "Pro"], ["Almacenamiento", "42 / 100 GB"], ["Apps", (APPS.length - 1) + " instaladas"]].map(([k, v], i) => (
+                {[["Usuario", profile.name], ["Modo", user ? "Cuenta en la nube" : "Invitado (este navegador)"], ["Almacenamiento", fmtSize(vfs.usedBytes()) + " usados"], ["Apps", (APPS.length - 1) + " instaladas"]].map(([k, v], i) => (
                   <React.Fragment key={i}>
                     <div className="faint" style={{ padding: "10px 14px", fontSize: 13, borderBottom: "1px solid var(--border)", background: "var(--surface-2)" }}>{k}</div>
                     <div style={{ padding: "10px 14px", fontSize: 13, fontWeight: 600, borderBottom: "1px solid var(--border)" }}>{v}</div>

@@ -197,6 +197,16 @@ export async function pptxToSlides(blob) {
   return slides.length ? slides : [{ bg: "#ffffff", dark: true, title: "Presentación vacía", bullets: [] }];
 }
 
+/* =================== archivos nuevos en blanco =================== */
+export async function blankFile(kind) {
+  switch (kind) {
+    case "docx": return { name: "Documento sin título.docx", blob: await htmlToDocx("<p></p>", "Documento") };
+    case "xlsx": return { name: "Libro sin título.xlsx", blob: await bookToXlsx({ sheets: [{ name: "Hoja1", cells: {}, fmt: {}, widths: {} }] }) };
+    case "pptx": return { name: "Presentación sin título.pptx", blob: await slidesToPptx([{ bg: "linear-gradient(135deg,#2b3a8c,#5b3a9e)", title: "Título de la presentación", sub: "Subtítulo" }], "Presentación") };
+    default: return { name: "Nota sin título.txt", blob: new Blob([""], { type: "text/plain" }) };
+  }
+}
+
 /* =================== PDF mínimo (texto) =================== */
 // Genera un PDF real (Helvetica, WinAnsi) con título y párrafos; usado por los archivos de ejemplo.
 export function textPdf(title, paragraphs) {

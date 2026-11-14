@@ -8,6 +8,6 @@
   "engines": { "node": ">=22" },
   "scripts": {
     "start": "node index.mjs",
-    "dev": "node --watch index.mjs"
+    "dev": "node --watch --env-file-if-exists=.env index.mjs"
   }
 }

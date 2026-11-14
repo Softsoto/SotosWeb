@@ -9,7 +9,9 @@ import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toast
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, DESKTOP } from "./vfs.js";
-import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl } from "./files-ui.jsx";
+import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl, ShareDialog } from "./files-ui.jsx";
+import { LoginScreen } from "./auth-ui.jsx";
+import { api, hasServer } from "./api.js";
 import * as Apps1 from "./apps1.jsx";
 import * as Apps2 from "./apps2.jsx";
 import * as Apps3 from "./apps3.jsx";
@@ -90,8 +92,8 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout,
       <div className="spacer" />
       <div className="tray">
         <div className="ti" title="Buscar" onClick={onSearch}><Ic name="search" /></div>
-        <div className="ti"><Ic name="wifi" /></div>
-        <div className="ti"><Ic name="battery_horiz_075" /></div>
+        <SyncIndicator />
+        <BatteryIndicator />
         <div className="ti" title="Cerrar sesión" onClick={onLogout}><Ic name="power_settings_new" /></div>
         <div className="ti" title="Mi perfil" onClick={() => onApp("settings")} style={{ padding: "0 4px" }}><Avatar profile={profile} size={20} /></div>
         <div className="ti clock" onMouseDown={e => e.stopPropagation()} onClick={() => { setCal(c => !c); setMenu(null); }}>
@@ -101,6 +103,31 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout,
       </div>
     </div>
   );
+}
+
+/* -------------------- indicadores reales de la bandeja -------------------- */
+function SyncIndicator() {
+  const mode = useVfs(s => s.mode), sync = useVfs(s => s.sync);
+  const [online, setOnline] = useSh(navigator.onLine);
+  useEh(() => { const f = () => setOnline(navigator.onLine); window.addEventListener("online", f); window.addEventListener("offline", f); return () => { window.removeEventListener("online", f); window.removeEventListener("offline", f); }; }, []);
+  if (mode !== "cloud") return <div className="ti" title={online ? "Modo invitado: los archivos están solo en este navegador" : "Sin conexión"}><Ic name={online ? "wifi" : "wifi_off"} /></div>;
+  const M = { ok: ["cloud_done", "Todo sincronizado"], syncing: ["cloud_sync", `Sincronizando… (${sync.pending})`], offline: ["cloud_off", `Sin conexión · ${sync.pending} cambio(s) pendiente(s)`],
+    auth: ["cloud_alert", "La sesión caducó: vuelve a iniciar sesión"], full: ["cloud_alert", "Tu espacio en la nube está lleno"], idle: ["cloud", "Nube"] };
+  const [icon, label] = M[sync.status] || M.idle;
+  return <div className={"ti" + (sync.status === "syncing" ? " spin-soft" : "")} title={label + (sync.quota ? ` · ${vfs.fmtSize(sync.used || 0)} de ${vfs.fmtSize(sync.quota)}` : "")}
+    style={{ color: sync.status === "auth" || sync.status === "full" ? "#e2483d" : undefined }}><Ic name={icon} /></div>;
+}
+function BatteryIndicator() {
+  const [b, setB] = useSh(null);
+  useEh(() => {
+    let bat; const upd = () => setB({ level: bat.level, charging: bat.charging });
+    navigator.getBattery?.().then(x => { bat = x; upd(); x.addEventListener("levelchange", upd); x.addEventListener("chargingchange", upd); }).catch(() => {});
+    return () => { if (bat) { bat.removeEventListener("levelchange", upd); bat.removeEventListener("chargingchange", upd); } };
+  }, []);
+  if (!b || (b.level === 1 && b.charging)) return null; // PC de escritorio: no mostrar batería falsa
+  const lv = Math.round(b.level * 100);
+  const icon = b.charging ? "battery_charging_full" : lv > 85 ? "battery_full" : lv > 60 ? "battery_5_bar" : lv > 35 ? "battery_3_bar" : lv > 15 ? "battery_2_bar" : "battery_alert";
+  return <div className="ti" title={`Batería ${lv}%${b.charging ? " · cargando" : ""}`}><Ic name={icon} /></div>;
 }
 
 /* -------------------- Calendar popover -------------------- */
@@ -277,14 +304,14 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
 
 /* -------------------- Boot -------------------- */
 // espera a la animación mínima Y a que el sistema de archivos esté listo
-function BootScreen({ onDone, quick }) {
+function BootScreen({ onDone, quick, task }) {
   const [err, setErr] = useSh(null);
   const [slow, setSlow] = useSh(false);
   useEh(() => {
     let live = true;
     const min = new Promise(r => setTimeout(r, quick ? 300 : 2200));
     const t = setTimeout(() => live && setSlow(true), 3500);
-    Promise.all([min, vfs.init()]).then(() => live && onDone()).catch(e => live && setErr(e.message || String(e)));
+    Promise.all([min, task()]).then(([, v]) => live && onDone(v)).catch(e => live && setErr(e.message || String(e)));
     return () => { live = false; clearTimeout(t); };
   }, []);
   return (
@@ -298,28 +325,6 @@ function BootScreen({ onDone, quick }) {
   );
 }
 
-/* -------------------- Login -------------------- */
-function LoginScreen({ wallpaper, profile, onLogin }) {
-  const [now] = useSh(new Date());
-  useEh(() => { const k = e => e.key === "Enter" && onLogin(); document.addEventListener("keydown", k); return () => document.removeEventListener("keydown", k); }, [onLogin]);
-  const time = now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-  const date = now.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
-  return (
-    <div className="login" style={{ background: wallpaper.css }}>
-      <div className="login-veil" />
-      <div className="login-clock">
-        <div className="lc-time">{time}</div>
-        <div className="lc-date" style={{ textTransform: "capitalize" }}>{date}</div>
-      </div>
-      <div className="login-card">
-        <div className="login-avatar"><Avatar profile={profile} size={96} /></div>
-        <div className="login-user">{profile.name}</div>
-        <button className="login-enter" onClick={onLogin} autoFocus><Ic name="arrow_forward" size={20} /> Entrar</button>
-        <div className="login-guest" style={{ cursor: "default" }}>Tus archivos se guardan en este navegador</div>
-      </div>
-    </div>
-  );
-}
 
 /* -------------------- Spotlight search -------------------- */
 function Spotlight({ onOpen, onApp, onClose }) {
@@ -366,7 +371,11 @@ function OS() {
   useVfs(s => s.rev); // re-render ante cambios de archivos (títulos de ventana)
   const [stage, setStage] = useSh("boot");
   const quickBoot = useRh(!!localStorage.getItem("sotos_in"));
+  const [env, setEnv] = useSh({ server: false, registration: "open" });
+  const user = useVfs(s => s.user);
+  const lastUser = (() => { try { return JSON.parse(localStorage.getItem("sotos_last_user")); } catch { return null; } })();
   const [spot, setSpot] = useSh(false);
+  const [shareId, setShareId] = useSh(null);
   const zTop = useRh(10);
 
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
@@ -438,11 +447,12 @@ function OS() {
     if (app) return openApp(app, { fileId: n.id });
     toast(`No hay una app para abrir “${n.name}”`, { icon: "help", action: { label: "Descargar", run: () => vfs.download(n.id) } });
   }, [openApp]);
-  // nuevos documentos en blanco: archivo vacío en Documentos → la app lo inicializa
+  // nuevos documentos en blanco (archivos Office válidos desde el primer momento)
   const newDoc = useCh(async (kind) => {
     const docs = vfs.resolve("/Documentos") || vfs.getState().root;
-    const name = { docx: "Documento sin título.docx", xlsx: "Libro sin título.xlsx", pptx: "Presentación sin título.pptx", txt: "Nota sin título.txt" }[kind];
-    const id = await vfs.create(docs.id, name, new Blob([]));
+    const { blankFile } = await import("./office.js");
+    const { name, blob } = await blankFile(kind);
+    const id = await vfs.create(docs.id, name, blob);
     openItem(vfs.node(id));
   }, [openItem]);
 
@@ -451,21 +461,46 @@ function OS() {
     if (!wins.length) openApp("files");
     const k = (e) => { if ((e.ctrlKey || e.metaKey) && (e.key === " " || e.key.toLowerCase() === "k")) { e.preventDefault(); setSpot(s => !s); } };
     const o = (e) => openItem(vfs.node(e.detail));
-    document.addEventListener("keydown", k); window.addEventListener("sotos-open", o);
-    return () => { document.removeEventListener("keydown", k); window.removeEventListener("sotos-open", o); };
+    const sh = (e) => setShareId(e.detail);
+    document.addEventListener("keydown", k); window.addEventListener("sotos-open", o); window.addEventListener("sotos-share", sh);
+    return () => { document.removeEventListener("keydown", k); window.removeEventListener("sotos-open", o); window.removeEventListener("sotos-share", sh); };
   }, [stage]);
 
-  const login = useCh(() => { localStorage.setItem("sotos_in", "1"); setStage("desktop"); }, []);
-  const logout = useCh(() => { localStorage.removeItem("sotos_in"); setWins([]); quickBoot.current = false; setStage("login"); }, []);
+  // arranque: ¿hay servidor? ¿hay sesión? → nube; si no, invitado recordado o pantalla de acceso
+  const bootTask = useCh(async () => {
+    const server = await hasServer();
+    let me = null, registration = "open";
+    if (server) { try { const r = await api("GET", "auth/me"); me = r.user; registration = r.registration; } catch {} }
+    setEnv({ server, registration });
+    if (me) { await vfs.init({ user: me }); return "desktop"; }
+    if (quickBoot.current && localStorage.getItem("sotos_mode") !== "cloud") { await vfs.init(); return "desktop"; }
+    return "login";
+  }, []);
+  const enterAccount = useCh(async (u) => {
+    await vfs.init({ user: u });
+    localStorage.setItem("sotos_in", "1"); localStorage.setItem("sotos_mode", "cloud");
+    localStorage.setItem("sotos_last_user", JSON.stringify({ name: u.name, email: u.email }));
+    setProfile({ name: u.name }); setWins([]); setStage("desktop");
+  }, []);
+  const enterGuest = useCh(async () => {
+    await vfs.init();
+    localStorage.setItem("sotos_in", "1"); localStorage.setItem("sotos_mode", "guest");
+    setWins([]); setStage("desktop");
+  }, []);
+  const logout = useCh(async () => {
+    if (vfs.getState().mode === "cloud") { await vfs.flush().catch(() => {}); await api("POST", "auth/logout").catch(() => {}); }
+    localStorage.removeItem("sotos_in"); setWins([]); quickBoot.current = false; setStage("login");
+  }, []);
 
   const running = new Set(wins.map(w => w.appId));
   const top = wins.reduce((a, b) => (!a || b.z > a.z) && !b.minimized ? b : a, null);
   const activeApp = top ? APP_BY_ID[top.appId] : null;
 
-  const storeProps = { openApp, openItem, newDoc, settings, update, profile, setProfile, shortcuts, scApi, dockApi, dockCfg, openSpotlight: () => setSpot(true) };
+  const shownProfile = user ? { ...profile, name: user.name } : profile;
+  const storeProps = { openApp, openItem, newDoc, settings, update, profile: shownProfile, setProfile, shortcuts, scApi, dockApi, dockCfg, user, env, onLogout: logout, openSpotlight: () => setSpot(true) };
 
-  if (stage === "boot") return <BootScreen quick={quickBoot.current} onDone={() => setStage(quickBoot.current ? "desktop" : "login")} />;
-  if (stage === "login") return <LoginScreen wallpaper={wallpaper} profile={profile} onLogin={login} />;
+  if (stage === "boot") return <BootScreen quick={quickBoot.current} task={bootTask} onDone={(s) => setStage(s)} />;
+  if (stage === "login") return <LoginScreen wallpaper={wallpaper} server={env.server} registration={env.registration} lastUser={lastUser} onAccount={enterAccount} onGuest={enterGuest} />;
 
   return (
     <div id="os" data-screen-label="Escritorio">
@@ -480,7 +515,7 @@ function OS() {
         const Comp = APP_COMPONENTS[app.comp];
         const extra = { ...storeProps, ...(win.payload || {}), winId: win.id };
         const fnode = win.payload && win.payload.fileId ? vfs.node(win.payload.fileId) : null;
-        const title = fnode ? fnode.name : (win.payload && win.payload.scName) ? win.payload.scName : app.name;
+        const title = fnode ? fnode.name : win.payload?.sharedNode ? win.payload.sharedNode.name + " · compartido" : (win.payload && win.payload.scName) ? win.payload.scName : app.name;
         return (
           <Win key={win.id} win={{ ...win, title }} app={app} focused={top && top.id === win.id}
             onFocus={() => focus(win.id)} onClose={() => close(win.id)} onMin={() => min(win.id)} onMax={() => max(win.id)}
@@ -489,9 +524,10 @@ function OS() {
           </Win>
         );
       })}
-      <MenuBar activeApp={activeApp} settings={settings} update={update} profile={profile} onApp={openApp} onNew={newDoc} onLogout={logout} onSearch={() => setSpot(true)} />
+      <MenuBar activeApp={activeApp} settings={settings} update={update} profile={shownProfile} onApp={openApp} onNew={newDoc} onLogout={logout} onSearch={() => setSpot(true)} />
       <Dock position={settings.dock} order={dockCfg} running={running} onApp={openApp} dockApi={dockApi} />
       {spot && <Spotlight onOpen={openItem} onApp={openApp} onClose={() => setSpot(false)} />}
+      {shareId && <ShareDialog id={shareId} onClose={() => setShareId(null)} />}
       <Toasts />
     </div>
   );

@@ -6,6 +6,7 @@ import React from "react";
 import * as vfs from "./vfs.js";
 import { fmtSize, fmtDate } from "./vfs.js";
 import { FileGlyph, Modal, toast, Ic } from "./ui.jsx";
+import { api } from "./api.js";
 const { useState, useEffect } = React;
 
 /* URL de objeto para un archivo (miniaturas, reproductores) */
@@ -72,6 +73,7 @@ export function itemMenu(nodes, { canPaste } = {}) {
     { id: "copy", label: "Copiar", icon: "content_copy" },
     { id: "cut", label: "Cortar", icon: "content_cut" },
     { id: "download", label: one && one.type === "folder" ? "Descargar como .zip" : "Descargar", icon: "download" });
+  if (one) items.push({ id: "share", label: "Compartir…", icon: "group_add" });
   if (one && one.type === "img") items.push({ id: "wallpaper", label: "Usar como fondo", icon: "wallpaper" });
   if (one && one.type === "zip" && /\.zip$/i.test(one.name)) items.push({ id: "unzip", label: "Extraer aquí", icon: "unarchive" });
   items.push({ sep: true });
@@ -80,7 +82,7 @@ export function itemMenu(nodes, { canPaste } = {}) {
   return items;
 }
 /** acciones comunes; devuelve true si la manejó */
-export async function runItemAction(id, nodes, { openItem, update, startRename, showProps, parentId }) {
+export async function runItemAction(id, nodes, { openItem, update, startRename, showProps, showShare, parentId }) {
   const ids = nodes.map(n => n.id);
   const one = nodes[0];
   switch (id) {
@@ -93,6 +95,7 @@ export async function runItemAction(id, nodes, { openItem, update, startRename, 
     case "unzip": await unzip(one, parentId); return true;
     case "rename": startRename && startRename(one.id); return true;
     case "props": showProps && showProps(one.id); return true;
+    case "share": showShare ? showShare(one.id) : window.dispatchEvent(new CustomEvent("sotos-share", { detail: one.id })); return true;
     case "trash": {
       const n = vfs.trash(ids);
       if (n) toast(`${n} elemento(s) en la papelera`, { icon: "delete", action: { label: "Deshacer", run: () => vfs.restore(ids) } });
@@ -147,6 +150,66 @@ export function PropertiesModal({ id, onClose }) {
       <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
         <div style={{ width: 70, display: "grid", placeItems: "center" }}><NodeGlyph node={n} size={56} /></div>
         <table className="props-table"><tbody>{rows.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}</tbody></table>
+      </div>
+    </Modal>
+  );
+}
+
+/* ---------------- compartir ---------------- */
+export const shareUrl = (token) => `${location.origin}/#/s/${token}`;
+export function ShareDialog({ id, onClose }) {
+  const n = vfs.useVfs(() => vfs.node(id));
+  const mode = vfs.useVfs(s => s.mode);
+  const [perm, setPerm] = useState("view");
+  const [days, setDays] = useState(0);
+  const [emails, setEmails] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [list, setList] = useState(null);
+  const [made, setMade] = useState(null);
+  const load = () => api("GET", "shares").then(r => setList(r.shares.filter(s => s.nodeId === id))).catch(() => setList([]));
+  useEffect(() => { if (mode === "cloud") load(); }, [id, mode]);
+  if (!n) return null;
+  if (mode !== "cloud") return (
+    <Modal title="Compartir" icon="group_add" onClose={onClose} actions={<button className="tb-btn primary" onClick={onClose}>Entendido</button>}>
+      <div className="muted" style={{ fontSize: 13.5 }}>Estás como invitado: tus archivos solo existen en este navegador. Inicia sesión con una cuenta de Sotos para compartir enlaces.</div>
+    </Modal>
+  );
+  const copy = (t) => { navigator.clipboard?.writeText(shareUrl(t)).then(() => toast("Enlace copiado", { icon: "content_copy" })).catch(() => {}); };
+  const create = async () => {
+    setBusy(true);
+    try {
+      await vfs.flush();
+      const r = await api("POST", "shares", { nodeId: id, perm, days: Number(days) || 0, emails: emails.split(/[\s,;]+/).filter(Boolean) });
+      setMade(r.token); copy(r.token); load();
+      if (r.missing?.length) toast(`Sin cuenta en Sotos: ${r.missing.join(", ")}`, { icon: "person_off" });
+    } catch (e) { toast("No se pudo compartir: " + e.message, { error: true }); }
+    setBusy(false);
+  };
+  const revoke = async (t) => { await api("DELETE", "shares/" + t).catch(e => toast(e.message, { error: true })); load(); if (made === t) setMade(null); };
+  return (
+    <Modal title={`Compartir “${n.name}”`} icon="group_add" onClose={onClose} width={470}
+      actions={<><button className="tb-btn" onClick={onClose}>Cerrar</button><button className="tb-btn primary" disabled={busy} onClick={create}><Ic name="link" /> Crear enlace</button></>}>
+      <div style={{ display: "grid", gap: 10 }}>
+        <div style={{ display: "flex", gap: 10 }}>
+          <label className="field">Permiso<select value={perm} onChange={e => setPerm(e.target.value)}><option value="view">Solo ver y descargar</option><option value="edit">Puede editar (Word/Excel/PowerPoint)</option></select></label>
+          <label className="field" style={{ flex: "0 0 130px" }}>Caduca<select value={days} onChange={e => setDays(e.target.value)}><option value={0}>Nunca</option><option value={1}>En 1 día</option><option value={7}>En 7 días</option><option value={30}>En 30 días</option></select></label>
+        </div>
+        <label className="field">Solo para estas personas (opcional)
+          <input placeholder="correo@ejemplo.com, otro@ejemplo.com" value={emails} onChange={e => setEmails(e.target.value)} /></label>
+        <div className="faint" style={{ fontSize: 12 }}>{emails.trim() ? "Solo esas cuentas de Sotos podrán abrirlo y lo verán en “Compartido conmigo”." : "Cualquiera con el enlace podrá abrirlo, sin cuenta."}</div>
+        {made && <div className="share-link"><span>{shareUrl(made)}</span><button className="tb-btn primary" onClick={() => copy(made)}><Ic name="content_copy" size={16} /> Copiar</button></div>}
+        {list?.length > 0 && <div>
+          <div className="side-label" style={{ padding: "6px 0" }}>Enlaces activos</div>
+          {list.map(s => (
+            <div key={s.token} className="share-row">
+              <Ic name={s.people.length ? "group" : "public"} size={18} />
+              <span style={{ flex: 1, minWidth: 0 }}>{s.perm === "edit" ? "Edición" : "Lectura"} · {s.people.length ? s.people.map(p => p.name).join(", ") : "cualquiera con el enlace"}
+                <span className="faint"> · {s.expires ? "caduca " + fmtDate(s.expires) : "sin caducidad"}</span></span>
+              <button className="tb-btn icon" title="Copiar" onClick={() => copy(s.token)}><Ic name="content_copy" size={16} /></button>
+              <button className="tb-btn icon" title="Dejar de compartir" onClick={() => revoke(s.token)}><Ic name="link_off" size={16} /></button>
+            </div>
+          ))}
+        </div>}
       </div>
     </Modal>
   );

@@ -8,6 +8,7 @@ import * as vfs from "./vfs.js";
 import { useVfs, fmtDate, fmtSize } from "./vfs.js";
 import { NodeGlyph } from "./files-ui.jsx";
 import { useAutosave, SaveBadge } from "./apps1.jsx";
+import { withOnlyOffice } from "./onlyoffice.jsx";
 const { useState: useS5, useRef: useR5, useEffect: useE5 } = React;
 
 /* -------------------- Documentos (.docx real) -------------------- */
@@ -461,4 +462,5 @@ function TrashApp() {
   );
 }
 
-export { DocsApp, SlidesApp, LaunchpadApp, WebViewApp, TrashApp };
+const DocsOffice = withOnlyOffice(DocsApp), SlidesOffice = withOnlyOffice(SlidesApp);
+export { DocsOffice as DocsApp, SlidesOffice as SlidesApp, LaunchpadApp, WebViewApp, TrashApp };

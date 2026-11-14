@@ -992,3 +992,41 @@ button { font-family: inherit; cursor: pointer; }
 .ribbon-body { overflow-x: auto; overflow-y: hidden; scrollbar-width: thin; }
 .ribbon-body > * { flex-shrink: 0; }
 
+
+/* ============================================================
+   v3 — cuentas, compartir, ONLYOFFICE (© 2026 Sebastian Sotomontes)
+   ============================================================ */
+.login-form { display: flex; flex-direction: column; align-items: stretch; gap: 9px; width: 290px; }
+.login-input { height: 42px; border-radius: 10px; border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.18); color: #fff; padding: 0 14px; font: inherit; font-size: 14.5px; outline: none; }
+.login-input::placeholder { color: rgba(255,255,255,.72); }
+.login-input:focus { border-color: #fff; background: rgba(255,255,255,.26); }
+.login-form .login-enter { justify-content: center; margin-top: 6px; }
+.login-enter:disabled { opacity: .7; }
+.login-alt { margin-top: 10px; border: none; background: none; color: #fff; font: inherit; font-weight: 600; font-size: 13.5px; cursor: pointer; }
+.login-alt:hover { text-decoration: underline; }
+.login-sub { color: rgba(255,255,255,.82); font-size: 13px; margin-top: 4px; }
+.login-err { display: flex; align-items: center; gap: 6px; background: rgba(180,48,42,.9); color: #fff; font-size: 13px; padding: 8px 10px; border-radius: 8px; }
+.field select { height: 32px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); padding: 0 8px; font: inherit; }
+.share-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 6px 0; border-top: 1px solid var(--border); }
+.oo-loading { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; gap: 10px; color: #555; font-size: 14px; background: #fff; pointer-events: none; }
+.spin-soft .material-symbols-rounded { animation: pulseSync 1.4s ease-in-out infinite; }
+@keyframes pulseSync { 50% { opacity: .35; } }
+.oo-loading .material-symbols-rounded { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* página pública de compartir */
+body.is-share { overflow: auto; background: #eef0f3; }
+html:has(body.is-share) { overflow: auto; }
+.share-page { min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 0 16px 30px; color: #1b1f24; }
+.sp-top { width: 100%; max-width: 980px; display: flex; align-items: center; padding: 14px 0; }
+.sp-brand { display: flex; align-items: center; gap: 8px; font-weight: 800; font-size: 18px; color: #1b1f24; text-decoration: none; }
+.sp-card { width: 100%; max-width: 980px; background: #fff; border: 1px solid rgba(20,24,33,.1); border-radius: 14px; padding: 20px; box-shadow: 0 1px 2px rgba(16,24,40,.06), 0 8px 24px -12px rgba(16,24,40,.18); }
+.sp-head { display: flex; align-items: center; gap: 14px; padding-bottom: 14px; border-bottom: 1px solid rgba(20,24,33,.08); margin-bottom: 14px; }
+.sp-title { font-size: 19px; font-weight: 800; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sp-preview { display: grid; place-items: center; min-height: 240px; }
+.sp-media { max-width: 100%; max-height: 72vh; border-radius: 8px; }
+.sp-frame { width: 100%; height: 74vh; border: none; border-radius: 8px; background: #525659; }
+.sp-text { width: 100%; max-height: 70vh; overflow: auto; background: #f6f7f9; border-radius: 8px; padding: 14px; font: 13px/1.55 var(--mono); white-space: pre-wrap; user-select: text; }
+.sp-icon { padding: 40px; }
+.sp-foot { margin-top: 18px; font-size: 12px; color: #8a929c; }
+.share-page a.tb-btn { text-decoration: none; }
