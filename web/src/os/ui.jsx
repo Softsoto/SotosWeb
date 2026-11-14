@@ -1,0 +1,159 @@
+/* ============================================================
+   Sotos OS — shared UI + Window manager
+   ============================================================ */
+import React from "react";
+import { TYPE_META } from "./data.jsx";
+const { useState, useRef, useEffect, useCallback } = React;
+
+// App icon tile
+function Tile({ icon, color, size = 46, style }) {
+  return (
+    <div className="tile" style={{ width: size, height: size, background: color, fontSize: size, ...style }}>
+      <span className="material-symbols-rounded">{icon}</span>
+    </div>
+  );
+}
+
+// Material symbol shorthand
+function Ic({ name, size, style, className }) {
+  return <span className={"material-symbols-rounded " + (className||"")} style={{ fontSize: size, ...style }}>{name}</span>;
+}
+
+/* -------------------- Window -------------------- */
+function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResize, children }) {
+  const ref = useRef(null);
+  const drag = useRef(null);
+
+  const startDrag = (e) => {
+    if (win.maximized) return;
+    if (e.target.closest(".traffic")) return;
+    onFocus();
+    drag.current = { type: "move", sx: e.clientX, sy: e.clientY, ox: win.x, oy: win.y };
+    ref.current.classList.add("dragging");
+    window.addEventListener("mousemove", onDrag);
+    window.addEventListener("mouseup", endDrag);
+  };
+  const startResize = (e) => {
+    e.stopPropagation();
+    onFocus();
+    drag.current = { type: "resize", sx: e.clientX, sy: e.clientY, ow: win.w, oh: win.h };
+    ref.current.classList.add("resizing");
+    window.addEventListener("mousemove", onDrag);
+    window.addEventListener("mouseup", endDrag);
+  };
+  const onDrag = useCallback((e) => {
+    const d = drag.current; if (!d) return;
+    if (d.type === "move") {
+      const nx = d.ox + (e.clientX - d.sx);
+      const ny = Math.max(30, d.oy + (e.clientY - d.sy));
+      onMove(nx, ny);
+    } else {
+      const nw = Math.max(360, d.ow + (e.clientX - d.sx));
+      const nh = Math.max(260, d.oh + (e.clientY - d.sy));
+      onResize(nw, nh);
+    }
+  }, [onMove, onResize]);
+  const endDrag = useCallback(() => {
+    drag.current = null;
+    if (ref.current) ref.current.classList.remove("dragging", "resizing");
+    window.removeEventListener("mousemove", onDrag);
+    window.removeEventListener("mouseup", endDrag);
+  }, [onDrag]);
+
+  const style = win.maximized
+    ? { left: 0, top: 30, width: "100%", height: "calc(100% - 30px)", zIndex: win.z }
+    : { left: win.x, top: win.y, width: win.w, height: win.h, zIndex: win.z };
+
+  return (
+    <div
+      ref={ref}
+      className={"window" + (win.maximized ? " maximized" : "") + (win.minimized ? " minimized" : "") + (focused ? " focused" : "")}
+      style={{ ...style, opacity: focused ? 1 : 0.985 }}
+      onMouseDown={onFocus}
+    >
+      <div className="titlebar" onMouseDown={startDrag} onDoubleClick={onMax}>
+        <div className="traffic">
+          <button className="tl-close" onClick={onClose} title="Cerrar"><Ic name="close" /></button>
+          <button className="tl-min" onClick={onMin} title="Minimizar"><Ic name="remove" /></button>
+          <button className="tl-max" onClick={onMax} title="Maximizar"><Ic name={win.maximized ? "close_fullscreen" : "open_in_full"} /></button>
+        </div>
+        <div className="title">{win.title || app.name}</div>
+      </div>
+      <div className="win-body">{children}</div>
+      {!win.maximized && <div className="resize-handle" onMouseDown={startResize} />}
+    </div>
+  );
+}
+
+/* -------------------- Small reusable pieces -------------------- */
+function SideItem({ icon, label, active, onClick, color }) {
+  return (
+    <div className={"side-item" + (active ? " active" : "")} onClick={onClick}>
+      <Ic name={icon} style={color && !active ? { color } : undefined} />
+      <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
+    </div>
+  );
+}
+
+function Toolbar({ children }) {
+  return <div className="app-toolbar">{children}</div>;
+}
+
+function EmptyState({ icon, text }) {
+  return <div className="empty-state"><div><Ic name={icon} /><div style={{ marginTop: 8, fontWeight: 500 }}>{text}</div></div></div>;
+}
+
+/* -------------------- File glyph (realistic icons) -------------------- */
+function FileGlyph({ type, css, src, size = 46 }) {
+  const m = TYPE_META[type] || TYPE_META.txt;
+  if (m.kind === "folder")
+    return <Ic name="folder" style={{ fontSize: size * 1.08, color: m.color, fontVariationSettings: "'FILL' 1" }} />;
+  if (m.kind === "icon")
+    return <Ic name={m.icon} style={{ fontSize: size, color: m.color }} />;
+  if (m.kind === "img")
+    return src
+      ? <img className="img-glyph" src={src} alt="" style={{ width: size * 1.15, height: size * 0.82, objectFit: "cover" }} />
+      : <div className="img-glyph" style={{ width: size * 1.15, height: size * 0.82, background: css || "linear-gradient(160deg,#cdd6e0,#6b7d93)" }} />;
+  // office / pdf -> page with badge
+  return (
+    <div className="doc-glyph" style={{ width: size * 0.82, height: size }}>
+      <div className="doc-badge" style={{ background: m.color, fontSize: m.letter.length > 1 ? size * 0.2 : size * 0.3 }}>{m.letter}</div>
+    </div>
+  );
+}
+
+/* -------------------- Context menu -------------------- */
+function ContextMenu({ x, y, items, onSelect, onClose }) {
+  const ref = useRef(null);
+  useEffect(() => {
+    const close = (e) => { if (!ref.current || !ref.current.contains(e.target)) onClose(); };
+    const esc = (e) => e.key === "Escape" && onClose();
+    setTimeout(() => { document.addEventListener("mousedown", close); document.addEventListener("contextmenu", close); }, 0);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("mousedown", close); document.removeEventListener("contextmenu", close); document.removeEventListener("keydown", esc); };
+  }, [onClose]);
+  // keep on screen
+  const px = Math.min(x, window.innerWidth - 220);
+  const py = Math.min(y, window.innerHeight - items.length * 30 - 20);
+  return (
+    <div ref={ref} className="ctx-menu" style={{ left: px, top: py }} onContextMenu={e => e.preventDefault()}>
+      {items.map((it, i) => it.sep
+        ? <div key={i} className="ctx-sep" />
+        : <button key={it.id} className={"ctx-item" + (it.danger ? " danger" : "")}
+            onClick={() => { onSelect(it.id); onClose(); }}>
+            <Ic name={it.icon} size={18} /><span>{it.label}</span>
+          </button>)}
+    </div>
+  );
+}
+
+/* -------------------- Avatar -------------------- */
+function Avatar({ profile, size = 40 }) {
+  if (profile && profile.avatar)
+    return <img src={profile.avatar} alt="" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover" }} />;
+  const initials = (profile && profile.name ? profile.name : "Invitado").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
+  return <div style={{ width: size, height: size, borderRadius: "50%", background: "var(--accent)", color: "var(--accent-ink)",
+    display: "grid", placeItems: "center", fontWeight: 800, fontSize: size * 0.4 }}>{initials}</div>;
+}
+
+export { Tile, Ic, Win, SideItem, Toolbar, EmptyState, FileGlyph, ContextMenu, Avatar };
