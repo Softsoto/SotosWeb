@@ -8,6 +8,7 @@ import { Tile, Ic, SideItem, Avatar, Modal, toast } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize } from "./vfs.js";
 import { api } from "./api.js";
+import { WALLS, wallUrl } from "./wallpapers.js";
 const { useState: useS4, useRef: useR4 } = React;
 
 function Row({ label, desc, children }) {
@@ -34,6 +35,31 @@ function Segmented({ options, value, onChange }) {
         </button>
       ))}
     </div>
+  );
+}
+
+function LanInfo() {
+  const [lan, setLan] = useS4([]);
+  React.useEffect(() => { fetch("/api/info").then(r => r.ok ? r.json() : null).then(d => d && setLan(d.lan || [])).catch(() => {}); }, []);
+  if (!lan.length) return null;
+  return (
+    <div className="lan-box">
+      <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Ic name="devices" size={18} /> Entrar desde otros equipos de tu red</div>
+      <div className="muted" style={{ fontSize: 12.5, margin: "4px 0 8px" }}>Abre una de estas direcciones en el navegador del celular o de otro computador conectado al mismo Wi-Fi:</div>
+      {lan.map(u => <div key={u} className="lan-url"><code>{u}</code><button className="tb-btn icon" title="Copiar" onClick={() => navigator.clipboard?.writeText(u).then(() => toast("Dirección copiada"))}><Ic name="content_copy" size={16} /></button></div>)}
+    </div>
+  );
+}
+
+function WallThumb({ w, on, onPick }) {
+  const [src, setSrc] = useS4(null);
+  React.useEffect(() => { let live = true; wallUrl(w.id, 480, 300).then(u => live && setSrc(u)); return () => { live = false; }; }, [w.id]);
+  return (
+    <button className={"wall-thumb" + (on ? " on" : "")} onClick={onPick} title={w.hint}>
+      <span className="wall-img" style={{ backgroundImage: src ? `url("${src}")` : undefined }} />
+      <span className="wall-name">{w.name}{on && <Ic name="check" size={15} />}</span>
+      <span className="wall-hint">{w.hint}</span>
+    </button>
   );
 }
 
@@ -135,17 +161,11 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
           {tab === "cuenta" && <AccountPanel user={user} env={env} onLogout={onLogout} />}
           {tab === "fondo" && <>
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>Fondo de escritorio</h2>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(150px,1fr))", gap: 12, marginTop: 8 }}>
-              {WALLPAPERS.map(w => (
-                <div key={w.id} onClick={() => update("wallpaper", w.id)}
-                  style={{ aspectRatio: "16/10", borderRadius: 12, background: w.css, cursor: "pointer", position: "relative",
-                    boxShadow: "var(--shadow-card)", outline: settings.wallpaper === w.id ? "3px solid var(--accent)" : "none", outlineOffset: 2 }}>
-                  {settings.wallpaper === w.id && <div style={{ position: "absolute", top: 8, right: 8, width: 22, height: 22, borderRadius: "50%",
-                    background: "var(--accent)", color: "#fff", display: "grid", placeItems: "center" }}><Ic name="check" size={15} /></div>}
-                  <div style={{ position: "absolute", bottom: 8, left: 10, color: "#fff", fontSize: 12.5, fontWeight: 600, textShadow: "0 1px 3px rgba(0,0,0,.5)" }}>{w.name}</div>
-                </div>
-              ))}
+            <div className="muted" style={{ fontSize: 13, marginTop: -4 }}>Ilustraciones de Sotos inspiradas en paisajes de Colombia, dibujadas a la resolución de tu pantalla. También puedes usar una foto: clic derecho sobre una imagen → <b>Usar como fondo</b>.</div>
+            <div className="wall-grid">
+              {WALLS.map(w => <WallThumb key={w.id} w={w} on={settings.wallpaper === w.id} onPick={() => update("wallpaper", w.id)} />)}
             </div>
+            {String(settings.wallpaper).startsWith("file:") && <div className="faint" style={{ fontSize: 12.5, marginTop: 12 }}><Ic name="image" size={15} /> Ahora usas una imagen propia como fondo.</div>}
           </>}
           {tab === "apariencia" && <>
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>Apariencia</h2>
@@ -196,6 +216,7 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
                   </React.Fragment>
                 ))}
               </div>
+              <LanInfo />
               <div className="about-credit">
                 <div style={{ fontWeight: 700 }}>Diseñado por Sebastián Sotomontes</div>
                 <div className="muted" style={{ marginTop: 6, lineHeight: 1.6 }}>Dedicado a mis 3 gatas <b>Luna</b>, <b>Lumia</b> y <b>Lyra</b><br />y a mi husky <b>Hashy</b> 🐾</div>

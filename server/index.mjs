@@ -10,6 +10,7 @@
      cualquier otro host -> API + escritorio compilado (web/dist)
    ============================================================ */
 import http from "node:http";
+import os from "node:os";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +24,24 @@ import { handleOO } from "./oo.mjs";
 const PORT = Number(process.env.PORT || 8787);
 const PROD = process.env.NODE_ENV === "production";
 const PX_HOST = (process.env.PX_HOST || "").toLowerCase();
+const PX_PORT = Number(process.env.PX_PORT || 0);          // modo IP: proxy en un segundo puerto
+const PX_PUBLIC = (process.env.PX_PUBLIC || "").replace(/\/$/, ""); // modo dominio: https://px.midominio
+const HOST = process.env.HOST || (PROD ? "0.0.0.0" : "127.0.0.1"); // en desarrollo, solo este equipo
+
+/* origen del proxy que verá el navegador (se inyecta en la página: una sola compilación sirve para todos los modos) */
+function pxOriginFor(req) {
+  if (PX_PUBLIC) return PX_PUBLIC;
+  const host = String(req.headers.host || "localhost").split(":")[0];
+  const proto = req.headers["x-forwarded-proto"] === "https" ? "https" : "http";
+  if (PX_PORT) return `${proto}://${host}:${PX_PORT}`;
+  if (PX_HOST) return `https://${PX_HOST}`;
+  return `${proto}://${host}:${PORT}`;
+}
+function lanAddresses() {
+  const out = [];
+  for (const list of Object.values(os.networkInterfaces())) for (const a of list || []) if (a.family === "IPv4" && !a.internal && !a.address.startsWith("169.254.")) out.push(a.address);
+  return out;
+}
 const WEB_DIR = path.resolve(process.env.SOTOS_WEB || fileURLToPath(new URL("../web/dist", import.meta.url)));
 
 const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8", ".css": "text/css; charset=utf-8", ".json": "application/json",
@@ -36,7 +55,13 @@ function serveStatic(req, res) {
   if (!fs.existsSync(file) || fs.statSync(file).isDirectory()) file = path.join(WEB_DIR, "index.html"); // SPA
   if (!fs.existsSync(file)) { res.writeHead(404, { "content-type": "text/plain" }); return res.end("Compila primero el escritorio: cd web && npm run build"); }
   const ext = path.extname(file);
-  res.writeHead(200, { "content-type": MIME[ext] || "application/octet-stream", "cache-control": rel.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache", ...SEC });
+  const headers = { "content-type": MIME[ext] || "application/octet-stream", "cache-control": rel.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache", ...SEC };
+  if (path.basename(file) === "index.html") {
+    const cfg = JSON.stringify({ pxOrigin: pxOriginFor(req) }).replace(/</g, "\\u003c");
+    const html = fs.readFileSync(file, "utf8").replace("<head>", `<head><script>window.__SOTOS__=${cfg}</script>`);
+    res.writeHead(200, headers); return res.end(html);
+  }
+  res.writeHead(200, headers);
   fs.createReadStream(file).pipe(res);
 }
 
@@ -48,6 +73,8 @@ async function handleApi(req, res) {
   if (!["GET", "HEAD"].includes(req.method) && !signedByOO && req.headers["x-sotos"] !== "1") return json(res, 403, { error: "Petición no permitida" });
   switch (area) {
     case "health": return json(res, 200, { ok: true, name: "Sotos OS", by: "Sebastian Sotomontes" });
+    case "info": // direcciones para entrar desde otros equipos de la red (solo en el modo "este equipo")
+      return json(res, 200, { port: PORT, lan: process.env.SOTOS_SHOW_LAN === "1" ? lanAddresses().map(ip => `http://${ip}:${PORT}`) : [] });
     case "auth": return handleAuth(req, res, rest[0]);
     case "fs": return handleFs(req, res, rest);
     case "shares": return handleShares(req, res, rest);
@@ -73,4 +100,16 @@ const server = http.createServer(async (req, res) => {
   }
 });
 server.requestTimeout = 0; // subidas grandes
-server.listen(PORT, () => console.log(`[sotos] servidor en http://localhost:${PORT}${PROD ? " (producción)" : ""}`));
+server.listen(PORT, HOST, () => {
+  console.log(`[sotos] escritorio en http://localhost:${PORT}${PROD ? " (producción)" : ""}`);
+  if (process.env.SOTOS_SHOW_LAN === "1") lanAddresses().forEach(ip => console.log(`[sotos] desde otros equipos: http://${ip}:${PORT}`));
+});
+
+// proxy del Navegador en un puerto propio (origen aislado sin necesitar un dominio)
+if (PX_PORT) {
+  const px = http.createServer(async (req, res) => {
+    try { await handleProxy(req, res); }
+    catch (e) { console.error("[px]", e); if (!res.headersSent) res.writeHead(500); res.end(); }
+  });
+  px.listen(PX_PORT, HOST, () => console.log(`[sotos] proxy del navegador en el puerto ${PX_PORT}`));
+}

@@ -140,6 +140,16 @@ document.addEventListener("submit",function(e){fix(e.target)},true);
 function real(){try{var p=location.pathname;if(p.indexOf(P)===0)return p.slice(P.length)+location.search+location.hash}catch(e){}return B}
 function tell(){try{parent.postMessage({type:"sotos-px",url:real(),title:document.title},"*")}catch(e){}}
 addEventListener("DOMContentLoaded",tell);addEventListener("load",tell);addEventListener("hashchange",tell);
+function realOf(u){try{var a=new URL(u,location.href);var i=a.href.indexOf(P);return i>=0&&a.origin===location.origin?a.href.slice(i+P.length):a.href}catch(e){return u}}
+var lastEd=null;
+document.addEventListener("contextmenu",function(e){if(e.shiftKey)return;e.preventDefault();var t=e.target,c=function(s){return t.closest?t.closest(s):null};
+var a=c("a[href]"),im=c("img"),ed=c('input:not([type=checkbox]):not([type=radio]):not([type=submit]):not([type=button]),textarea,[contenteditable="true"],[contenteditable=""]');lastEd=ed;
+var sel=String(getSelection()||"");if(ed&&ed.matches("input,textarea")){try{sel=ed.value.slice(ed.selectionStart,ed.selectionEnd)}catch(x){}}
+parent.postMessage({type:"sotos-ctx",x:e.clientX,y:e.clientY,link:a&&/^https?:/i.test(realOf(a.href))?realOf(a.href):null,img:im?realOf(im.currentSrc||im.src):null,text:sel.slice(0,4000),editable:!!ed},"*")},true);
+addEventListener("message",function(e){if(e.source!==parent||!e.data||e.data.type!=="sotos-cmd")return;var d=e.data;
+if(lastEd&&lastEd.focus)lastEd.focus();
+if(d.cmd==="selectAll"&&lastEd&&lastEd.select){lastEd.select();return}
+if(["insertText","delete","selectAll","undo","redo","copy"].indexOf(d.cmd)>=0)document.execCommand(d.cmd,false,d.text==null?null:d.text)});
 new MutationObserver(tell).observe(document.querySelector("title")||document.documentElement,{childList:true,subtree:!document.querySelector("title")?false:true});
 })();`;
 }
@@ -150,11 +160,14 @@ const STRIP_RES = new Set(["x-frame-options", "content-security-policy", "conten
   "content-encoding", "content-length", "transfer-encoding", "connection", "set-cookie", "referrer-policy",
   "permissions-policy", "report-to", "nel", "alt-svc", "clear-site-data", "public-key-pins", "expect-ct", "keep-alive"]);
 
+// HTTPS (o localhost, que el navegador trata como seguro): cookie de terceros permitida en el iframe.
+// Por IP en HTTP: Lax, válido porque escritorio y proxy comparten host (mismo sitio).
+const ckAttrs = (req) => { const host = String(req.headers.host || '').split(':')[0]; const https = !!req.socket.encrypted || (process.env.TRUST_PROXY && req.headers['x-forwarded-proto'] === 'https'); return https || host === 'localhost' || host === '127.0.0.1' ? 'SameSite=None; Secure' : 'SameSite=Lax'; };
 function sidOf(req, res) {
   const m = /(?:^|;\s*)sotos_px_sid=([a-f0-9]{32})/.exec(req.headers.cookie || "");
   if (m) return m[1];
   const sid = crypto.randomBytes(16).toString("hex");
-  res.appendHeader("set-cookie", `sotos_px_sid=${sid}; Path=/; HttpOnly; SameSite=None; Secure`);
+  res.appendHeader("set-cookie", `sotos_px_sid=${sid}; Path=/; HttpOnly; ${ckAttrs(req)}`);
   return sid;
 }
 function lastOriginOf(req) {
@@ -240,7 +253,7 @@ export async function handleProxy(req, res) {
     text = isHtml ? rewriteHtml(text, final) : rewriteCss(text, final);
     out["content-type"] = (isHtml ? "text/html" : "text/css") + "; charset=utf-8";
     out["cache-control"] = "no-store";
-    if (isHtml) res.appendHeader("set-cookie", `sotos_px_origin=${encodeURIComponent(new URL(final).origin)}; Path=/; SameSite=None; Secure`);
+    if (isHtml) res.appendHeader("set-cookie", `sotos_px_origin=${encodeURIComponent(new URL(final).origin)}; Path=/; ${ckAttrs(req)}`);
     res.writeHead(upstream.status, out);
     return res.end(req.method === "HEAD" ? undefined : text);
   }

@@ -1030,3 +1030,132 @@ html:has(body.is-share) { overflow: auto; }
 .sp-icon { padding: 40px; }
 .sp-foot { margin-top: 18px; font-size: 12px; color: #8a929c; }
 .share-page a.tb-btn { text-decoration: none; }
+
+/* ============================================================
+   IDENTIDAD SOTOS — "serigrafía": papel, tinta y color plano
+   © 2026 Sebastian Sotomontes
+   ============================================================ */
+:root { --ui: "Onest", system-ui, sans-serif; --brand: "Space Grotesk", "Onest", sans-serif; --wall-fallback: #e8a873; }
+[data-theme="light"] {
+  --surface: #fbf8f2; --surface-2: #f3eee4; --surface-3: #e7dfd0;
+  --text: #1f1d1a; --text-dim: #5d574d; --text-faint: #958d80;
+  --border: rgba(31,29,26,.12); --border-strong: rgba(31,29,26,.24);
+  --bar: #fbf8f2; --bar-text: #1f1d1a; --dock: #fbf8f2; --hover: rgba(31,29,26,.06);
+  --ink: #1f1d1a; --ink-line: rgba(31,29,26,.62); --print-shadow: rgba(31,29,26,.16);
+  --shadow-card: 0 1px 0 rgba(31,29,26,.06), 2px 2px 0 rgba(31,29,26,.07);
+}
+[data-theme="dark"] {
+  --surface: #23211e; --surface-2: #1b1a17; --surface-3: #2e2b27;
+  --text: #f1ebe0; --text-dim: #b7ae9f; --text-faint: #80786b;
+  --border: rgba(241,235,224,.1); --border-strong: rgba(241,235,224,.2);
+  --bar: #23211e; --bar-text: #f1ebe0; --dock: #23211e; --hover: rgba(241,235,224,.07);
+  --ink: #f1ebe0; --ink-line: rgba(241,235,224,.38); --print-shadow: rgba(0,0,0,.5);
+  --shadow-card: 0 1px 0 rgba(0,0,0,.3), 2px 2px 0 rgba(0,0,0,.25);
+  --wall-fallback: #1c1b19;
+}
+body { background: var(--wall-fallback); }
+
+/* barra superior: papel sólido, sin vidrio */
+.menubar { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--bar); border-bottom: 1.5px solid var(--ink-line); height: 30px; }
+.menubar .brand { font-family: var(--brand); font-weight: 700; font-size: 14px; letter-spacing: -.02em; text-transform: lowercase; }
+.menubar .menu-item { border-radius: 4px; }
+.menubar .menu-item.open, .menubar .menu-item:hover { background: var(--ink); color: var(--surface); opacity: 1; }
+.menubar .tray .ti { border-radius: 4px; }
+
+/* dock: bandeja de papel con borde de tinta y sombra impresa */
+.dock { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--dock); border: 1.5px solid var(--ink-line); box-shadow: 4px 4px 0 var(--print-shadow); gap: 6px; padding: 7px; }
+.dock.bottom, .dock.left { border-radius: 12px; }
+.dock.bottom .dock-item:hover { transform: translateY(-5px); }
+.dock.left .dock-item:hover { transform: translateX(5px); }
+.dock-item .run-dot { width: 14px; height: 3px; border-radius: 2px; background: var(--accent); opacity: 1; }
+.dock.left .run-dot { width: 3px; height: 14px; }
+.dock-tip { background: var(--ink); color: var(--surface); border-radius: 4px; font-weight: 600; }
+
+/* iconos de app: color plano con contorno de tinta */
+.tile { border-radius: 24%; box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.28), 2px 2px 0 rgba(31,29,26,.18); }
+.tile::after { content: ""; position: absolute; inset: 0; border-radius: inherit; background: linear-gradient(180deg, rgba(255,255,255,.14), transparent 55%); pointer-events: none; }
+
+/* ventanas: barra de título con franja del color de la app y controles propios */
+.window { transition: box-shadow .15s; }
+.window:not(.focused) { --print-shadow: rgba(31,29,26,.07); }
+.window:not(.focused) .titlebar { color: var(--text-faint); }
+.titlebar { height: 38px; flex: 0 0 38px; padding: 0 4px 0 10px; gap: 8px; background: var(--surface-2); border-bottom: 1.5px solid var(--ink-line); position: relative; }
+.titlebar::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 3px; background: var(--app-color, var(--accent)); }
+.window:not(.focused) .titlebar::before { opacity: .35; }
+.win-app { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; background: var(--app-color, var(--accent)); color: #fff; box-shadow: inset 0 0 0 1px rgba(0,0,0,.25); flex: 0 0 22px; }
+.titlebar .title { text-align: left; padding: 0; font-weight: 700; font-size: 13px; letter-spacing: -.005em; color: inherit; }
+.window.focused .titlebar .title { color: var(--text); }
+.win-ctrls { display: flex; gap: 2px; }
+.win-ctrls button { width: 34px; height: 28px; border: none; background: none; border-radius: 5px; color: var(--text-dim); display: grid; place-items: center; }
+.win-ctrls button:hover { background: var(--hover); color: var(--text); }
+.win-ctrls button.close:hover { background: #c4532f; color: #fff; }
+.window.maximized { border-radius: 0; box-shadow: none; border-left: 0; border-right: 0; }
+
+/* menús contextuales y desplegables: hoja de papel impresa */
+.ctx-menu, .menu-drop { background: var(--surface); border: 1.5px solid var(--ink-line); border-radius: 8px; box-shadow: 4px 4px 0 var(--print-shadow); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.ctx-item { border-radius: 4px; }
+.ctx-item:hover { background: var(--ink); color: var(--surface); }
+.ctx-item:hover .material-symbols-rounded { color: var(--surface); }
+.ctx-sep { background: var(--border-strong); }
+
+/* widgets: tarjetas de papel */
+.widget { -webkit-backdrop-filter: none !important; backdrop-filter: none !important; background: var(--surface) !important; border: 1.5px solid var(--ink-line) !important; border-radius: 10px !important; box-shadow: 4px 4px 0 var(--print-shadow) !important; }
+.desk-icon .lbl { text-shadow: 0 1px 2px rgba(0,0,0,.7), 0 0 6px rgba(0,0,0,.35); font-weight: 600; }
+.desk-icon:hover { background: rgba(255,255,255,.18); }
+
+/* búsqueda, avisos y modales */
+.spot-overlay { background: rgba(31,29,26,.35); }
+.spot { border: 1.5px solid var(--ink-line); border-radius: 12px; box-shadow: 6px 6px 0 var(--print-shadow); }
+.toast { background: var(--ink); color: var(--surface); border-radius: 8px; box-shadow: 3px 3px 0 rgba(0,0,0,.25); }
+.toast button { background: rgba(255,255,255,.14); color: inherit; }
+[data-theme="dark"] .toast button { background: rgba(0,0,0,.12); }
+.share-card { border: 1.5px solid var(--ink-line); border-radius: 12px; box-shadow: 6px 6px 0 var(--print-shadow); }
+.share-modal { background: rgba(31,29,26,.38); }
+.tb-btn { border-radius: 6px; }
+.tb-btn.primary { box-shadow: inset 0 0 0 1px rgba(0,0,0,.2); }
+.search-box { border-radius: 6px; }
+
+/* Ajustes > Fondo */
+.wall-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; margin-top: 14px; }
+.wall-thumb { display: flex; flex-direction: column; align-items: stretch; text-align: left; gap: 4px; padding: 0; border: none; background: none; color: var(--text); cursor: pointer; font: inherit; }
+.wall-img { aspect-ratio: 16/10; border-radius: 8px; background: var(--surface-3) center/cover no-repeat; border: 1.5px solid var(--ink-line); box-shadow: 3px 3px 0 var(--print-shadow); transition: transform .12s; }
+.wall-thumb:hover .wall-img { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--print-shadow); }
+.wall-thumb.on .wall-img { outline: 3px solid var(--accent); outline-offset: 3px; }
+.wall-name { font-weight: 700; font-size: 13.5px; display: flex; align-items: center; gap: 5px; margin-top: 4px; }
+.wall-hint { font-size: 12px; color: var(--text-faint); }
+
+/* arranque: hoja de papel con la marca */
+.boot { background: #efe7d8 !important; }
+.boot::after { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 38%; background:
+  linear-gradient(transparent, transparent), radial-gradient(120% 140% at 50% 140%, #c4532f 0 34%, transparent 34.2%), radial-gradient(130% 150% at 20% 160%, #4f7a3a 0 38%, transparent 38.2%); opacity: .95; pointer-events: none; }
+.boot-logo { filter: drop-shadow(4px 4px 0 rgba(31,29,26,.18)); z-index: 1; }
+.boot-name { color: #1f1d1a; font-family: var(--brand); text-transform: lowercase; font-size: 40px; letter-spacing: -.04em; z-index: 1; }
+.boot-bar { background: rgba(31,29,26,.12); width: 200px; height: 6px; border-radius: 0; border: 1.5px solid #1f1d1a; z-index: 1; }
+.boot-fill { background: #1f1d1a; border-radius: 0; }
+.boot-tag { color: #5d574d; letter-spacing: .12em; text-transform: uppercase; font-size: 11.5px; font-weight: 600; z-index: 1; }
+.boot .tb-btn { z-index: 1; }
+
+/* acceso: el fondo sin desenfoque y una ficha de papel */
+.login-veil { -webkit-backdrop-filter: none; backdrop-filter: none; background: linear-gradient(180deg, rgba(31,29,26,.1), rgba(31,29,26,.35)); }
+.login-clock { text-shadow: 0 2px 0 rgba(31,29,26,.35); }
+.login-clock .lc-time { font-family: var(--brand); letter-spacing: -.05em; }
+.login-card { background: #fbf8f2; color: #1f1d1a; border: 1.5px solid rgba(31,29,26,.62); border-radius: 12px; box-shadow: 7px 7px 0 rgba(31,29,26,.28); padding: 26px 30px 22px; min-width: 330px; }
+.login-user { color: #1f1d1a; text-shadow: none; font-family: var(--brand); letter-spacing: -.02em; }
+.login-sub { color: #5d574d; }
+.login-input { background: #f3eee4; color: #1f1d1a; border: 1.5px solid rgba(31,29,26,.3); border-radius: 7px; }
+.login-input::placeholder { color: #958d80; }
+.login-input:focus { border-color: #1f1d1a; background: #fff; }
+.login-enter { background: #1f1d1a; color: #fbf8f2; border-radius: 7px; box-shadow: 3px 3px 0 #c4532f; }
+.login-enter:hover, .login-enter:focus-visible { background: #000; color: #fff; }
+.login-alt { color: #1f1d1a; }
+.login-guest { color: #5d574d; }
+.login-guest:hover { color: #1f1d1a; }
+.login-avatar { box-shadow: none; }
+
+/* acerca de */
+.about-credit { border: 1.5px solid var(--ink-line); box-shadow: 4px 4px 0 var(--print-shadow); background: var(--surface-2); }
+
+.lan-box { width: 360px; max-width: 100%; margin-top: 10px; padding: 14px 16px; border: 1.5px solid var(--ink-line); border-radius: 10px; box-shadow: 4px 4px 0 var(--print-shadow); background: var(--surface); font-size: 13.5px; }
+.lan-url { display: flex; align-items: center; gap: 8px; padding: 3px 0; }
+.lan-url code { flex: 1; font: 600 13px var(--mono); color: var(--accent); user-select: text; }
+

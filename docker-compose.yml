@@ -26,13 +26,11 @@ services:
     depends_on: [sotos, onlyoffice]
 
   sotos:
-    build:
-      context: .
-      args:
-        VITE_PX_ORIGIN: https://${PX_DOMAIN}
+    build: .
     restart: unless-stopped
     environment:
       PX_HOST: ${PX_DOMAIN}
+      PX_PUBLIC: https://${PX_DOMAIN}
       TRUST_PROXY: "1"
       OO_URL: https://${OFFICE_DOMAIN}
       OO_INTERNAL: http://onlyoffice

@@ -35,7 +35,7 @@ const ROUTE = { docx:"docs", txt:"editor", code:"editor", xlsx:"sheets", csv:"sh
 
 // file-type visual metadata (FileGlyph)
 const TYPE_META = {
-  folder: { kind: "folder", color: "#54a0ff" },
+  folder: { kind: "folder", color: "#d9a441" },
   docx:   { kind: "office", letter: "W", color: "#2b579a" },
   doc:    { kind: "office", letter: "W", color: "#2b579a" },
   xlsx:   { kind: "office", letter: "X", color: "#217346" },
@@ -103,7 +103,8 @@ const WALLPAPERS = [
 ];
 
 // ---- Accent presets ----
-const ACCENTS = ["#2f6fed", "#34c759", "#8e5cf6", "#ff375f", "#ff8a00", "#0aa5b5"];
+// paleta de identidad: arcilla, musgo, cielo, mostaza, ciruela, laguna
+const ACCENTS = ["#c4532f", "#4f7a3a", "#2f5d8a", "#c9902a", "#7a3e6b", "#1f7a78"];
 
 // ---- Mock filesystem (Files app) ----
 const FS = {

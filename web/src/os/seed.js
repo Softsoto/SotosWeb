@@ -4,6 +4,7 @@
    Se ejecuta una sola vez, en el primer arranque.
    ============================================================ */
 import { htmlToDocx, bookToXlsx, slidesToPptx, textPdf } from "./office.js";
+import { renderWall } from "./wallpapers.js";
 
 const AUDIO = (i) => `https://www.soundhelix.com/examples/mp3/SoundHelix-Song-${i}.mp3`;
 const VID = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/";
@@ -113,28 +114,6 @@ const SLIDES = [
   { bg: "linear-gradient(135deg,#0f7f6b,#2bd4c4)", title: "Próximos pasos", sub: "Roadmap del trimestre", kicker: "Q3 2026" },
 ];
 
-// "fotos" dibujadas: degradado de cielo + capas de montañas / agua
-const PICS = [
-  { name: "Playa.jpg", sky: ["#9be4ff", "#3ba0e0"], ground: ["#f6d98a", "#e8c46c"], sun: "#fff3b0", kind: "sea" },
-  { name: "Montaña.jpg", sky: ["#cdd6e0", "#8798ad"], ground: ["#4b5b70", "#2d3a4d"], sun: "#ffffff", kind: "peaks" },
-  { name: "Ciudad.jpg", sky: ["#ffb88c", "#c45a8a"], ground: ["#3a2b5e", "#21183a"], sun: "#ffd29a", kind: "city" },
-  { name: "Glaciar.jpg", sky: ["#e4f6fa", "#8fd0de"], ground: ["#4fb0c4", "#1e5e74"], sun: "#ffffff", kind: "peaks" },
-  { name: "Bosque.jpg", sky: ["#d9f2c9", "#8cc49a"], ground: ["#3f9e6c", "#1c4a3a"], sun: "#fffbe0", kind: "hills" },
-  { name: "Noche.jpg", sky: ["#3a4a78", "#0a0e1f"], ground: ["#1d2347", "#0a0e1f"], sun: "#f4f1d0", kind: "hills", stars: true },
-];
-function paint(p) {
-  const W = 1600, H = 1000, c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d");
-  let rnd = [...p.name].reduce((s, ch) => s * 31 + ch.charCodeAt(0), 7) >>> 0; const rand = () => ((rnd = (rnd * 1664525 + 1013904223) >>> 0) / 4294967296);
-  const sky = g.createLinearGradient(0, 0, 0, H * 0.7); sky.addColorStop(0, p.sky[0]); sky.addColorStop(1, p.sky[1]); g.fillStyle = sky; g.fillRect(0, 0, W, H);
-  if (p.stars) for (let i = 0; i < 260; i++) { g.fillStyle = `rgba(255,255,255,${0.3 + rand() * 0.7})`; g.fillRect(rand() * W, rand() * H * 0.6, 2, 2); }
-  g.fillStyle = p.sun; g.globalAlpha = 0.9; g.beginPath(); g.arc(W * 0.72, H * 0.28, 70, 0, Math.PI * 2); g.fill(); g.globalAlpha = 1;
-  const layer = (base, amp, col, jag) => { g.fillStyle = col; g.beginPath(); g.moveTo(0, H); for (let x = 0; x <= W; x += jag) g.lineTo(x, base - rand() * amp); g.lineTo(W, H); g.fill(); };
-  if (p.kind === "sea") { const s = g.createLinearGradient(0, H * 0.55, 0, H * 0.75); s.addColorStop(0, "#2e8fd0"); s.addColorStop(1, "#1b6aa8"); g.fillStyle = s; g.fillRect(0, H * 0.55, W, H * 0.2); g.fillStyle = p.ground[0]; g.fillRect(0, H * 0.75, W, H * 0.25); }
-  else if (p.kind === "city") { layer(H * 0.7, 30, p.ground[0], 80); for (let x = 0; x < W; x += 60 + rand() * 40) { const h = 120 + rand() * 300; g.fillStyle = p.ground[1]; g.fillRect(x, H - h - 120, 50 + rand() * 30, h + 120); g.fillStyle = "rgba(255,210,140,.55)"; for (let wy = H - h - 100; wy < H - 30; wy += 26) for (let wx = x + 8; wx < x + 44; wx += 16) if (rand() > 0.45) g.fillRect(wx, wy, 7, 10); } }
-  else if (p.kind === "peaks") { layer(H * 0.55, 260, p.ground[0], 160); layer(H * 0.75, 160, p.ground[1], 110); }
-  else { layer(H * 0.62, 90, p.ground[0], 60); layer(H * 0.8, 70, p.ground[1], 45); }
-  return new Promise(res => c.toBlob(res, "image/jpeg", 0.88));
-}
 
 export async function buildSeed({ put, newId, typeOf }) {
   const now = Date.now();
@@ -142,9 +121,12 @@ export async function buildSeed({ put, newId, typeOf }) {
   const file = async (name, blob, extra = {}) => { const id = newId(); if (blob) await put(id, blob); return { id, name, type: typeOf(name), size: blob ? blob.size : 0, ctime: now, mtime: now, ...extra }; };
   const txt = (s, t = "text/plain") => new Blob([s], { type: t });
 
+  // las fotos de ejemplo son las ilustraciones de identidad de Sotos
+  const ART = [["Páramo.jpg", "paramo"], ["Cerros.jpg", "cerros"], ["Cafetal.jpg", "cafetal"], ["Caño.jpg", "cano"], ["Tatacoa.jpg", "tatacoa"], ["Caribe.jpg", "caribe"]];
+  const art = () => Promise.all(ART.map(([, id]) => new Promise(res => renderWall(id, 1600, 1000).toBlob(res, "image/jpeg", 0.88))));
   const [plan, acuerdo, xlsx, pptx, pics] = await Promise.all([
     htmlToDocx(PLAN, "Plan de negocio"), htmlToDocx(ACUERDO, "Acuerdo de colaboración"),
-    bookToXlsx(BUDGET), slidesToPptx(SLIDES, "Tendencias de marca"), Promise.all(PICS.map(paint)),
+    bookToXlsx(BUDGET), slidesToPptx(SLIDES, "Tendencias de marca"), art(),
   ]);
   const pdf = textPdf("Guía rápida de Sotos OS", [
     "Sotos OS es un escritorio completo que funciona dentro del navegador. Tus archivos se guardan en este dispositivo y se sincronizarán con tu cuenta cuando inicies sesión.",
@@ -168,7 +150,7 @@ export async function buildSeed({ put, newId, typeOf }) {
       await file("Tendencias de marca.pptx", pptx), await file("Guía rápida de Sotos.pdf", pdf),
       await file("Notas reunión.txt", txt("Reunión de producto\n\n- Revisar roadmap del trimestre\n- Definir fecha de la beta\n- Preparar demo para el portafolio\n")),
     ]),
-    folder("Imágenes", await Promise.all(PICS.map((p, i) => file(p.name, pics[i])))),
+    folder("Imágenes", await Promise.all(ART.map(([name], i) => file(name, pics[i])))),
     folder("Música", await Promise.all(music.map(([t, a, al], i) => file(`${t}.mp3`, null, { url: AUDIO(i + 1), meta: { title: t, artist: a, album: al }, online: true })))),
     folder("Vídeos", await Promise.all(videos.map(([n, f]) => file(n, null, { url: VID + f, online: true })))),
     folder("Proyectos", [

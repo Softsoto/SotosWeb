@@ -26,7 +26,7 @@ function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResi
 
   const startDrag = (e) => {
     if (win.maximized) return;
-    if (e.target.closest(".traffic")) return;
+    if (e.target.closest(".win-ctrls") || e.button !== 0) return;
     onFocus();
     drag.current = { type: "move", sx: e.clientX, sy: e.clientY, ox: win.x, oy: win.y };
     ref.current.classList.add("dragging");
@@ -67,17 +67,19 @@ function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResi
   return (
     <div
       ref={ref}
+      data-win-id={win.id}
       className={"window" + (win.maximized ? " maximized" : "") + (win.minimized ? " minimized" : "") + (focused ? " focused" : "")}
-      style={{ ...style, opacity: focused ? 1 : 0.985 }}
+      style={{ ...style, "--app-color": app.color }}
       onMouseDown={onFocus}
     >
-      <div className="titlebar" onMouseDown={startDrag} onDoubleClick={onMax}>
-        <div className="traffic">
-          <button className="tl-close" onClick={onClose} title="Cerrar"><Ic name="close" /></button>
-          <button className="tl-min" onClick={onMin} title="Minimizar"><Ic name="remove" /></button>
-          <button className="tl-max" onClick={onMax} title="Maximizar"><Ic name={win.maximized ? "close_fullscreen" : "open_in_full"} /></button>
-        </div>
+      <div className="titlebar" onMouseDown={startDrag} onDoubleClick={e => !e.target.closest(".win-ctrls") && onMax()}>
+        <span className="win-app"><Ic name={app.icon} size={16} /></span>
         <div className="title">{win.title || app.name}</div>
+        <div className="win-ctrls">
+          <button onClick={onMin} title="Minimizar"><Ic name="minimize" size={18} /></button>
+          <button onClick={onMax} title={win.maximized ? "Restaurar" : "Maximizar"}><Ic name={win.maximized ? "filter_none" : "crop_square"} size={16} /></button>
+          <button className="close" onClick={onClose} title="Cerrar"><Ic name="close" size={18} /></button>
+        </div>
       </div>
       <div className="win-body">{children}</div>
       {!win.maximized && <div className="resize-handle" onMouseDown={startResize} />}
@@ -140,6 +142,7 @@ function ContextMenu({ x, y, items, onSelect, onClose }) {
       {items.map((it, i) => it.sep
         ? <div key={i} className="ctx-sep" />
         : <button key={it.id} className={"ctx-item" + (it.danger ? " danger" : "")}
+            onMouseDown={e => e.preventDefault() /* no robar el foco: conserva la selección del texto */}
             onClick={() => { onSelect(it.id); onClose(); }}>
             <Ic name={it.icon} size={18} /><span>{it.label}</span>
           </button>)}

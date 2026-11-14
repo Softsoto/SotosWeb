@@ -11,6 +11,8 @@ import * as vfs from "./vfs.js";
 import { useVfs, DESKTOP } from "./vfs.js";
 import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl, ShareDialog } from "./files-ui.jsx";
 import { LoginScreen } from "./auth-ui.jsx";
+import { wallUrl, isWall } from "./wallpapers.js";
+import { GlobalContextMenu } from "./context-menu.jsx";
 import { api, hasServer } from "./api.js";
 import * as Apps1 from "./apps1.jsx";
 import * as Apps2 from "./apps2.jsx";
@@ -25,11 +27,12 @@ const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Ga
 const DEFAULT_PROFILE = { name: "Invitado", avatar: null };
 const { useState: useSh, useEffect: useEh, useRef: useRh, useCallback: useCh } = React;
 
-const DEFAULTS = { theme: "light", accent: "#2f6fed", wallpaper: "azure", dock: "bottom", font: "Onest", winStyle: "soft", clock24: true };
+const DEFAULTS = { theme: "light", accent: "#c4532f", wallpaper: "paramo", dock: "bottom", font: "Onest", winStyle: "soft", clock24: true };
 const WIN_STYLES = {
-  soft:  { "--win-radius": "12px", "--win-shadow": "0 18px 50px -12px rgba(16,24,40,.4), 0 4px 12px -4px rgba(16,24,40,.2)", "--win-border": "1px solid var(--border)" },
-  sharp: { "--win-radius": "4px",  "--win-shadow": "0 14px 40px -14px rgba(16,24,40,.45)", "--win-border": "1px solid var(--border-strong)" },
-  flat:  { "--win-radius": "10px", "--win-shadow": "0 0 0 1px var(--border)", "--win-border": "1px solid var(--border-strong)" },
+  // identidad Sotos: borde de tinta y sombra desplazada, como una lámina impresa
+  soft:  { "--win-radius": "10px", "--win-shadow": "5px 5px 0 var(--print-shadow), 0 24px 48px -26px rgba(0,0,0,.45)", "--win-border": "1.5px solid var(--ink-line)" },
+  sharp: { "--win-radius": "3px",  "--win-shadow": "7px 7px 0 var(--print-shadow)", "--win-border": "1.5px solid var(--ink-line)" },
+  flat:  { "--win-radius": "8px",  "--win-shadow": "0 1px 0 var(--border)", "--win-border": "1px solid var(--border-strong)" },
 };
 
 /* -------------------- Menu bar -------------------- */
@@ -361,11 +364,24 @@ function Spotlight({ onOpen, onApp, onClose }) {
 
 /* ============================================================ */
 function OS() {
-  const [settings, setSettings] = useSh(() => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem("sotos") || "{}") }; } catch { return DEFAULTS; } });
+  const [settings, setSettings] = useSh(() => {
+    try {
+      const s = { ...DEFAULTS, ...JSON.parse(localStorage.getItem("sotos") || "{}") };
+      // migrar la paleta anterior a la de identidad
+      if (["#2f6fed", "#34c759", "#8e5cf6", "#ff375f", "#ff8a00", "#0aa5b5"].includes(s.accent)) s.accent = DEFAULTS.accent;
+      return s;
+    } catch { return DEFAULTS; }
+  });
   const [profile, setProfileR] = useSh(() => { try { return { ...DEFAULT_PROFILE, ...JSON.parse(localStorage.getItem("sotos_profile") || "{}") }; } catch { return { ...DEFAULT_PROFILE }; } });
   const [dockCfg, setDockCfg] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_dock")) || [...DOCK_IDS]; } catch { return [...DOCK_IDS]; } });
   const [shortcuts, setShortcuts] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_sc")) || [...DEFAULT_SHORTCUTS]; } catch { return [...DEFAULT_SHORTCUTS]; } });
-  const [widgets, setWidgets] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_widgets")) || [{ id: "w1", type: "clock", x: 0, y: 0 }, { id: "w2", type: "weather", x: 0, y: 0 }]; } catch { return []; } });
+  const [widgets, setWidgets] = useSh(() => {
+    const right = (i) => ({ x: window.innerWidth - 196, y: 48 + i * 196 });
+    let ws; try { ws = JSON.parse(localStorage.getItem("sotos_widgets")); } catch {}
+    ws = ws || [{ id: "w1", type: "clock" }, { id: "w2", type: "weather" }];
+    // los widgets sin posición (o pegados a la esquina, sobre los iconos) van a la columna derecha
+    return ws.map((w, i) => (!w.x && !w.y) || w.x < 120 ? { ...w, ...right(i) } : w);
+  });
   const [notes, setNotes] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_notes")) || {}; } catch { return {}; } });
   const [wins, setWins] = useSh([]);
   useVfs(s => s.rev); // re-render ante cambios de archivos (títulos de ventana)
@@ -403,10 +419,12 @@ function OS() {
 
   // fondo: degradado de la lista o imagen del usuario ("file:<id>")
   const wallFileId = String(settings.wallpaper).startsWith("file:") ? settings.wallpaper.slice(5) : null;
-  const wallUrl = useObjectUrl(stage !== "boot" ? wallFileId : null);
-  const wallpaper = wallFileId
-    ? { css: wallUrl ? `center / cover no-repeat url("${wallUrl}"), #1d3aa0` : "#1d3aa0" }
-    : WALLPAPERS.find(w => w.id === settings.wallpaper) || WALLPAPERS[0];
+  const fileWall = useObjectUrl(stage !== "boot" ? wallFileId : null);
+  const wallId = wallFileId ? null : (isWall(settings.wallpaper) ? settings.wallpaper : "paramo");
+  const [artWall, setArtWall] = useSh(null);
+  useEh(() => { let live = true; if (wallId) wallUrl(wallId).then(u => live && setArtWall(u)); return () => { live = false; }; }, [wallId]);
+  const wallSrc = wallFileId ? fileWall : artWall;
+  const wallpaper = { css: wallSrc ? `center / cover no-repeat url("${wallSrc}"), var(--wall-fallback)` : "var(--wall-fallback)" };
 
   const dockApi = {
     remove: (id) => setDockCfg(d => d.filter(x => x !== id)),
@@ -438,6 +456,13 @@ function OS() {
   const min = id => setWins(ws => ws.map(w => w.id === id ? { ...w, minimized: true } : w));
   const max = id => setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: !w.maximized } : w));
   const setRect = (id, patch) => setWins(ws => ws.map(w => w.id === id ? { ...w, ...patch } : w));
+  const winAction = useCh((id, a) => {
+    if (a === "close") return setWins(ws => ws.filter(w => w.id !== id));
+    if (a === "min") return setWins(ws => ws.map(w => w.id === id ? { ...w, minimized: true } : w));
+    if (a === "max") return setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: !w.maximized } : w));
+    const half = Math.floor(window.innerWidth / 2), top = 30, h = window.innerHeight - top - 84;
+    setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: false, minimized: false, x: a === "left" ? 0 : half, y: top, w: half, h, z: ++zTop.current } : w));
+  }, []);
 
   // abrir un nodo del sistema de archivos con la app adecuada
   const openItem = useCh((n) => {
@@ -462,8 +487,9 @@ function OS() {
     const k = (e) => { if ((e.ctrlKey || e.metaKey) && (e.key === " " || e.key.toLowerCase() === "k")) { e.preventDefault(); setSpot(s => !s); } };
     const o = (e) => openItem(vfs.node(e.detail));
     const sh = (e) => setShareId(e.detail);
-    document.addEventListener("keydown", k); window.addEventListener("sotos-open", o); window.addEventListener("sotos-share", sh);
-    return () => { document.removeEventListener("keydown", k); window.removeEventListener("sotos-open", o); window.removeEventListener("sotos-share", sh); };
+    const sp = () => setSpot(true);
+    document.addEventListener("keydown", k); window.addEventListener("sotos-open", o); window.addEventListener("sotos-share", sh); window.addEventListener("sotos-spotlight", sp);
+    return () => { document.removeEventListener("keydown", k); window.removeEventListener("sotos-open", o); window.removeEventListener("sotos-share", sh); window.removeEventListener("sotos-spotlight", sp); };
   }, [stage]);
 
   // arranque: ¿hay servidor? ¿hay sesión? → nube; si no, invitado recordado o pantalla de acceso
@@ -528,6 +554,7 @@ function OS() {
       <Dock position={settings.dock} order={dockCfg} running={running} onApp={openApp} dockApi={dockApi} />
       {spot && <Spotlight onOpen={openItem} onApp={openApp} onClose={() => setSpot(false)} />}
       {shareId && <ShareDialog id={shareId} onClose={() => setShareId(null)} />}
+      <GlobalContextMenu openApp={openApp} winAction={winAction} />
       <Toasts />
     </div>
   );

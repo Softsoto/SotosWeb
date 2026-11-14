@@ -5,6 +5,8 @@ import React from "react";
 import { APPS, APP_BY_ID, WEB_SERVICES, MAIL, CHATS } from "./data.jsx";
 import { Ic, SideItem, Toolbar, EmptyState } from "./ui.jsx";
 import { PX_ORIGIN, pxUrl } from "./config.js";
+import { toast } from "./ui.jsx";
+import { showMenu, saveImageFromUrl } from "./context-menu.jsx";
 const { useState: useS3, useRef: useR3, useEffect: useE3 } = React;
 
 /* -------------------- Mail (funcional) -------------------- */
@@ -197,7 +199,7 @@ const EMBED_HOME = [
 // muchos sitios bloquean el iframe sin disparar onError (X-Frame-Options / CSP frame-ancestors).
 // si no carga en 3.5s, lo damos por bloqueado y avisamos para reintentar por proxy.
 // con proxy, la página avisa por postMessage de su URL/título reales.
-function SafeFrame({ src, proxied, onBlocked, onNav, onLoading }) {
+function SafeFrame({ src, proxied, onBlocked, onNav, onLoading, onCtx }) {
   const loaded = useR3(false);
   const ref = useR3(null);
   useE3(() => {
@@ -210,10 +212,15 @@ function SafeFrame({ src, proxied, onBlocked, onNav, onLoading }) {
     const onMsg = (e) => {
       if (e.origin !== PX_ORIGIN || !ref.current || e.source !== ref.current.contentWindow) return;
       const d = e.data; if (d && d.type === "sotos-px" && typeof d.url === "string") onNav(d.url, d.title || "");
+      if (d && d.type === "sotos-ctx" && onCtx) {
+        const r = ref.current.getBoundingClientRect();
+        const send = (cmd, text) => ref.current?.contentWindow?.postMessage({ type: "sotos-cmd", cmd, text }, PX_ORIGIN);
+        onCtx({ link: typeof d.link === "string" ? d.link : null, img: typeof d.img === "string" ? d.img : null, text: String(d.text || ""), editable: !!d.editable }, r.left + (+d.x || 0), r.top + (+d.y || 0), send);
+      }
     };
     window.addEventListener("message", onMsg);
     return () => window.removeEventListener("message", onMsg);
-  }, [proxied, onNav]);
+  }, [proxied, onNav, onCtx]);
   return <iframe ref={ref} title="web" src={src} style={{ flex: 1, width: "100%", border: "none", background: "#fff" }}
     onLoad={() => { loaded.current = true; onLoading && onLoading(false); }}
     // sin allow-top-navigation: la página no puede sacar al usuario de Sotos
@@ -277,6 +284,35 @@ function BrowserApp({ shortcuts = [], url, scName }) {
   const newTab = () => { setTabs(ts => { const n = [...ts, home()]; setActive(n.length - 1); return n; }); };
   const closeTab = (i) => setTabs(ts => { if (ts.length === 1) return [home()]; const n = ts.filter((_, j) => j !== i); setActive(a => Math.max(0, Math.min(a >= i ? a - 1 : a, n.length - 1))); return n; });
 
+  // clic derecho dentro de una página proxificada (llega por postMessage desde px.mjs)
+  const ctxRef = React.useRef(); ctxRef.current = { back, fwd, go, t, newTabWith: (u) => setTabs(ts => { const n = [...ts, { id: tabSeq++, addr: u, input: u, title: u.replace(/^https?:\/\//, "").split("/")[0], hist: ["inicio", u], hi: 1, fresh: true }]; setActive(n.length - 1); return n; }) };
+  const onPageCtx = React.useCallback(({ link, img, text, editable }, x, y, send) => {
+    const c = ctxRef.current; const items = [];
+    const copy = (s, m) => navigator.clipboard.writeText(s).then(() => toast(m || "Copiado", { icon: "content_copy" })).catch(() => {});
+    if (link) items.push(
+      { label: "Abrir enlace en una pestaña nueva", icon: "tab", run: () => c.newTabWith(link) },
+      { label: "Abrir enlace aquí", icon: "arrow_forward", run: () => c.go(link) },
+      { label: "Abrir en el navegador del equipo", icon: "open_in_new", run: () => window.open(link, "_blank", "noopener") },
+      { label: "Copiar dirección del enlace", icon: "link", run: () => copy(link, "Enlace copiado") }, { sep: true });
+    if (img) items.push(
+      { label: "Guardar imagen en Imágenes", icon: "add_photo_alternate", run: () => saveImageFromUrl(pxUrl(img)).catch(e => toast(e.message, { error: true })) },
+      { label: "Abrir imagen en una pestaña nueva", icon: "image", run: () => c.newTabWith(img) },
+      { label: "Copiar dirección de la imagen", icon: "link", run: () => copy(img, "Dirección copiada") }, { sep: true });
+    if (editable) items.push(
+      ...(text ? [{ label: "Cortar", icon: "content_cut", run: () => { copy(text, "Cortado"); send("delete"); } }, { label: "Copiar", icon: "content_copy", run: () => copy(text) }] : []),
+      { label: "Pegar", icon: "content_paste", run: async () => { try { send("insertText", await navigator.clipboard.readText()); } catch { toast("Permite el acceso al portapapeles para pegar", { error: true }); } } },
+      { label: "Seleccionar todo", icon: "select_all", run: () => send("selectAll") }, { sep: true });
+    else if (text) items.push(
+      { label: "Copiar", icon: "content_copy", run: () => copy(text) },
+      { label: `Buscar «${text.length > 24 ? text.slice(0, 23) + "…" : text}» en la web`, icon: "travel_explore", run: () => c.newTabWith("https://duckduckgo.com/?q=" + encodeURIComponent(text)) }, { sep: true });
+    items.push(
+      { label: "Atrás", icon: "arrow_back", run: c.back },
+      { label: "Adelante", icon: "arrow_forward", run: c.fwd },
+      { label: "Recargar", icon: "refresh", run: () => setNonce(n => n + 1) },
+      { label: "Copiar dirección de la página", icon: "link", run: () => copy(c.t.live || c.t.addr, "Dirección copiada") });
+    showMenu(x, y, items);
+  }, []);
+
   const marks = [...EMBED_HOME, ...WEB_SERVICES.slice(0, 6), ...shortcuts.map(s => ({ ...s, sc: true }))];
   const showBlocked = knownBlocked(t.addr) && !proxyMode;
   const usingProxy = t.addr !== "inicio" && isProxied(t.addr);
@@ -301,7 +337,8 @@ function BrowserApp({ shortcuts = [], url, scName }) {
         <button className="tb-btn icon" onClick={() => go("inicio")}><Ic name="home" /></button>
         <div className="search-box" style={{ flex: 1, borderRadius: 18 }}>
           <Ic name={t.addr === "inicio" ? "search" : "lock"} size={15} />
-          <input placeholder="Busca o escribe una dirección" value={t.input} onChange={e => patch({ input: e.target.value })} onKeyDown={e => e.key === "Enter" && go(t.input)} />
+          <input placeholder="Busca o escribe una dirección" value={t.input} onChange={e => patch({ input: e.target.value })} onKeyDown={e => e.key === "Enter" && go(t.input)}
+            onFocus={e => e.target.select()} onMouseUp={e => e.preventDefault() /* conserva la selección completa al hacer clic */} />
         </div>
         <button className={"tb-btn" + (proxyMode ? " primary" : "")} title="Modo compatibilidad: intenta cargar sitios bloqueados vía proxy"
           onClick={() => setProxyMode(p => !p)}><Ic name="shield" size={17} /> Proxy</button>
@@ -346,7 +383,7 @@ function BrowserApp({ shortcuts = [], url, scName }) {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
           {!usingProxy && failed[t.addr] && <div className="proxy-bar"><Ic name="shield" size={14} /> Este sitio no permite mostrarse dentro de otra página. <a onClick={() => setProxyMode(true)}>Activa el Modo Proxy</a> o <a onClick={() => window.open(realUrl, "_blank", "noopener")}>ábrelo en pestaña nueva</a>.</div>}
           <SafeFrame key={t.id + ":" + nonce + ":" + frameSrc(t.addr)} src={frameSrc(t.addr)} proxied={usingProxy}
-            onNav={onNav} onLoading={setLoading}
+            onNav={onNav} onLoading={setLoading} onCtx={onPageCtx}
             onBlocked={() => setFailed(f => f[t.addr] ? f : { ...f, [t.addr]: true })} />
         </div>
       )}

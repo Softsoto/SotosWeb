@@ -12,8 +12,9 @@ import { fail, json, readJson, cookies, clientIp, rateLimit } from "./http.mjs";
 
 const SESSION_DAYS = 30;
 const DEFAULT_QUOTA = Number(process.env.SOTOS_QUOTA_MB || 2048) * 1024 * 1024;
-const SECURE = process.env.NODE_ENV === "production";
 const COOKIE = "sotos_sid";
+// Secure solo bajo HTTPS (directo o detrás de Caddy); por IP en la red local va sin Secure o el navegador la rechaza
+const isHttps = (req) => !!req.socket.encrypted || (process.env.TRUST_PROXY && req.headers["x-forwarded-proto"] === "https");
 const REGISTRATION = (process.env.SOTOS_REGISTRATION || "open").toLowerCase(); // open | closed
 
 const scrypt = (pw, salt) => new Promise((res, rej) => crypto.scrypt(pw, salt, 64, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }, (e, k) => e ? rej(e) : res(k)));
@@ -30,7 +31,7 @@ function startSession(req, res, userId) {
   const token = crypto.randomBytes(32).toString("base64url");
   const exp = now() + SESSION_DAYS * 86400_000;
   db.prepare("INSERT INTO sessions(hash,user_id,created,expires,agent) VALUES(?,?,?,?,?)").run(sha(token), userId, now(), exp, String(req.headers["user-agent"] || "").slice(0, 200));
-  res.setHeader("set-cookie", `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 86400}${SECURE ? "; Secure" : ""}`);
+  res.setHeader("set-cookie", `${COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_DAYS * 86400}${isHttps(req) ? "; Secure" : ""}`);
 }
 
 /** usuario de la sesión o null */
@@ -76,7 +77,7 @@ export async function handleAuth(req, res, sub) {
   }
   if (sub === "logout") {
     const t = cookies(req)[COOKIE]; if (t) db.prepare("DELETE FROM sessions WHERE hash = ?").run(sha(t));
-    res.setHeader("set-cookie", `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${SECURE ? "; Secure" : ""}`);
+    res.setHeader("set-cookie", `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${isHttps(req) ? "; Secure" : ""}`);
     return json(res, 200, { ok: true });
   }
   if (sub === "password") {

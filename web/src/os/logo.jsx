@@ -7,13 +7,9 @@ function SotosLogo({ size = 96, animate = false, badge = true }) {
   return (
     <div className={"sotos-logo" + (animate ? " anim" : "")} style={{ width: s, height: s }}>
       <svg viewBox="0 0 120 120" width={s} height={s} role="img" aria-label="Sotos">
-        {badge && <defs>
-          <linearGradient id="slbg" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0" stopColor="var(--accent)" />
-            <stop offset="1" stopColor="color-mix(in srgb, var(--accent) 55%, #000)" />
-          </linearGradient>
-        </defs>}
-        {badge && <rect x="2" y="2" width="116" height="116" rx="30" fill="url(#slbg)" />}
+        {/* placa plana de color con contorno de tinta (identidad serigrafía) */}
+        {badge && <rect x="6" y="6" width="112" height="112" rx="26" fill="rgba(31,29,26,.22)" />}
+        {badge && <rect x="2" y="2" width="112" height="112" rx="26" fill="var(--accent)" stroke="#1f1d1a" strokeOpacity=".55" strokeWidth="3" />}
 
         {/* ---- Husky (left) ---- */}
         <g className="sl-husky">

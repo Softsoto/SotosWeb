@@ -1,0 +1,44 @@
+# Sotos OS — Docker por IP (sin dominio ni HTTPS): red local o un VPS recién creado
+# © 2026 Sebastian Sotomontes
+#
+#   El instalador lo configura solo. A mano:
+#   SOTOS_IP=192.168.1.50 OO_JWT_SECRET=$(openssl rand -hex 32) docker compose -f docker-compose.ip.yml up -d --build
+#
+#   Escritorio:  http://IP:8787   ·   proxy del navegador: http://IP:8788   ·   ONLYOFFICE: http://IP:8080
+#   Para usar dominio y HTTPS, usa docker-compose.yml.
+
+services:
+  sotos:
+    build: .
+    restart: unless-stopped
+    ports: ["8787:8787", "8788:8788"]
+    environment:
+      PX_PORT: "8788"
+      OO_URL: http://${SOTOS_IP}:8080
+      OO_INTERNAL: http://onlyoffice
+      SOTOS_INTERNAL: http://sotos:8787
+      SOTOS_OO_JWT: ${OO_JWT_SECRET}
+      SOTOS_REGISTRATION: ${SOTOS_REGISTRATION:-open}
+      SOTOS_QUOTA_MB: ${SOTOS_QUOTA_MB:-2048}
+    volumes:
+      - sotos_data:/data
+
+  onlyoffice:
+    image: onlyoffice/documentserver:${OO_VERSION:-latest}
+    restart: unless-stopped
+    ports: ["8080:80"]
+    environment:
+      JWT_ENABLED: "true"
+      JWT_SECRET: ${OO_JWT_SECRET}
+      JWT_HEADER: Authorization
+      ALLOW_PRIVATE_IP_ADDRESS: "true"
+    volumes:
+      - oo_data:/var/www/onlyoffice/Data
+      - oo_lib:/var/lib/onlyoffice
+      - oo_db:/var/lib/postgresql
+
+volumes:
+  sotos_data:
+  oo_data:
+  oo_lib:
+  oo_db:
