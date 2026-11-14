@@ -3,6 +3,8 @@
    ============================================================ */
 import React from "react";
 import { Ic } from "./ui.jsx";
+import * as vfs from "./vfs.js";
+import { useVfs, fmtSize } from "./vfs.js";
 const { useState: useSw, useEffect: useEw } = React;
 
 const WIDGET_TYPES = [
@@ -51,13 +53,44 @@ function CalendarWidget() {
   );
 }
 
-function WeatherWidget() {
+/* Clima real con Open-Meteo (sin clave). Ciudad elegida por el usuario; no se usa geolocalización. */
+const WMO = (c) => c === 0 ? ["Despejado", "wb_sunny", "#ff8a00"] : c <= 2 ? ["Parcialmente nublado", "partly_cloudy_day", "#f4a62a"] : c === 3 ? ["Nublado", "cloud", "#8a929c"]
+  : c <= 48 ? ["Niebla", "foggy", "#8a929c"] : c <= 57 ? ["Llovizna", "rainy_light", "#4a90e2"] : c <= 67 ? ["Lluvia", "rainy", "#2f6fed"] : c <= 77 ? ["Nieve", "weather_snowy", "#7fb6e6"]
+  : c <= 82 ? ["Chubascos", "rainy_heavy", "#2f6fed"] : c <= 86 ? ["Nevadas", "weather_snowy", "#7fb6e6"] : ["Tormenta", "thunderstorm", "#8e5cf6"];
+function WeatherWidget({ id }) {
+  const key = "sotos_weather_" + id;
+  const [city, setCity] = useSw(() => { try { return JSON.parse(localStorage.getItem(key)) || { name: "Bogotá", lat: 4.711, lon: -74.0721 }; } catch { return { name: "Bogotá", lat: 4.711, lon: -74.0721 }; } });
+  const [data, setData] = useSw(null), [err, setErr] = useSw(null);
+  const [editing, setEditing] = useSw(false), [q, setQ] = useSw(""), [opts, setOpts] = useSw([]);
+  useEw(() => {
+    let live = true; setErr(null);
+    const load = () => fetch(`https://api.open-meteo.com/v1/forecast?latitude=${city.lat}&longitude=${city.lon}&current=temperature_2m,weather_code,is_day&daily=temperature_2m_max,temperature_2m_min&timezone=auto&forecast_days=1`)
+      .then(r => r.ok ? r.json() : Promise.reject(new Error(r.status))).then(d => live && setData(d)).catch(() => live && setErr("Sin conexión"));
+    load(); const t = setInterval(load, 15 * 60_000);
+    try { localStorage.setItem(key, JSON.stringify(city)); } catch {}
+    return () => { live = false; clearInterval(t); };
+  }, [city.lat, city.lon]);
+  useEw(() => {
+    if (!editing || q.trim().length < 2) { setOpts([]); return; }
+    const t = setTimeout(() => fetch(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q.trim())}&count=5&language=es`)
+      .then(r => r.json()).then(d => setOpts(d.results || [])).catch(() => setOpts([])), 300);
+    return () => clearTimeout(t);
+  }, [q, editing]);
+  if (editing) return (
+    <div className="wg-body" style={{ gap: 6 }}>
+      <input className="wg-input" autoFocus placeholder="Buscar ciudad…" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === "Escape" && setEditing(false)} />
+      {opts.map(o => <button key={o.id} className="wg-opt" onClick={() => { setCity({ name: o.name, lat: o.latitude, lon: o.longitude }); setEditing(false); setQ(""); }}>
+        {o.name}<span className="faint"> · {[o.admin1, o.country].filter(Boolean).join(", ")}</span></button>)}
+      <button className="wg-opt faint" onClick={() => setEditing(false)}>Cancelar</button>
+    </div>
+  );
+  const cur = data?.current; const [desc, icon, col] = cur ? WMO(cur.weather_code) : ["", "cloud_off", "#8a929c"];
   return (
-    <div className="wg-body" style={{ alignItems: "center", justifyContent: "center", textAlign: "center" }}>
-      <Ic name="wb_sunny" size={46} style={{ color: "#ff8a00" }} />
-      <div style={{ fontSize: 30, fontWeight: 800, marginTop: 4 }}>23°</div>
-      <div className="faint" style={{ fontSize: 12.5 }}>Madrid · Soleado</div>
-      <div className="faint" style={{ fontSize: 11.5, marginTop: 2 }}>Máx 26° · Mín 14°</div>
+    <div className="wg-body" style={{ alignItems: "center", justifyContent: "center", textAlign: "center", cursor: "pointer" }} title="Clic para cambiar de ciudad" onClick={() => setEditing(true)}>
+      <Ic name={cur && !cur.is_day && cur.weather_code <= 2 ? "clear_night" : icon} size={46} style={{ color: col }} />
+      <div style={{ fontSize: 30, fontWeight: 800, marginTop: 4 }}>{cur ? Math.round(cur.temperature_2m) + "°" : "—"}</div>
+      <div className="faint" style={{ fontSize: 12.5 }}>{city.name}{desc ? " · " + desc : ""}</div>
+      <div className="faint" style={{ fontSize: 11.5, marginTop: 2 }}>{err || (data ? `Máx ${Math.round(data.daily.temperature_2m_max[0])}° · Mín ${Math.round(data.daily.temperature_2m_min[0])}°` : "Cargando…")}</div>
     </div>
   );
 }
@@ -71,7 +104,11 @@ function NoteWidget({ id, note, onNote }) {
 }
 
 function StorageWidget() {
-  const pct = 42, r = 34, c = 2 * Math.PI * r;
+  useVfs(s => s.rev);
+  const [quota, setQuota] = useSw(null);
+  useEw(() => { navigator.storage?.estimate?.().then(e => setQuota(e.quota)).catch(() => {}); }, []);
+  const used = vfs.usedBytes();
+  const pct = quota ? Math.max(0.1, Math.round(used / quota * 1000) / 10) : 0, r = 34, c = 2 * Math.PI * r;
   return (
     <div className="wg-body" style={{ alignItems: "center", justifyContent: "center" }}>
       <svg viewBox="0 0 100 100" style={{ width: 96, height: 96 }}>
@@ -81,7 +118,7 @@ function StorageWidget() {
         <text x="50" y="49" textAnchor="middle" fontSize="20" fontWeight="800" fill="var(--text)">{pct}%</text>
         <text x="50" y="64" textAnchor="middle" fontSize="9" fill="var(--text-faint)">usado</text>
       </svg>
-      <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>42 GB de 100 GB</div>
+      <div className="faint" style={{ fontSize: 12, marginTop: 4 }}>{fmtSize(used)}{quota ? " de " + fmtSize(quota) : ""}</div>
     </div>
   );
 }
@@ -102,7 +139,7 @@ function Widget({ w, shifted, onMove, onClose, note, onNote }) {
         <span className="wg-x" onClick={() => onClose(w.id)}><Ic name="close" size={14} /></span></div>
       {w.type === "clock" && <ClockWidget />}
       {w.type === "calendar" && <CalendarWidget />}
-      {w.type === "weather" && <WeatherWidget />}
+      {w.type === "weather" && <WeatherWidget id={w.id} />}
       {w.type === "note" && <NoteWidget id={w.id} note={note} onNote={onNote} />}
       {w.type === "storage" && <StorageWidget />}
     </div>

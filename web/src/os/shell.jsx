@@ -1,20 +1,25 @@
 /* ============================================================
    Sotos OS — shell: boot, login, menu bar, dock, window manager
+   © 2026 Sebastian Sotomontes
    ============================================================ */
 import React from "react";
-import { APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, FS, DEFAULT_SHORTCUTS } from "./data.jsx";
+import { APPS, APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, DEFAULT_SHORTCUTS } from "./data.jsx";
 import { SotosLogo } from "./logo.jsx";
-import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar } from "./ui.jsx";
+import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts } from "./ui.jsx";
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
+import * as vfs from "./vfs.js";
+import { useVfs, DESKTOP } from "./vfs.js";
+import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl } from "./files-ui.jsx";
 import * as Apps1 from "./apps1.jsx";
 import * as Apps2 from "./apps2.jsx";
 import * as Apps3 from "./apps3.jsx";
 import * as Apps4 from "./apps4.jsx";
 import * as Apps5 from "./apps5.jsx";
 import * as Games from "./games.jsx";
+import * as Term from "./terminal.jsx";
 
 // registro de componentes de app (antes se resolvían con window[app.comp])
-const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games };
+const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term };
 const DEFAULT_PROFILE = { name: "Invitado", avatar: null };
 const { useState: useSh, useEffect: useEh, useRef: useRh, useCallback: useCh } = React;
 
@@ -24,11 +29,9 @@ const WIN_STYLES = {
   sharp: { "--win-radius": "4px",  "--win-shadow": "0 14px 40px -14px rgba(16,24,40,.45)", "--win-border": "1px solid var(--border-strong)" },
   flat:  { "--win-radius": "10px", "--win-shadow": "0 0 0 1px var(--border)", "--win-border": "1px solid var(--border-strong)" },
 };
-const jclone = (o) => JSON.parse(JSON.stringify(o));
-const getNode = (root, path) => { let n = root; for (const name of path) { n = (n.children || []).find(c => c.name === name); if (!n) return null; } return n; };
 
 /* -------------------- Menu bar -------------------- */
-function MenuBar({ activeApp, settings, update, profile, onApp, onLogout, onSearch }) {
+function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout, onSearch }) {
   const [now, setNow] = useSh(new Date());
   const [menu, setMenu] = useSh(null);
   const [cal, setCal] = useSh(false);
@@ -46,13 +49,15 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onLogout, onSear
   const MENUS = {
     Archivo: [
       { label: "Nueva ventana de Archivos", icon: "folder", act: () => onApp("files") },
-      { label: "Nuevo documento", icon: "description", act: () => onApp("docs") },
-      { label: "Nueva hoja de cálculo", icon: "table_chart", act: () => onApp("sheets") },
+      { label: "Nuevo documento", icon: "description", act: () => onNew("docx") },
+      { label: "Nueva hoja de cálculo", icon: "table_chart", act: () => onNew("xlsx") },
+      { label: "Nueva presentación", icon: "slideshow", act: () => onNew("pptx") },
+      { label: "Nueva nota de texto", icon: "edit_note", act: () => onNew("txt") },
       { sep: true },
       { label: "Cerrar sesión", icon: "power_settings_new", act: onLogout },
     ],
     Editar: [
-      { label: "Buscar archivos…", icon: "search", act: onSearch },
+      { label: "Buscar…  (Ctrl+K)", icon: "search", act: onSearch },
       { label: "Preferencias…", icon: "tune", act: () => onApp("settings") },
     ],
     Ver: [
@@ -161,49 +166,69 @@ function Dock({ position, order, running, onApp, dockApi }) {
 }
 
 /* -------------------- Desktop (icons + drop + context menu) -------------------- */
-function Desktop({ shifted, items, trashCount, openApp, openItem, deskApi, trashApi, settings, update, fsApi, widgetApi }) {
-  const [ctx, setCtx] = useSh(null);        // { x, y, item }  (item null = empty area)
+function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
+  const desk = useVfs(() => vfs.node(DESKTOP));
+  const trashCount = useVfs(s => s.trash.length);
+  const clipboard = useVfs(s => s.clipboard);
+  const [ctx, setCtx] = useSh(null);        // { x, y, item }  (item null = zona vacía)
+  const [sel, setSel] = useSh(null);
   const [renaming, setRenaming] = useSh(null);
   const [tmp, setTmp] = useSh("");
+  const [props, setProps] = useSh(null);
+  const [trashHot, setTrashHot] = useSh(false);
+  const items = desk ? desk.children || [] : [];
   const apps = [
     { id: "files", icon: "folder", color: "#4a90e2", label: "Archivos" },
     { id: "browser", icon: "language", color: "#0aa5b5", label: "Navegador" },
     { id: "launchpad", icon: "apps", color: "#0a84ff", label: "Aplicaciones" },
   ];
-  const onDrop = (e) => {
-    e.preventDefault();
-    try { const d = JSON.parse(e.dataTransfer.getData("text/sotos-item")); if (d && d.name) deskApi.add(d); } catch (_) {}
-  };
   const EMPTY = [
     { id: "newfolder", label: "Nueva carpeta", icon: "create_new_folder" },
+    { id: "newtxt", label: "Nuevo documento de texto", icon: "note_add" },
+    ...(clipboard ? [{ id: "paste", label: `Pegar (${clipboard.ids.length})`, icon: "content_paste" }] : []),
+    { sep: true },
     { id: "widget", label: "Añadir widget", icon: "widgets" },
     { id: "wall", label: "Cambiar fondo", icon: "wallpaper" },
     { id: "theme", label: settings.theme === "dark" ? "Modo claro" : "Modo oscuro", icon: settings.theme === "dark" ? "light_mode" : "dark_mode" },
     { sep: true },
     { id: "emptytrash", label: "Vaciar papelera", icon: "delete_sweep", danger: true },
   ];
-  const ITEM = [
-    { id: "open", label: "Abrir", icon: "open_in_new" },
-    { id: "rename", label: "Renombrar", icon: "drive_file_rename_outline" },
-    { sep: true },
-    { id: "remove", label: "Quitar del escritorio", icon: "delete", danger: true },
-  ];
   const [wmenu, setWmenu] = useSh(null);
-  const onEmpty = (id, x, y) => {
-    if (id === "newfolder") deskApi.add({ name: "Nueva carpeta", type: "folder" });
+  const startRename = (id) => { setRenaming(id); setTmp(vfs.node(id)?.name || ""); };
+  const commitRename = () => { if (renaming && tmp.trim()) vfs.rename(renaming, tmp.trim()); setRenaming(null); };
+  const onEmpty = async (id, x, y) => {
+    if (id === "newfolder") startRename(vfs.mkdir(DESKTOP));
+    else if (id === "newtxt") startRename(await vfs.create(DESKTOP, "Nuevo documento.txt", ""));
+    else if (id === "paste") { const n = await vfs.paste(DESKTOP); if (n) toast(`${n} elemento(s) pegado(s) en el escritorio`); }
     else if (id === "widget") setWmenu({ x, y });
     else if (id === "wall") openApp("settings");
     else if (id === "theme") update("theme", settings.theme === "dark" ? "light" : "dark");
-    else if (id === "emptytrash") trashApi.empty();
+    else if (id === "emptytrash") vfs.emptyTrash();
   };
-  const onItem = (id, it) => {
-    if (id === "open") it.type === "folder" ? openApp("files") : openItem(it);
-    else if (id === "rename") { setRenaming(it.id); setTmp(it.name); }
-    else if (id === "remove") { trashApi.add(it); deskApi.remove(it.id); }
-  };
+  const helpers = { openItem, update, startRename, showProps: setProps, parentId: DESKTOP };
+
+  // teclado sobre el icono seleccionado
+  const deskActive = useRh(false);
+  useEh(() => {
+    const down = (e) => { deskActive.current = !!(e.target.closest && e.target.closest(".desk-layer")); };
+    document.addEventListener("mousedown", down, true); return () => document.removeEventListener("mousedown", down, true);
+  }, []);
+  useEh(() => {
+    const key = (e) => {
+      if (!sel || renaming || !deskActive.current || e.target.closest("input,textarea,[contenteditable=true]")) return;
+      const n = vfs.node(sel); if (!n) return;
+      if (e.key === "Delete") runItemAction("trash", [n], helpers);
+      else if (e.key === "F2") startRename(sel);
+      else if (e.key === "Enter") openItem(n);
+      else if (e.ctrlKey && e.key.toLowerCase() === "c") vfs.clip("copy", [sel]);
+      else if (e.ctrlKey && e.key.toLowerCase() === "x") vfs.clip("cut", [sel]);
+    };
+    document.addEventListener("keydown", key); return () => document.removeEventListener("keydown", key);
+  }, [sel, renaming]);
 
   return (
-    <div className="desk-layer" onDragOver={e => e.preventDefault()} onDrop={onDrop}
+    <div className="desk-layer" {...dropTarget(DESKTOP)}
+      onMouseDown={e => { if (e.target === e.currentTarget || e.target.classList.contains("desk-icons")) setSel(null); }}
       onContextMenu={e => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, item: null }); }}>
       <div className="desk-icons" style={{ left: shifted ? 92 : 14 }}>
         {apps.map(ic => (
@@ -212,17 +237,26 @@ function Desktop({ shifted, items, trashCount, openApp, openItem, deskApi, trash
           </div>
         ))}
         {items.map(it => (
-          <div key={it.id} className="desk-icon" onDoubleClick={() => it.type === "folder" ? openApp("files") : openItem(it)}
-            onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtx({ x: e.clientX, y: e.clientY, item: it }); }}>
-            <div style={{ width: 46, height: 50, display: "grid", placeItems: "center" }}><FileGlyph type={it.type} css={it.css} src={it.src} size={44} /></div>
+          <div key={it.id} className={"desk-icon" + (sel === it.id ? " sel" : "") + (clipboard?.mode === "cut" && clipboard.ids.includes(it.id) ? " cut" : "")}
+            draggable={renaming !== it.id}
+            onDragStart={e => dragIds(e, [it.id])}
+            {...(it.type === "folder" ? dropTarget(it.id) : {})}
+            onMouseDown={() => setSel(it.id)}
+            onDoubleClick={() => openItem(it)}
+            onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setSel(it.id); setCtx({ x: e.clientX, y: e.clientY, item: it }); }}>
+            <div style={{ width: 52, height: 50, display: "grid", placeItems: "center" }}><NodeGlyph node={it} size={44} /></div>
             {renaming === it.id
-              ? <input className="rename-input" autoFocus value={tmp} onClick={e => e.stopPropagation()} onChange={e => setTmp(e.target.value)}
-                  onBlur={() => { if (tmp.trim()) deskApi.rename(it.id, tmp.trim()); setRenaming(null); }}
-                  onKeyDown={e => { if (e.key === "Enter") { if (tmp.trim()) deskApi.rename(it.id, tmp.trim()); setRenaming(null); } if (e.key === "Escape") setRenaming(null); }} />
+              ? <input className="rename-input" autoFocus value={tmp} onClick={e => e.stopPropagation()} onMouseDown={e => e.stopPropagation()}
+                  onFocus={e => { const i = e.target.value.lastIndexOf("."); e.target.setSelectionRange(0, i > 0 && it.type !== "folder" ? i : e.target.value.length); }}
+                  onChange={e => setTmp(e.target.value)} onBlur={commitRename}
+                  onKeyDown={e => { if (e.key === "Enter") commitRename(); if (e.key === "Escape") setRenaming(null); }} />
               : <span className="lbl">{it.name}</span>}
           </div>
         ))}
-        <div className="desk-icon desk-trash" onDoubleClick={() => openApp("trash")}
+        <div className={"desk-icon desk-trash" + (trashHot ? " sel" : "")} onDoubleClick={() => openApp("trash")}
+          onDragOver={e => { if ([...e.dataTransfer.types].includes("application/x-sotos-ids")) { e.preventDefault(); setTrashHot(true); } }}
+          onDragLeave={() => setTrashHot(false)}
+          onDrop={e => { e.preventDefault(); e.stopPropagation(); setTrashHot(false); try { const ids = JSON.parse(e.dataTransfer.getData("application/x-sotos-ids")); runItemAction("trash", ids.map(vfs.node).filter(Boolean), helpers); } catch {} }}
           onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtx({ x: e.clientX, y: e.clientY, item: null }); }}>
           <div style={{ position: "relative" }}>
             <Tile icon={trashCount ? "delete" : "delete_outline"} color="#7d8590" />
@@ -231,8 +265,9 @@ function Desktop({ shifted, items, trashCount, openApp, openItem, deskApi, trash
           <span className="lbl">Papelera</span>
         </div>
       </div>
-      {ctx && <ContextMenu x={ctx.x} y={ctx.y} items={ctx.item ? ITEM : EMPTY}
-        onSelect={(id) => ctx.item ? onItem(id, ctx.item) : onEmpty(id, ctx.x, ctx.y)} onClose={() => setCtx(null)} />}
+      {ctx && <ContextMenu x={ctx.x} y={ctx.y} items={ctx.item ? itemMenu([ctx.item], { canPaste: !!clipboard }) : EMPTY}
+        onSelect={(id) => ctx.item ? runItemAction(id, [ctx.item], helpers) : onEmpty(id, ctx.x, ctx.y)} onClose={() => setCtx(null)} />}
+      {props && <PropertiesModal id={props} onClose={() => setProps(null)} />}
       {wmenu && <ContextMenu x={wmenu.x} y={wmenu.y}
         items={WIDGET_TYPES.map(t => ({ id: t.id, label: t.name, icon: t.icon }))}
         onSelect={(id) => widgetApi.add(id)} onClose={() => setWmenu(null)} />}
@@ -241,22 +276,32 @@ function Desktop({ shifted, items, trashCount, openApp, openItem, deskApi, trash
 }
 
 /* -------------------- Boot -------------------- */
-function BootScreen({ onDone }) {
-  useEh(() => { const t = setTimeout(onDone, 2600); return () => clearTimeout(t); }, []);
+// espera a la animación mínima Y a que el sistema de archivos esté listo
+function BootScreen({ onDone, quick }) {
+  const [err, setErr] = useSh(null);
+  const [slow, setSlow] = useSh(false);
+  useEh(() => {
+    let live = true;
+    const min = new Promise(r => setTimeout(r, quick ? 300 : 2200));
+    const t = setTimeout(() => live && setSlow(true), 3500);
+    Promise.all([min, vfs.init()]).then(() => live && onDone()).catch(e => live && setErr(e.message || String(e)));
+    return () => { live = false; clearTimeout(t); };
+  }, []);
   return (
     <div className="boot">
       <div className="boot-logo"><SotosLogo size={120} animate badge={false} /></div>
       <div className="boot-name">Sotos</div>
-      <div className="boot-bar"><div className="boot-fill" /></div>
-      <div className="boot-tag">tu ordenador en la nube</div>
+      {!err && <div className="boot-bar"><div className="boot-fill" /></div>}
+      <div className="boot-tag">{err ? "No se pudo iniciar el almacenamiento: " + err : slow ? "Preparando tus archivos por primera vez…" : "tu ordenador en la nube"}</div>
+      {err && <button className="tb-btn" style={{ marginTop: 14 }} onClick={() => location.reload()}>Reintentar</button>}
     </div>
   );
 }
 
 /* -------------------- Login -------------------- */
 function LoginScreen({ wallpaper, profile, onLogin }) {
-  const [pwd, setPwd] = useSh("");
   const [now] = useSh(new Date());
+  useEh(() => { const k = e => e.key === "Enter" && onLogin(); document.addEventListener("keydown", k); return () => document.removeEventListener("keydown", k); }, [onLogin]);
   const time = now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
   const date = now.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" });
   return (
@@ -269,32 +314,37 @@ function LoginScreen({ wallpaper, profile, onLogin }) {
       <div className="login-card">
         <div className="login-avatar"><Avatar profile={profile} size={96} /></div>
         <div className="login-user">{profile.name}</div>
-        <div className="login-field">
-          <input type="password" autoFocus placeholder="Contraseña" value={pwd}
-            onChange={e => setPwd(e.target.value)} onKeyDown={e => e.key === "Enter" && onLogin()} />
-          <button onClick={onLogin} title="Entrar"><Ic name="arrow_forward" size={20} /></button>
-        </div>
-        <button className="login-guest" onClick={onLogin}>Entrar como invitado</button>
+        <button className="login-enter" onClick={onLogin} autoFocus><Ic name="arrow_forward" size={20} /> Entrar</button>
+        <div className="login-guest" style={{ cursor: "default" }}>Tus archivos se guardan en este navegador</div>
       </div>
     </div>
   );
 }
 
 /* -------------------- Spotlight search -------------------- */
-function Spotlight({ search, onOpen, onClose }) {
+function Spotlight({ onOpen, onApp, onClose }) {
   const [q, setQ] = useSh("");
-  const results = q.trim() ? search(q) : [];
+  const [hi, setHi] = useSh(0);
+  const ql = q.trim().toLowerCase();
+  const results = ql ? [
+    ...APPS.filter(a => a.id !== "web" && a.name.toLowerCase().includes(ql)).slice(0, 5).map(a => ({ kind: "app", app: a })),
+    ...vfs.search(ql, 12).map(n => ({ kind: "file", node: n })),
+  ] : [];
+  const go = (r) => { if (!r) return; r.kind === "app" ? onApp(r.app.id) : onOpen(r.node); onClose(); };
   useEh(() => { const esc = e => e.key === "Escape" && onClose(); document.addEventListener("keydown", esc); return () => document.removeEventListener("keydown", esc); }, []);
+  useEh(() => setHi(0), [q]);
   return (
     <div className="spot-overlay" onMouseDown={onClose}>
       <div className="spot" onMouseDown={e => e.stopPropagation()}>
         <div className="spot-input"><Ic name="search" size={22} />
-          <input autoFocus placeholder="Buscar archivos y carpetas…" value={q} onChange={e => setQ(e.target.value)} /></div>
+          <input autoFocus placeholder="Buscar apps, archivos y carpetas…" value={q} onChange={e => setQ(e.target.value)}
+            onKeyDown={e => { if (e.key === "ArrowDown") { e.preventDefault(); setHi(h => Math.min(h + 1, results.length - 1)); } if (e.key === "ArrowUp") { e.preventDefault(); setHi(h => Math.max(h - 1, 0)); } if (e.key === "Enter") go(results[hi]); }} /></div>
         {!!results.length && <div className="spot-results">
           {results.map((r, i) => (
-            <div key={i} className="spot-row" onClick={() => { onOpen(r); onClose(); }}>
-              <FileGlyph type={r.type} css={r.css} src={r.src} size={26} />
-              <div><div className="spot-name">{r.name}</div><div className="spot-path">{["Sotos Drive", ...r.path].join(" › ")}</div></div>
+            <div key={i} className={"spot-row" + (i === hi ? " hi" : "")} onMouseEnter={() => setHi(i)} onClick={() => go(r)}>
+              {r.kind === "app" ? <Tile icon={r.app.icon} color={r.app.color} size={28} /> : <NodeGlyph node={r.node} size={26} />}
+              <div><div className="spot-name">{r.kind === "app" ? r.app.name : r.node.name}</div>
+                <div className="spot-path">{r.kind === "app" ? "Aplicación" : ["Sotos Drive", ...vfs.pathOf(r.node.id).slice(0, -1).map(p => p.name)].join(" › ")}</div></div>
             </div>
           ))}
         </div>}
@@ -307,50 +357,28 @@ function Spotlight({ search, onOpen, onClose }) {
 /* ============================================================ */
 function OS() {
   const [settings, setSettings] = useSh(() => { try { return { ...DEFAULTS, ...JSON.parse(localStorage.getItem("sotos") || "{}") }; } catch { return DEFAULTS; } });
-  const [fs, setFs] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_fs")) || jclone(FS); } catch { return jclone(FS); } });
   const [profile, setProfileR] = useSh(() => { try { return { ...DEFAULT_PROFILE, ...JSON.parse(localStorage.getItem("sotos_profile") || "{}") }; } catch { return { ...DEFAULT_PROFILE }; } });
   const [dockCfg, setDockCfg] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_dock")) || [...DOCK_IDS]; } catch { return [...DOCK_IDS]; } });
   const [shortcuts, setShortcuts] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_sc")) || [...DEFAULT_SHORTCUTS]; } catch { return [...DEFAULT_SHORTCUTS]; } });
-  const [desktopItems, setDesktopItems] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_desk")) || []; } catch { return []; } });
-  const [trash, setTrash] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_trash")) || []; } catch { return []; } });
   const [widgets, setWidgets] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_widgets")) || [{ id: "w1", type: "clock", x: 0, y: 0 }, { id: "w2", type: "weather", x: 0, y: 0 }]; } catch { return []; } });
   const [notes, setNotes] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_notes")) || {}; } catch { return {}; } });
   const [wins, setWins] = useSh([]);
-  const [stage, setStage] = useSh(() => localStorage.getItem("sotos_in") ? "desktop" : "boot");
+  useVfs(s => s.rev); // re-render ante cambios de archivos (títulos de ventana)
+  const [stage, setStage] = useSh("boot");
+  const quickBoot = useRh(!!localStorage.getItem("sotos_in"));
   const [spot, setSpot] = useSh(false);
   const zTop = useRh(10);
 
-  const update = useCh((k, v) => setSettings(s => { const n = { ...s, [k]: v }; localStorage.setItem("sotos", JSON.stringify(n)); return n; }), []);
-  const setProfile = useCh((p) => setProfileR(prev => { const n = { ...prev, ...p }; localStorage.setItem("sotos_profile", JSON.stringify(n)); return n; }), []);
-  useEh(() => { try { localStorage.setItem("sotos_fs", JSON.stringify(fs)); } catch (e) {} }, [fs]);
-  useEh(() => localStorage.setItem("sotos_dock", JSON.stringify(dockCfg)), [dockCfg]);
-  useEh(() => localStorage.setItem("sotos_sc", JSON.stringify(shortcuts)), [shortcuts]);
-  useEh(() => { try { localStorage.setItem("sotos_desk", JSON.stringify(desktopItems)); } catch (e) {} }, [desktopItems]);
-  useEh(() => { try { localStorage.setItem("sotos_trash", JSON.stringify(trash)); } catch (e) {} }, [trash]);
-  useEh(() => { try { localStorage.setItem("sotos_widgets", JSON.stringify(widgets)); } catch (e) {} }, [widgets]);
-  useEh(() => { try { localStorage.setItem("sotos_notes", JSON.stringify(notes)); } catch (e) {} }, [notes]);
+  const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
+  const update = useCh((k, v) => setSettings(s => { const n = { ...s, [k]: v }; save("sotos", n); return n; }), []);
+  const setProfile = useCh((p) => setProfileR(prev => { const n = { ...prev, ...p }; save("sotos_profile", n); return n; }), []);
+  useEh(() => save("sotos_dock", dockCfg), [dockCfg]);
+  useEh(() => save("sotos_sc", shortcuts), [shortcuts]);
+  useEh(() => save("sotos_widgets", widgets), [widgets]);
+  useEh(() => save("sotos_notes", notes), [notes]);
 
-  const uid = (p) => p + Date.now().toString(36) + Math.random().toString(36).slice(2, 5);
-  const deskApi = {
-    add: (it) => setDesktopItems(d => d.some(x => x.name === it.name) ? d : [...d, { ...it, id: it.id || uid("d") }]),
-    remove: (id) => setDesktopItems(d => d.filter(x => x.id !== id)),
-    rename: (id, nm) => setDesktopItems(d => d.map(x => x.id === id ? { ...x, name: nm } : x)),
-  };
-  const trashApi = {
-    add: (it) => setTrash(t => [{ ...it, id: uid("t") }, ...t]),
-    restore: (id) => setTrash(t => { const it = t.find(x => x.id === id); if (it) deskApi.add({ ...it, id: undefined }); return t.filter(x => x.id !== id); }),
-    del: (id) => setTrash(t => t.filter(x => x.id !== id)),
-    empty: () => setTrash([]),
-  };
-  const toTrash = (it) => trashApi.add(it);
-
-  let wseq = widgets.length;
   const widgetApi = {
-    add: (type) => setWidgets(ws => {
-      const n = ws.filter(w => w.type === type).length;
-      const base = 60 + (ws.length % 4) * 188;
-      return [...ws, { id: "w" + Date.now().toString(36), type, x: window.innerWidth - 220, y: 60 + (ws.length % 4) * 180 }];
-    }),
+    add: (type) => setWidgets(ws => [...ws, { id: "w" + Date.now().toString(36), type, x: window.innerWidth - 220, y: 60 + (ws.length % 4) * 180 }]),
     remove: (id) => setWidgets(ws => ws.filter(w => w.id !== id)),
     move: (id, x, y) => setWidgets(ws => ws.map(w => w.id === id ? { ...w, x, y } : w)),
   };
@@ -364,24 +392,12 @@ function OS() {
     Object.entries(WIN_STYLES[settings.winStyle]).forEach(([k, v]) => r.style.setProperty(k, v));
   }, [settings.theme, settings.accent, settings.font, settings.winStyle]);
 
-  const wallpaper = WALLPAPERS.find(w => w.id === settings.wallpaper) || WALLPAPERS[0];
-
-  // filesystem API
-  const fsApi = {
-    add: (path, items) => setFs(r => { const t = jclone(r); const n = getNode(t, path); if (n) { n.children = n.children || []; n.children.unshift(...items); } return t; }),
-    remove: (path, name) => setFs(r => { const t = jclone(r); const n = getNode(t, path); if (n) n.children = (n.children || []).filter(c => c.name !== name); return t; }),
-    rename: (path, name, nn) => setFs(r => { const t = jclone(r); const n = getNode(t, path); const it = n && (n.children || []).find(c => c.name === name); if (it) it.name = nn; return t; }),
-    move: (srcPath, name, destPath) => setFs(r => { const t = jclone(r); const s = getNode(t, srcPath); const i = s && s.children.findIndex(c => c.name === name); if (i == null || i < 0) return t; const d = getNode(t, destPath); if (!d || JSON.stringify(srcPath) === JSON.stringify(destPath)) return t; const [it] = s.children.splice(i, 1); d.children = d.children || []; d.children.push(it); return t; }),
-    mkdir: (path) => setFs(r => { const t = jclone(r); const n = getNode(t, path); if (n) { n.children = n.children || []; let nm = "Nueva carpeta", k = 1; while (n.children.some(c => c.name === nm)) nm = "Nueva carpeta " + (++k); n.children.unshift({ name: nm, type: "folder", children: [] }); } return t; }),
-  };
-  const search = useCh((q) => {
-    const out = []; const ql = q.toLowerCase();
-    const walk = (node, path) => (node.children || []).forEach(c => {
-      if (c.name.toLowerCase().includes(ql)) out.push({ ...c, path });
-      if (c.type === "folder") walk(c, [...path, c.name]);
-    });
-    walk(fs, []); return out.slice(0, 14);
-  }, [fs]);
+  // fondo: degradado de la lista o imagen del usuario ("file:<id>")
+  const wallFileId = String(settings.wallpaper).startsWith("file:") ? settings.wallpaper.slice(5) : null;
+  const wallUrl = useObjectUrl(stage !== "boot" ? wallFileId : null);
+  const wallpaper = wallFileId
+    ? { css: wallUrl ? `center / cover no-repeat url("${wallUrl}"), #1d3aa0` : "#1d3aa0" }
+    : WALLPAPERS.find(w => w.id === settings.wallpaper) || WALLPAPERS[0];
 
   const dockApi = {
     remove: (id) => setDockCfg(d => d.filter(x => x !== id)),
@@ -395,8 +411,9 @@ function OS() {
 
   const focus = useCh((id) => setWins(ws => ws.map(w => w.id === id ? { ...w, z: ++zTop.current, minimized: false } : w)), []);
   const openApp = useCh((appId, payload) => {
+    if (!APP_BY_ID[appId]) return;
     setWins(ws => {
-      const key = appId + (payload && payload.file ? ":" + payload.file : "") + (payload && payload.url ? ":" + payload.url : "");
+      const key = appId + (payload && payload.fileId ? ":" + payload.fileId : "") + (payload && payload.url ? ":" + payload.url : "");
       const existing = ws.find(w => w.key === key);
       if (existing) return ws.map(w => w.id === existing.id ? { ...w, z: ++zTop.current, minimized: false, payload: payload || w.payload } : w);
       const app = APP_BY_ID[appId]; const n = ws.length;
@@ -413,31 +430,47 @@ function OS() {
   const max = id => setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: !w.maximized } : w));
   const setRect = (id, patch) => setWins(ws => ws.map(w => w.id === id ? { ...w, ...patch } : w));
 
-  // open a filesystem item in the right app
-  const openItem = useCh((r) => {
-    if (r.type === "folder") return openApp("files");
-    openApp(ROUTE[r.type] || "editor", { file: r.name, type: r.type, src: r.src, css: r.css });
+  // abrir un nodo del sistema de archivos con la app adecuada
+  const openItem = useCh((n) => {
+    if (!n) return;
+    if (n.type === "folder") return openApp("files", { folderId: n.id });
+    const app = ROUTE[n.type];
+    if (app) return openApp(app, { fileId: n.id });
+    toast(`No hay una app para abrir “${n.name}”`, { icon: "help", action: { label: "Descargar", run: () => vfs.download(n.id) } });
   }, [openApp]);
+  // nuevos documentos en blanco: archivo vacío en Documentos → la app lo inicializa
+  const newDoc = useCh(async (kind) => {
+    const docs = vfs.resolve("/Documentos") || vfs.getState().root;
+    const name = { docx: "Documento sin título.docx", xlsx: "Libro sin título.xlsx", pptx: "Presentación sin título.pptx", txt: "Nota sin título.txt" }[kind];
+    const id = await vfs.create(docs.id, name, new Blob([]));
+    openItem(vfs.node(id));
+  }, [openItem]);
 
-  useEh(() => { openApp("files"); }, []);
+  useEh(() => {
+    if (stage !== "desktop") return;
+    if (!wins.length) openApp("files");
+    const k = (e) => { if ((e.ctrlKey || e.metaKey) && (e.key === " " || e.key.toLowerCase() === "k")) { e.preventDefault(); setSpot(s => !s); } };
+    const o = (e) => openItem(vfs.node(e.detail));
+    document.addEventListener("keydown", k); window.addEventListener("sotos-open", o);
+    return () => { document.removeEventListener("keydown", k); window.removeEventListener("sotos-open", o); };
+  }, [stage]);
 
   const login = useCh(() => { localStorage.setItem("sotos_in", "1"); setStage("desktop"); }, []);
-  const logout = useCh(() => { localStorage.removeItem("sotos_in"); setStage("boot"); }, []);
+  const logout = useCh(() => { localStorage.removeItem("sotos_in"); setWins([]); quickBoot.current = false; setStage("login"); }, []);
 
   const running = new Set(wins.map(w => w.appId));
   const top = wins.reduce((a, b) => (!a || b.z > a.z) && !b.minimized ? b : a, null);
   const activeApp = top ? APP_BY_ID[top.appId] : null;
 
-  const storeProps = { openApp, settings, update, fs, fsApi, search, profile, setProfile, shortcuts, scApi, dockApi, dockCfg, toTrash, trash, trashApi, deskApi, openSpotlight: () => setSpot(true) };
+  const storeProps = { openApp, openItem, newDoc, settings, update, profile, setProfile, shortcuts, scApi, dockApi, dockCfg, openSpotlight: () => setSpot(true) };
 
-  if (stage === "boot") return <BootScreen onDone={() => setStage("login")} />;
+  if (stage === "boot") return <BootScreen quick={quickBoot.current} onDone={() => setStage(quickBoot.current ? "desktop" : "login")} />;
   if (stage === "login") return <LoginScreen wallpaper={wallpaper} profile={profile} onLogin={login} />;
 
   return (
     <div id="os" data-screen-label="Escritorio">
       <div className="wallpaper" style={{ background: wallpaper.css }} />
-      <Desktop shifted={settings.dock === "left"} items={desktopItems} trashCount={trash.length}
-        openApp={openApp} openItem={openItem} deskApi={deskApi} trashApi={trashApi} settings={settings} update={update} fsApi={fsApi} widgetApi={widgetApi} />
+      <Desktop shifted={settings.dock === "left"} openApp={openApp} openItem={openItem} settings={settings} update={update} widgetApi={widgetApi} />
       {widgets.map(w => (
         <Widget key={w.id} w={w} note={notes[w.id]} onNote={setNote}
           onMove={widgetApi.move} onClose={widgetApi.remove} />
@@ -445,8 +478,9 @@ function OS() {
       {wins.map(win => {
         const app = APP_BY_ID[win.appId];
         const Comp = APP_COMPONENTS[app.comp];
-        const extra = { ...storeProps, ...(win.payload || {}) };
-        const title = win.payload && win.payload.file ? win.payload.file : (win.payload && win.payload.scName) ? win.payload.scName : app.name;
+        const extra = { ...storeProps, ...(win.payload || {}), winId: win.id };
+        const fnode = win.payload && win.payload.fileId ? vfs.node(win.payload.fileId) : null;
+        const title = fnode ? fnode.name : (win.payload && win.payload.scName) ? win.payload.scName : app.name;
         return (
           <Win key={win.id} win={{ ...win, title }} app={app} focused={top && top.id === win.id}
             onFocus={() => focus(win.id)} onClose={() => close(win.id)} onMin={() => min(win.id)} onMax={() => max(win.id)}
@@ -455,9 +489,10 @@ function OS() {
           </Win>
         );
       })}
-      <MenuBar activeApp={activeApp} settings={settings} update={update} profile={profile} onApp={openApp} onLogout={logout} onSearch={() => setSpot(true)} />
+      <MenuBar activeApp={activeApp} settings={settings} update={update} profile={profile} onApp={openApp} onNew={newDoc} onLogout={logout} onSearch={() => setSpot(true)} />
       <Dock position={settings.dock} order={dockCfg} running={running} onApp={openApp} dockApi={dockApi} />
-      {spot && <Spotlight search={search} onOpen={openItem} onClose={() => setSpot(false)} />}
+      {spot && <Spotlight onOpen={openItem} onApp={openApp} onClose={() => setSpot(false)} />}
+      <Toasts />
     </div>
   );
 }

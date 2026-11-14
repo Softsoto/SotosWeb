@@ -156,4 +156,47 @@ function Avatar({ profile, size = 40 }) {
     display: "grid", placeItems: "center", fontWeight: 800, fontSize: size * 0.4 }}>{initials}</div>;
 }
 
-export { Tile, Ic, Win, SideItem, Toolbar, EmptyState, FileGlyph, ContextMenu, Avatar };
+/* -------------------- Avisos (toasts) globales -------------------- */
+const toastSubs = new Set();
+let toastSeq = 0;
+function toast(msg, opts = {}) {
+  const t = { id: ++toastSeq, msg, icon: opts.icon || (opts.error ? "error" : "check_circle"), error: !!opts.error, action: opts.action };
+  toastSubs.forEach(f => f(t));
+  return t.id;
+}
+function Toasts() {
+  const [list, setList] = useState([]);
+  useEffect(() => {
+    const add = (t) => { setList(l => [...l.slice(-3), t]); setTimeout(() => setList(l => l.filter(x => x.id !== t.id)), t.error ? 6000 : 3200); };
+    toastSubs.add(add); return () => toastSubs.delete(add);
+  }, []);
+  return (
+    <div className="toasts">
+      {list.map(t => (
+        <div key={t.id} className={"toast" + (t.error ? " error" : "")}>
+          <Ic name={t.icon} size={18} /><span>{t.msg}</span>
+          {t.action && <button onClick={() => { t.action.run(); setList(l => l.filter(x => x.id !== t.id)); }}>{t.action.label}</button>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* -------------------- Modal simple -------------------- */
+function Modal({ title, icon, onClose, children, actions, width = 380 }) {
+  useEffect(() => { const esc = e => e.key === "Escape" && onClose(); document.addEventListener("keydown", esc); return () => document.removeEventListener("keydown", esc); }, [onClose]);
+  return (
+    <div className="share-modal" onMouseDown={onClose}>
+      <div className="share-card" style={{ width, textAlign: "left", alignItems: "stretch" }} onMouseDown={e => e.stopPropagation()}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          {icon && <Ic name={icon} size={26} style={{ color: "var(--accent)" }} />}
+          <div style={{ fontSize: 16.5, fontWeight: 800 }}>{title}</div>
+        </div>
+        {children}
+        {actions && <div className="wl-btns" style={{ justifyContent: "flex-end", marginTop: 16 }}>{actions}</div>}
+      </div>
+    </div>
+  );
+}
+
+export { Tile, Ic, Win, SideItem, Toolbar, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, Modal };

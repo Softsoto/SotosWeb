@@ -30,8 +30,8 @@ const APP_BY_ID = Object.fromEntries(APPS.map(a => [a.id, a]));
 const DOCK_IDS = ["launchpad","files","docs","sheets","slides","gallery","mail","chat","browser","music","games","__div__","terminal","store","settings"];
 
 // extension -> app routing
-const ROUTE = { docx:"docs", doc:"docs", txt:"editor", code:"editor", xlsx:"sheets", csv:"sheets",
-  pptx:"slides", ppt:"slides", pdf:"pdf", img:"gallery", audio:"music", video:"video" };
+const ROUTE = { docx:"docs", txt:"editor", code:"editor", xlsx:"sheets", csv:"sheets",
+  pptx:"slides", pdf:"pdf", img:"gallery", audio:"music", video:"video" };
 
 // file-type visual metadata (FileGlyph)
 const TYPE_META = {
@@ -39,7 +39,7 @@ const TYPE_META = {
   docx:   { kind: "office", letter: "W", color: "#2b579a" },
   doc:    { kind: "office", letter: "W", color: "#2b579a" },
   xlsx:   { kind: "office", letter: "X", color: "#217346" },
-  csv:    { kind: "office", letter: "X", color: "#217346" },
+  csv:    { kind: "office", letter: "CSV", color: "#217346" },
   pptx:   { kind: "office", letter: "P", color: "#c43e1c" },
   ppt:    { kind: "office", letter: "P", color: "#c43e1c" },
   pdf:    { kind: "pdf",    letter: "PDF", color: "#e2483d" },

@@ -3,148 +3,277 @@
    ============================================================ */
 import React from "react";
 import { APPS, WEB_SERVICES, OFFICE_WEB } from "./data.jsx";
-import { Tile, Ic, Toolbar, EmptyState, FileGlyph } from "./ui.jsx";
+import { Tile, Ic, Toolbar, EmptyState, Modal, toast } from "./ui.jsx";
+import * as vfs from "./vfs.js";
+import { useVfs, fmtDate, fmtSize } from "./vfs.js";
+import { NodeGlyph } from "./files-ui.jsx";
+import { useAutosave, SaveBadge } from "./apps1.jsx";
 const { useState: useS5, useRef: useR5, useEffect: useE5 } = React;
 
-/* -------------------- Documentos -------------------- */
-function docContent(file) {
-  const title = (file || "Documento.docx").replace(/\.[^.]+$/, "");
-  const P = (w) => `<p>${"Este documento de Sotos se sincroniza en la nube y permite edición simultánea con tu equipo. ".repeat(w)}</p>`;
-  return `<h1>${title}</h1>
-    <p class="doc-sub">Sotos Cloud · ${new Date().toLocaleDateString("es-ES", { day: "numeric", month: "long", year: "numeric" })}</p>
-    <p>Este acuerdo se establece entre las partes abajo firmantes con el objeto de regular la colaboración descrita en las siguientes cláusulas. ${"Las partes reconocen y aceptan los términos aquí expuestos. ".repeat(2)}</p>
-    <h2>I. Objeto</h2>${P(3)}
-    <h2>II. Duración</h2>${P(2)}
-    <h2>III. Obligaciones</h2><ul><li>Mantener la confidencialidad de la información compartida.</li><li>Colaborar de buena fe en los objetivos comunes.</li><li>Revisar y aprobar los entregables en los plazos acordados.</li></ul>
-    <h2>IV. Disposiciones finales</h2>${P(3)}`;
-}
-function DocsApp({ file }) {
-  const ref = useR5(null);
-  const tabs = ["Inicio", "Insertar", "Diseño", "Revisar", "Vista"];
-  const [tab, setTab] = useS5("Inicio");
-  const cmd = (c, v) => { document.execCommand(c, false, v); ref.current.focus(); };
-  const rb = (icon, c, v) => <button className="rb-btn" onMouseDown={e => { e.preventDefault(); cmd(c, v); }}><Ic name={icon} size={18} /></button>;
+/* -------------------- Documentos (.docx real) -------------------- */
+function DocsApp({ fileId, newDoc }) {
+  useVfs(s => s.rev);
+  const n = fileId ? vfs.node(fileId) : null;
+  const ref = useR5(null), imgIn = useR5(null);
+  const [html, setHtml] = useS5(null);
+  const [err, setErr] = useS5(null);
+  const [words, setWords] = useS5(0);
+  const [tableDlg, setTableDlg] = useS5(false);
+  const { status, touch, flush } = useAutosave(async () => {
+    if (!ref.current) return;
+    const { htmlToDocx } = await import("./office.js");
+    await vfs.write(fileId, await htmlToDocx(ref.current.innerHTML, n?.name.replace(/\.[^.]+$/, "")));
+  }, 1800);
+
+  useE5(() => {
+    setHtml(null); setErr(null); if (!fileId) return;
+    (async () => {
+      try {
+        const blob = await vfs.read(fileId);
+        const { docxToHtml, sanitizeHtml } = await import("./office.js");
+        setHtml(blob.size ? sanitizeHtml(await docxToHtml(blob)) : "<p><br></p>");
+      } catch (e) { setErr(/\.(doc|odt|rtf)$/i.test(n?.name || "") ? "Sotos abre documentos .docx. Este formato antiguo no se puede editar aquí." : "No se pudo abrir el documento: " + e.message); }
+    })();
+  }, [fileId]);
+  useE5(() => { if (html != null && ref.current) { ref.current.innerHTML = html; count(); } }, [html]);
+  const count = () => { const t = ref.current?.innerText || ""; setWords(t.trim() ? t.trim().split(/\s+/).length : 0); };
+  const changed = () => { count(); touch(); };
+  const cmd = (c, v) => { ref.current?.focus(); document.execCommand(c, false, v); changed(); };
+  const rb = (icon, c, v, title) => <button className="rb-btn" title={title} onMouseDown={e => { e.preventDefault(); cmd(c, v); }}><Ic name={icon} size={18} /></button>;
+  const onPaste = async (e) => {
+    const h = e.clipboardData.getData("text/html");
+    if (h) { e.preventDefault(); const { sanitizeHtml } = await import("./office.js"); document.execCommand("insertHTML", false, sanitizeHtml(h)); changed(); }
+  };
+
+  if (!fileId) return (
+    <div className="app" style={{ flexDirection: "column" }}>
+      <Toolbar><span className="tb-title">Documentos</span><div className="tb-spacer" /><button className="tb-btn primary" onClick={() => newDoc("docx")}><Ic name="add" /> Nuevo documento</button></Toolbar>
+      <RecentList types={["docx"]} />
+    </div>
+  );
+  if (!n) return <EmptyState icon="error" text="El archivo ya no existe" />;
+  if (err) return <div className="app" style={{ flexDirection: "column" }}><EmptyState icon="description" text={err} />
+    <div style={{ display: "flex", justifyContent: "center", paddingBottom: 40 }}><button className="tb-btn" onClick={() => vfs.download(fileId)}><Ic name="download" /> Descargar</button></div></div>;
 
   return (
     <div className="app" style={{ flexDirection: "column" }}>
+      <input ref={imgIn} type="file" accept="image/png,image/jpeg,image/gif" style={{ display: "none" }}
+        onChange={e => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; const r = new FileReader(); r.onload = () => cmd("insertHTML", `<img src="${r.result}" width="400">`); r.readAsDataURL(f); }} />
       <div className="ribbon">
         <div className="ribbon-tabs">
-          <div className="ribbon-titlebar"><span className="office-badge w">W</span>{file || "Documento.docx"}</div>
-          {tabs.map(t => <button key={t} className={"ribbon-tab" + (tab === t ? " active" : "")} onClick={() => setTab(t)}>{t}</button>)}
+          <div className="ribbon-titlebar"><span className="office-badge w">W</span>{n.name}</div>
+          <div className="tb-spacer" /><SaveBadge status={status} />
         </div>
         <div className="ribbon-body">
           <div className="rb-group">
+            <div className="rb-row">{rb("undo", "undo", null, "Deshacer")}{rb("redo", "redo", null, "Rehacer")}</div>
+            <div className="rb-row">{rb("format_clear", "removeFormat", null, "Quitar formato")}</div>
+            <div className="rb-label">Edición</div>
+          </div>
+          <div className="rb-group">
             <div className="rb-row">
-              <select className="rb-select" style={{ width: 120 }} onChange={e => cmd("fontName", e.target.value)} defaultValue="Onest">
-                <option>Onest</option><option>Georgia</option><option>Times New Roman</option><option>Arial</option>
+              <select className="rb-select" style={{ width: 128 }} onChange={e => cmd("fontName", e.target.value)} defaultValue="Calibri">
+                {["Calibri", "Arial", "Georgia", "Times New Roman", "Verdana", "Courier New", "Onest"].map(f => <option key={f}>{f}</option>)}
               </select>
               <select className="rb-select" style={{ width: 56 }} onChange={e => cmd("fontSize", e.target.value)} defaultValue="3">
-                <option value="2">11</option><option value="3">13</option><option value="4">16</option><option value="5">20</option>
+                <option value="1">8</option><option value="2">10</option><option value="3">12</option><option value="4">14</option><option value="5">18</option><option value="6">24</option><option value="7">36</option>
               </select>
             </div>
             <div className="rb-row">
-              {rb("format_bold", "bold")}{rb("format_italic", "italic")}{rb("format_underlined", "underline")}
-              {rb("strikethrough_s", "strikeThrough")}{rb("format_color_text", "foreColor", "#2f6fed")}
+              {rb("format_bold", "bold", null, "Negrita (Ctrl+B)")}{rb("format_italic", "italic", null, "Cursiva (Ctrl+I)")}{rb("format_underlined", "underline", null, "Subrayado (Ctrl+U)")}
+              {rb("strikethrough_s", "strikeThrough", null, "Tachado")}
+              <label className="rb-btn" title="Color de texto" style={{ position: "relative" }}><Ic name="format_color_text" size={18} />
+                <input type="color" defaultValue="#2f6fed" onMouseDown={e => e.stopPropagation()} onChange={e => cmd("foreColor", e.target.value)} style={{ position: "absolute", opacity: 0, inset: 0, cursor: "pointer" }} /></label>
+              <label className="rb-btn" title="Resaltar" style={{ position: "relative" }}><Ic name="ink_highlighter" size={18} />
+                <input type="color" defaultValue="#fff59d" onChange={e => cmd("hiliteColor", e.target.value)} style={{ position: "absolute", opacity: 0, inset: 0, cursor: "pointer" }} /></label>
             </div>
             <div className="rb-label">Fuente</div>
           </div>
           <div className="rb-group">
-            <div className="rb-row">
-              {rb("format_align_left", "justifyLeft")}{rb("format_align_center", "justifyCenter")}
-              {rb("format_align_right", "justifyRight")}{rb("format_align_justify", "justifyFull")}
-            </div>
-            <div className="rb-row">
-              {rb("format_list_bulleted", "insertUnorderedList")}{rb("format_list_numbered", "insertOrderedList")}
-              {rb("format_indent_increase", "indent")}{rb("format_indent_decrease", "outdent")}
-            </div>
+            <div className="rb-row">{rb("format_align_left", "justifyLeft")}{rb("format_align_center", "justifyCenter")}{rb("format_align_right", "justifyRight")}{rb("format_align_justify", "justifyFull")}</div>
+            <div className="rb-row">{rb("format_list_bulleted", "insertUnorderedList")}{rb("format_list_numbered", "insertOrderedList")}{rb("format_indent_increase", "indent")}{rb("format_indent_decrease", "outdent")}</div>
             <div className="rb-label">Párrafo</div>
           </div>
           <div className="rb-group">
             <div className="rb-row" style={{ gap: 4 }}>
               <button className="style-chip" onMouseDown={e => { e.preventDefault(); cmd("formatBlock", "<p>"); }}>Normal</button>
-              <button className="style-chip h" onMouseDown={e => { e.preventDefault(); cmd("formatBlock", "<h2>"); }}>Título 1</button>
+              <button className="style-chip h" onMouseDown={e => { e.preventDefault(); cmd("formatBlock", "<h1>"); }}>Título 1</button>
+              <button className="style-chip h" style={{ fontSize: 12 }} onMouseDown={e => { e.preventDefault(); cmd("formatBlock", "<h2>"); }}>Título 2</button>
+            </div>
+            <div className="rb-row" style={{ gap: 4 }}>
+              <button className="style-chip" style={{ fontStyle: "italic" }} onMouseDown={e => { e.preventDefault(); cmd("formatBlock", "<blockquote>"); }}>Cita</button>
             </div>
             <div className="rb-label">Estilos</div>
           </div>
+          <div className="rb-group">
+            <div className="rb-row">
+              <button className="rb-btn" title="Imagen" onMouseDown={e => { e.preventDefault(); imgIn.current.click(); }}><Ic name="image" size={18} /></button>
+              <button className="rb-btn" title="Tabla" onMouseDown={e => { e.preventDefault(); setTableDlg(true); }}><Ic name="table" size={18} /></button>
+              <button className="rb-btn" title="Enlace" onMouseDown={e => { e.preventDefault(); const u = prompt("Dirección del enlace (https://…)"); if (u && /^https?:\/\//i.test(u)) cmd("createLink", u); }}><Ic name="link" size={18} /></button>
+              {rb("horizontal_rule", "insertHorizontalRule", null, "Línea")}
+            </div>
+            <div className="rb-label">Insertar</div>
+          </div>
           <div className="tb-spacer" />
-          <button className="tb-btn" style={{ alignSelf: "center" }} onClick={() => window.open(OFFICE_WEB.word.ms, "_blank", "noopener")}><Ic name="open_in_new" /> Web</button>
-          <button className="tb-btn primary" style={{ alignSelf: "center", margin: "0 10px" }}><Ic name="group_add" /> Compartir</button>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, alignSelf: "center", marginRight: 10 }}>
+            <button className="tb-btn" onClick={async () => { await flush(); vfs.download(fileId); }}><Ic name="download" /> .docx</button>
+            <button className="tb-btn" onClick={async () => { const { printHtml } = await import("./office.js"); printHtml(ref.current.innerHTML, n.name); }}><Ic name="picture_as_pdf" /> PDF</button>
+          </div>
         </div>
       </div>
-      <div className="doc-status"><Ic name="cloud_done" size={15} /> Guardado en Sotos · Edición en tiempo real</div>
       <div className="scroll" style={{ flex: 1, background: "var(--surface-2)", padding: "26px 0" }}>
-        <div ref={ref} contentEditable suppressContentEditableWarning className="doc-page word"
-          style={{ maxWidth: 660, margin: "0 auto", background: "#fff", color: "#1b1f24", minHeight: 800,
-            padding: "72px 84px", boxShadow: "var(--shadow-card)", outline: "none", fontSize: 15.5, lineHeight: 1.75 }}
-          dangerouslySetInnerHTML={{ __html: docContent(file) }} />
+        {html == null ? <EmptyState icon="hourglass_empty" text="Abriendo documento…" /> :
+          <div ref={ref} contentEditable suppressContentEditableWarning className="doc-page word" spellCheck
+            onInput={changed} onPaste={onPaste} onBlur={() => status === "dirty" && flush()}
+            onKeyDown={e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") { e.preventDefault(); flush(); } }}
+            style={{ maxWidth: 680, margin: "0 auto", background: "#fff", color: "#1b1f24", minHeight: 900,
+              padding: "72px 84px", boxShadow: "var(--shadow-card)", outline: "none", fontSize: 15, lineHeight: 1.7, fontFamily: "Calibri, Carlito, 'Segoe UI', sans-serif" }} />}
       </div>
+      <div className="files-status"><span>{words} palabras</span><div className="tb-spacer" /><span>Word (.docx) · Español</span></div>
+      {tableDlg && <TableDialog onClose={() => setTableDlg(false)} onInsert={(r, c) => {
+        const row = `<tr>${"<td>&nbsp;</td>".repeat(c)}</tr>`; cmd("insertHTML", `<table style="border-collapse:collapse;width:100%">${row.repeat(r)}</table><p><br></p>`); setTableDlg(false); }} />}
+    </div>
+  );
+}
+function TableDialog({ onClose, onInsert }) {
+  const [r, setR] = useS5(3), [c, setC] = useS5(3);
+  return (
+    <Modal title="Insertar tabla" icon="table" onClose={onClose}
+      actions={<><button className="tb-btn" onClick={onClose}>Cancelar</button><button className="tb-btn primary" onClick={() => onInsert(r, c)}>Insertar</button></>}>
+      <div style={{ display: "flex", gap: 16 }}>
+        <label className="field">Filas<input type="number" min={1} max={50} value={r} onChange={e => setR(Math.max(1, Math.min(50, +e.target.value)))} /></label>
+        <label className="field">Columnas<input type="number" min={1} max={12} value={c} onChange={e => setC(Math.max(1, Math.min(12, +e.target.value)))} /></label>
+      </div>
+    </Modal>
+  );
+}
+function RecentList({ types }) {
+  useVfs(s => s.rev);
+  const files = vfs.allOfType(types).sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+  const [, force] = useS5(0);
+  return (
+    <div className="scroll" style={{ flex: 1 }}>
+      <div className="file-list">{files.map(f => (
+        <div key={f.id} className="file-row" style={{ gridTemplateColumns: "1fr 140px 90px" }}
+          onClick={() => window.dispatchEvent(new CustomEvent("sotos-open", { detail: f.id }))}>
+          <span className="fl-name"><NodeGlyph node={f} size={20} /><div className="fname">{f.name}</div></span><span>{fmtDate(f.mtime)}</span><span style={{ textAlign: "right" }}>{fmtSize(f.size)}</span>
+        </div>))}</div>
+      {!files.length && <EmptyState icon="draft" text="Aún no hay archivos" />}
     </div>
   );
 }
 
-/* -------------------- Presentaciones -------------------- */
-const SLIDES0 = [
-  { bg: "linear-gradient(135deg,#2b3a8c,#5b3a9e)", title: "Tendencias de marca 2026", sub: "Estrategia y dirección creativa", kicker: "SOTOS · EQUIPO PRODUCTO" },
-  { bg: "#ffffff", dark: true, title: "El reto", bullets: ["Saturación visual en el sector", "Audiencias más jóvenes y digitales", "Necesidad de una identidad coherente"] },
-  { bg: "#ffffff", dark: true, title: "Tres pilares", bullets: ["Claridad — menos es más", "Calidez — humano y cercano", "Movimiento — vivo y dinámico"] },
-  { bg: "linear-gradient(135deg,#0f7f6b,#2bd4c4)", title: "Próximos pasos", sub: "Roadmap del trimestre", kicker: "Q3 2026" },
-];
-function SlidesApp({ file }) {
-  const [slides, setSlides] = useS5(() => JSON.parse(JSON.stringify(SLIDES0)));
-  const [cur, setCur] = useS5(0);
-  const [present, setPresent] = useS5(false);
-  const s = slides[cur];
-  const edit = (patch) => setSlides(sl => sl.map((x, i) => i === cur ? { ...x, ...patch } : x));
-  const editBullet = (bi, txt) => setSlides(sl => sl.map((x, i) => i === cur ? { ...x, bullets: x.bullets.map((b, j) => j === bi ? txt : b) } : x));
-  const addSlide = () => { setSlides(sl => { const n = [...sl]; n.splice(cur + 1, 0, { bg: "#ffffff", dark: true, title: "Nueva diapositiva", bullets: ["Punto uno", "Punto dos"] }); return n; }); setCur(c => c + 1); };
-
-  const Slide = ({ s, scale, live }) => (
-    <div style={{ width: "100%", height: "100%", background: s.bg, color: s.dark ? "#1b1f24" : "#fff",
-      display: "flex", flexDirection: "column", justifyContent: "center", padding: `${5 * scale}%`, position: "relative" }}>
-      {s.kicker && <div style={{ fontSize: `${1.6 * scale}vw`, fontWeight: 700, letterSpacing: ".12em", opacity: .75, marginBottom: `${1.2 * scale}vw` }}>{s.kicker}</div>}
-      <div contentEditable={live} suppressContentEditableWarning onBlur={live ? e => edit({ title: e.target.textContent }) : undefined}
-        style={{ fontSize: `${4.2 * scale}vw`, fontWeight: 800, letterSpacing: "-.02em", lineHeight: 1.05, outline: "none" }}>{s.title}</div>
-      {s.sub && <div contentEditable={live} suppressContentEditableWarning onBlur={live ? e => edit({ sub: e.target.textContent }) : undefined}
-        style={{ fontSize: `${2.2 * scale}vw`, opacity: .8, marginTop: `${1.2 * scale}vw`, outline: "none" }}>{s.sub}</div>}
-      {s.bullets && <ul style={{ fontSize: `${2.2 * scale}vw`, lineHeight: 1.7, marginTop: `${2 * scale}vw`, paddingLeft: `${3 * scale}vw` }}>
-        {s.bullets.map((b, i) => <li key={i} contentEditable={live} suppressContentEditableWarning onBlur={live ? e => editBullet(i, e.target.textContent) : undefined}
-          style={{ marginBottom: `${0.8 * scale}vw`, outline: "none" }}>{b}</li>)}</ul>}
-      {s.dark && <div style={{ position: "absolute", left: `${5 * scale}%`, bottom: `${5 * scale}%`, width: `${8 * scale}vw`, height: `${0.5 * scale}vw`, background: "var(--accent)" }} />}
+/* -------------------- Presentaciones (.pptx real) -------------------- */
+const BGS = ["#ffffff", "#f4f1ea", "#1b1f24", "linear-gradient(135deg,#2b3a8c,#5b3a9e)", "linear-gradient(135deg,#0f7f6b,#2bd4c4)", "linear-gradient(135deg,#c43e1c,#ff8a00)", "#2f6fed"];
+const isLightBg = (bg) => /^#(fff|f4f1ea)/i.test(bg);
+const DEFAULT_SLIDES = () => [{ bg: "linear-gradient(135deg,#2b3a8c,#5b3a9e)", title: "Título de la presentación", sub: "Haz clic para editar el subtítulo" }];
+function SlideView({ s, live, onEdit }) {
+  const ink = s.dark ? "#1b1f24" : "#fff";
+  const field = (key, style, tag = "div") => React.createElement(tag, {
+    contentEditable: live, suppressContentEditableWarning: true, style: { outline: "none", ...style },
+    onBlur: live ? (e) => { const v = e.target.textContent; if (v !== s[key]) onEdit({ [key]: v }); } : undefined,
+  }, s[key]);
+  return (
+    <div className="slide" style={{ background: s.bg, color: ink }}>
+      {s.kicker != null && field("kicker", { fontSize: "1.6cqw", fontWeight: 700, letterSpacing: ".12em", opacity: .75, marginBottom: "1.2cqw" })}
+      {field("title", { fontSize: "4.4cqw", fontWeight: 800, letterSpacing: "-.02em", lineHeight: 1.08 })}
+      {s.sub != null && field("sub", { fontSize: "2.3cqw", opacity: .82, marginTop: "1.3cqw" })}
+      {s.bullets && <ul style={{ fontSize: "2.3cqw", lineHeight: 1.6, marginTop: "2.2cqw", paddingLeft: "3cqw" }}>
+        {s.bullets.map((b, i) => <li key={i + ":" + b} contentEditable={live} suppressContentEditableWarning style={{ marginBottom: ".8cqw", outline: "none" }}
+          onBlur={live ? e => { const v = e.target.textContent; if (v !== b) onEdit({ bullets: s.bullets.map((x, j) => j === i ? v : x).filter((x, j) => x.trim() || j !== i) }); } : undefined}
+          onKeyDown={live ? e => { if (e.key === "Enter") { e.preventDefault(); e.target.blur(); const nb = [...s.bullets]; nb.splice(i + 1, 0, ""); onEdit({ bullets: nb.map((x, j) => j === i ? e.target.textContent : x) }); } } : undefined}>{b}</li>)}</ul>}
+      {s.dark && <div style={{ position: "absolute", left: "5%", bottom: "6%", width: "8cqw", height: ".5cqw", background: "var(--accent)" }} />}
     </div>
   );
+}
+function SlidesApp({ fileId, newDoc }) {
+  useVfs(s => s.rev);
+  const n = fileId ? vfs.node(fileId) : null;
+  const [slides, setSlides] = useS5(null);
+  const [cur, setCur] = useS5(0);
+  const [present, setPresent] = useS5(false);
+  const slidesRef = useR5(null); slidesRef.current = slides;
+  const presRef = useR5(null);
+  const { status, touch, flush } = useAutosave(async () => {
+    const { slidesToPptx } = await import("./office.js");
+    await vfs.write(fileId, await slidesToPptx(slidesRef.current, n?.name.replace(/\.[^.]+$/, "")));
+  }, 1500);
+  useE5(() => {
+    setSlides(null); if (!fileId) return;
+    (async () => {
+      try { const blob = await vfs.read(fileId); const { pptxToSlides } = await import("./office.js"); setSlides(blob.size ? await pptxToSlides(blob) : DEFAULT_SLIDES()); setCur(0); }
+      catch (e) { toast("No se pudo abrir la presentación: " + e.message, { error: true }); setSlides(DEFAULT_SLIDES()); }
+    })();
+  }, [fileId]);
+  useE5(() => {
+    if (!present) return;
+    const k = (e) => {
+      if (["ArrowRight", "ArrowDown", " ", "PageDown"].includes(e.key)) { e.preventDefault(); setCur(c => Math.min(c + 1, slidesRef.current.length - 1)); }
+      if (["ArrowLeft", "ArrowUp", "PageUp"].includes(e.key)) { e.preventDefault(); setCur(c => Math.max(c - 1, 0)); }
+      if (e.key === "Escape") setPresent(false);
+    };
+    const fs = () => { if (!document.fullscreenElement) setPresent(false); };
+    document.addEventListener("keydown", k); document.addEventListener("fullscreenchange", fs);
+    presRef.current?.requestFullscreen?.().catch(() => {});
+    return () => { document.removeEventListener("keydown", k); document.removeEventListener("fullscreenchange", fs); if (document.fullscreenElement) document.exitFullscreen().catch(() => {}); };
+  }, [present]);
+
+  if (!fileId) return (
+    <div className="app" style={{ flexDirection: "column" }}>
+      <Toolbar><span className="tb-title">Presentaciones</span><div className="tb-spacer" /><button className="tb-btn primary" onClick={() => newDoc("pptx")}><Ic name="add" /> Nueva presentación</button></Toolbar>
+      <RecentList types={["pptx"]} />
+    </div>
+  );
+  if (!n) return <EmptyState icon="error" text="El archivo ya no existe" />;
+  if (!slides) return <EmptyState icon="hourglass_empty" text="Abriendo presentación…" />;
+  const s = slides[Math.min(cur, slides.length - 1)];
+  const set = (fn) => { setSlides(fn); touch(); };
+  const edit = (patch) => set(sl => sl.map((x, i) => i === cur ? { ...x, ...patch } : x));
+  const addSlide = (layout) => { const ns = layout === "title" ? { bg: "linear-gradient(135deg,#2b3a8c,#5b3a9e)", title: "Sección", sub: "Subtítulo" } : { bg: "#ffffff", dark: true, title: "Nueva diapositiva", bullets: ["Primer punto", "Segundo punto"] }; set(sl => { const x = [...sl]; x.splice(cur + 1, 0, ns); return x; }); setCur(c => c + 1); };
+  const dup = () => { set(sl => { const x = [...sl]; x.splice(cur + 1, 0, JSON.parse(JSON.stringify(sl[cur]))); return x; }); setCur(c => c + 1); };
+  const del = () => { if (slides.length < 2) return; set(sl => sl.filter((_, i) => i !== cur)); setCur(c => Math.max(0, c - 1)); };
+  const moveS = (d) => { const j = cur + d; if (j < 0 || j >= slides.length) return; set(sl => { const x = [...sl]; [x[cur], x[j]] = [x[j], x[cur]]; return x; }); setCur(j); };
+
   if (present) return (
-    <div className="app" style={{ background: "#000", position: "relative" }} onClick={() => setCur(c => (c + 1) % slides.length)}>
-      <div style={{ flex: 1, aspectRatio: "16/9", margin: "auto", maxWidth: "100%", maxHeight: "100%" }}><Slide s={s} scale={1} /></div>
-      <button className="tb-btn icon" style={{ position: "absolute", top: 12, right: 12, zIndex: 5, background: "rgba(255,255,255,.15)", color: "#fff", border: "none" }}
-        onClick={e => { e.stopPropagation(); setPresent(false); }}><Ic name="close_fullscreen" /></button>
+    <div ref={presRef} className="app" style={{ background: "#000", position: "relative", display: "grid", placeItems: "center" }}
+      onClick={() => setCur(c => Math.min(c + 1, slides.length - 1))} onContextMenu={e => { e.preventDefault(); setCur(c => Math.max(c - 1, 0)); }}>
+      <div className="slide-frame" style={{ width: "min(100%, calc(100vh * 16 / 9))" }}><SlideView s={s} /></div>
+      <div className="pres-hud">{cur + 1} / {slides.length} · ← → para navegar · Esc para salir</div>
     </div>
   );
   return (
     <div className="app">
-      <div className="app-side" style={{ width: 168, flexBasis: 168, background: "var(--surface-3)" }}>
+      <div className="app-side slides-side">
         {slides.map((sl, i) => (
-          <div key={i} onClick={() => setCur(i)}
-            style={{ display: "flex", gap: 8, marginBottom: 10, cursor: "pointer", alignItems: "flex-start" }}>
-            <span className="faint" style={{ fontSize: 11, width: 14, paddingTop: 14 }}>{i + 1}</span>
-            <div style={{ flex: 1, aspectRatio: "16/9", borderRadius: 5, overflow: "hidden",
-              outline: cur === i ? "2.5px solid var(--accent)" : "1px solid var(--border)" }}>
-              <Slide s={sl} scale={0.5} />
-            </div>
+          <div key={i} className="slide-thumb-row" onClick={() => setCur(i)}>
+            <span className="faint">{i + 1}</span>
+            <div className={"slide-frame thumb" + (cur === i ? " on" : "")}><SlideView s={sl} /></div>
           </div>
         ))}
       </div>
       <div className="app-main">
         <Toolbar>
           <span className="office-badge p" style={{ marginRight: 2 }}>P</span>
-          <span className="tb-title" style={{ fontSize: 13.5 }}>{file || "Tendencias de marca.pptx"}</span>
-          <div className="tb-spacer" />
-          <button className="tb-btn" onClick={addSlide}><Ic name="add" /> Diapositiva</button>
-          <button className="tb-btn" onClick={() => window.open(OFFICE_WEB.powerpoint.ms, "_blank", "noopener")}><Ic name="open_in_new" /> Web</button>
+          <span className="tb-title" style={{ fontSize: 13.5 }}>{n.name}</span>
+          <div className="tb-spacer" /><SaveBadge status={status} />
+          <button className="tb-btn" onClick={() => addSlide("bullets")} title="Diapositiva con viñetas"><Ic name="add" /> Diapositiva</button>
+          <button className="tb-btn icon" onClick={() => addSlide("title")} title="Diapositiva de título"><Ic name="title" /></button>
+          <button className="tb-btn icon" onClick={dup} title="Duplicar"><Ic name="content_copy" /></button>
+          <button className="tb-btn icon" onClick={() => moveS(-1)} title="Mover arriba"><Ic name="arrow_upward" /></button>
+          <button className="tb-btn icon" onClick={() => moveS(1)} title="Mover abajo"><Ic name="arrow_downward" /></button>
+          <button className="tb-btn icon" onClick={del} title="Eliminar" disabled={slides.length < 2}><Ic name="delete" /></button>
+          <button className="tb-btn icon" onClick={async () => { await flush(); vfs.download(fileId); }} title="Descargar .pptx"><Ic name="download" /></button>
           <button className="tb-btn primary" onClick={() => setPresent(true)}><Ic name="play_arrow" /> Presentar</button>
         </Toolbar>
-        <div style={{ flex: 1, display: "grid", placeItems: "center", background: "var(--surface-2)", padding: 24 }}>
-          <div style={{ width: "100%", maxWidth: 600, aspectRatio: "16/9", borderRadius: 8, overflow: "hidden", boxShadow: "var(--shadow-card)" }}>
-            <Slide s={s} scale={0.62} live />
+        <div className="slide-editor">
+          <div className="slide-frame main"><SlideView s={s} live onEdit={edit} /></div>
+          <div className="slide-props">
+            <span className="faint">Fondo</span>
+            {BGS.map(bg => <button key={bg} className={"bg-swatch" + (s.bg === bg ? " on" : "")} style={{ background: bg }} onClick={() => edit({ bg, dark: isLightBg(bg) })} />)}
+            <span className="faint" style={{ marginLeft: 12 }}>Elementos</span>
+            <button className="tb-btn" onClick={() => edit({ sub: s.sub == null ? "Subtítulo" : undefined })}><Ic name={s.sub == null ? "add" : "remove"} size={16} /> Subtítulo</button>
+            <button className="tb-btn" onClick={() => edit({ bullets: s.bullets ? undefined : ["Nuevo punto"] })}><Ic name={s.bullets ? "remove" : "add"} size={16} /> Viñetas</button>
+            {s.bullets && <button className="tb-btn" onClick={() => edit({ bullets: [...s.bullets, "Nuevo punto"] })}><Ic name="format_list_bulleted_add" size={16} /> Punto</button>}
           </div>
         </div>
       </div>
@@ -288,32 +417,46 @@ function LaunchpadApp({ openApp, shortcuts = [], scApi }) {
 }
 
 /* -------------------- Papelera -------------------- */
-function TrashApp({ trash = [], trashApi }) {
+function TrashApp() {
+  const trash = useVfs(s => s.trash);
+  const [confirm, setConfirm] = useS5(null); // { ids, all }
+  const [sel, setSel] = useS5([]);
+  const total = trash.reduce((s, t) => s + vfs.folderSize(t.node), 0);
+  const origin = (t) => { const p = vfs.node(t.from); return p ? vfs.pathString(p.id) : "(carpeta eliminada)"; };
   return (
     <div className="app" style={{ flexDirection: "column" }}>
       <Toolbar>
         <span className="office-badge" style={{ background: "#7d8590", width: 22, height: 22, marginRight: 4 }}><Ic name="delete" size={14} /></span>
         <span className="tb-title">Papelera</span>
-        <span className="faint" style={{ fontSize: 12, marginLeft: 8 }}>{trash.length} elemento(s)</span>
+        <span className="faint" style={{ fontSize: 12, marginLeft: 8 }}>{trash.length} elemento(s) · {fmtSize(total)}</span>
         <div className="tb-spacer" />
-        <button className="tb-btn" disabled={!trash.length} style={{ opacity: trash.length ? 1 : .4 }} onClick={() => trashApi.empty()}><Ic name="delete_sweep" /> Vaciar papelera</button>
+        {!!sel.length && <>
+          <button className="tb-btn" onClick={() => { vfs.restore(sel); toast(`${sel.length} elemento(s) restaurado(s)`, { icon: "restore_from_trash" }); setSel([]); }}><Ic name="restore_from_trash" /> Restaurar</button>
+          <button className="tb-btn" onClick={() => setConfirm({ ids: sel })}><Ic name="delete_forever" /> Eliminar</button>
+        </>}
+        <button className="tb-btn" disabled={!trash.length} style={{ opacity: trash.length ? 1 : .4 }} onClick={() => setConfirm({ ids: trash.map(t => t.node.id), all: true })}><Ic name="delete_sweep" /> Vaciar papelera</button>
       </Toolbar>
-      <div className="scroll" style={{ flex: 1, padding: 16, background: "var(--surface-2)" }}>
+      <div className="scroll" style={{ flex: 1 }}>
         {trash.length ? (
-          <div className="file-grid" style={{ padding: 0 }}>
-            {trash.map(it => (
-              <div key={it.id} className="file-cell trash-cell">
-                <div className="ic"><FileGlyph type={it.type} css={it.css} src={it.src} size={46} /></div>
-                <div className="fname">{it.name}</div>
-                <div className="trash-actions">
-                  <button className="tb-btn icon" title="Restaurar" onClick={() => trashApi.restore(it.id)}><Ic name="restore_from_trash" size={18} /></button>
-                  <button className="tb-btn icon" title="Eliminar definitivamente" onClick={() => trashApi.del(it.id)}><Ic name="delete_forever" size={18} /></button>
-                </div>
+          <div className="file-list">
+            <div className="file-row head" style={{ gridTemplateColumns: "1fr 1fr 130px 90px" }}><span>Nombre</span><span>Ubicación original</span><span>Eliminado</span><span style={{ textAlign: "right" }}>Tamaño</span></div>
+            {trash.map(t => (
+              <div key={t.node.id} className={"file-row" + (sel.includes(t.node.id) ? " sel" : "")} style={{ gridTemplateColumns: "1fr 1fr 130px 90px" }}
+                onClick={e => setSel(s => e.ctrlKey || e.metaKey ? (s.includes(t.node.id) ? s.filter(x => x !== t.node.id) : [...s, t.node.id]) : [t.node.id])}
+                onDoubleClick={() => vfs.restore([t.node.id])}>
+                <span className="fl-name"><NodeGlyph node={t.node} size={20} /><div className="fname">{t.node.name}</div></span>
+                <span className="faint">{origin(t)}</span><span>{fmtDate(t.at)}</span><span style={{ textAlign: "right" }}>{fmtSize(vfs.folderSize(t.node))}</span>
               </div>
             ))}
           </div>
         ) : <EmptyState icon="delete_outline" text="La papelera está vacía" />}
       </div>
+      <div className="files-status"><span>Doble clic restaura un elemento a su carpeta original.</span></div>
+      {confirm && <Modal title={confirm.all ? "¿Vaciar la papelera?" : `¿Eliminar ${confirm.ids.length} elemento(s)?`} icon="delete_forever" onClose={() => setConfirm(null)}
+        actions={<><button className="tb-btn" onClick={() => setConfirm(null)}>Cancelar</button>
+          <button className="tb-btn danger" onClick={async () => { await vfs.destroy(confirm.ids); setSel([]); setConfirm(null); toast("Eliminado definitivamente", { icon: "delete_forever" }); }}>Eliminar para siempre</button></>}>
+        <div className="muted" style={{ fontSize: 13.5 }}>Esta acción no se puede deshacer. Los archivos se borrarán de este navegador.</div>
+      </Modal>}
     </div>
   );
 }
