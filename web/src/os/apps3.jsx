@@ -241,7 +241,12 @@ function BrowserApp({ shortcuts = [], url, scName }) {
   const [failed, setFailed] = useS3({});
   const t = tabs[active] || tabs[0];
 
-  useE3(() => { if (url) { setTabs(ts => { const n = [...ts, { id: tabSeq++, addr: url, input: url, title: scName || url, hist: ["inicio", url], hi: 1 }]; setActive(n.length - 1); return n; }); } }, [url]);
+  // una dirección nueva (abrir enlace con la ventana ya abierta) añade pestaña; la inicial ya la creó useState
+  const firstUrl = React.useRef(true);
+  useE3(() => {
+    if (firstUrl.current) { firstUrl.current = false; return; }
+    if (url) setTabs(ts => { const n = [...ts, { id: tabSeq++, addr: url, input: url, title: scName || url, hist: ["inicio", url], hi: 1, fresh: true }]; setActive(n.length - 1); return n; });
+  }, [url]);
   useE3(() => { if (!url) { try { localStorage.setItem("sotos_browser", JSON.stringify({ tabs, active })); } catch (e) {} } }, [tabs, active]);
   useE3(() => { try { localStorage.setItem("sotos_proxy", proxyMode ? "1" : "0"); } catch (e) {} }, [proxyMode]);
 

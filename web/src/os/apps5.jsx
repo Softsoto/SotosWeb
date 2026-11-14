@@ -100,8 +100,6 @@ function DocsApp({ fileId, newDoc }) {
               <button className="style-chip" onMouseDown={e => { e.preventDefault(); cmd("formatBlock", "<p>"); }}>Normal</button>
               <button className="style-chip h" onMouseDown={e => { e.preventDefault(); cmd("formatBlock", "<h1>"); }}>Título 1</button>
               <button className="style-chip h" style={{ fontSize: 12 }} onMouseDown={e => { e.preventDefault(); cmd("formatBlock", "<h2>"); }}>Título 2</button>
-            </div>
-            <div className="rb-row" style={{ gap: 4 }}>
               <button className="style-chip" style={{ fontStyle: "italic" }} onMouseDown={e => { e.preventDefault(); cmd("formatBlock", "<blockquote>"); }}>Cita</button>
             </div>
             <div className="rb-label">Estilos</div>

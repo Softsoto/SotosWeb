@@ -5,3 +5,8 @@ dist/
 .env.*
 server/data/
 server/.env
+server/sotos.env
+iniciar-sotos.cmd
+iniciar-sotos.sh
+iniciar-sotos-oculto.vbs
+!.env.example

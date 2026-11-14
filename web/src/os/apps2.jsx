@@ -11,7 +11,8 @@ const { useState: useS2, useRef: useR2, useEffect: useE2 } = React;
 
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} };
-const COLORS = ["#2f6fed", "#8e5cf6", "#fc3c44", "#0aa5b5", "#ff8a00", "#34c759", "#c43e1c", "#7d8590"];
+// portadas con la paleta de identidad
+const COLORS = ["#c4532f", "#4f7a3a", "#2f5d8a", "#c9902a", "#7a3e6b", "#1f7a78", "#8a5a3b", "#5a5689"];
 const colorOf = (id) => COLORS[[...id].reduce((s, c) => s + c.charCodeAt(0), 0) % COLORS.length];
 const fmtT = s => (!isFinite(s) ? "0:00" : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`);
 function trackInfo(n) {

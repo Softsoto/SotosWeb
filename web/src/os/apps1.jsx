@@ -509,7 +509,7 @@ function SheetsApp({ fileId, newDoc }) {
   const delSheet = (i) => { if (book.sheets.length < 2) return; setUndo(u => [...u, JSON.stringify(book)]); setBook(bk => ({ sheets: bk.sheets.filter((_, j) => j !== i) })); setSi(0); touch(); };
   const shownVal = (ref) => { const v = ev.value(ref); return display(v); };
   const rawActive = sheet.cells[active] ?? "";
-  const selInfo = (() => { const refs = rangeRefs(); if (refs.length < 2) return null; const nums = refs.map(r => ev.value(r)).filter(v => typeof v === "number"); if (!nums.length) return `Recuento: ${refs.filter(r => sheet.cells[r] != null).length}`; const s = nums.reduce((x, y) => x + y, 0); return `Suma: ${display(s)} · Promedio: ${display(s / nums.length)} · Recuento: ${nums.length}`; })();
+  const selInfo = (() => { const refs = rangeRefs(); if (refs.length < 2) return null; const nums = refs.map(r => ev.value(r)).filter(v => typeof v === "number"); if (!nums.length) return `Recuento: ${refs.filter(r => sheet.cells[r] != null).length}`; const s = nums.reduce((x, y) => x + y, 0); const r2 = (v) => display(Math.round(v * 100) / 100); return `Suma: ${r2(s)} · Promedio: ${r2(s / nums.length)} · Recuento: ${nums.length}`; })();
 
   return (
     <div className="app" style={{ flexDirection: "column" }}>

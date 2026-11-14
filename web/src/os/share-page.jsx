@@ -14,8 +14,30 @@ const blobUrl = (token, id, dl) => `/api/s/${token}/blob/${id}${dl ? "?dl=1" : "
 
 function Preview({ token, n }) {
   const [text, setText] = useState(null);
-  useEffect(() => { if (["txt", "code", "csv"].includes(n.type) && n.size < 512 * 1024) fetch(blobUrl(token, n.id, true)).then(r => r.text()).then(setText).catch(() => {}); }, [n.id]);
+  const [doc, setDoc] = useState(null);     // HTML de un .docx
+  const [rows, setRows] = useState(null);   // tabla de un .xlsx/.csv
+  useEffect(() => {
+    const small = n.size < 15 * 1024 * 1024;
+    if (n.type === "txt" || n.type === "code") { if (n.size < 512 * 1024) fetch(blobUrl(token, n.id, true)).then(r => r.text()).then(setText).catch(() => {}); return; }
+    if (!small || !["docx", "xlsx", "csv"].includes(n.type)) return;
+    (async () => {
+      const blob = await fetch(blobUrl(token, n.id, true)).then(r => r.blob());
+      const office = await import("./office.js");
+      if (n.type === "docx") { setDoc(office.sanitizeHtml(await office.docxToHtml(blob))); return; }
+      const book = n.type === "csv" ? office.csvToBook(await blob.text()) : await office.xlsxToBook(blob);
+      const { makeEvaluator, display, parseRef, refName } = await import("./formula.js");
+      const sh = book.sheets[0]; const ev = makeEvaluator(sh.cells);
+      let mr = 0, mc = 0; Object.keys(sh.cells).forEach(k => { const p = parseRef(k); if (p) { mr = Math.max(mr, p.r); mc = Math.max(mc, p.c); } });
+      const out = []; for (let r = 0; r <= Math.min(mr, 199); r++) { const row = []; for (let c = 0; c <= Math.min(mc, 29); c++) row.push(sh.cells[refName(c, r)] == null ? "" : display(ev.value(refName(c, r)))); out.push(row); }
+      setRows({ name: sh.name, rows: out, bold: sh.fmt || {} });
+    })().catch(() => {});
+  }, [n.id]);
   const src = blobUrl(token, n.id);
+  if (doc != null) return <div className="sp-doc" dangerouslySetInnerHTML={{ __html: doc }} />;
+  if (rows) return (
+    <div className="sp-sheet"><table><thead><tr><th></th>{rows.rows[0]?.map((_, c) => <th key={c}>{String.fromCharCode(65 + c)}</th>)}</tr></thead>
+      <tbody>{rows.rows.map((r, i) => <tr key={i}><th>{i + 1}</th>{r.map((v, c) => <td key={c} style={{ fontWeight: rows.bold[String.fromCharCode(65 + c) + (i + 1)]?.b ? 700 : 400, textAlign: v !== "" && !isNaN(Number(v)) ? "right" : "left" }}>{v}</td>)}</tr>)}</tbody></table></div>
+  );
   if (n.type === "img" && !/\.svg$/i.test(n.name)) return <img className="sp-media" src={src} alt={n.name} />;
   if (n.type === "pdf") return <iframe className="sp-frame" title={n.name} src={src} />;
   if (n.type === "audio") return <audio controls src={src} style={{ width: "100%", maxWidth: 520 }} />;

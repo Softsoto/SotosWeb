@@ -1,28 +1,28 @@
 /* ============================================================
-   Sotos OS — mock data & registry
+   Sotos OS — registro de apps y datos · © 2026 Sebastian Sotomontes
    ============================================================ */
 
 // ---- App registry. icon = Material Symbol ligature, color = tile bg ----
 const APPS = [
-  { id: "launchpad",name: "Aplicaciones", icon: "apps",           color: "#0a84ff", comp: "LaunchpadApp", size: { w: 940, h: 640 } },
-  { id: "files",   name: "Archivos",  icon: "folder",            color: "#4a90e2", comp: "FilesApp",     size: { w: 820, h: 540 } },
-  { id: "docs",    name: "Documentos",icon: "description",       color: "#2b579a", comp: "DocsApp",      size: { w: 880, h: 620 } },
-  { id: "sheets",  name: "Hojas",     icon: "table_chart",       color: "#217346", comp: "SheetsApp",    size: { w: 900, h: 580 } },
-  { id: "slides",  name: "Presentaciones", icon: "slideshow",    color: "#c43e1c", comp: "SlidesApp",    size: { w: 900, h: 600 } },
-  { id: "editor",  name: "Notas",     icon: "edit_note",         color: "#34c759", comp: "EditorApp",    size: { w: 680, h: 560 } },
-  { id: "gallery", name: "Galería",   icon: "photo_library",     color: "#ff375f", comp: "GalleryApp",   size: { w: 780, h: 540 } },
-  { id: "music",   name: "Música",    icon: "music_note",        color: "#fc3c44", comp: "MusicApp",     size: { w: 720, h: 500 } },
-  { id: "video",   name: "Vídeo",     icon: "movie",             color: "#8e5cf6", comp: "VideoApp",     size: { w: 760, h: 520 } },
-  { id: "pdf",     name: "PDF",       icon: "picture_as_pdf",    color: "#e2483d", comp: "PdfApp",       size: { w: 700, h: 620 } },
-  { id: "mail",    name: "Correo",    icon: "mail",              color: "#2f6fed", comp: "MailApp",      size: { w: 880, h: 580 } },
-  { id: "chat",    name: "Mensajes",  icon: "chat_bubble",       color: "#22c55e", comp: "ChatApp",      size: { w: 780, h: 540 } },
-  { id: "browser", name: "Navegador", icon: "language",          color: "#0aa5b5", comp: "BrowserApp",   size: { w: 880, h: 580 } },
-  { id: "terminal",name: "Terminal",  icon: "terminal",          color: "#22262e", comp: "TerminalApp",  size: { w: 660, h: 440 } },
-  { id: "settings",name: "Ajustes",   icon: "settings",          color: "#7d8590", comp: "SettingsApp",  size: { w: 720, h: 540 } },
-  { id: "web",     name: "Web",       icon: "public",            color: "#0aa5b5", comp: "WebViewApp",   size: { w: 1000, h: 670 } },
-  { id: "store",   name: "Tienda",    icon: "shopping_bag",      color: "#0a84ff", comp: "StoreApp",     size: { w: 800, h: 560 } },
-  { id: "trash",   name: "Papelera",  icon: "delete",            color: "#7d8590", comp: "TrashApp",     size: { w: 760, h: 520 } },
-  { id: "games",   name: "Juegos",    icon: "sports_esports",    color: "#ff375f", comp: "GamesApp",     size: { w: 560, h: 620 } },
+  { id: "launchpad",name: "Aplicaciones", icon: "apps",           color: "#1f1d1a", comp: "LaunchpadApp", size: { w: 940, h: 640 } },
+  { id: "files",   name: "Archivos",  icon: "folder",            color: "#c9902a", comp: "FilesApp",     size: { w: 820, h: 540 } },
+  { id: "docs",    name: "Documentos",icon: "description",       color: "#2f5d8a", comp: "DocsApp",      size: { w: 880, h: 620 } },
+  { id: "sheets",  name: "Hojas",     icon: "table_chart",       color: "#4f7a3a", comp: "SheetsApp",    size: { w: 900, h: 580 } },
+  { id: "slides",  name: "Presentaciones", icon: "slideshow",    color: "#c4532f", comp: "SlidesApp",    size: { w: 900, h: 600 } },
+  { id: "editor",  name: "Notas",     icon: "edit_note",         color: "#b8862b", comp: "EditorApp",    size: { w: 680, h: 560 } },
+  { id: "gallery", name: "Galería",   icon: "photo_library",     color: "#a8476b", comp: "GalleryApp",   size: { w: 780, h: 540 } },
+  { id: "music",   name: "Música",    icon: "music_note",        color: "#9c3a35", comp: "MusicApp",     size: { w: 720, h: 500 } },
+  { id: "video",   name: "Vídeo",     icon: "movie",             color: "#5a5689", comp: "VideoApp",     size: { w: 760, h: 520 } },
+  { id: "pdf",     name: "PDF",       icon: "picture_as_pdf",    color: "#b8402f", comp: "PdfApp",       size: { w: 700, h: 620 } },
+  { id: "mail",    name: "Correo",    icon: "mail",              color: "#3b6e8f", comp: "MailApp",      size: { w: 880, h: 580 } },
+  { id: "chat",    name: "Mensajes",  icon: "chat_bubble",       color: "#1f7a78", comp: "ChatApp",      size: { w: 780, h: 540 } },
+  { id: "browser", name: "Navegador", icon: "language",          color: "#2a7f8f", comp: "BrowserApp",   size: { w: 880, h: 580 } },
+  { id: "terminal",name: "Terminal",  icon: "terminal",          color: "#26231f", comp: "TerminalApp",  size: { w: 660, h: 440 } },
+  { id: "settings",name: "Ajustes",   icon: "settings",          color: "#6f6a60", comp: "SettingsApp",  size: { w: 720, h: 540 } },
+  { id: "web",     name: "Web",       icon: "public",            color: "#2a7f8f", comp: "WebViewApp",   size: { w: 1000, h: 670 } },
+  { id: "store",   name: "Tienda",    icon: "shopping_bag",      color: "#7a3e6b", comp: "StoreApp",     size: { w: 800, h: 560 } },
+  { id: "trash",   name: "Papelera",  icon: "delete",            color: "#6f6a60", comp: "TrashApp",     size: { w: 760, h: 520 } },
+  { id: "games",   name: "Juegos",    icon: "sports_esports",    color: "#8a5a3b", comp: "GamesApp",     size: { w: 560, h: 620 } },
 ];
 const APP_BY_ID = Object.fromEntries(APPS.map(a => [a.id, a]));
 

@@ -208,9 +208,9 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
   const [trashHot, setTrashHot] = useSh(false);
   const items = desk ? desk.children || [] : [];
   const apps = [
-    { id: "files", icon: "folder", color: "#4a90e2", label: "Archivos" },
-    { id: "browser", icon: "language", color: "#0aa5b5", label: "Navegador" },
-    { id: "launchpad", icon: "apps", color: "#0a84ff", label: "Aplicaciones" },
+    { id: "files", icon: "folder", color: APP_BY_ID.files.color, label: "Archivos" },
+    { id: "browser", icon: "language", color: APP_BY_ID.browser.color, label: "Navegador" },
+    { id: "launchpad", icon: "apps", color: APP_BY_ID.launchpad.color, label: "Aplicaciones" },
   ];
   const EMPTY = [
     { id: "newfolder", label: "Nueva carpeta", icon: "create_new_folder" },
@@ -319,7 +319,7 @@ function BootScreen({ onDone, quick, task }) {
   }, []);
   return (
     <div className="boot">
-      <div className="boot-logo"><SotosLogo size={120} animate badge={false} /></div>
+      <div className="boot-logo"><SotosLogo size={120} animate /></div>
       <div className="boot-name">Sotos</div>
       {!err && <div className="boot-bar"><div className="boot-fill" /></div>}
       <div className="boot-tag">{err ? "No se pudo iniciar el almacenamiento: " + err : slow ? "Preparando tus archivos por primera vez…" : "tu ordenador en la nube"}</div>
@@ -517,6 +517,12 @@ function OS() {
     if (vfs.getState().mode === "cloud") { await vfs.flush().catch(() => {}); await api("POST", "auth/logout").catch(() => {}); }
     localStorage.removeItem("sotos_in"); setWins([]); quickBoot.current = false; setStage("login");
   }, []);
+
+  // gancho de automatización (capturas y pruebas de extremo a extremo); solo en desarrollo
+  useEh(() => {
+    if (!import.meta.env.DEV) return;
+    window.__sotos = { vfs, openApp, openItem, winAction, update, setWins, spotlight: setSpot, share: setShareId };
+  });
 
   const running = new Set(wins.map(w => w.appId));
   const top = wins.reduce((a, b) => (!a || b.z > a.z) && !b.minimized ? b : a, null);
