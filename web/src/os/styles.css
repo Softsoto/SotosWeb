@@ -1178,3 +1178,13 @@ body.is-share { background: #efe7d8; }
 .sp-sheet table { border-collapse: collapse; font-size: 13px; }
 .sp-sheet td, .sp-sheet th { border: 1px solid rgba(31,29,26,.15); padding: 5px 10px; white-space: nowrap; }
 .sp-sheet th { background: #f3eee4; font-weight: 600; color: #5d574d; }
+
+/* demo público */
+.demo-chip { font: 700 10.5px/1 var(--mono); letter-spacing: .12em; color: var(--surface); background: var(--accent); padding: 5px 8px; border-radius: 4px; text-decoration: none; box-shadow: 2px 2px 0 var(--print-shadow); margin-right: 4px; }
+.demo-chip:hover { filter: brightness(1.08); }
+.demo-card { width: 480px; align-items: center; text-align: center; gap: 10px; }
+.demo-title { font-family: var(--brand); font-size: 22px; font-weight: 700; letter-spacing: -.02em; }
+.demo-tips { display: flex; flex-direction: column; gap: 8px; text-align: left; width: 100%; margin: 6px 0 4px; padding: 12px 14px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; font-size: 13px; }
+.demo-tips > div { display: flex; gap: 10px; align-items: flex-start; }
+.demo-tips .material-symbols-rounded { color: var(--accent); flex: 0 0 auto; }
+.demo-card a.tb-btn { text-decoration: none; }

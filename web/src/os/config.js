@@ -10,3 +10,8 @@ export const PX_ORIGIN = (injected || import.meta.env.VITE_PX_ORIGIN
   || `${location.protocol}//${location.hostname}:8787`).replace(/\/$/, "");
 
 export const pxUrl = (url) => PX_ORIGIN + "/px/" + url;
+
+// Demo público (sitio estático, sin servidor): solo modo invitado y sin proxy del navegador.
+// Se compila con VITE_DEMO=1 (npm run build:demo).
+export const DEMO = import.meta.env.VITE_DEMO === "1";
+export const SHOWCASE_URL = "https://github.com/Softsoto/SotosWeb";

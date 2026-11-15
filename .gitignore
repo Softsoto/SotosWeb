@@ -10,3 +10,4 @@ iniciar-sotos.cmd
 iniciar-sotos.sh
 iniciar-sotos-oculto.vbs
 !.env.example
+demo-dist/

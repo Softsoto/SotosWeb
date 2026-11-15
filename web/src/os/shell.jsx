@@ -13,6 +13,33 @@ import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModa
 import { LoginScreen } from "./auth-ui.jsx";
 import { wallUrl, isWall } from "./wallpapers.js";
 import { GlobalContextMenu } from "./context-menu.jsx";
+import { DEMO, SHOWCASE_URL } from "./config.js";
+
+/* bienvenida del demo público (una sola vez por navegador) */
+function DemoWelcome({ onClose, onApp }) {
+  const tips = [
+    ["folder", "Arrastra archivos o carpetas de tu PC a Archivos o al escritorio."],
+    ["description", "Abre Plan de negocio.docx o Presupuesto marketing.xlsx: son archivos de Office reales."],
+    ["terminal", "En la Terminal escribe help, ls o neofetch."],
+    ["wallpaper", "Cambia el fondo en Ajustes: ocho paisajes ilustrados."],
+    ["mouse", "Clic derecho en cualquier parte y Ctrl + K para buscar."],
+  ];
+  return (
+    <div className="share-modal" onMouseDown={onClose}>
+      <div className="share-card demo-card" onMouseDown={e => e.stopPropagation()}>
+        <SotosLogo size={64} />
+        <div className="demo-title">Bienvenido al demo de Sotos</div>
+        <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.55 }}>Un ordenador completo dentro del navegador. En el demo no hay servidor: todo lo que hagas se guarda <b>solo en este navegador</b>. Con Sotos instalado tendrás cuentas, nube, compartir y el navegador con proxy.</div>
+        <div className="demo-tips">{tips.map(([i, t]) => <div key={i}><Ic name={i} size={18} /><span>{t}</span></div>)}</div>
+        <div className="wl-btns">
+          <button className="tb-btn primary" onClick={onClose}><Ic name="arrow_forward" /> Empezar</button>
+          <a className="tb-btn" href={SHOWCASE_URL} target="_blank" rel="noopener"><Ic name="info" /> Conocer el proyecto</a>
+        </div>
+        <div className="faint" style={{ fontSize: 11.5, marginTop: 10 }}>© 2026 Sebastian Sotomontes</div>
+      </div>
+    </div>
+  );
+}
 import { api, hasServer } from "./api.js";
 import * as Apps1 from "./apps1.jsx";
 import * as Apps2 from "./apps2.jsx";
@@ -94,6 +121,7 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout,
       ))}
       <div className="spacer" />
       <div className="tray">
+        {DEMO && <a className="demo-chip" href={SHOWCASE_URL} target="_blank" rel="noopener" title="Esto es un demo: los archivos se guardan solo en este navegador. Clic para conocer el proyecto.">DEMO</a>}
         <div className="ti" title="Buscar" onClick={onSearch}><Ic name="search" /></div>
         <SyncIndicator />
         <BatteryIndicator />
@@ -392,6 +420,7 @@ function OS() {
   const lastUser = (() => { try { return JSON.parse(localStorage.getItem("sotos_last_user")); } catch { return null; } })();
   const [spot, setSpot] = useSh(false);
   const [shareId, setShareId] = useSh(null);
+  const [demoWelcome, setDemoWelcome] = useSh(() => { try { return !localStorage.getItem("sotos_demo_seen"); } catch { return true; } });
   const zTop = useRh(10);
 
   const save = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} };
@@ -494,6 +523,7 @@ function OS() {
 
   // arranque: ¿hay servidor? ¿hay sesión? → nube; si no, invitado recordado o pantalla de acceso
   const bootTask = useCh(async () => {
+    if (DEMO) { await vfs.init(); localStorage.setItem("sotos_in", "1"); return "desktop"; } // demo: directo al escritorio, como invitado
     const server = await hasServer();
     let me = null, registration = "open";
     if (server) { try { const r = await api("GET", "auth/me"); me = r.user; registration = r.registration; } catch {} }
@@ -561,6 +591,7 @@ function OS() {
       {spot && <Spotlight onOpen={openItem} onApp={openApp} onClose={() => setSpot(false)} />}
       {shareId && <ShareDialog id={shareId} onClose={() => setShareId(null)} />}
       <GlobalContextMenu openApp={openApp} winAction={winAction} />
+      {DEMO && demoWelcome && <DemoWelcome onApp={openApp} onClose={() => { setDemoWelcome(false); try { localStorage.setItem("sotos_demo_seen", "1"); } catch {} }} />}
       <Toasts />
     </div>
   );

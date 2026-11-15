@@ -4,7 +4,7 @@
 import React from "react";
 import { APPS, APP_BY_ID, WEB_SERVICES, MAIL, CHATS } from "./data.jsx";
 import { Ic, SideItem, Toolbar, EmptyState } from "./ui.jsx";
-import { PX_ORIGIN, pxUrl } from "./config.js";
+import { PX_ORIGIN, pxUrl, DEMO, SHOWCASE_URL } from "./config.js";
 import { toast } from "./ui.jsx";
 import { showMenu, saveImageFromUrl } from "./context-menu.jsx";
 const { useState: useS3, useRef: useR3, useEffect: useE3 } = React;
@@ -237,7 +237,7 @@ function BrowserApp({ shortcuts = [], url, scName }) {
     return [home()];
   });
   const [active, setActive] = useS3(() => { if (url) return 0; try { return JSON.parse(localStorage.getItem("sotos_browser"))?.active || 0; } catch { return 0; } });
-  const [proxyMode, setProxyMode] = useS3(() => { try { const v = localStorage.getItem("sotos_proxy"); return v === null ? true : v === "1"; } catch { return true; } });
+  const [proxyMode, setProxyMode] = useS3(() => { if (DEMO) return false; try { const v = localStorage.getItem("sotos_proxy"); return v === null ? true : v === "1"; } catch { return true; } });
   const [failed, setFailed] = useS3({});
   const t = tabs[active] || tabs[0];
 
@@ -345,8 +345,8 @@ function BrowserApp({ shortcuts = [], url, scName }) {
           <input placeholder="Busca o escribe una dirección" value={t.input} onChange={e => patch({ input: e.target.value })} onKeyDown={e => e.key === "Enter" && go(t.input)}
             onFocus={e => e.target.select()} onMouseUp={e => e.preventDefault() /* conserva la selección completa al hacer clic */} />
         </div>
-        <button className={"tb-btn" + (proxyMode ? " primary" : "")} title="Modo compatibilidad: intenta cargar sitios bloqueados vía proxy"
-          onClick={() => setProxyMode(p => !p)}><Ic name="shield" size={17} /> Proxy</button>
+        {!DEMO && <button className={"tb-btn" + (proxyMode ? " primary" : "")} title="Modo compatibilidad: intenta cargar sitios bloqueados vía proxy"
+          onClick={() => setProxyMode(p => !p)}><Ic name="shield" size={17} /> Proxy</button>}
         {t.addr !== "inicio" && <button className="tb-btn icon" title="Abrir en pestaña real" onClick={() => window.open(realUrl, "_blank", "noopener")}><Ic name="open_in_new" /></button>}
       </Toolbar>
       {t.addr === "inicio" ? (
@@ -361,7 +361,7 @@ function BrowserApp({ shortcuts = [], url, scName }) {
               <input placeholder="Busca o escribe una dirección" value={t.input} onChange={e => patch({ input: e.target.value })} onKeyDown={e => e.key === "Enter" && go(t.input)}
                 style={{ flex: 1, border: "none", background: "none", outline: "none", font: "inherit", fontSize: 15, color: "var(--text)" }} /></div>
             <div className="faint" style={{ fontSize: 12, marginTop: 14, display: "flex", alignItems: "center", gap: 6 }}>
-              <Ic name="shield" size={14} /> <b style={{ color: "var(--text-dim)" }}>Modo Proxy</b> activado: las páginas se abren aquí dentro, sin salir de Sotos</div>
+              {DEMO ? <><Ic name="info" size={14} /> Demo: se abren aquí las páginas que permiten mostrarse dentro de otra web. Con Sotos instalado, el proxy abre cualquiera.</> : <><Ic name="shield" size={14} /> <b style={{ color: "var(--text-dim)" }}>Modo Proxy</b> activado: las páginas se abren aquí dentro, sin salir de Sotos</>}</div>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4,84px)", gap: 18, marginTop: 26, paddingBottom: 30 }}>
               {marks.map((b, i) => (
                 <div key={b.name + i} onClick={() => go(b.url)} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, cursor: "pointer" }}>
@@ -378,15 +378,15 @@ function BrowserApp({ shortcuts = [], url, scName }) {
           <div className="wl-card">
             <div className="lp-svc" style={{ background: (svcOf(t.addr)?.color) || "#7d8590", width: 72, height: 72, borderRadius: 20 }}><Ic name={svcOf(t.addr)?.icon || "public"} size={38} /></div>
             <div className="wl-title">{svcOf(t.addr)?.name || "Sitio protegido"}</div>
-            <div className="wl-sub">Activa el <b>Modo Proxy</b> para abrirlo aquí dentro sin salir de Sotos.</div>
+            <div className="wl-sub">{DEMO ? <>Este sitio no permite mostrarse dentro de otra página. En el demo no hay servidor; con Sotos instalado, su <b>proxy</b> lo abre aquí dentro.</> : <>Activa el <b>Modo Proxy</b> para abrirlo aquí dentro sin salir de Sotos.</>}</div>
             <div className="wl-btns">
-              <button className="tb-btn primary" onClick={() => setProxyMode(true)}><Ic name="shield" /> Abrir aquí con Proxy</button>
+              {DEMO ? <><button className="tb-btn primary" onClick={() => window.open(t.addr, "_blank", "noopener")}><Ic name="open_in_new" /> Abrir en pestaña nueva</button><button className="tb-btn" onClick={() => window.open(SHOWCASE_URL, "_blank", "noopener")}><Ic name="info" /> Conocer Sotos</button></> : <button className="tb-btn primary" onClick={() => setProxyMode(true)}><Ic name="shield" /> Abrir aquí con Proxy</button>}
             </div>
           </div>
         </div>
       ) : (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          {!usingProxy && failed[t.addr] && <div className="proxy-bar"><Ic name="shield" size={14} /> Este sitio no permite mostrarse dentro de otra página. <a onClick={() => setProxyMode(true)}>Activa el Modo Proxy</a> o <a onClick={() => window.open(realUrl, "_blank", "noopener")}>ábrelo en pestaña nueva</a>.</div>}
+          {!usingProxy && failed[t.addr] && <div className="proxy-bar"><Ic name="shield" size={14} /> Si la página sale en blanco, no permite mostrarse dentro de otra web. {DEMO ? <>Con Sotos instalado, el proxy la abre aquí;</> : <><a onClick={() => setProxyMode(true)}>Activa el Modo Proxy</a> o</>} <a onClick={() => window.open(realUrl, "_blank", "noopener")}>ábrelo en pestaña nueva</a>.</div>}
           <SafeFrame key={t.id + ":" + nonce + ":" + frameSrc(t.addr)} src={frameSrc(t.addr)} proxied={usingProxy}
             onNav={onNav} onLoading={setLoading} onCtx={onPageCtx}
             onBlocked={() => setFailed(f => f[t.addr] ? f : { ...f, [t.addr]: true })} />
