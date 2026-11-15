@@ -2,7 +2,7 @@
 
 <p align="center">Un ordenador completo dentro del navegador: archivos en la nube, Word, Excel y PowerPoint, navegador propio, terminal y una identidad visual propia.</p>
 
-<p align="center"><a href="https://sotomontes.com/#sotos-web"><b>Ver en sotomontes.com</b></a> · <a href="#recorrido">Recorrido</a> · <a href="#instalación">Instalación</a> · <a href="#cómo-funciona-por-dentro">Cómo funciona</a> · <a href="#novedades">Novedades</a></p>
+<p align="center"><a href="https://softsoto.github.io/SotosWeb-demo/"><b>▶ Probar el demo</b></a> · <a href="https://sotomontes.com/#sotos-web">Ver en sotomontes.com</a> · <a href="#recorrido">Recorrido</a> · <a href="#instalación">Instalación</a> · <a href="#cómo-funciona-por-dentro">Cómo funciona</a> · <a href="#novedades">Novedades</a></p>
 
 | Ficha técnica | |
 |---|---|
@@ -13,6 +13,7 @@
 | **Versión** | 2.0 |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy |
+| **Demo** | [softsoto.github.io/SotosWeb-demo](https://softsoto.github.io/SotosWeb-demo/), sin registro: todo se guarda en tu navegador |
 | **Código** | Privado. Esta página es solo una presentación. |
 
 ---
@@ -109,6 +110,10 @@ Quien recibe el enlace no necesita cuenta: ve el documento directamente en el na
 <p align="center"><img src="images/tema-oscuro.jpg" alt="Música y Galería en tema oscuro sobre el fondo Tatacoa" width="100%"></p>
 
 <p align="center"><img src="images/arranque.jpg" alt="Pantalla de arranque" width="60%"></p>
+
+## Demo en línea
+
+**[Abrir el demo](https://softsoto.github.io/SotosWeb-demo/)**: funciona sin servidor ni registro. Trae los archivos de ejemplo, las aplicaciones, los fondos y el menú contextual completos; lo que hagas se queda solo en tu navegador. Las funciones que necesitan servidor (cuentas, nube, compartir y el proxy del Navegador) están en las instalaciones completas.
 
 ## Cómo se usa
 
