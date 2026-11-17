@@ -35,6 +35,7 @@ Los documentos se abren y se guardan en sus formatos de siempre (`.docx`, `.xlsx
 - **Contactos**: agenda propia que importa y exporta `.vcf` (celular, Gmail, Outlook) y reconoce quién ya tiene cuenta en Sotos.
 - **Visor de PDF propio**: miniaturas, texto seleccionable, búsqueda dentro del documento, zoom, rotación, imprimir y pantalla completa.
 - **Música con carátulas**: título, artista, álbum y portada se leen de las etiquetas de cada MP3.
+- **Tema Grafito**: un segundo estilo para todo el sistema, gris y carbón, con dock lateral, ventanas planas y fondo en blanco y negro, en claro y oscuro.
 
 **Versión 2.0**, reconstrucción completa del proyecto original:
 
@@ -145,6 +146,14 @@ La biblioteca lee las etiquetas de cada canción para mostrar título, artista, 
 
 <p align="center"><img src="images/musica-caratulas.jpg" alt="Biblioteca de Música con la carátula de una canción" width="100%"></p>
 
+### Tema Grafito
+
+Además de la identidad de papel y tinta, Sotos trae un segundo estilo completo: **Grafito**. Dock lateral oscuro de arriba abajo, ventanas planas en gris, barras laterales con el elemento activo en verde, carpetas grises, tipografía Lato y el fondo convertido a blanco y negro. Se elige en **Ajustes → Apariencia** y funciona en claro y en oscuro.
+
+<p align="center"><img src="images/tema-grafito-light.jpg" alt="Tema Grafito en claro con Archivos y Música" width="100%"></p>
+
+<p align="center"><img src="images/tema-grafito-dark.jpg" alt="Tema Grafito en oscuro" width="100%"></p>
+
 ### Tema oscuro
 
 <p align="center"><img src="images/tema-oscuro.jpg" alt="Música y Galería en tema oscuro sobre el fondo Tatacoa" width="100%"></p>
@@ -163,7 +172,7 @@ La biblioteca lee las etiquetas de cada canción para mostrar título, artista, 
 4. Crea documentos, hojas o presentaciones nuevas desde **Archivo → Nuevo**, con el botón **Nuevo** de Archivos o con el clic derecho.
 5. Pulsa **Ctrl + K** para buscar cualquier aplicación o archivo.
 6. Clic derecho sobre un archivo → **Compartir…** para generar un enlace.
-7. En **Ajustes** cambia el fondo, el tema, el color de acento, la tipografía, el estilo de las ventanas y la posición del dock.
+7. En **Ajustes** cambia el estilo (Sotos o Grafito), el fondo, el tema, el color de acento, la tipografía, el estilo de las ventanas y la posición del dock.
 8. Desde otro computador o desde el celular inicia sesión con la misma cuenta: todo está ahí.
 
 ### Atajos
