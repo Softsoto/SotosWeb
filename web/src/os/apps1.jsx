@@ -12,6 +12,7 @@ import { makeEvaluator, display, parseRef, refName, numToCol, isErr } from "./fo
 import { api } from "./api.js";
 import { withOnlyOffice } from "./onlyoffice.jsx";
 import { InboxView, useInboxCount } from "./inbox.jsx";
+import { shownName } from "./region.js";
 const { useState: useS1, useRef: useR1, useEffect: useE1, useMemo: useM1, useCallback: useC1 } = React;
 
 /* hook: guardado automático con estado visible */
@@ -142,7 +143,7 @@ function FilesApp({ openApp, openItem, update, folderId, place }) {
         onFocus={e => { const i = e.target.value.lastIndexOf("."); e.target.setSelectionRange(0, i > 0 && n.type !== "folder" ? i : e.target.value.length); }}
         onChange={e => setTmpName(e.target.value)} onBlur={commitRename}
         onKeyDown={e => { e.stopPropagation(); if (e.key === "Enter") commitRename(); if (e.key === "Escape") { setRenaming(null); rootRef.current?.focus(); } }} />
-    : <div className="fname" title={n.name}>{n.name}</div>;
+    : <div className="fname" title={n.name}>{shownName(n)}</div>;
   const cellProps = (n, i) => ({
     className: (view === "list" ? "file-row" : "file-cell") + (sel.includes(n.id) ? " sel" : "") + (hot === n.id ? " drop-hot" : "") + (cutIds.includes(n.id) ? " cut" : ""),
     draggable: renaming !== n.id,

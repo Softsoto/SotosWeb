@@ -1,3 +1,4 @@
+import { region, fmtDay, fmtTime, sameDay } from "./region.js";
 import { liveUrl, OPEN_MOVIES } from "./open-movies.js";
 /* ============================================================
    Sotos OS — sistema de archivos virtual (VFS) con sincronización
@@ -61,8 +62,8 @@ export const fmtSize = (b) => b == null ? "—" : b < 1024 ? b + " B" : b < 1048
 export const fmtDate = (ms) => {
   if (!ms) return "—";
   const d = new Date(ms), now = new Date();
-  if (d.toDateString() === now.toDateString()) return "hoy " + d.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" });
-  return d.toLocaleDateString("es-ES", { day: "numeric", month: "short", year: d.getFullYear() === now.getFullYear() ? undefined : "numeric" });
+  if (sameDay(d, now)) return "hoy " + fmtTime(d);
+  return fmtDay(d, region.dateFormat !== "auto" || d.getFullYear() !== now.getFullYear());
 };
 export const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
 export function uniqueName(folder, name, ignoreId) {

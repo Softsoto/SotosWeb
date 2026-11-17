@@ -7,25 +7,27 @@
    - registro/login con límite de intentos por IP y por correo
    ============================================================ */
 import crypto from "node:crypto";
-import { db, now, rid } from "./db.mjs";
+import { db, now, rid, getSetting } from "./db.mjs";
 import { fail, json, readJson, cookies, clientIp, rateLimit } from "./http.mjs";
 
 const SESSION_DAYS = 30;
-const DEFAULT_QUOTA = Number(process.env.SOTOS_QUOTA_MB || 2048) * 1024 * 1024;
+const ENV_QUOTA_MB = Number(process.env.SOTOS_QUOTA_MB || 2048);
+export const defaultQuota = () => Number(getSetting("defaultQuotaMb", ENV_QUOTA_MB)) * 1024 * 1024;
 const COOKIE = "sotos_sid";
 // Secure solo bajo HTTPS (directo o detrás de Caddy); por IP en la red local va sin Secure o el navegador la rechaza
 const isHttps = (req) => !!req.socket.encrypted || (process.env.TRUST_PROXY && req.headers["x-forwarded-proto"] === "https");
-const REGISTRATION = (process.env.SOTOS_REGISTRATION || "open").toLowerCase(); // open | closed
+const ENV_REGISTRATION = (process.env.SOTOS_REGISTRATION || "open").toLowerCase(); // open | closed
+export const registration = () => getSetting("registration", ENV_REGISTRATION);
 
 const scrypt = (pw, salt) => new Promise((res, rej) => crypto.scrypt(pw, salt, 64, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }, (e, k) => e ? rej(e) : res(k)));
-async function hashPassword(pw) { const salt = crypto.randomBytes(16); return `s1$${salt.toString("base64")}$${(await scrypt(pw, salt)).toString("base64")}`; }
+export async function hashPassword(pw) { const salt = crypto.randomBytes(16); return `s1$${salt.toString("base64")}$${(await scrypt(pw, salt)).toString("base64")}`; }
 async function checkPassword(pw, stored) {
   const [v, s, h] = String(stored).split("$"); if (v !== "s1") return false;
   const k = await scrypt(pw, Buffer.from(s, "base64")); const want = Buffer.from(h, "base64");
   return k.length === want.length && crypto.timingSafeEqual(k, want);
 }
 const sha = (t) => crypto.createHash("sha256").update(t).digest("hex");
-const publicUser = (u) => u && ({ id: u.id, email: u.email, name: u.name, quota: u.quota });
+const publicUser = (u) => u && ({ id: u.id, email: u.email, name: u.name, quota: u.quota, role: u.role || "user", hiddenApps: (() => { try { return JSON.parse(u.hidden_apps || "[]"); } catch { return []; } })() });
 
 function startSession(req, res, userId) {
   const token = crypto.randomBytes(32).toString("base64url");
@@ -38,19 +40,21 @@ function startSession(req, res, userId) {
 export function currentUser(req) {
   const t = cookies(req)[COOKIE]; if (!t) return null;
   const row = db.prepare("SELECT u.* , s.expires FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.hash = ?").get(sha(t));
-  if (!row || row.expires < now()) return null;
+  if (!row || row.expires < now() || row.disabled) return null;
+  // última actividad (como mucho una escritura por minuto)
+  if (!row.last_seen || now() - row.last_seen > 60_000) { db.prepare("UPDATE users SET last_seen = ? WHERE id = ?").run(now(), row.id); row.last_seen = now(); }
   return row;
 }
 export function requireUser(req) { const u = currentUser(req); if (!u) fail(401, "Inicia sesión"); return u; }
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 export async function handleAuth(req, res, sub) {
-  if (sub === "me" && req.method === "GET") return json(res, 200, { user: publicUser(currentUser(req)), registration: REGISTRATION });
+  if (sub === "me" && req.method === "GET") return json(res, 200, { user: publicUser(currentUser(req)), registration: registration() });
   if (req.method !== "POST") fail(405, "Método no permitido");
   const ip = clientIp(req);
 
   if (sub === "register") {
-    if (REGISTRATION === "closed") fail(403, "El registro está cerrado");
+    if (registration() === "closed") fail(403, "El registro está cerrado");
     // 5 cuentas nuevas por hora e IP en producción; en desarrollo no estorba a las pruebas
     rateLimit("reg:" + ip, Number(process.env.SOTOS_REG_LIMIT || (process.env.NODE_ENV === "production" ? 5 : 500)), 3600_000);
     const { email, name, password } = await readJson(req, 8192);
@@ -61,7 +65,8 @@ export async function handleAuth(req, res, sub) {
     if (String(password).length > 200) fail(400, "Contraseña demasiado larga");
     if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(em)) fail(409, "Ya existe una cuenta con ese correo");
     const id = rid(12);
-    db.prepare("INSERT INTO users(id,email,name,pass,quota,created) VALUES(?,?,?,?,?,?)").run(id, em, nm, await hashPassword(password), DEFAULT_QUOTA, now());
+    const first = !db.prepare("SELECT 1 FROM users LIMIT 1").get(); // la primera cuenta administra el servidor
+    db.prepare("INSERT INTO users(id,email,name,pass,quota,created,role) VALUES(?,?,?,?,?,?,?)").run(id, em, nm, await hashPassword(password), defaultQuota(), now(), first ? "admin" : "user");
     startSession(req, res, id);
     return json(res, 201, { user: publicUser(db.prepare("SELECT * FROM users WHERE id = ?").get(id)) });
   }
@@ -73,6 +78,7 @@ export async function handleAuth(req, res, sub) {
     // misma cantidad de trabajo exista o no el usuario (evita adivinar correos por tiempo)
     const ok = u ? await checkPassword(String(password || ""), u.pass) : (await hashPassword("x"), false);
     if (!ok) fail(401, "Correo o contraseña incorrectos");
+    if (u.disabled) fail(403, "Esta cuenta está desactivada. Habla con el administrador.");
     startSession(req, res, u.id);
     return json(res, 200, { user: publicUser(u) });
   }

@@ -3,7 +3,7 @@
    © 2026 Sebastian Sotomontes
    ============================================================ */
 import React from "react";
-import { APPS, APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, DEFAULT_SHORTCUTS } from "./data.jsx";
+import { APPS, APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, DEFAULT_SHORTCUTS, appAllowed } from "./data.jsx";
 import { SotosLogo, SotosMark } from "./logo.jsx";
 import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, animateWinOut, animateWinGeometry } from "./ui.jsx";
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
@@ -50,15 +50,17 @@ import * as Games from "./games.jsx";
 import * as Term from "./terminal.jsx";
 import * as Worlds from "./worlds.jsx";
 import * as Contacts from "./contacts.jsx";
+import * as Admin from "./admin.jsx";
 import { NotificationBell } from "./notifications.jsx";
 import { SendToDialog, useInboxCount } from "./inbox.jsx";
+import { setRegion, tz as regionTz } from "./region.js";
 
 // registro de componentes de app (antes se resolvían con window[app.comp])
-const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts };
+const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts, ...Admin };
 const DEFAULT_PROFILE = { name: "Invitado", avatar: null };
 const { useState: useSh, useEffect: useEh, useRef: useRh, useCallback: useCh } = React;
 
-const DEFAULTS = { theme: "light", accent: "#c4532f", wallpaper: "paramo", dock: "bottom", font: "Onest", winStyle: "soft", clock24: true, skin: "sotos", wallGray: true };
+const DEFAULTS = { region: { timeZone: "auto", dateFormat: "auto", showExt: true }, theme: "light", accent: "#c4532f", wallpaper: "paramo", dock: "bottom", font: "Onest", winStyle: "soft", clock24: true, skin: "sotos", wallGray: true };
 const WIN_STYLES = {
   // identidad Sotos: borde de tinta y sombra desplazada, como una lámina impresa
   soft:  { "--win-radius": "10px", "--win-shadow": "5px 5px 0 var(--print-shadow), 0 24px 48px -26px rgba(0,0,0,.45)", "--win-border": "1.5px solid var(--ink-line)" },
@@ -79,8 +81,8 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout,
     setTimeout(() => document.addEventListener("mousedown", close), 0);
     return () => document.removeEventListener("mousedown", close);
   }, [menu, cal]);
-  const time = now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit", hour12: !settings.clock24 });
-  const date = now.toLocaleDateString("es-ES", { weekday: "short", day: "numeric", month: "short" });
+  const time = now.toLocaleTimeString("es-ES", { timeZone: regionTz(), hour: "2-digit", minute: "2-digit", hour12: !settings.clock24 });
+  const date = now.toLocaleDateString("es-ES", { timeZone: regionTz(), weekday: "short", day: "numeric", month: "short" });
 
   const MENUS = {
     Archivo: [
@@ -210,6 +212,7 @@ function Dock({ position, order, running, minimized, badges, onApp, dockApi }) {
       {order.map((id, i) => {
         if (id === "__div__") return <div key={"d" + i} className="divider" />;
         if (id === "launchpad" && position.includes("rail")) return null; // en el riel, la marca abre Aplicaciones
+        if (!appAllowed(id, vfs.getState().user)) return null;
         const app = APP_BY_ID[id]; if (!app) return null;
         return (
           <button key={id} className="dock-item" data-app={id} draggable
@@ -371,7 +374,7 @@ function Spotlight({ onOpen, onApp, onClose }) {
   const [hi, setHi] = useSh(0);
   const ql = q.trim().toLowerCase();
   const results = ql ? [
-    ...APPS.filter(a => a.id !== "web" && a.name.toLowerCase().includes(ql)).slice(0, 5).map(a => ({ kind: "app", app: a })),
+    ...APPS.filter(a => a.id !== "web" && appAllowed(a.id, vfs.getState().user) && a.name.toLowerCase().includes(ql)).slice(0, 5).map(a => ({ kind: "app", app: a })),
     ...vfs.search(ql, 12).map(n => ({ kind: "file", node: n })),
   ] : [];
   const go = (r) => { if (!r) return; r.kind === "app" ? onApp(r.app.id) : onOpen(r.node); onClose(); };
@@ -467,6 +470,7 @@ function OS() {
   };
   const setNote = (id, v) => setNotes(n => ({ ...n, [id]: v }));
 
+  setRegion(settings.region); // la región la leen fmtDate, el reloj y los nombres de archivo
   useEh(() => {
     const r = document.documentElement;
     r.setAttribute("data-theme", settings.theme);
@@ -500,6 +504,7 @@ function OS() {
   const focus = useCh((id) => setWins(ws => ws.map(w => w.id === id ? { ...w, z: ++zTop.current, minimized: false } : w)), []);
   const openApp = useCh((appId, payload) => {
     if (!APP_BY_ID[appId]) return;
+    if (!appAllowed(appId, vfs.getState().user)) { toast(APP_BY_ID[appId].adminOnly ? "Solo para administradores" : "El administrador ocultó esta app para tu cuenta", { error: true }); return; }
     setWins(ws => {
       const key = appId + (payload && payload.fileId ? ":" + payload.fileId : "") + (payload && payload.url ? ":" + payload.url : "");
       const existing = ws.find(w => w.key === key);

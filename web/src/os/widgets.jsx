@@ -3,6 +3,7 @@
    ============================================================ */
 import React from "react";
 import { Ic, toast } from "./ui.jsx";
+import { tz as regionTz } from "./region.js";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize } from "./vfs.js";
 const { useState: useSw, useEffect: useEw } = React;
@@ -157,7 +158,8 @@ function SystemWidget() {
 function ClockWidget() {
   const [now, setNow] = useSw(new Date());
   useEw(() => { const id = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(id); }, []);
-  const h = now.getHours(), m = now.getMinutes(), s = now.getSeconds();
+  // la hora en la zona elegida en Ajustes → Región
+  const [h, m, s] = (() => { const p = new Intl.DateTimeFormat("en-GB", { timeZone: regionTz(), hour: "numeric", minute: "numeric", second: "numeric", hourCycle: "h23" }).formatToParts(now); const g = t => +p.find(x => x.type === t).value; return [g("hour"), g("minute"), g("second")]; })();
   const hand = (deg, len, w, col) => <line x1="50" y1="50" x2={50 + len * Math.sin(deg * Math.PI / 180)} y2={50 - len * Math.cos(deg * Math.PI / 180)} stroke={col} strokeWidth={w} strokeLinecap="round" />;
   return (
     <div className="wg-body" style={{ alignItems: "center", justifyContent: "center" }}>

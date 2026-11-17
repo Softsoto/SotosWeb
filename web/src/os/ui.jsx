@@ -2,6 +2,7 @@
    Sotos OS — shared UI + Window manager
    ============================================================ */
 import React from "react";
+import ReactDOM from "react-dom";
 import { TYPE_META } from "./data.jsx";
 import { TileGlyph } from "./glyphs.jsx";
 const { useState, useRef, useEffect, useCallback } = React;
@@ -216,11 +217,19 @@ function ContextMenu({ x, y, items, onSelect, onClose }) {
     document.addEventListener("keydown", esc);
     return () => { document.removeEventListener("mousedown", close); document.removeEventListener("contextmenu", close); document.removeEventListener("keydown", esc); };
   }, [onClose]);
-  // keep on screen
-  const px = Math.min(x, window.innerWidth - 220);
-  const py = Math.min(y, window.innerHeight - items.length * 30 - 20);
-  return (
-    <div ref={ref} className="ctx-menu" style={{ left: px, top: py }} onContextMenu={e => e.preventDefault()}>
+  // dentro de la pantalla: se mide el menú ya pintado y se corre (o se abre hacia arriba/izquierda) si no cabe
+  const [pos, setPos] = useState({ left: x, top: y, ready: false });
+  React.useLayoutEffect(() => {
+    const el = ref.current; if (!el) return;
+    const w = el.offsetWidth, h = el.offsetHeight, W = window.innerWidth, H = window.innerHeight, m = 6;
+    const left = x + w + m > W ? Math.max(m, x - w) : x;
+    const top = y + h + m > H ? Math.max(m, Math.min(y - h, H - h - m)) : y;
+    setPos({ left, top, ready: true });
+  }, [x, y, items.length]);
+  // se pinta en la capa del escritorio (no dentro de la ventana) para que su posición sea siempre la del puntero
+  const host = document.getElementById("os") || document.body;
+  return ReactDOM.createPortal(
+    <div ref={ref} className="ctx-menu" style={{ left: pos.left, top: pos.top, visibility: pos.ready ? "visible" : "hidden" }} onContextMenu={e => e.preventDefault()}>
       {items.map((it, i) => it.sep
         ? <div key={i} className="ctx-sep" />
         : <button key={it.id} className={"ctx-item" + (it.danger ? " danger" : "")}
@@ -228,8 +237,7 @@ function ContextMenu({ x, y, items, onSelect, onClose }) {
             onClick={() => { onSelect(it.id); onClose(); }}>
             <Ic name={it.icon} size={18} /><span>{it.label}</span>
           </button>)}
-    </div>
-  );
+    </div>, host);
 }
 
 /* -------------------- Avatar -------------------- */

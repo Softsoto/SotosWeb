@@ -22,6 +22,7 @@ import { handleShares, handlePublicShare } from "./shares.mjs";
 import { handleOO } from "./oo.mjs";
 import { handleNotifications, handleContacts, handlePresence } from "./social.mjs";
 import { handleInbox } from "./inbox.mjs";
+import { handleAdmin } from "./admin.mjs";
 import { handleWorlds } from "./worlds.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -88,6 +89,7 @@ async function handleApi(req, res) {
     case "worlds": return handleWorlds(req, res, rest);
     case "inbox": return handleInbox(req, res, rest);
     case "presence": return handlePresence(req, res);
+    case "admin": return handleAdmin(req, res, rest);
   }
   return json(res, 404, { error: "No encontrado" });
 }

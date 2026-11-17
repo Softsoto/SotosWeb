@@ -108,6 +108,34 @@ function AccountPanel({ user, env, onLogout }) {
   </>;
 }
 
+/* Región: zona horaria, formato de fecha y extensiones de archivo */
+const ZONES = (() => { try { return Intl.supportedValuesOf("timeZone"); } catch { return ["America/Bogota", "America/Mexico_City", "America/New_York", "Europe/Madrid", "America/Argentina/Buenos_Aires", "UTC"]; } })();
+function RegionPanel({ settings, update }) {
+  const r = { timeZone: "auto", dateFormat: "auto", showExt: true, ...(settings.region || {}) };
+  const set = (k, v) => update("region", { ...r, [k]: v });
+  const sample = new Date(2026, 11, 24, 18, 30);
+  const here = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  return <>
+    <h2 style={{ fontSize: 19, fontWeight: 800 }}>Región</h2>
+    <Row label="Zona horaria" desc={`Reloj, widgets y fechas de archivos. Este equipo usa ${here}.`}>
+      <select className="sc-input" style={{ margin: 0, width: 240 }} value={r.timeZone} onChange={e => set("timeZone", e.target.value)}>
+        <option value="auto">Automática (la del equipo)</option>
+        {ZONES.map(z => <option key={z} value={z}>{z.replace(/_/g, " ")}</option>)}
+      </select>
+    </Row>
+    <Row label="Formato de fecha" desc="Cómo se muestran las fechas en Archivos y en el resto del sistema">
+      <Segmented value={r.dateFormat} onChange={v => set("dateFormat", v)} options={[{ v: "auto", label: "24 dic" }, { v: "dmy", label: "24/12/2026" }, { v: "mdy", label: "12/24/2026" }, { v: "ymd", label: "2026-12-24" }]} />
+    </Row>
+    <Row label="Extensiones de archivo" desc="Mostrar .docx, .pdf, .jpg… al final de los nombres">
+      <Segmented value={r.showExt ? "y" : "n"} onChange={v => set("showExt", v === "y")} options={[{ v: "y", label: "Mostrar" }, { v: "n", label: "Ocultar" }]} />
+    </Row>
+    <Row label="Idioma" desc="La traducción completa de Sotos llegará en una próxima versión">
+      <Segmented value="es" onChange={() => {}} options={[{ v: "es", label: "Español" }]} />
+    </Row>
+    <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>Ejemplo: {sample.toLocaleString("es-ES", { timeZone: r.timeZone === "auto" ? undefined : r.timeZone, dateStyle: "medium", timeStyle: "short" })}</div>
+  </>;
+}
+
 function SettingsApp({ settings, update, profile, setProfile, user, env, onLogout }) {
   const [tab, setTab] = useS4("perfil");
   const avatarInput = useR4(null);
@@ -117,6 +145,7 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
     { id: "fondo", icon: "wallpaper", label: "Fondo" },
     { id: "apariencia", icon: "palette", label: "Apariencia" },
     { id: "escritorio", icon: "desktop_windows", label: "Escritorio" },
+    { id: "region", icon: "language", label: "Región" },
     { id: "acerca", icon: "info", label: "Acerca de" },
   ];
   const onAvatar = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => setProfile({ avatar: rd.result }); rd.readAsDataURL(f); e.target.value = ""; };
@@ -226,6 +255,7 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
                 options={[{ v: "y", label: "24h" }, { v: "n", label: "12h" }]} />
             </Row>
           </>}
+          {tab === "region" && <RegionPanel settings={settings} update={update} />}
           {tab === "acerca" && <>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 0", gap: 12 }}>
               <div className="about-logo"><SotosMark size={96} variant="tile" spin /></div>

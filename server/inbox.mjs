@@ -41,29 +41,35 @@ export async function handleInbox(req, res, parts) {
 
   if (a === "send" && req.method === "POST") {
     rateLimit("send:" + u.id, 60, 3600_000);
-    const { nodeId, to, message } = await readJson(req, 16384);
-    const node = userNode(u.id, String(nodeId || ""));
-    if (!node) fail(404, "El archivo no existe");
-    if (node.type === "folder" || node.children) fail(400, "Por ahora se pueden enviar archivos, no carpetas. Comprímela en .zip y envíala.");
-    const list = (Array.isArray(to) ? to : [to]).map(x => String(x || "").trim().toLowerCase()).filter(Boolean).slice(0, 20);
+    const body = await readJson(req, 65536);
+    const ids = (Array.isArray(body.nodeIds) ? body.nodeIds : [body.nodeId]).map(String).filter(Boolean).slice(0, 100);
+    if (!ids.length) fail(400, "Elige qué archivos enviar");
+    const nodes = ids.map(id => userNode(u.id, id)).filter(Boolean);
+    if (!nodes.length) fail(404, "Los archivos no existen");
+    if (nodes.some(n => n.type === "folder" || n.children)) fail(400, "Las carpetas se envían comprimidas: Sotos las convierte en .zip antes de enviarlas");
+    const list = (Array.isArray(body.to) ? body.to : [body.to]).map(x => String(x || "").trim().toLowerCase()).filter(Boolean).slice(0, 20);
     if (!list.length) fail(400, "Elige a quién enviarlo");
-    const src = (() => { try { const p = blobPath(u.id, node.id); return fs.existsSync(p) ? p : null; } catch { return null; } })();
-    if (!src && !node.url) fail(409, "El archivo aún se está subiendo; inténtalo en un momento");
+    const sources = nodes.map(n => { let p = null; try { const q = blobPath(u.id, n.id); p = fs.existsSync(q) ? q : null; } catch {} return { n, p }; });
+    const waiting = sources.find(x => !x.p && !x.n.url); if (waiting) fail(409, `“${waiting.n.name}” aún se está subiendo; inténtalo en un momento`);
+    const message = String(body.message || "").slice(0, 500) || null;
     const sentTo = [], skipped = [];
     for (const who of list) {
       const t = db.prepare("SELECT id, name, email FROM users WHERE id = ? OR email = ?").get(who, who);
       if (!t) { skipped.push({ who, reason: "no tiene cuenta en Sotos" }); continue; }
       if (t.id === u.id) { skipped.push({ who, reason: "eres tú" }); continue; }
       if (isBlocked(t.id, u.id) || isBlocked(u.id, t.id)) { skipped.push({ who: t.name, reason: "no es posible enviarle archivos" }); continue; }
-      const id = rid(10);
-      if (src) fs.copyFileSync(src, holdPath(id));
-      db.prepare("INSERT INTO inbox(id,from_user,to_user,name,type,size,url,message,status,created) VALUES(?,?,?,?,?,?,?,?,'pending',?)")
-        .run(id, u.id, t.id, node.name, node.type || "file", node.size || 0, src ? null : node.url, String(message || "").slice(0, 500) || null, now());
-      addNotification(t.id, { kind: "inbox", title: `${u.name} te envió “${node.name}”`, body: message ? String(message).slice(0, 300) : "Acéptalo para guardarlo en tus archivos", link: { inbox: id }, actor: u.name });
+      for (const { n, p } of sources) {
+        const id = rid(10);
+        if (p) fs.copyFileSync(p, holdPath(id));
+        db.prepare("INSERT INTO inbox(id,from_user,to_user,name,type,size,url,message,status,created) VALUES(?,?,?,?,?,?,?,?,'pending',?)")
+          .run(id, u.id, t.id, n.name, n.type || "file", n.size || 0, p ? null : n.url, message, now());
+      }
+      const what = sources.length === 1 ? `“${sources[0].n.name}”` : `${sources.length} archivos`;
+      addNotification(t.id, { kind: "inbox", title: `${u.name} te envió ${what}`, body: message || "Acéptalos para guardarlos en tus archivos", link: { inbox: "all" }, actor: u.name });
       notify(t.id, "inbox", { pending: pendingCount(t.id) });
       sentTo.push(t.name);
     }
-    return json(res, 200, { sent: sentTo, skipped });
+    return json(res, 200, { sent: sentTo, skipped, files: sources.length });
   }
 
   const row = a && db.prepare("SELECT * FROM inbox WHERE id = ?").get(a);

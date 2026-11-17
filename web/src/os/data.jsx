@@ -20,6 +20,7 @@ const APPS = [
   { id: "chat",    name: "Mensajes",  icon: "chat_bubble",       color: "#1f7a78", comp: "ChatApp",      size: { w: 780, h: 540 } },
   { id: "browser", name: "Navegador", icon: "language",          color: "#2a7f8f", comp: "BrowserApp",   size: { w: 880, h: 580 } },
   { id: "terminal",name: "Terminal",  icon: "terminal",          color: "#26231f", comp: "TerminalApp",  size: { w: 660, h: 440 } },
+  { id: "admin",   name: "Administración", icon: "admin_panel_settings", color: "#3b4046", comp: "AdminApp", size: { w: 1080, h: 700 }, adminOnly: true },
   { id: "settings",name: "Ajustes",   icon: "settings",          color: "#6f6a60", comp: "SettingsApp",  size: { w: 720, h: 540 } },
   { id: "web",     name: "Web",       icon: "public",            color: "#2a7f8f", comp: "WebViewApp",   size: { w: 1000, h: 670 } },
   { id: "store",   name: "Tienda",    icon: "shopping_bag",      color: "#7a3e6b", comp: "StoreApp",     size: { w: 800, h: 560 } },
@@ -241,3 +242,11 @@ const STORE_APPS = [
 ];
 
 export { APPS, APP_BY_ID, DOCK_IDS, ROUTE, TYPE_META, CTX_FILE, WEB_SERVICES, OFFICE_WEB, OFFICE_OF_TYPE, WALLPAPERS, ACCENTS, FS, MAIL, CHATS, TRACKS, VIDEOS, PHOTOS, STORE_APPS, DEFAULT_SHORTCUTS };
+
+/** ¿puede esta cuenta ver la app? (administración solo para admins; el admin puede ocultar apps por usuario) */
+export function appAllowed(id, user) {
+  const a = APPS.find(x => x.id === id); if (!a) return false;
+  if (a.adminOnly && user?.role !== "admin") return false;
+  if (user?.hiddenApps?.includes(id)) return false;
+  return true;
+}

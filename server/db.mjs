@@ -91,6 +91,20 @@ CREATE TABLE IF NOT EXISTS world_fs (
   version INTEGER NOT NULL, json TEXT NOT NULL, used INTEGER NOT NULL DEFAULT 0);
 `);
 
+/* ---- migraciones: columnas añadidas después (rol, cuenta desactivada, apps ocultas, última actividad) ---- */
+const userCols = new Set(db.prepare("PRAGMA table_info(users)").all().map(c => c.name));
+for (const [col, def] of [["role", "TEXT NOT NULL DEFAULT 'user'"], ["disabled", "INTEGER NOT NULL DEFAULT 0"], ["hidden_apps", "TEXT NOT NULL DEFAULT '[]'"], ["last_seen", "INTEGER"]])
+  if (!userCols.has(col)) db.exec(`ALTER TABLE users ADD COLUMN ${col} ${def}`);
+db.exec("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)");
+// siempre hay al menos un administrador: el correo de SOTOS_ADMIN_EMAIL o, si no, la cuenta más antigua
+if (!db.prepare("SELECT 1 FROM users WHERE role = 'admin'").get()) {
+  const pick = (process.env.SOTOS_ADMIN_EMAIL && db.prepare("SELECT id FROM users WHERE email = ?").get(process.env.SOTOS_ADMIN_EMAIL.toLowerCase())) || db.prepare("SELECT id FROM users ORDER BY created LIMIT 1").get();
+  if (pick) db.prepare("UPDATE users SET role = 'admin' WHERE id = ?").run(pick.id);
+}
+/** ajustes que el administrador cambia en caliente (pisan las variables de entorno) */
+export const getSetting = (k, def = null) => { const r = db.prepare("SELECT value FROM settings WHERE key = ?").get(k); return r ? JSON.parse(r.value) : def; };
+export const setSetting = (k, v) => db.prepare("INSERT INTO settings(key,value) VALUES(?,?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(k, JSON.stringify(v));
+
 /* secretos persistentes (firmas de ONLYOFFICE, etc.) */
 const SECRETS = path.join(DATA_DIR, "secrets.json");
 let secrets = {};
