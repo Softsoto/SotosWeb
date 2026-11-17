@@ -106,7 +106,7 @@ const WALLPAPERS = [
 
 // ---- Accent presets ----
 // paleta de identidad: arcilla, musgo, cielo, mostaza, ciruela, laguna
-const ACCENTS = ["#c4532f", "#4f7a3a", "#2f5d8a", "#c9902a", "#7a3e6b", "#1f7a78"];
+const ACCENTS = ["#c4532f", "#4f7a3a", "#2f5d8a", "#c9902a", "#7a3e6b", "#1f7a78", "#4fae4a"];
 
 // ---- Mock filesystem (Files app) ----
 const FS = {

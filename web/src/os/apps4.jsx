@@ -169,6 +169,20 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
           </>}
           {tab === "apariencia" && <>
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>Apariencia</h2>
+            <div className="skin-grid">
+              {[{ v: "sotos", label: "Sotos", desc: "Papel, tinta y color plano", accent: "#c4532f" },
+                { v: "grafito", label: "Grafito", desc: "Gris y carbón, dock lateral, fondo en blanco y negro", accent: "#4fae4a" }].map(k => (
+                <button key={k.v} className={"skin-card" + ((settings.skin || "sotos") === k.v ? " on" : "")}
+                  onClick={() => { update("skin", k.v); if (["#c4532f", "#4fae4a"].includes(settings.accent)) update("accent", k.accent); }}>
+                  <span className={"skin-prev skin-prev-" + k.v + (settings.theme === "dark" ? " dark" : "")}><i /><b /><em /></span>
+                  <span className="skin-name">{k.label}{(settings.skin || "sotos") === k.v && <Ic name="check_circle" size={16} />}</span>
+                  <span className="skin-desc">{k.desc}</span>
+                </button>))}
+            </div>
+            {settings.skin === "grafito" && <Row label="Fondo en blanco y negro" desc="Como las fotos en grises del escritorio Grafito">
+              <Segmented value={settings.wallGray === false ? "n" : "y"} onChange={v => update("wallGray", v === "y")}
+                options={[{ v: "y", label: "Sí" }, { v: "n", label: "Color" }]} />
+            </Row>}
             <Row label="Tema" desc="Claro u oscuro para todo el sistema">
               <Segmented value={settings.theme} onChange={v => update("theme", v)}
                 options={[{ v: "light", label: "Claro", icon: "light_mode" }, { v: "dark", label: "Oscuro", icon: "dark_mode" }]} />
@@ -184,20 +198,20 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
                 ))}
               </div>
             </Row>
-            <Row label="Tipografía" desc="Fuente de la interfaz">
+            {settings.skin !== "grafito" && <><Row label="Tipografía" desc="Fuente de la interfaz">
               <Segmented value={settings.font} onChange={v => update("font", v)} options={fonts} />
             </Row>
             <Row label="Estilo de ventana" desc="Esquinas y sombras">
               <Segmented value={settings.winStyle} onChange={v => update("winStyle", v)}
                 options={[{ v: "soft", label: "Suave" }, { v: "sharp", label: "Recto" }, { v: "flat", label: "Plano" }]} />
-            </Row>
+            </Row></>}
           </>}
           {tab === "escritorio" && <>
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>Escritorio y Dock</h2>
-            <Row label="Posición del dock" desc="Dónde aparece la barra de apps">
+            {settings.skin !== "grafito" && <Row label="Posición del dock" desc="Dónde aparece la barra de apps">
               <Segmented value={settings.dock} onChange={v => update("dock", v)}
                 options={[{ v: "bottom", label: "Abajo", icon: "dock_to_bottom" }, { v: "left", label: "Izquierda", icon: "dock_to_right" }]} />
-            </Row>
+            </Row>}
             <Row label="Reloj 24h" desc="Formato de hora en la barra superior">
               <Segmented value={settings.clock24 ? "y" : "n"} onChange={v => update("clock24", v === "y")}
                 options={[{ v: "y", label: "24h" }, { v: "n", label: "12h" }]} />

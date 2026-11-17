@@ -255,6 +255,10 @@ Local development: `scripts/onlyoffice-dev.ps1` (requires Docker), then restart 
 - Accent palette: clay `#c4532f`, moss `#4f7a3a`, sky `#2f5d8a`, mustard `#c9902a`, plum `#7a3e6b`, lagoon `#1f7a78`.
 - `wallpapers.js`: 8 deterministic scenes (seeded by id) inspired by Colombian landscapes, with halftone skies, flat layers with a registration offset, scene elements (frailejón, wax palm, cactus, hilltop chapel, city) and paper grain; rendered at screen resolution and cached as blob URLs.
 
+### Grafito skin
+
+A second full skin selected in Settings → Appearance (`settings.skin = "grafito"`). `shell.jsx` sets `data-skin` and `data-wallgray` on `<html>`; every rule lives under `[data-skin="grafito"]` in `styles.css` with its own light and dark tokens. The dock becomes a full-height rail (`.dock.rail`), `--desk-left` offsets maximized and snapped windows, folders read `--folder-color`, the font switches to Lato and the wallpaper gets a grayscale filter (optional).
+
 ## 12. Global context menu
 
 `context-menu.jsx` listens to `contextmenu` on `document` after the apps: if none called `preventDefault`, it builds a menu for the target (editable field, selection, link, image, title bar or window). Menu buttons do not steal focus (`mousedown.preventDefault`), so text selections survive. `showMenu(x, y, items)` is also used by the Browser for proxied pages. `Shift + right-click` keeps the native menu.
@@ -311,6 +315,7 @@ Launches headless Edge at 1600×1000 (device scale 1.5), uses a local screenshot
 | ![World wall](docs/capturas/mundos-muro.jpg) | ![World chat](docs/capturas/mundos-chat.jpg) |
 | ![Notifications](docs/capturas/notificaciones.jpg) | ![Contacts](docs/capturas/contactos.jpg) |
 | ![PDF viewer](docs/capturas/visor-pdf.jpg) | ![Music covers](docs/capturas/musica-caratulas.jpg) |
+| ![Grafito light](docs/capturas/tema-grafito-light.jpg) | ![Grafito dark](docs/capturas/tema-grafito-dark.jpg) |
 
 ## 17. Roadmap
 

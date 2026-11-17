@@ -1339,3 +1339,147 @@ img.track-cover { background: var(--surface-3); }
 .pdf-canvas, .pdf-canvas canvas { display: block; }
 .pdf-thumb-img canvas { width: 100%; height: auto; display: block; }
 
+
+/* ============================================================
+   TEMA GRAFITO — gris y carbón, dock lateral, fondo en grises
+   © 2026 Sebastian Sotomontes
+   ============================================================ */
+:root[data-skin="grafito"] { --desk-left: 64px; --desk-bottom: 0px; --ui: "Lato", "Onest", system-ui, sans-serif; --brand: "Lato", sans-serif;
+  --win-radius: 3px; --win-border: 0; --rail: #232a30; --rail-2: #2c343b; --rail-text: #c9d0d6; }
+[data-skin="grafito"][data-theme="light"] {
+  --surface: #ffffff; --surface-2: #f6f7f8; --surface-3: #eceef0;
+  --text: #3b4046; --text-dim: #7d848b; --text-faint: #a7adb3;
+  --border: rgba(30,36,42,.08); --border-strong: rgba(30,36,42,.15); --hover: rgba(30,36,42,.05);
+  --bar: var(--rail); --bar-text: #e3e7ea; --dock: var(--rail);
+  --ink: #3b4046; --ink-line: rgba(30,36,42,.1); --print-shadow: transparent;
+  --win-shadow: 0 14px 40px -10px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.12);
+  --shadow-card: 0 1px 3px rgba(0,0,0,.08); --wall-fallback: #4a4f54;
+}
+[data-skin="grafito"][data-theme="dark"] {
+  --surface: #2b3035; --surface-2: #24282c; --surface-3: #343a40;
+  --text: #e4e7ea; --text-dim: #9aa2a9; --text-faint: #6d757c;
+  --border: rgba(255,255,255,.07); --border-strong: rgba(255,255,255,.13); --hover: rgba(255,255,255,.06);
+  --rail: #171b1f; --rail-2: #22282d; --bar: var(--rail); --bar-text: #e4e7ea; --dock: var(--rail);
+  --ink: #e4e7ea; --ink-line: rgba(255,255,255,.08); --print-shadow: transparent;
+  --win-shadow: 0 16px 44px -10px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.05);
+  --shadow-card: 0 1px 3px rgba(0,0,0,.4); --wall-fallback: #1d2124;
+}
+[data-wallgray="1"] .wallpaper { filter: grayscale(1) contrast(1.06) brightness(.86); }
+[data-skin="grafito"][data-theme="dark"][data-wallgray="1"] .wallpaper { filter: grayscale(1) contrast(1.05) brightness(.6); }
+
+/* barra superior: franja carbón a la derecha del riel */
+[data-skin="grafito"] .menubar { left: var(--desk-left); background: var(--rail); color: var(--bar-text); border-bottom: 0; height: 30px; }
+[data-skin="grafito"] .menubar .brand { font-family: var(--ui); text-transform: none; letter-spacing: 0; font-weight: 700; }
+[data-skin="grafito"] .menubar .menu-item { opacity: .8; }
+[data-skin="grafito"] .menubar .menu-item.open, [data-skin="grafito"] .menubar .menu-item:hover { background: rgba(255,255,255,.1); color: #fff; opacity: 1; }
+[data-skin="grafito"] .menubar .tray .ti:hover, [data-skin="grafito"] .notif-wrap .ti.open { background: rgba(255,255,255,.1); }
+
+/* riel lateral de apps, de arriba abajo, sin bordes ni sombras impresas */
+[data-skin="grafito"] .dock.rail { left: 0; top: 0; bottom: 0; transform: none; width: var(--desk-left); border-radius: 0; border: 0; box-shadow: 1px 0 0 rgba(0,0,0,.35);
+  background: var(--rail); padding: 10px 7px; gap: 7px; justify-content: flex-start; overflow-y: auto; scrollbar-width: none; }
+[data-skin="grafito"] .dock.rail::-webkit-scrollbar { display: none; }
+[data-skin="grafito"] .dock.rail .dock-item { width: 50px; height: 50px; flex: 0 0 50px; }
+[data-skin="grafito"] .dock.rail .dock-item:hover { transform: none; filter: brightness(1.12); }
+[data-skin="grafito"] .dock.rail .tile { border-radius: 4px; box-shadow: none; }
+[data-skin="grafito"] .dock.rail .tile::after { display: none; }
+[data-skin="grafito"] .dock.rail .run-dot { left: -7px; width: 3px; height: 26px; border-radius: 0 2px 2px 0; background: var(--accent); }
+[data-skin="grafito"] .dock.rail .divider { width: 36px; background: rgba(255,255,255,.12); }
+[data-skin="grafito"] .dock.rail .dock-tip { left: 62px; background: #111518; color: #fff; border-radius: 3px; font-weight: 400; }
+
+/* iconos del escritorio y widgets */
+[data-skin="grafito"] .tile { border-radius: 6px; box-shadow: none; }
+[data-skin="grafito"] .tile::after { display: none; }
+[data-skin="grafito"] .desk-icon { border-radius: 3px; }
+[data-skin="grafito"] .widget { border: 0 !important; border-radius: 3px !important; box-shadow: 0 8px 24px -8px rgba(0,0,0,.45) !important; }
+
+/* ventanas planas: cabecera del color del cuerpo, título fino, controles lineales */
+[data-skin="grafito"] .window { border: 0; border-radius: 3px; }
+[data-skin="grafito"] .window:not(.focused) { box-shadow: 0 8px 26px -10px rgba(0,0,0,.4); }
+[data-skin="grafito"] .titlebar { height: 44px; flex-basis: 44px; background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 6px 0 16px; }
+[data-skin="grafito"] .titlebar::before { display: none; }
+[data-skin="grafito"] .win-app { display: none; }
+[data-skin="grafito"] .titlebar .title { font-weight: 400; font-size: 15px; color: var(--text-dim) !important; }
+[data-skin="grafito"] .window.focused .titlebar .title { color: var(--text) !important; }
+[data-skin="grafito"] .win-ctrls button { width: 32px; height: 30px; border-radius: 2px; color: var(--text-faint); }
+[data-skin="grafito"] .win-ctrls button:hover { background: transparent; color: var(--text); }
+[data-skin="grafito"] .win-ctrls button.close:hover { background: transparent; color: #e0533d; }
+[data-skin="grafito"] .window.maximized { box-shadow: none; }
+
+/* barras laterales de apps: gris claro, etiquetas en versalitas, activo en verde lleno */
+[data-skin="grafito"] .app-side { background: var(--surface-2); border-right: 1px solid var(--border); }
+[data-skin="grafito"] .side-label { font-size: 11px; letter-spacing: .08em; color: var(--text-faint); font-weight: 700; }
+[data-skin="grafito"] .side-item { border-radius: 0; margin: 0 -10px; padding-left: 20px; }
+[data-skin="grafito"] .side-item .material-symbols-rounded { color: var(--text-faint); }
+[data-skin="grafito"] .side-item.active { background: var(--accent); color: #fff; }
+[data-skin="grafito"] .contact-row.on, [data-skin="grafito"] .world-row.on { background: var(--accent); color: #fff; }
+[data-skin="grafito"] .contact-row.on .faint, [data-skin="grafito"] .world-row.on .faint, [data-skin="grafito"] .contact-row.on .contact-sotos { color: rgba(255,255,255,.8); }
+
+/* controles */
+[data-skin="grafito"] .tb-btn { border-radius: 2px; }
+[data-skin="grafito"] .tb-btn.primary { box-shadow: none; }
+[data-skin="grafito"] .search-box { border-radius: 2px; }
+[data-skin="grafito"] .ctx-menu, [data-skin="grafito"] .menu-drop { border: 0; border-radius: 2px; box-shadow: 0 10px 30px -6px rgba(0,0,0,.35), 0 0 0 1px var(--border); padding: 4px 0; }
+[data-skin="grafito"] .ctx-item { border-radius: 0; padding-left: 16px; padding-right: 22px; }
+[data-skin="grafito"] .ctx-item:hover { background: var(--hover); color: var(--text); }
+[data-skin="grafito"] .ctx-item:hover .material-symbols-rounded { color: var(--text-dim); }
+[data-skin="grafito"] .ctx-item.danger:hover { background: #e0533d; color: #fff; }
+[data-skin="grafito"] .ctx-item.danger:hover .material-symbols-rounded { color: #fff; }
+[data-skin="grafito"] .toast { background: #2b3035; color: #eef0f2; border-radius: 3px; box-shadow: 0 8px 24px -6px rgba(0,0,0,.5); }
+[data-skin="grafito"] .spot, [data-skin="grafito"] .share-card, [data-skin="grafito"] .notif-panel { border: 0; border-radius: 3px; box-shadow: 0 18px 50px -12px rgba(0,0,0,.55), 0 0 0 1px var(--border); }
+[data-skin="grafito"] .post-composer, [data-skin="grafito"] .post-card, [data-skin="grafito"] .member-invite, [data-skin="grafito"] .contact-fields, [data-skin="grafito"] .lan-box, [data-skin="grafito"] .about-credit {
+  border: 1px solid var(--border); border-radius: 3px; box-shadow: var(--shadow-card); }
+[data-skin="grafito"] .world-tile, [data-skin="grafito"] .worlds-intro-icon { box-shadow: none; border-radius: 4px; }
+[data-skin="grafito"] .world-tabs { border-bottom: 1px solid var(--border); }
+[data-skin="grafito"] .world-head { background: var(--surface); }
+[data-skin="grafito"] .contact-big, [data-skin="grafito"] .world-title, [data-skin="grafito"] .worlds-intro h2 { font-family: var(--ui); font-weight: 400; letter-spacing: 0; }
+[data-skin="grafito"] .wall-img { border: 0; border-radius: 3px; box-shadow: var(--shadow-card); }
+[data-skin="grafito"] .wall-thumb:hover .wall-img { transform: none; box-shadow: 0 4px 14px -4px rgba(0,0,0,.4); }
+
+/* carpetas en gris, como el resto del tema */
+[data-skin="grafito"][data-theme="light"] { --folder-color: #a3aab1; }
+[data-skin="grafito"][data-theme="dark"] { --folder-color: #737c84; }
+
+/* reproductor de música y visor de PDF en carbón */
+[data-skin="grafito"] .pdf-app { --surface: #2f3438; --surface-2: #2a2e32; --surface-3: #3a4045; --text: #e7eaec; --text-dim: #a6adb3; --text-faint: #767e85; --border: rgba(255,255,255,.08); --border-strong: rgba(255,255,255,.15); --hover: rgba(255,255,255,.07); color: var(--text); }
+[data-skin="grafito"] .pdf-scroll { background: #3b4045; }
+[data-skin="grafito"] .pdf-thumbs { background: #2a2e32; }
+
+/* arranque y acceso sin papel */
+[data-skin="grafito"] .boot { background: #20262b !important; }
+[data-skin="grafito"] .boot::after { display: none; }
+[data-skin="grafito"] .boot-name { color: #e8ebee; font-family: var(--ui); font-weight: 300; text-transform: none; letter-spacing: .01em; }
+[data-skin="grafito"] .boot-bar { border: 0; background: rgba(255,255,255,.12); height: 3px; }
+[data-skin="grafito"] .boot-fill { background: var(--accent); }
+[data-skin="grafito"] .boot-tag { color: #8d969e; }
+[data-skin="grafito"] .login-card { background: rgba(33,39,44,.94); color: #eef0f2; border: 0; border-radius: 3px; box-shadow: 0 24px 60px -16px rgba(0,0,0,.7); }
+[data-skin="grafito"] .login-user { color: #fff; font-family: var(--ui); font-weight: 400; }
+[data-skin="grafito"] .login-sub, [data-skin="grafito"] .login-guest { color: #a3abb2; }
+[data-skin="grafito"] .login-alt, [data-skin="grafito"] .login-guest:hover { color: #fff; }
+[data-skin="grafito"] .login-input { background: #2c3339; color: #eef0f2; border: 1px solid rgba(255,255,255,.1); border-radius: 2px; }
+[data-skin="grafito"] .login-input::placeholder { color: #7a838b; }
+[data-skin="grafito"] .login-input:focus { background: #323a41; border-color: var(--accent); }
+[data-skin="grafito"] .login-enter { background: var(--accent); color: #fff; border-radius: 2px; box-shadow: none; }
+[data-skin="grafito"] .login-enter:hover { background: var(--accent); filter: brightness(1.08); }
+
+/* selector de estilo en Ajustes */
+.skin-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 14px; margin: 6px 0 16px; }
+.skin-card { display: flex; flex-direction: column; gap: 3px; padding: 0; border: 0; background: none; color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.skin-prev { position: relative; aspect-ratio: 16/9; border-radius: 6px; overflow: hidden; border: 1.5px solid var(--border-strong); }
+.skin-card.on .skin-prev { outline: 3px solid var(--accent); outline-offset: 3px; }
+.skin-prev i, .skin-prev b, .skin-prev em { position: absolute; display: block; }
+.skin-prev-sotos { background: linear-gradient(180deg, #f1a86a 0 55%, #6b5aa0 55% 70%, #4f7a3a 70%); }
+.skin-prev-sotos i { left: 0; right: 0; top: 0; height: 9%; background: #fbf8f2; border-bottom: 1.5px solid #1f1d1a; }
+.skin-prev-sotos b { left: 22%; top: 22%; width: 56%; height: 50%; background: #fbf8f2; border: 1.5px solid #1f1d1a; border-radius: 4px; box-shadow: 4px 4px 0 rgba(31,29,26,.2); }
+.skin-prev-sotos em { left: 30%; right: 30%; bottom: 5%; height: 11%; background: #fbf8f2; border: 1.5px solid #1f1d1a; border-radius: 4px; }
+.skin-prev-grafito { background: linear-gradient(180deg, #8d9399, #50565b 60%, #3a3f43); }
+.skin-prev-grafito i { left: 0; top: 0; bottom: 0; width: 9%; background: #232a30; }
+.skin-prev-grafito i::after { content: ""; position: absolute; left: 22%; right: 22%; top: 12%; height: 9%; background: #4fae4a; border-radius: 2px; box-shadow: 0 160% 0 #c4532f, 0 320% 0 #2f5d8a, 0 480% 0 #c9902a; }
+.skin-prev-grafito b { left: 26%; top: 20%; width: 58%; height: 58%; background: #fff; border-radius: 2px; box-shadow: 0 6px 16px rgba(0,0,0,.4); }
+.skin-prev-grafito b::before { content: ""; position: absolute; left: 0; top: 16%; bottom: 0; width: 28%; background: #f2f3f4; }
+.skin-prev-grafito b::after { content: ""; position: absolute; left: 0; top: 34%; height: 10%; width: 28%; background: #4fae4a; }
+.skin-prev-grafito em { left: 9%; right: 0; top: 0; height: 7%; background: #232a30; }
+.skin-prev-grafito.dark b { background: #2b3035; }
+.skin-prev-grafito.dark b::before { background: #24282c; }
+.skin-name { font-weight: 700; font-size: 13.5px; margin-top: 6px; display: flex; align-items: center; gap: 5px; }
+.skin-name .material-symbols-rounded { color: var(--accent); }
+.skin-desc { font-size: 12px; color: var(--text-faint); }

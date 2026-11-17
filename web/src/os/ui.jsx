@@ -61,7 +61,7 @@ function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResi
   }, [onDrag]);
 
   const style = win.maximized
-    ? { left: 0, top: 30, width: "100%", height: "calc(100% - 30px)", zIndex: win.z }
+    ? { left: "var(--desk-left, 0px)", top: 30, width: "calc(100% - var(--desk-left, 0px))", height: "calc(100% - 30px)", zIndex: win.z }
     : { left: win.x, top: win.y, width: win.w, height: win.h, zIndex: win.z };
 
   return (
@@ -109,7 +109,7 @@ function EmptyState({ icon, text }) {
 function FileGlyph({ type, css, src, size = 46 }) {
   const m = TYPE_META[type] || TYPE_META.txt;
   if (m.kind === "folder")
-    return <Ic name="folder" style={{ fontSize: size * 1.08, color: m.color, fontVariationSettings: "'FILL' 1" }} />;
+    return <Ic name="folder" style={{ fontSize: size * 1.08, color: `var(--folder-color, ${m.color})`, fontVariationSettings: "'FILL' 1" }} />;
   if (m.kind === "icon")
     return <Ic name={m.icon} style={{ fontSize: size, color: m.color }} />;
   if (m.kind === "img")

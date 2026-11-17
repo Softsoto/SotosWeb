@@ -57,7 +57,7 @@ const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Ga
 const DEFAULT_PROFILE = { name: "Invitado", avatar: null };
 const { useState: useSh, useEffect: useEh, useRef: useRh, useCallback: useCh } = React;
 
-const DEFAULTS = { theme: "light", accent: "#c4532f", wallpaper: "paramo", dock: "bottom", font: "Onest", winStyle: "soft", clock24: true };
+const DEFAULTS = { theme: "light", accent: "#c4532f", wallpaper: "paramo", dock: "bottom", font: "Onest", winStyle: "soft", clock24: true, skin: "sotos", wallGray: true };
 const WIN_STYLES = {
   // identidad Sotos: borde de tinta y sombra desplazada, como una lámina impresa
   soft:  { "--win-radius": "10px", "--win-shadow": "5px 5px 0 var(--print-shadow), 0 24px 48px -26px rgba(0,0,0,.45)", "--win-border": "1.5px solid var(--ink-line)" },
@@ -455,10 +455,13 @@ function OS() {
   useEh(() => {
     const r = document.documentElement;
     r.setAttribute("data-theme", settings.theme);
+    r.setAttribute("data-skin", settings.skin || "sotos");
+    r.setAttribute("data-wallgray", settings.skin === "grafito" && settings.wallGray !== false ? "1" : "0");
     r.style.setProperty("--accent", settings.accent);
     r.style.setProperty("--ui", `"${settings.font}", system-ui, sans-serif`);
     Object.entries(WIN_STYLES[settings.winStyle]).forEach(([k, v]) => r.style.setProperty(k, v));
-  }, [settings.theme, settings.accent, settings.font, settings.winStyle]);
+    if (settings.skin === "grafito") ["--win-radius", "--win-shadow", "--win-border", "--ui"].forEach(k => r.style.removeProperty(k));
+  }, [settings.theme, settings.accent, settings.font, settings.winStyle, settings.skin, settings.wallGray]);
 
   // fondo: degradado de la lista o imagen del usuario ("file:<id>")
   const wallFileId = String(settings.wallpaper).startsWith("file:") ? settings.wallpaper.slice(5) : null;
@@ -490,7 +493,7 @@ function OS() {
       const w = Math.min(app.size.w, window.innerWidth - 80);
       const h = Math.min(app.size.h, window.innerHeight - 90);
       return [...ws, { id: appId + "-" + Date.now(), key, appId, payload: payload || null,
-        x: Math.max(20, (window.innerWidth - w) / 2 + (n % 5) * 26 - 60),
+        x: Math.max(20 + (parseInt(getComputedStyle(document.documentElement).getPropertyValue("--desk-left")) || 0), (window.innerWidth - w) / 2 + (n % 5) * 26 - 60),
         y: Math.max(46, (window.innerHeight - h) / 2 + (n % 5) * 22 - 40),
         w, h, z: ++zTop.current, minimized: false, maximized: false }];
     });
@@ -503,8 +506,9 @@ function OS() {
     if (a === "close") return setWins(ws => ws.filter(w => w.id !== id));
     if (a === "min") return setWins(ws => ws.map(w => w.id === id ? { ...w, minimized: true } : w));
     if (a === "max") return setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: !w.maximized } : w));
-    const half = Math.floor(window.innerWidth / 2), top = 30, h = window.innerHeight - top - 84;
-    setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: false, minimized: false, x: a === "left" ? 0 : half, y: top, w: half, h, z: ++zTop.current } : w));
+    const cs = getComputedStyle(document.documentElement), L = parseInt(cs.getPropertyValue("--desk-left")) || 0, B = parseInt(cs.getPropertyValue("--desk-bottom")) || 84;
+    const half = Math.floor((window.innerWidth - L) / 2), top = 30, h = window.innerHeight - top - B;
+    setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: false, minimized: false, x: a === "left" ? L : L + half, y: top, w: half, h, z: ++zTop.current } : w));
   }, []);
 
   // abrir un nodo del sistema de archivos con la app adecuada
@@ -592,7 +596,7 @@ function OS() {
   return (
     <div id="os" data-screen-label="Escritorio">
       <div className="wallpaper" style={{ background: wallpaper.css }} />
-      <Desktop shifted={settings.dock === "left"} openApp={openApp} openItem={openItem} settings={settings} update={update} widgetApi={widgetApi} />
+      <Desktop shifted={settings.dock === "left" || settings.skin === "grafito"} openApp={openApp} openItem={openItem} settings={settings} update={update} widgetApi={widgetApi} />
       {widgets.map(w => (
         <Widget key={w.id} w={w} note={notes[w.id]} onNote={setNote}
           onMove={widgetApi.move} onClose={widgetApi.remove} />
@@ -612,7 +616,7 @@ function OS() {
         );
       })}
       <MenuBar activeApp={activeApp} settings={settings} update={update} profile={shownProfile} onApp={openApp} onNew={newDoc} onLogout={logout} onSearch={() => setSpot(true)} onOpenLink={openLink} />
-      <Dock position={settings.dock} order={dockCfg} running={running} onApp={openApp} dockApi={dockApi} />
+      <Dock position={settings.skin === "grafito" ? "left rail" : settings.dock} order={dockCfg} running={running} onApp={openApp} dockApi={dockApi} />
       {spot && <Spotlight onOpen={openItem} onApp={openApp} onClose={() => setSpot(false)} />}
       {shareId && <ShareDialog id={shareId} onClose={() => setShareId(null)} />}
       <GlobalContextMenu openApp={openApp} winAction={winAction} />

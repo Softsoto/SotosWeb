@@ -10,6 +10,8 @@ import "@fontsource/hanken-grotesk/800.css";
 import "@fontsource/space-grotesk/400.css";
 import "@fontsource/space-grotesk/600.css";
 import "@fontsource/space-grotesk/700.css";
+import "@fontsource/lato/400.css";
+import "@fontsource/lato/700.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/600.css";
 import "material-symbols/rounded.css";
