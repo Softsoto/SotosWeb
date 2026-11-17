@@ -27,7 +27,7 @@ function Segmented({ options, value, onChange }) {
   return (
     <div style={{ display: "flex", gap: 2, background: "var(--surface-2)", padding: 3, borderRadius: 9, border: "1px solid var(--border)" }}>
       {options.map(o => (
-        <button key={o.v} onClick={() => onChange(o.v)}
+        <button key={o.v} className={"seg-opt" + (value === o.v ? " on" : "")} onClick={() => onChange(o.v)}
           style={{ display: "flex", alignItems: "center", gap: 5, padding: "6px 12px", borderRadius: 7, border: "none", fontSize: 13, fontWeight: 600,
             background: value === o.v ? "var(--surface)" : "transparent", color: value === o.v ? "var(--text)" : "var(--text-dim)",
             boxShadow: value === o.v ? "var(--shadow-card)" : "none" }}>
@@ -171,9 +171,9 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>Apariencia</h2>
             <div className="skin-grid">
               {[{ v: "sotos", label: "Sotos", desc: "Papel, tinta y color plano", accent: "#c4532f" },
-                { v: "grafito", label: "Grafito", desc: "Gris y carbón, dock lateral, fondo en blanco y negro", accent: "#4fae4a" }].map(k => (
+                { v: "grafito", label: "Grafito", desc: "Gris y carbón, dock lateral, fondo en blanco y negro", accent: "#60b25e" }].map(k => (
                 <button key={k.v} className={"skin-card" + ((settings.skin || "sotos") === k.v ? " on" : "")}
-                  onClick={() => { update("skin", k.v); if (["#c4532f", "#4fae4a"].includes(settings.accent)) update("accent", k.accent); }}>
+                  onClick={() => { update("skin", k.v); if (["#c4532f", "#60b25e"].includes(settings.accent)) update("accent", k.accent); }}>
                   <span className={"skin-prev skin-prev-" + k.v + (settings.theme === "dark" ? " dark" : "")}><i /><b /><em /></span>
                   <span className="skin-name">{k.label}{(settings.skin || "sotos") === k.v && <Ic name="check_circle" size={16} />}</span>
                   <span className="skin-desc">{k.desc}</span>

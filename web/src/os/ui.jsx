@@ -19,10 +19,77 @@ function Ic({ name, size, style, className }) {
   return <span className={"material-symbols-rounded " + (className||"")} style={{ fontSize: size, ...style }}>{name}</span>;
 }
 
+/* -------------------- Movimiento de ventanas --------------------
+   Tiempos del escritorio: lento 325 ms, normal 217 ms, rápido 108 ms.
+   Abrir: de escala .9 / opacidad .05 a 1. Cerrar: a escala .9 / opacidad 0.
+   Minimizar: se encoge y se desliza hacia el dock; restaurar hace el camino inverso. */
+export const MOTION = { slow: 325, normal: 217, fast: 108, ease: "ease" };
+const reduced = () => { try { return matchMedia("(prefers-reduced-motion: reduce)").matches; } catch { return false; } };
+const winEl = (id) => document.querySelector(`.window[data-win-id="${id}"]`);
+// destino del minimizado: el icono de la app en el dock (en el riel lateral, solo en horizontal)
+function dockOffset(el, appId) {
+  const r = el.getBoundingClientRect();
+  const rail = document.documentElement.dataset.skin === "grafito";
+  if (rail) return { x: (parseInt(getComputedStyle(document.documentElement).getPropertyValue("--desk-left")) || 0) - r.left, y: 0, s: 0.9 };
+  const icon = document.querySelector(`.dock-item[data-app="${appId}"]`)?.getBoundingClientRect();
+  if (!icon) return { x: 0, y: 60, s: 0.9 };
+  return { x: icon.left + icon.width / 2 - (r.left + r.width / 2), y: icon.top + icon.height / 2 - (r.top + r.height / 2), s: 0.35 };
+}
+/** anima la salida de una ventana y resuelve al terminar (cerrar) */
+export function animateWinOut(id) {
+  const el = winEl(id);
+  if (!el || reduced() || !el.animate) return Promise.resolve();
+  el.style.pointerEvents = "none";
+  return el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: "scale(.9)" }],
+    { duration: MOTION.normal, easing: MOTION.ease, fill: "forwards" }).finished.catch(() => {});
+}
+/** suaviza un cambio de tamaño/posición (maximizar, acomodar a media pantalla) */
+export function animateWinGeometry(id) {
+  const el = winEl(id); if (!el || reduced()) return;
+  el.classList.add("win-geo"); clearTimeout(el._geoT);
+  el._geoT = setTimeout(() => el.classList.remove("win-geo"), MOTION.slow);
+}
+
 /* -------------------- Window -------------------- */
 function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResize, children }) {
   const ref = useRef(null);
   const drag = useRef(null);
+  // oculto de verdad solo cuando termina la animación de minimizar
+  const [hidden, setHidden] = useState(win.minimized);
+  const first = useRef(true), off = useRef(null), minRef = useRef(win.minimized), outAnim = useRef(null);
+  minRef.current = win.minimized;
+  React.useLayoutEffect(() => {
+    const el = ref.current; if (!el) return;
+    const anim = !reduced() && el.animate;
+    if (first.current) {
+      first.current = false;
+      if (!win.minimized && anim) el.animate([{ opacity: 0.05, transform: "scale(.9)" }, { opacity: 1, transform: "none" }], { duration: MOTION.normal, easing: MOTION.ease });
+      return;
+    }
+    if (win.minimized) {
+      if (!anim) return setHidden(true);
+      const o = off.current = dockOffset(el, app.id);
+      const a = el.animate([{ opacity: 1, transform: "none" }, { opacity: 0, transform: `translate(${o.x}px, ${o.y}px) scale(${o.s})` }],
+        { duration: MOTION.normal, easing: MOTION.ease, fill: "forwards" });
+      outAnim.current = a;
+      a.finished.then(() => { outAnim.current = null; if (minRef.current) setHidden(true); a.cancel(); }).catch(() => {});
+    } else if (outAnim.current) {
+      // restaurado a mitad del minimizado: invertir en el sitio
+      const a = outAnim.current; outAnim.current = null; off.current = null; a.reverse();
+      a.finished.then(() => a.cancel()).catch(() => {});
+    } else if (hidden) {
+      setHidden(false);
+    }
+  }, [win.minimized]);
+  // restaurar: vuelve desde el dock (se ejecuta cuando ya es visible otra vez)
+  React.useLayoutEffect(() => {
+    if (hidden || first.current || !off.current) return;
+    const el = ref.current, o = off.current; off.current = null;
+    if (el && el.animate && !reduced()) el.animate([{ opacity: 0, transform: `translate(${o.x}px, ${o.y}px) scale(${o.s})` }, { opacity: 1, transform: "none" }], { duration: MOTION.normal, easing: MOTION.ease });
+  }, [hidden]);
+  // maximizar / restaurar tamaño con transición
+  const wasMax = useRef(win.maximized);
+  React.useLayoutEffect(() => { if (wasMax.current !== win.maximized) { wasMax.current = win.maximized; animateWinGeometry(win.id); } }, [win.maximized]);
 
   const startDrag = (e) => {
     if (win.maximized) return;
@@ -68,7 +135,7 @@ function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResi
     <div
       ref={ref}
       data-win-id={win.id}
-      className={"window" + (win.maximized ? " maximized" : "") + (win.minimized ? " minimized" : "") + (focused ? " focused" : "")}
+      className={"window" + (win.maximized ? " maximized" : "") + (hidden ? " minimized" : "") + (focused ? " focused" : "")}
       style={{ ...style, "--app-color": app.color }}
       onMouseDown={onFocus}
     >

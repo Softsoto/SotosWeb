@@ -5,7 +5,7 @@
 import React from "react";
 import { APPS, APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, DEFAULT_SHORTCUTS } from "./data.jsx";
 import { SotosLogo } from "./logo.jsx";
-import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts } from "./ui.jsx";
+import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, animateWinOut, animateWinGeometry } from "./ui.jsx";
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, DESKTOP } from "./vfs.js";
@@ -195,7 +195,7 @@ function CalendarPopover({ now, month, setMonth, clock24 }) {
 }
 
 /* -------------------- Dock -------------------- */
-function Dock({ position, order, running, onApp, dockApi }) {
+function Dock({ position, order, running, minimized, onApp, dockApi }) {
   const [ctx, setCtx] = useSh(null);
   const drag = useRh(null);
   const onDrop = (i) => {
@@ -209,14 +209,14 @@ function Dock({ position, order, running, onApp, dockApi }) {
         if (id === "__div__") return <div key={"d" + i} className="divider" />;
         const app = APP_BY_ID[id]; if (!app) return null;
         return (
-          <button key={id} className="dock-item" draggable
+          <button key={id} className="dock-item" data-app={id} draggable
             onClick={() => onApp(id)}
             onContextMenu={e => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }); }}
             onDragStart={() => { drag.current = i; }}
             onDragOver={e => e.preventDefault()} onDrop={() => onDrop(i)}>
             <Tile icon={app.icon} color={app.color} />
             <span className="dock-tip">{app.name}</span>
-            {running.has(id) && <span className="run-dot" />}
+            {running.has(id) && <span className={"run-dot" + (minimized?.has(id) ? " min" : "")} />}
           </button>
         );
       })}
@@ -404,7 +404,7 @@ function OS() {
       // enlaces directos: ?tema=grafito|sotos y ?modo=oscuro|claro (útil para mostrar el demo)
       const q = new URLSearchParams(location.search);
       const tema = q.get("tema"), modo = q.get("modo");
-      if (tema === "grafito" || tema === "sotos") { s.skin = tema; if (["#c4532f", "#4fae4a"].includes(s.accent)) s.accent = tema === "grafito" ? "#4fae4a" : "#c4532f"; }
+      if (tema === "grafito" || tema === "sotos") { s.skin = tema; if (["#c4532f", "#60b25e"].includes(s.accent)) s.accent = tema === "grafito" ? "#60b25e" : "#c4532f"; }
       if (modo === "oscuro" || modo === "claro") s.theme = modo === "oscuro" ? "dark" : "light";
       if (tema || modo) { try { localStorage.setItem("sotos", JSON.stringify(s)); } catch {} }
       return s;
@@ -504,16 +504,19 @@ function OS() {
         w, h, z: ++zTop.current, minimized: false, maximized: false }];
     });
   }, []);
-  const close = id => setWins(ws => ws.filter(w => w.id !== id));
+  // cerrar: primero la animación de salida, luego se quita del estado
+  const closing = useRh(new Set());
+  const close = id => { if (closing.current.has(id)) return; closing.current.add(id); animateWinOut(id).then(() => { closing.current.delete(id); setWins(ws => ws.filter(w => w.id !== id)); }); };
   const min = id => setWins(ws => ws.map(w => w.id === id ? { ...w, minimized: true } : w));
   const max = id => setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: !w.maximized } : w));
   const setRect = (id, patch) => setWins(ws => ws.map(w => w.id === id ? { ...w, ...patch } : w));
   const winAction = useCh((id, a) => {
-    if (a === "close") return setWins(ws => ws.filter(w => w.id !== id));
+    if (a === "close") return close(id);
     if (a === "min") return setWins(ws => ws.map(w => w.id === id ? { ...w, minimized: true } : w));
     if (a === "max") return setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: !w.maximized } : w));
     const cs = getComputedStyle(document.documentElement), L = parseInt(cs.getPropertyValue("--desk-left")) || 0, B = parseInt(cs.getPropertyValue("--desk-bottom")) || 84;
     const half = Math.floor((window.innerWidth - L) / 2), top = 30, h = window.innerHeight - top - B;
+    animateWinGeometry(id);
     setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: false, minimized: false, x: a === "left" ? L : L + half, y: top, w: half, h, z: ++zTop.current } : w));
   }, []);
 
@@ -590,6 +593,8 @@ function OS() {
   });
 
   const running = new Set(wins.map(w => w.appId));
+  // apps cuyas ventanas están todas minimizadas: el indicador del dock se encoge y se pone gris
+  const minimizedApps = new Set([...running].filter(a => wins.filter(w => w.appId === a).every(w => w.minimized)));
   const top = wins.reduce((a, b) => (!a || b.z > a.z) && !b.minimized ? b : a, null);
   const activeApp = top ? APP_BY_ID[top.appId] : null;
 
@@ -622,7 +627,7 @@ function OS() {
         );
       })}
       <MenuBar activeApp={activeApp} settings={settings} update={update} profile={shownProfile} onApp={openApp} onNew={newDoc} onLogout={logout} onSearch={() => setSpot(true)} onOpenLink={openLink} />
-      <Dock position={settings.skin === "grafito" ? "left rail" : settings.dock} order={dockCfg} running={running} onApp={openApp} dockApi={dockApi} />
+      <Dock position={settings.skin === "grafito" ? "left rail" : settings.dock} order={dockCfg} running={running} minimized={minimizedApps} onApp={openApp} dockApi={dockApi} />
       {spot && <Spotlight onOpen={openItem} onApp={openApp} onClose={() => setSpot(false)} />}
       {shareId && <ShareDialog id={shareId} onClose={() => setShareId(null)} />}
       <GlobalContextMenu openApp={openApp} winAction={winAction} />

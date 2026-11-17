@@ -1473,13 +1473,70 @@ img.track-cover { background: var(--surface-3); }
 .skin-prev-sotos em { left: 30%; right: 30%; bottom: 5%; height: 11%; background: #fbf8f2; border: 1.5px solid #1f1d1a; border-radius: 4px; }
 .skin-prev-grafito { background: linear-gradient(180deg, #8d9399, #50565b 60%, #3a3f43); }
 .skin-prev-grafito i { left: 0; top: 0; bottom: 0; width: 9%; background: #232a30; }
-.skin-prev-grafito i::after { content: ""; position: absolute; left: 22%; right: 22%; top: 12%; height: 9%; background: #4fae4a; border-radius: 2px; box-shadow: 0 160% 0 #c4532f, 0 320% 0 #2f5d8a, 0 480% 0 #c9902a; }
+.skin-prev-grafito i::after { content: ""; position: absolute; left: 22%; right: 22%; top: 12%; height: 9%; background: #60b25e; border-radius: 2px; box-shadow: 0 160% 0 #c4532f, 0 320% 0 #2f5d8a, 0 480% 0 #c9902a; }
 .skin-prev-grafito b { left: 26%; top: 20%; width: 58%; height: 58%; background: #fff; border-radius: 2px; box-shadow: 0 6px 16px rgba(0,0,0,.4); }
 .skin-prev-grafito b::before { content: ""; position: absolute; left: 0; top: 16%; bottom: 0; width: 28%; background: #f2f3f4; }
-.skin-prev-grafito b::after { content: ""; position: absolute; left: 0; top: 34%; height: 10%; width: 28%; background: #4fae4a; }
+.skin-prev-grafito b::after { content: ""; position: absolute; left: 0; top: 34%; height: 10%; width: 28%; background: #60b25e; }
 .skin-prev-grafito em { left: 9%; right: 0; top: 0; height: 7%; background: #232a30; }
 .skin-prev-grafito.dark b { background: #2b3035; }
 .skin-prev-grafito.dark b::before { background: #24282c; }
 .skin-name { font-weight: 700; font-size: 13.5px; margin-top: 6px; display: flex; align-items: center; gap: 5px; }
 .skin-name .material-symbols-rounded { color: var(--accent); }
 .skin-desc { font-size: 12px; color: var(--text-faint); }
+
+/* ============================================================
+   MOVIMIENTO — tiempos del escritorio: 325 / 217 / 108 ms, curva "ease"
+   Ventanas: ui.jsx (Web Animations API). Aquí: geometría, dock, menús, diálogos, controles.
+   © 2026 Sebastian Sotomontes
+   ============================================================ */
+:root { --mo-slow: 325ms; --mo-normal: 217ms; --mo-fast: 108ms; --mo-ease: ease; }
+.window { will-change: transform, opacity; transform-origin: 50% 50%; }
+.window.win-geo { transition: left var(--mo-normal) var(--mo-ease), top var(--mo-normal) var(--mo-ease), width var(--mo-normal) var(--mo-ease), height var(--mo-normal) var(--mo-ease), border-radius var(--mo-normal); }
+.window.win-geo .win-body { pointer-events: none; }
+
+/* indicador del dock: aparece en 500 ms; al minimizar se encoge y se pone gris en 250 ms */
+.dock-item .run-dot { animation: mo-fade .5s var(--mo-ease) both; transition: width .25s var(--mo-ease), height .25s var(--mo-ease), background-color .25s var(--mo-ease), opacity .25s; }
+.dock.bottom .run-dot.min { width: 6px; background: var(--text-faint); }
+.dock.left:not(.rail) .run-dot.min { height: 6px; background: var(--text-faint); }
+[data-skin="grafito"] .dock.rail .run-dot { height: 32px; background: #fff; }
+[data-skin="grafito"] .dock.rail .run-dot.min { height: 16px; background: #bfbfbf; }
+[data-skin="grafito"] .dock.rail .dock-item { transition: transform var(--mo-fast) var(--mo-ease), filter var(--mo-fast); }
+[data-skin="grafito"] .dock.rail .dock-item:active { transform: scale(.94); }
+.dock-item:active .tile { transition: transform var(--mo-fast); transform: scale(.94); }
+.dock-tip { transition: opacity var(--mo-fast) var(--mo-ease), transform var(--mo-fast) var(--mo-ease); }
+.dock.rail .dock-tip { transform: translate(-4px, -50%); }
+.dock.rail .dock-item:hover .dock-tip { transform: translate(0, -50%); }
+
+/* menús, desplegables y paneles: aparecen en el tiempo rápido */
+.ctx-menu, .menu-drop, .cal-pop, .notif-panel { animation: mo-drop var(--mo-fast) var(--mo-ease) both; transform-origin: top left; }
+.notif-panel, .cal-pop { transform-origin: top right; }
+
+/* diálogos: velo con fundido de 200 ms (ease-in-out) y tarjeta que asienta */
+.share-modal, .spot-overlay { animation: mo-fade .2s ease-in-out both; }
+.share-card, .spot { animation: mo-settle var(--mo-normal) var(--mo-ease) both; }
+.gal-viewer { animation: mo-fade var(--mo-normal) var(--mo-ease) both; }
+.toast { animation: mo-rise var(--mo-normal) var(--mo-ease) both; }
+.widget { animation: mo-settle var(--mo-slow) var(--mo-ease) both; }
+.desk-icon { transition: background-color var(--mo-fast) var(--mo-ease); }
+
+/* controles: el seleccionado deja un anillo de 3 px que se contrae (0,2 s) */
+.seg-opt { transition: background-color .2s ease-in-out, color .2s ease-in-out, box-shadow .2s ease-in-out; }
+.seg-opt.on { animation: mo-ring .2s ease-in-out; }
+.skin-card .skin-prev { transition: outline-offset var(--mo-normal) var(--mo-ease), transform var(--mo-fast); }
+.skin-card:active .skin-prev { transform: scale(.98); }
+input[type="checkbox"]:checked, input[type="radio"]:checked { animation: mo-ring .2s ease-in-out; }
+.side-item, .world-row, .contact-row, .file-row, .ctx-item, .tb-btn, .win-ctrls button { transition: background-color var(--mo-fast) var(--mo-ease), color var(--mo-fast) var(--mo-ease); }
+.world-tabs button { transition: color var(--mo-fast), border-color var(--mo-normal) var(--mo-ease); }
+
+/* cambio de pestaña o de vista: fundido corto del contenido */
+.world-body > *, .contact-card { animation: mo-fade var(--mo-normal) var(--mo-ease) both; }
+
+@keyframes mo-fade { from { opacity: 0; } }
+@keyframes mo-drop { from { opacity: 0; transform: translateY(-4px) scale(.98); } }
+@keyframes mo-settle { from { opacity: 0; transform: scale(.94); } }
+@keyframes mo-rise { from { opacity: 0; transform: translateY(10px); } }
+@keyframes mo-ring { from { box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 30%, transparent); } to { box-shadow: 0 0 0 0 transparent; } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
+}
