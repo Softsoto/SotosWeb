@@ -3,7 +3,7 @@
    ============================================================ */
 import React from "react";
 import { APPS, WEB_SERVICES, OFFICE_WEB, appAllowed } from "./data.jsx";
-import { Tile, Ic, Toolbar, EmptyState, Modal, toast } from "./ui.jsx";
+import { Tile, Ic, Toolbar, EmptyState, Modal, toast, ContextMenu } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtDate, fmtSize } from "./vfs.js";
 import { NodeGlyph } from "./files-ui.jsx";
@@ -420,6 +420,7 @@ function TrashApp() {
   const trash = useVfs(s => s.trash);
   const [confirm, setConfirm] = useS5(null); // { ids, all }
   const [sel, setSel] = useS5([]);
+  const [ctx, setCtx] = useS5(null); // menú contextual sobre un elemento
   const total = trash.reduce((s, t) => s + vfs.folderSize(t.node), 0);
   const origin = (t) => { const p = vfs.node(t.from); return p ? vfs.pathString(p.id) : "(carpeta eliminada)"; };
   return (
@@ -442,7 +443,8 @@ function TrashApp() {
             {trash.map(t => (
               <div key={t.node.id} className={"file-row" + (sel.includes(t.node.id) ? " sel" : "")} style={{ gridTemplateColumns: "1fr 1fr 130px 90px" }}
                 onClick={e => setSel(s => e.ctrlKey || e.metaKey ? (s.includes(t.node.id) ? s.filter(x => x !== t.node.id) : [...s, t.node.id]) : [t.node.id])}
-                onDoubleClick={() => vfs.restore([t.node.id])}>
+                onDoubleClick={() => vfs.restore([t.node.id])}
+                onContextMenu={e => { e.preventDefault(); const ids = sel.includes(t.node.id) ? sel : [t.node.id]; if (!sel.includes(t.node.id)) setSel([t.node.id]); setCtx({ x: e.clientX, y: e.clientY, ids }); }}>
                 <span className="fl-name"><NodeGlyph node={t.node} size={20} /><div className="fname">{t.node.name}</div></span>
                 <span className="faint">{origin(t)}</span><span>{fmtDate(t.at)}</span><span style={{ textAlign: "right" }}>{fmtSize(vfs.folderSize(t.node))}</span>
               </div>
@@ -450,11 +452,16 @@ function TrashApp() {
           </div>
         ) : <EmptyState icon="delete_outline" text="La papelera está vacía" />}
       </div>
-      <div className="files-status"><span>Doble clic restaura un elemento a su carpeta original.</span></div>
+      <div className="files-status"><span>Doble clic restaura · clic derecho para restaurar o eliminar permanentemente.</span></div>
+      {ctx && <ContextMenu x={ctx.x} y={ctx.y}
+        items={[{ id: "restore", label: ctx.ids.length > 1 ? `Restaurar ${ctx.ids.length} elementos` : "Restaurar", icon: "restore_from_trash" }, { sep: true },
+          { id: "forever", label: ctx.ids.length > 1 ? `Eliminar ${ctx.ids.length} permanentemente` : "Eliminar permanentemente", icon: "delete_forever", danger: true }]}
+        onSelect={(id) => { if (id === "restore") { vfs.restore(ctx.ids); toast(`${ctx.ids.length} elemento(s) restaurado(s)`, { icon: "restore_from_trash" }); setSel([]); } if (id === "forever") setConfirm({ ids: ctx.ids }); }}
+        onClose={() => setCtx(null)} />}
       {confirm && <Modal title={confirm.all ? "¿Vaciar la papelera?" : `¿Eliminar ${confirm.ids.length} elemento(s)?`} icon="delete_forever" onClose={() => setConfirm(null)}
         actions={<><button className="tb-btn" onClick={() => setConfirm(null)}>Cancelar</button>
           <button className="tb-btn danger" onClick={async () => { await vfs.destroy(confirm.ids); setSel([]); setConfirm(null); toast("Eliminado definitivamente", { icon: "delete_forever" }); }}>Eliminar para siempre</button></>}>
-        <div className="muted" style={{ fontSize: 13.5 }}>Esta acción no se puede deshacer. Los archivos se borrarán de este navegador.</div>
+        <div className="muted" style={{ fontSize: 13.5 }}>Esta acción no se puede deshacer. {vfs.getState().mode === "cloud" ? "Se borrarán de tu nube y de todos tus dispositivos." : "Los archivos se borrarán de este navegador."}</div>
       </Modal>}
     </div>
   );

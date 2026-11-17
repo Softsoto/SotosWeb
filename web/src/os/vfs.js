@@ -304,15 +304,27 @@ export async function importDataTransfer(destId, dt) {
   for (const e of entries) await go(e, destId);
   return ids;
 }
+/** carpeta → .zip (Blob) */
+export async function zipFolder(id) {
+  const n = node(id); const { default: JSZip } = await import("jszip");
+  const zip = new JSZip();
+  const add = async (x, folder) => { for (const c of x.children || []) { if (c.children) await add(c, folder.folder(c.name)); else folder.file(c.name, await read(c.id)); } };
+  await add(n, zip); return zip.generateAsync({ type: "blob" });
+}
+/** comprime elementos (archivos y carpetas) en un .zip nuevo dentro de parentId; devuelve su id */
+export async function compress(ids, parentId, name) {
+  const { default: JSZip } = await import("jszip");
+  const zip = new JSZip();
+  const add = async (x, folder) => { if (x.children) { const f = folder.folder(x.name); for (const c of x.children) await add(c, f); } else folder.file(x.name, await read(x.id)); };
+  for (const id of ids) { const n = node(id); if (n) await add(n, zip); }
+  const blob = await zip.generateAsync({ type: "blob", compression: "DEFLATE" });
+  return create(parentId, name, blob);
+}
 export async function download(id) {
   const n = node(id); if (!n) return;
   let blob, name = n.name;
-  if (n.type === "folder") {
-    const { default: JSZip } = await import("jszip");
-    const zip = new JSZip();
-    const add = async (x, folder) => { for (const c of x.children || []) { if (c.children) await add(c, folder.folder(c.name)); else folder.file(c.name, await read(c.id)); } };
-    await add(n, zip); blob = await zip.generateAsync({ type: "blob" }); name += ".zip";
-  } else blob = await read(id);
+  if (n.type === "folder") { blob = await zipFolder(id); name += ".zip"; }
+  else blob = await read(id);
   const url = URL.createObjectURL(blob); const a = document.createElement("a");
   a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 30_000);

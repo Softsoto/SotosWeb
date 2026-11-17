@@ -10,6 +10,8 @@ import { api } from "./api.js";
 import { useVideoThumb } from "./video-thumb.js";
 import { useTrackInfo } from "./id3.js";
 import { coverOf } from "./cover-art.js";
+import { extract, isArchive, ARCHIVE_RE } from "./decompress.js";
+import { tz as regionTz } from "./region.js";
 
 // carpetas del sistema con su símbolo encima (como una carpeta con cámara para Imágenes)
 const SPECIAL = { "Imágenes": "photo_camera", "Música": "music_note", "Vídeos": "movie", "Documentos": "description", "Descargas": "download", "Escritorio": "desktop_windows", "Proyectos": "rocket_launch", "Papelera": "delete" };
@@ -106,9 +108,10 @@ export function itemMenu(nodes, { canPaste } = {}) {
     { id: "cut", label: "Cortar", icon: "content_cut" },
     { id: "download", label: one && one.type === "folder" ? "Descargar como .zip" : "Descargar", icon: "download" });
   if (one) items.push({ id: "share", label: "Compartir…", icon: "group_add" });
-  if (one && one.type !== "folder" && vfs.getState().mode === "cloud") items.push({ id: "sendto", label: "Enviar a…", icon: "send" });
+  if (vfs.getState().mode === "cloud") items.push({ id: "sendto", label: nodes.length > 1 ? `Enviar ${nodes.length} elementos a…` : "Enviar a…", icon: "send" });
   if (one && one.type === "img") items.push({ id: "wallpaper", label: "Usar como fondo", icon: "wallpaper" });
-  if (one && one.type === "zip" && /\.zip$/i.test(one.name)) items.push({ id: "unzip", label: "Extraer aquí", icon: "unarchive" });
+  if (one && isArchive(one)) items.push({ id: "unzip", label: "Extraer aquí", icon: "unarchive" });
+  items.push({ id: "compress", label: nodes.length > 1 ? `Comprimir ${nodes.length} elementos en .zip` : "Comprimir en .zip", icon: "folder_zip" });
   items.push({ sep: true });
   if (one) items.push({ id: "rename", label: "Renombrar", icon: "drive_file_rename_outline" }, { id: "props", label: "Propiedades", icon: "info" });
   items.push({ id: "trash", label: "Mover a la papelera", icon: "delete", danger: true });
@@ -126,10 +129,17 @@ export async function runItemAction(id, nodes, { openItem, update, startRename, 
     case "download": for (const n of nodes) await vfs.download(n.id).catch(e => toast("No se pudo descargar: " + e.message, { error: true })); return true;
     case "wallpaper": update && update("wallpaper", "file:" + one.id); toast("Fondo de escritorio cambiado", { icon: "wallpaper" }); return true;
     case "unzip": await unzip(one, parentId); return true;
+    case "compress": {
+      const dest = parentId || vfs.pathOf(one.id).slice(-2, -1)[0]?.id || vfs.ROOT;
+      const name = vfs.uniqueName(vfs.node(dest), (nodes.length === 1 ? one.name.replace(/\.[^.]+$/, "") : "Archivos") + ".zip");
+      toast("Comprimiendo…", { icon: "folder_zip" });
+      try { await vfs.compress(ids, dest, name); toast(`Creado “${name}”`, { icon: "folder_zip" }); } catch (e) { toast("No se pudo comprimir: " + e.message, { error: true }); }
+      return true;
+    }
     case "rename": startRename && startRename(one.id); return true;
     case "props": showProps && showProps(one.id); return true;
     case "share": showShare ? showShare(one.id) : window.dispatchEvent(new CustomEvent("sotos-share", { detail: one.id })); return true;
-    case "sendto": window.dispatchEvent(new CustomEvent("sotos-sendto", { detail: one.id })); return true;
+    case "sendto": window.dispatchEvent(new CustomEvent("sotos-sendto", { detail: ids })); return true;
     case "trash": {
       const n = vfs.trash(ids);
       if (n) toast(`${n} elemento(s) en la papelera`, { icon: "delete", action: { label: "Deshacer", run: () => vfs.restore(ids) } });
@@ -139,48 +149,58 @@ export async function runItemAction(id, nodes, { openItem, update, startRename, 
   return false;
 }
 async function unzip(n, parentId) {
+  const dest = parentId || vfs.pathOf(n.id).slice(-2, -1)[0]?.id || vfs.ROOT;
+  const t0 = Date.now(); toast(`Extrayendo “${n.name}”…`, { icon: "unarchive" });
   try {
-    const JSZip = (await import("jszip")).default;
-    const zip = await JSZip.loadAsync(await vfs.read(n.id));
-    const root = vfs.mkdir(parentId, n.name.replace(/\.zip$/i, ""));
-    const dirs = new Map([["", root]]);
-    const dirFor = (path) => {
-      if (dirs.has(path)) return dirs.get(path);
-      const i = path.lastIndexOf("/"); const parent = dirFor(i < 0 ? "" : path.slice(0, i));
-      const id = vfs.mkdir(parent, path.slice(i + 1)); dirs.set(path, id); return id;
-    };
-    let count = 0;
-    for (const [p, entry] of Object.entries(zip.files)) {
-      const clean = p.replace(/\\/g, "/").split("/").filter(s => s && s !== ".." && s !== ".").join("/");
-      if (!clean || /^__MACOSX/.test(clean)) continue;
-      if (entry.dir) { dirFor(clean); continue; }
-      const i = clean.lastIndexOf("/");
-      await vfs.create(dirFor(i < 0 ? "" : clean.slice(0, i)), clean.slice(i + 1), await entry.async("blob"));
-      count++;
-    }
-    toast(`${count} archivo(s) extraído(s)`, { icon: "unarchive" });
-  } catch (e) { toast("No se pudo extraer: " + e.message, { error: true }); }
+    const { count } = await extract(n, dest);
+    toast(`${count} archivo(s) extraído(s) de “${n.name}”${Date.now() - t0 > 3000 ? "" : ""}`, { icon: "unarchive" });
+  } catch (e) { toast(`No se pudo extraer “${n.name}”: ${e.message || "formato no compatible o archivo dañado"}`, { error: true }); }
 }
-
 /* ---------------- propiedades ---------------- */
 const TYPE_LABEL = { folder: "Carpeta", docx: "Documento de Word", xlsx: "Libro de Excel", csv: "Valores separados por comas", pptx: "Presentación de PowerPoint",
   pdf: "Documento PDF", img: "Imagen", audio: "Audio", video: "Vídeo", txt: "Texto", code: "Código / texto", zip: "Archivo comprimido", file: "Archivo" };
-export function PropertiesModal({ id, onClose }) {
+// medidas de imagen y duración de audio/vídeo (se leen al abrir Propiedades)
+function useMediaInfo(n) {
+  const [info, setInfo] = useState(null);
+  useEffect(() => {
+    if (!n || !["img", "audio", "video"].includes(n.type)) return;
+    let live = true, url = null;
+    vfs.objectUrl(n.id).then(u => {
+      url = u; if (!live) return;
+      if (n.type === "img") { const i = new Image(); i.onload = () => live && setInfo({ dims: `${i.naturalWidth} × ${i.naturalHeight} px` }); i.src = u; }
+      else { const m = document.createElement(n.type === "audio" ? "audio" : "video"); m.preload = "metadata"; m.onloadedmetadata = () => { if (!live) return; const s = Math.round(m.duration || 0); setInfo({ dur: isFinite(m.duration) ? `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}` : null, dims: m.videoWidth ? `${m.videoWidth} × ${m.videoHeight} px` : null }); }; m.src = u; }
+    }).catch(() => {});
+    return () => { live = false; };
+  }, [n?.id, n?.mtime]);
+  return info;
+}
+export function PropertiesModal({ id, onClose, openItem }) {
   const n = vfs.useVfs(() => vfs.node(id));
+  const media = useMediaInfo(n);
   if (!n) return null;
   const isFolder = n.type === "folder";
   let files = 0, folders = 0; if (isFolder) vfs.walk(x => { if (x.id !== n.id) x.children ? folders++ : files++; }, n);
+  const ext = !isFolder && /\.([^.\/]{1,8})$/.exec(n.name)?.[1];
   const rows = [
-    ["Tipo", TYPE_LABEL[n.type] || n.type],
+    ["Tipo", isArchive(n) ? `Archivo comprimido (.${n.name.match(ARCHIVE_RE)[1].toLowerCase()})` : (TYPE_LABEL[n.type] || n.type) + (ext ? ` (.${ext.toLowerCase()})` : "")],
     ["Ubicación", "/" + vfs.pathOf(id).slice(0, -1).map(p => p.name).join("/")],
     ["Tamaño", isFolder ? `${fmtSize(vfs.folderSize(n))} · ${files} archivo(s), ${folders} carpeta(s)` : n.online && !n.size ? "En línea (se transmite)" : fmtSize(n.size)],
-    ["Creado", n.ctime ? new Date(n.ctime).toLocaleString("es-ES") : "—"],
-    ["Modificado", n.mtime ? new Date(n.mtime).toLocaleString("es-ES") : "—"],
+    ["Creado", n.ctime ? new Date(n.ctime).toLocaleString("es-ES", { timeZone: regionTz() }) : "—"],
+    ["Modificado", n.mtime ? new Date(n.mtime).toLocaleString("es-ES", { timeZone: regionTz() }) : "—"],
   ];
+  if (media?.dims) rows.push(["Medidas", media.dims]);
+  if (media?.dur) rows.push(["Duración", media.dur]);
   if (n.meta?.artist) rows.push(["Artista", n.meta.artist]);
+  if (n.meta?.credit) rows.push(["Créditos", n.meta.credit]);
+  const act = (what) => { onClose(); runItemAction(what, [n], { openItem: openItem || ((x) => window.dispatchEvent(new CustomEvent("sotos-open", { detail: x.id }))) }); };
   return (
     <Modal title={n.name} icon="info" onClose={onClose} width={420}
-      actions={<button className="tb-btn primary" onClick={onClose}>Cerrar</button>}>
+      actions={<>
+        {!isFolder && <button className="tb-btn" onClick={() => act("open")}><Ic name="open_in_new" /> Abrir</button>}
+        <button className="tb-btn" onClick={() => act("download")}><Ic name="download" /> Descargar</button>
+        {isArchive(n) && <button className="tb-btn" onClick={() => act("unzip")}><Ic name="unarchive" /> Extraer</button>}
+        <button className="tb-btn" onClick={() => act("share")}><Ic name="group_add" /> Compartir</button>
+        <button className="tb-btn primary" onClick={onClose}>Cerrar</button></>}>
       <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
         <div style={{ width: 70, display: "grid", placeItems: "center" }}><NodeGlyph node={n} size={56} /></div>
         <table className="props-table"><tbody>{rows.map(([k, v]) => <tr key={k}><th>{k}</th><td>{v}</td></tr>)}</tbody></table>

@@ -31,7 +31,10 @@ export function useInboxCount() {
 }
 
 export function SendToDialog({ nodeId, onClose }) {
-  const node = vfs.node(nodeId);
+  const ids = [].concat(nodeId).filter(id => vfs.node(id));
+  const nodes = ids.map(vfs.node), node = nodes[0];
+  const folders = nodes.filter(n => n.type === "folder");
+  const total = nodes.reduce((s, n) => s + (n.type === "folder" ? vfs.folderSize?.(n) || 0 : n.size || 0), 0);
   const [people, setPeople] = useState(null), [groups, setGroups] = useState([]);
   const [pick, setPick] = useState(new Set()), [email, setEmail] = useState(""), [msg, setMsg] = useState(""), [q, setQ] = useState(""), [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -45,8 +48,17 @@ export function SendToDialog({ nodeId, onClose }) {
     if (!to.length) return toast("Elige al menos una persona", { error: true });
     setBusy(true);
     try {
-      const r = await api("POST", "inbox/send", { nodeId, to, message: msg });
-      if (r.sent.length) toast(`“${node.name}” enviado a ${r.sent.join(", ")}`, { icon: "send" });
+      // las carpetas viajan comprimidas: se crea “Carpeta.zip” a su lado y se envía ese archivo
+      const sendIds = [];
+      for (const n of nodes) {
+        if (n.type !== "folder") { sendIds.push(n.id); continue; }
+        const parent = vfs.pathOf(n.id).slice(-2, -1)[0] || vfs.getState().root;
+        sendIds.push(await vfs.compress([n.id], parent.id, vfs.uniqueName(parent, n.name + ".zip")));
+      }
+      await vfs.flush?.().catch(() => {}); // que todo esté subido antes de enviar
+      const r = await api("POST", "inbox/send", { nodeIds: sendIds, to, message: msg });
+      const what = sendIds.length === 1 ? `“${vfs.node(sendIds[0])?.name}”` : `${sendIds.length} archivos`;
+      if (r.sent.length) toast(`${what} enviado(s) a ${r.sent.join(", ")}`, { icon: "send" });
       r.skipped.forEach(s => toast(`${s.who}: ${s.reason}`, { error: true }));
       if (r.sent.length) onClose();
     } catch (e) { toast(e.message, { error: true }); }
@@ -58,7 +70,8 @@ export function SendToDialog({ nodeId, onClose }) {
     <Modal title="Enviar a…" icon="send" onClose={onClose} width={480}
       actions={<><button className="tb-btn" onClick={onClose}>Cancelar</button><button className="tb-btn primary" disabled={busy || (!pick.size && !email.trim())} onClick={send}><Ic name="send" /> Enviar</button></>}>
       <div className="sendto">
-        <div className="sendto-file"><NodeGlyph node={node} size={30} /><div><b>{node.name}</b><div className="faint">{fmtSize(node.size || 0)} · llega a su bandeja y decide si lo guarda</div></div></div>
+        <div className="sendto-file"><NodeGlyph node={node} size={30} /><div><b>{nodes.length === 1 ? node.name : `${nodes.length} elementos`}</b>
+          <div className="faint">{nodes.length > 1 ? nodes.slice(0, 3).map(n => n.name).join(", ") + (nodes.length > 3 ? "…" : "") + " · " : ""}{fmtSize(total)}{folders.length ? ` · ${folders.length === 1 ? "la carpeta se envía" : "las carpetas se envían"} como .zip` : ""} · llega a su bandeja y decide si lo guarda</div></div></div>
         {groups.length > 0 && <div className="sendto-groups">{groups.map(g => <button key={g.id} className="chip" onClick={() => addGroup(g)} style={{ "--chip": g.color }}><Ic name="group" size={14} /> {g.name}</button>)}</div>}
         <div className="search-box"><Ic name="search" size={16} /><input placeholder="Buscar en tus contactos con cuenta" value={q} onChange={e => setQ(e.target.value)} /></div>
         <div className="sendto-list">
