@@ -14,7 +14,7 @@ import { pipeline } from "node:stream/promises";
 import { secret } from "./db.mjs";
 import { fail, json, readJson, jwtSign, jwtVerify } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
-import { loadState, blobPath, applyOps, userNode } from "./fs.mjs";
+import { loadState, blobPath, applyOps, userNode, snapshotVersion } from "./fs.mjs";
 import { resolveShare } from "./shares.mjs";
 import { index } from "../web/src/os/tree-ops.js";
 
@@ -91,6 +91,7 @@ export async function handleOO(req, res, parts) {
       const p = blobPath(t.u, t.n); const tmp = p + ".oo-" + process.pid;
       fs.mkdirSync(path.dirname(p), { recursive: true });
       await pipeline(r.body, fs.createWriteStream(tmp));
+      try { snapshotVersion(t.u, t.n); } catch {} // la versión anterior queda en el historial
       fs.renameSync(tmp, p);
       if (userNode(t.u, t.n)) applyOps(t.u, [{ t: "write", id: t.n, size: fs.statSync(p).size, mtime: Date.now() }], "onlyoffice");
     }

@@ -26,6 +26,7 @@ import { handleAdmin } from "./admin.mjs";
 import { handleCalendar, handleTasks } from "./agenda.mjs";
 import { handleStore } from "./store.mjs";
 import { handleMail } from "./mail.mjs";
+import { handleNeko } from "./neko.mjs";
 import { handleWorlds } from "./worlds.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -97,6 +98,7 @@ async function handleApi(req, res) {
     case "tasks": return handleTasks(req, res, rest);
     case "store": return handleStore(req, res, rest);
     case "mail": return handleMail(req, res, rest);
+    case "neko": return handleNeko(req, res, rest);
   }
   return json(res, 404, { error: "No encontrado" });
 }

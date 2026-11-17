@@ -242,6 +242,26 @@ function SafeFrame({ src, proxied, onBlocked, onNav, onLoading, onCtx }) {
     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" allowFullScreen />;
 }
 
+// ---- navegador virtual (Neko): un Firefox real en el servidor, para las páginas que no se dejan incrustar ----
+let nekoInfo = null;
+function useNeko() {
+  const mode = useVfs(s => s.mode);
+  const [info, setInfo] = useS3(nekoInfo);
+  useE3(() => { if (DEMO || mode !== "cloud" || nekoInfo) return; fetch("/api/neko").then(r => r.ok ? r.json() : null).then(j => { nekoInfo = j || { enabled: false }; setInfo(nekoInfo); }).catch(() => {}); }, [mode]);
+  return info?.enabled ? info : null;
+}
+const nekoPost = (p, b) => fetch("/api/neko/" + p, { method: "POST", headers: { "x-sotos": "1", "content-type": "application/json" }, body: JSON.stringify(b || {}) }).then(async r => { const j = await r.json().catch(() => ({})); if (!r.ok) throw new Error(j.error || "Navegador virtual no disponible"); return j; });
+function NekoFrame({ addr, neko }) {
+  const [src, setSrc] = useS3(null), [err, setErr] = useS3(null);
+  useE3(() => { nekoPost("session").then(j => setSrc(j.url)).catch(e => setErr(e.message)); }, []);
+  useE3(() => { if (src && neko.canOpen && /^https?:/.test(addr)) { const t = setTimeout(() => nekoPost("open", { url: addr }).catch(e => toast(e.message, { error: true })), 2500); return () => clearTimeout(t); } }, [src, addr]);
+  if (err) return <EmptyState icon="desktop_access_disabled" text={err} />;
+  return (<div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
+    <div className="proxy-bar"><Ic name="desktop_windows" size={14} /> Navegador virtual: un Firefox real en tu servidor de Sotos. Lo que hagas aquí (sesiones, descargas) queda en ese equipo, no en tu PC.{!neko.canOpen && <> Escribe la dirección en su barra.</>}</div>
+    {src ? <iframe title="navegador virtual" src={src} className="neko-frame" allow="autoplay; clipboard-read; clipboard-write; fullscreen" allowFullScreen /> : <EmptyState icon="hourglass_empty" text="Conectando con el navegador virtual…" />}
+  </div>);
+}
+
 let tabSeq = 1;
 function BrowserApp({ shortcuts = [], url, scName }) {
   const home = () => ({ id: tabSeq++, addr: "inicio", input: "", title: "Nueva pestaña", hist: ["inicio"], hi: 0 });
@@ -253,6 +273,7 @@ function BrowserApp({ shortcuts = [], url, scName }) {
   const [active, setActive] = useS3(() => { if (url) return 0; try { return JSON.parse(localStorage.getItem("sotos_browser"))?.active || 0; } catch { return 0; } });
   const [proxyMode, setProxyMode] = useS3(() => { if (DEMO) return false; try { const v = localStorage.getItem("sotos_proxy"); return v === null ? true : v === "1"; } catch { return true; } });
   const [failed, setFailed] = useS3({});
+  const neko = useNeko();
   const t = tabs[active] || tabs[0];
 
   // una dirección nueva (abrir enlace con la ventana ya abierta) añade pestaña; la inicial ya la creó useState
@@ -334,7 +355,9 @@ function BrowserApp({ shortcuts = [], url, scName }) {
 
   const marks = [...EMBED_HOME, ...WEB_SERVICES.slice(0, 6), ...shortcuts.map(s => ({ ...s, sc: true }))];
   const refused = t.addr !== "inicio" && refusesFrame(t.addr);
-  const showBlocked = refused || (knownBlocked(t.addr) && !proxyMode);
+  const virtual = !!(neko && t.virtual && t.addr !== "inicio");
+  const toVirtual = (on = true) => patch({ virtual: on });
+  const showBlocked = !virtual && (refused || (knownBlocked(t.addr) && !proxyMode));
   const usingProxy = t.addr !== "inicio" && isProxied(t.addr);
   const realUrl = t.live || t.addr;
 
@@ -362,6 +385,7 @@ function BrowserApp({ shortcuts = [], url, scName }) {
         </div>
         {!DEMO && <button className={"tb-btn" + (proxyMode ? " primary" : "")} title="Modo compatibilidad: intenta cargar sitios bloqueados vía proxy"
           onClick={() => setProxyMode(p => !p)}><Ic name="shield" size={17} /> Proxy</button>}
+        {neko && t.addr !== "inicio" && <button className={"tb-btn" + (virtual ? " primary" : "")} title="Abrir esta página en el navegador virtual (Firefox real en el servidor)" onClick={() => toVirtual(!virtual)}><Ic name="desktop_windows" size={17} /> Virtual</button>}
         {t.addr !== "inicio" && <button className="tb-btn icon" title="Abrir en pestaña real" onClick={() => window.open(realUrl, "_blank", "noopener")}><Ic name="open_in_new" /></button>}
       </Toolbar>
       {t.addr === "inicio" ? (
@@ -388,21 +412,23 @@ function BrowserApp({ shortcuts = [], url, scName }) {
             </div>
           </div>
         </div>
-      ) : showBlocked ? (
+      ) : virtual ? <NekoFrame key={t.id} addr={t.live || t.addr} neko={neko} />
+      : showBlocked ? (
         <div className="app webview-launch" style={{ flex: 1 }}>
           <div className="wl-card">
             <div className="lp-svc" style={{ background: (svcOf(t.addr)?.color) || "#7d8590", width: 72, height: 72, borderRadius: 20 }}><Ic name={svcOf(t.addr)?.icon || "public"} size={38} /></div>
             <div className="wl-title">{svcOf(t.addr)?.name || (refused ? hostOf(t.addr) : "Sitio protegido")}</div>
             <div className="wl-sub">{refused ? <>Este sitio, por seguridad, no permite usarse dentro de otra página. Ábrelo en una pestaña nueva; Sotos sigue abierto aquí.</> : DEMO ? <>Este sitio no permite mostrarse dentro de otra página. En el demo no hay servidor; con Sotos instalado, su <b>proxy</b> lo abre aquí dentro.</> : <>Activa el <b>Modo Proxy</b> para abrirlo aquí dentro sin salir de Sotos.</>}</div>
             <div className="wl-btns">
-              {refused ? <button className="tb-btn primary" onClick={() => window.open(t.addr, "_blank", "noopener")}><Ic name="open_in_new" /> Abrir en pestaña nueva</button>
+              {neko && <button className="tb-btn primary" onClick={() => toVirtual()}><Ic name="desktop_windows" /> Abrir aquí en el navegador virtual</button>}
+              {refused ? <button className={"tb-btn" + (neko ? "" : " primary")} onClick={() => window.open(t.addr, "_blank", "noopener")}><Ic name="open_in_new" /> Abrir en pestaña nueva</button>
               : DEMO ? <><button className="tb-btn primary" onClick={() => window.open(t.addr, "_blank", "noopener")}><Ic name="open_in_new" /> Abrir en pestaña nueva</button><button className="tb-btn" onClick={() => window.open(SHOWCASE_URL, "_blank", "noopener")}><Ic name="info" /> Conocer Sotos</button></> : <button className="tb-btn primary" onClick={() => setProxyMode(true)}><Ic name="shield" /> Abrir aquí con Proxy</button>}
             </div>
           </div>
         </div>
       ) : (
         <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-          {!usingProxy && failed[t.addr] && <div className="proxy-bar"><Ic name="shield" size={14} /> Si la página sale en blanco, no permite mostrarse dentro de otra web. {DEMO ? <>Con Sotos instalado, el proxy la abre aquí;</> : <><a onClick={() => setProxyMode(true)}>Activa el Modo Proxy</a> o</>} <a onClick={() => window.open(realUrl, "_blank", "noopener")}>ábrelo en pestaña nueva</a>.</div>}
+          {!usingProxy && failed[t.addr] && <div className="proxy-bar"><Ic name="shield" size={14} /> Si la página sale en blanco, no permite mostrarse dentro de otra web. {DEMO ? <>Con Sotos instalado, el proxy la abre aquí;</> : <><a onClick={() => setProxyMode(true)}>Activa el Modo Proxy</a> o</>} <a onClick={() => window.open(realUrl, "_blank", "noopener")}>ábrelo en pestaña nueva</a>{neko && <> o <a onClick={() => toVirtual()}>usa el navegador virtual</a></>}.</div>}
           <SafeFrame key={t.id + ":" + nonce + ":" + frameSrc(t.addr)} src={frameSrc(t.addr)} proxied={usingProxy}
             onNav={onNav} onLoading={setLoading} onCtx={onPageCtx}
             onBlocked={() => setFailed(f => f[t.addr] ? f : { ...f, [t.addr]: true })} />

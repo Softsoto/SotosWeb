@@ -1965,3 +1965,6 @@ select.wg-input { padding: 0 4px; }
 .star-btn.on { color: #e8a33d; }
 .star-btn:hover { transform: scale(1.15); }
 
+
+.neko-frame { flex: 1; width: 100%; border: 0; background: #111; }
+
