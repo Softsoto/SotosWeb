@@ -401,6 +401,12 @@ function OS() {
       const s = { ...DEFAULTS, ...JSON.parse(localStorage.getItem("sotos") || "{}") };
       // migrar la paleta anterior a la de identidad
       if (["#2f6fed", "#34c759", "#8e5cf6", "#ff375f", "#ff8a00", "#0aa5b5"].includes(s.accent)) s.accent = DEFAULTS.accent;
+      // enlaces directos: ?tema=grafito|sotos y ?modo=oscuro|claro (útil para mostrar el demo)
+      const q = new URLSearchParams(location.search);
+      const tema = q.get("tema"), modo = q.get("modo");
+      if (tema === "grafito" || tema === "sotos") { s.skin = tema; if (["#c4532f", "#4fae4a"].includes(s.accent)) s.accent = tema === "grafito" ? "#4fae4a" : "#c4532f"; }
+      if (modo === "oscuro" || modo === "claro") s.theme = modo === "oscuro" ? "dark" : "light";
+      if (tema || modo) { try { localStorage.setItem("sotos", JSON.stringify(s)); } catch {} }
       return s;
     } catch { return DEFAULTS; }
   });
