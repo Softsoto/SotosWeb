@@ -11,6 +11,7 @@ import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModa
 import { makeEvaluator, display, parseRef, refName, numToCol, isErr } from "./formula.js";
 import { api } from "./api.js";
 import { withOnlyOffice } from "./onlyoffice.jsx";
+import { InboxView, useInboxCount } from "./inbox.jsx";
 const { useState: useS1, useRef: useR1, useEffect: useE1, useMemo: useM1, useCallback: useC1 } = React;
 
 /* hook: guardado automático con estado visible */
@@ -45,8 +46,9 @@ const SIDEBAR = [
 ];
 const TYPE_NAME = { folder: "Carpeta", docx: "Word", xlsx: "Excel", csv: "CSV", pptx: "PowerPoint", pdf: "PDF", img: "Imagen", audio: "Audio", video: "Vídeo", txt: "Texto", code: "Código", zip: "Comprimido", file: "Archivo" };
 
-function FilesApp({ openApp, openItem, update, folderId }) {
+function FilesApp({ openApp, openItem, update, folderId, place }) {
   useVfs(s => s.rev);
+  const inboxCount = useInboxCount();
   const clipboard = useVfs(s => s.clipboard);
   const trashCount = useVfs(s => s.trash.length);
   const [cur, setCur] = useS1(folderId && vfs.node(folderId) ? folderId : ROOT);
@@ -63,7 +65,8 @@ function FilesApp({ openApp, openItem, update, folderId }) {
   const [view, setView] = useS1(() => localStorage.getItem("sotos_files_view") || "grid");
   const [sort, setSort] = useS1(() => { try { return JSON.parse(localStorage.getItem("sotos_files_sort")) || { k: "name", d: 1 }; } catch { return { k: "name", d: 1 }; } });
   const [quota, setQuota] = useS1(null);
-  const [special, setSpecial] = useS1(null); // "shared"
+  const [special, setSpecial] = useS1(place || null); // "shared" | "inbox"
+  useE1(() => { if (place) setSpecial(place); }, [place]);
   const mode = useVfs(s => s.mode), sync = useVfs(s => s.sync);
   const fileInput = useR1(null), dirInput = useR1(null), rootRef = useR1(null);
 
@@ -174,6 +177,7 @@ function FilesApp({ openApp, openItem, update, folderId }) {
         </div>
         <div className="side-group">
           <div className="side-label">Ubicaciones</div>
+          <SideItem icon="inbox" label={`Recibidos${inboxCount ? ` (${inboxCount})` : ""}`} color="#2f86e0" active={special === "inbox"} onClick={() => setSpecial("inbox")} />
           <SideItem icon="group" label="Compartido conmigo" color="#34c759" active={special === "shared"} onClick={() => setSpecial("shared")} />
           <SideItem icon="delete" label={`Papelera${trashCount ? ` (${trashCount})` : ""}`} color="#7d8590" onClick={() => openApp("trash")} />
         </div>
@@ -206,7 +210,7 @@ function FilesApp({ openApp, openItem, update, folderId }) {
           <div className="search-box" style={{ minWidth: 120, width: 170 }}><Ic name="search" size={17} /><input placeholder={`Buscar en ${node.name}`} value={q} onChange={e => setQ(e.target.value)} />
             {q && <Ic name="close" size={15} style={{ cursor: "pointer" }} onClick={() => setQ("")} />}</div>
         </Toolbar>
-        {special === "shared" ? <SharedWithMe openApp={openApp} /> :
+        {special === "inbox" ? <InboxView openItem={openItem} /> : special === "shared" ? <SharedWithMe openApp={openApp} /> :
         <div className="files-body" {...dropTarget(cur)}
           onMouseDown={e => { if (e.target === e.currentTarget || e.target.classList.contains("file-grid")) { setSel([]); rootRef.current?.focus(); } }}
           onContextMenu={e => { if (e.target.closest(".file-cell,.file-row")) return; e.preventDefault(); setSel([]); setCtx({ x: e.clientX, y: e.clientY, nodes: null }); }}>

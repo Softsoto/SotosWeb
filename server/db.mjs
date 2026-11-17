@@ -67,6 +67,25 @@ CREATE TABLE IF NOT EXISTS world_messages (
   id TEXT PRIMARY KEY, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, text TEXT NOT NULL, created INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_msgs_world ON world_messages(world_id, created);
+-- Bandeja de entrada: archivos enviados a otra cuenta, que se aceptan o rechazan (como en inevio)
+CREATE TABLE IF NOT EXISTS inbox (
+  id TEXT PRIMARY KEY, from_user TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  to_user TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, type TEXT, size INTEGER NOT NULL DEFAULT 0, url TEXT, message TEXT,
+  status TEXT NOT NULL DEFAULT 'pending', created INTEGER NOT NULL, decided INTEGER);
+CREATE INDEX IF NOT EXISTS idx_inbox_to ON inbox(to_user, status, created);
+CREATE INDEX IF NOT EXISTS idx_inbox_from ON inbox(from_user, created);
+-- Grupos de contactos y bloqueos
+CREATE TABLE IF NOT EXISTS contact_groups (
+  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, color TEXT NOT NULL, created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS contact_group_members (
+  group_id TEXT NOT NULL REFERENCES contact_groups(id) ON DELETE CASCADE,
+  contact_id TEXT NOT NULL REFERENCES contacts(id) ON DELETE CASCADE, PRIMARY KEY (group_id, contact_id));
+CREATE TABLE IF NOT EXISTS blocks (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  blocked_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created INTEGER NOT NULL,
+  PRIMARY KEY (user_id, blocked_id));
 CREATE TABLE IF NOT EXISTS world_fs (
   world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE,
   version INTEGER NOT NULL, json TEXT NOT NULL, used INTEGER NOT NULL DEFAULT 0);

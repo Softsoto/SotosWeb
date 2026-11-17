@@ -9,6 +9,7 @@ import { Ic, EmptyState, Modal, toast, ContextMenu } from "./ui.jsx";
 import { api } from "./api.js";
 import { useVfs } from "./vfs.js";
 import * as vfs from "./vfs.js";
+import { PresenceDot } from "./presence.jsx";
 const { useState, useEffect, useMemo, useRef } = React;
 
 const COLORS = ["#c4532f", "#4f7a3a", "#2f5d8a", "#c9902a", "#7a3e6b", "#1f7a78", "#8a5a3b", "#5a5689"];
@@ -76,9 +77,24 @@ export function ContactsApp() {
   const [confirm, setConfirm] = useState(null);
   const [worldMenu, setWorldMenu] = useState(null);
   const imp = useRef(null);
+  // grupos de contactos y bloqueos (solo con cuenta)
+  const [cgroups, setCgroups] = useState([]), [group, setGroup] = useState(null), [blocks, setBlocks] = useState([]), [newGroup, setNewGroup] = useState(null);
+  const loadGroups = () => cloud && api("GET", "contacts/groups").then(r => setCgroups(r.items)).catch(() => {});
+  const loadBlocks = () => cloud && api("GET", "contacts/blocks").then(r => setBlocks(r.items)).catch(() => {});
+  useEffect(() => { loadGroups(); loadBlocks(); }, [cloud]);
+  const inGroup = (gid, cid) => !!cgroups.find(g => g.id === gid)?.members.includes(cid);
+  const toggleGroup = async (g, cid) => { const members = g.members.includes(cid) ? g.members.filter(x => x !== cid) : [...g.members, cid]; try { await api("PUT", "contacts/groups/" + g.id, { members }); loadGroups(); } catch (e) { toast(e.message, { error: true }); } };
+  const isBlockedC = (c) => !!c?.sotos && blocks.some(b => b.id === c.sotos.id);
+  const toggleBlock = async (c) => {
+    try {
+      if (isBlockedC(c)) { await api("DELETE", "contacts/blocks/" + c.sotos.id); toast(`${c.name} desbloqueado`, { icon: "lock_open" }); }
+      else { await api("POST", "contacts/blocks", { userId: c.sotos.id }); toast(`${c.name} bloqueado: no podrá enviarte archivos ni invitarte a mundos`, { icon: "block" }); }
+      loadBlocks();
+    } catch (e) { toast(e.message, { error: true }); }
+  };
   const load = () => store.list().then(l => { setItems(l); return l; }).catch(e => { toast(e.message, { error: true }); setItems([]); });
   useEffect(() => { load(); }, [store]);
-  const filtered = (items || []).filter(c => [c.name, c.email, c.phone, c.company].join(" ").toLowerCase().includes(q.toLowerCase()));
+  const filtered = (items || []).filter(c => [c.name, c.email, c.phone, c.company].join(" ").toLowerCase().includes(q.toLowerCase()) && (!group || inGroup(group, c.id)));
   const groups = {}; filtered.forEach(c => { const k = (c.name[0] || "#").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); (groups[/[A-Z]/.test(k) ? k : "#"] ||= []).push(c); });
   const cur = items?.find(c => c.id === sel);
 
@@ -110,6 +126,13 @@ export function ContactsApp() {
           <div className="search-box" style={{ flex: 1, minWidth: 0 }}><Ic name="search" size={16} /><input placeholder="Buscar" value={q} onChange={e => setQ(e.target.value)} /></div>
           <button className="tb-btn icon primary" title="Nuevo contacto" onClick={() => { setEdit({ ...empty }); setSel(null); }}><Ic name="person_add" /></button>
         </div>
+        {cloud && <div className="contact-groups">
+          <button className={"chip" + (!group ? " on" : "")} onClick={() => setGroup(null)}>Todos</button>
+          {cgroups.map(g => <button key={g.id} className={"chip" + (group === g.id ? " on" : "")} style={{ "--chip": g.color }} title="Clic derecho para eliminar el grupo"
+            onClick={() => setGroup(group === g.id ? null : g.id)} onContextMenu={e => { e.preventDefault(); setConfirm({ group: g, name: g.name }); }}>
+            {g.name} <span className="faint">{g.members.length}</span></button>)}
+          <button className="chip" title="Nuevo grupo" onClick={() => setNewGroup("")}><Ic name="add" size={14} /> Grupo</button>
+        </div>}
         <div className="scroll" style={{ flex: 1 }}>
           {items == null ? <div className="faint" style={{ padding: 12, fontSize: 12.5 }}>Cargando…</div> :
             Object.keys(groups).sort().map(k => (
@@ -118,6 +141,7 @@ export function ContactsApp() {
                   <div key={c.id} className={"contact-row" + (sel === c.id ? " on" : "")} onClick={() => { setSel(c.id); setEdit(null); }}>
                     <PersonAvatar name={c.name} color={c.color} size={30} />
                     <span className="contact-name">{c.name}{c.sotos && <Ic name="verified" size={14} className="contact-sotos" />}</span>
+                    {c.sotos && cloud && <PresenceDot userId={c.sotos.id} size={8} />}
                   </div>))}
               </div>))}
           {items && !items.length && <div className="faint" style={{ padding: 14, fontSize: 12.5, lineHeight: 1.5 }}>Aún no tienes contactos. Crea uno o importa un archivo <b>.vcf</b> del celular, Gmail u Outlook.</div>}
@@ -146,7 +170,10 @@ export function ContactsApp() {
             <PersonAvatar name={cur.name} color={cur.color} size={84} />
             <div className="contact-big">{cur.name}</div>
             {cur.company && <div className="muted">{cur.company}</div>}
-            {cur.sotos && <div className="contact-badge"><Ic name="verified" size={15} /> Tiene cuenta en Sotos{cur.sotos.name !== cur.name ? ` como ${cur.sotos.name}` : ""}</div>}
+            {cur.sotos && <div className="contact-badge">{cloud ? <PresenceDot userId={cur.sotos.id} size={9} /> : <Ic name="verified" size={15} />} Tiene cuenta en Sotos{cur.sotos.name !== cur.name ? ` como ${cur.sotos.name}` : ""}{isBlockedC(cur) ? " · bloqueado" : ""}</div>}
+            {cloud && cgroups.length > 0 && <div className="contact-groups center">{cgroups.map(g => (
+              <button key={g.id} className={"chip" + (inGroup(g.id, cur.id) ? " on" : "")} style={{ "--chip": g.color }} onClick={() => toggleGroup(g, cur.id)}>
+                <Ic name={inGroup(g.id, cur.id) ? "check" : "add"} size={14} /> {g.name}</button>))}</div>}
             <div className="contact-fields">
               {cur.email && <div className="contact-field"><Ic name="mail" /><a href={`mailto:${cur.email}`}>{cur.email}</a><button className="tb-btn icon" title="Copiar" onClick={() => navigator.clipboard?.writeText(cur.email).then(() => toast("Correo copiado"))}><Ic name="content_copy" size={16} /></button></div>}
               {cur.phone && <div className="contact-field"><Ic name="call" /><a href={`tel:${cur.phone.replace(/\s/g, "")}`}>{cur.phone}</a><button className="tb-btn icon" title="Copiar" onClick={() => navigator.clipboard?.writeText(cur.phone).then(() => toast("Teléfono copiado"))}><Ic name="content_copy" size={16} /></button></div>}
@@ -156,13 +183,22 @@ export function ContactsApp() {
               {cur.email && <a className="tb-btn" href={`mailto:${cur.email}`}><Ic name="send" /> Enviar correo</a>}
               {cloud && cur.sotos && <button className="tb-btn" onClick={addToWorld}><Ic name="diversity_3" /> Añadir a un mundo</button>}
               <button className="tb-btn" onClick={() => setEdit({ ...cur })}><Ic name="edit" /> Editar</button>
+              {cloud && cur.sotos && <button className="tb-btn" onClick={() => toggleBlock(cur)}><Ic name={isBlockedC(cur) ? "lock_open" : "block"} /> {isBlockedC(cur) ? "Desbloquear" : "Bloquear"}</button>}
               <button className="tb-btn icon" title="Eliminar" onClick={() => setConfirm(cur)}><Ic name="delete" /></button>
             </div>
             {!cloud && <div className="faint" style={{ fontSize: 12, marginTop: 14 }}>Como invitado, tus contactos se guardan solo en este navegador.</div>}
           </div>
         ) : <EmptyState icon="contacts" text={items?.length ? "Elige un contacto" : "Tu agenda está vacía"} />}
       </div>
-      {confirm && <Modal title={`¿Eliminar a ${confirm.name}?`} icon="person_remove" onClose={() => setConfirm(null)}
+      {newGroup !== null && <Modal title="Nuevo grupo" icon="group_add" onClose={() => setNewGroup(null)} width={380}
+        actions={<><button className="tb-btn" onClick={() => setNewGroup(null)}>Cancelar</button>
+          <button className="tb-btn primary" disabled={!newGroup.trim()} onClick={async () => { try { const r = await api("POST", "contacts/groups", { name: newGroup, color: COLORS[cgroups.length % COLORS.length] }); setNewGroup(null); await loadGroups(); setGroup(r.item.id); } catch (e) { toast(e.message, { error: true }); } }}>Crear</button></>}>
+        <label className="field">Nombre<input autoFocus maxLength={60} placeholder="Familia, Trabajo, Clientes…" value={newGroup} onChange={e => setNewGroup(e.target.value)} /></label>
+        <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>Después abre un contacto y márcalo en el grupo. Clic derecho sobre un grupo para eliminarlo.</div></Modal>}
+      {confirm?.group && <Modal title={`¿Eliminar el grupo ${confirm.name}?`} icon="group_remove" onClose={() => setConfirm(null)}
+        actions={<><button className="tb-btn" onClick={() => setConfirm(null)}>Cancelar</button><button className="tb-btn danger" onClick={async () => { await api("DELETE", "contacts/groups/" + confirm.group.id); setConfirm(null); setGroup(null); loadGroups(); }}>Eliminar grupo</button></>}>
+        <div className="muted" style={{ fontSize: 13.5 }}>Los contactos no se borran, solo el grupo.</div></Modal>}
+      {confirm && !confirm.group && <Modal title={`¿Eliminar a ${confirm.name}?`} icon="person_remove" onClose={() => setConfirm(null)}
         actions={<><button className="tb-btn" onClick={() => setConfirm(null)}>Cancelar</button><button className="tb-btn danger" onClick={async () => { await store.remove(confirm.id); setConfirm(null); setSel(null); load(); }}>Eliminar</button></>}>
         <div className="muted" style={{ fontSize: 13.5 }}>Se borrará de tu agenda. No se puede deshacer.</div></Modal>}
       {worldMenu && <ContextMenu x={worldMenu.x} y={worldMenu.y}

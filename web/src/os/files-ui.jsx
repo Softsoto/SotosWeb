@@ -106,6 +106,7 @@ export function itemMenu(nodes, { canPaste } = {}) {
     { id: "cut", label: "Cortar", icon: "content_cut" },
     { id: "download", label: one && one.type === "folder" ? "Descargar como .zip" : "Descargar", icon: "download" });
   if (one) items.push({ id: "share", label: "Compartir…", icon: "group_add" });
+  if (one && one.type !== "folder" && vfs.getState().mode === "cloud") items.push({ id: "sendto", label: "Enviar a…", icon: "send" });
   if (one && one.type === "img") items.push({ id: "wallpaper", label: "Usar como fondo", icon: "wallpaper" });
   if (one && one.type === "zip" && /\.zip$/i.test(one.name)) items.push({ id: "unzip", label: "Extraer aquí", icon: "unarchive" });
   items.push({ sep: true });
@@ -128,6 +129,7 @@ export async function runItemAction(id, nodes, { openItem, update, startRename, 
     case "rename": startRename && startRename(one.id); return true;
     case "props": showProps && showProps(one.id); return true;
     case "share": showShare ? showShare(one.id) : window.dispatchEvent(new CustomEvent("sotos-share", { detail: one.id })); return true;
+    case "sendto": window.dispatchEvent(new CustomEvent("sotos-sendto", { detail: one.id })); return true;
     case "trash": {
       const n = vfs.trash(ids);
       if (n) toast(`${n} elemento(s) en la papelera`, { icon: "delete", action: { label: "Deshacer", run: () => vfs.restore(ids) } });

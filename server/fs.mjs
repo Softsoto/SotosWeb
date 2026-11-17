@@ -32,6 +32,10 @@ export const blobPath = (userId, id) => {
 
 /* ---------------- eventos en vivo (SSE) por usuario ---------------- */
 const listeners = new Map(); // userId -> Set(res)
+/* presencia: conectado = al menos una pestaña con eventos abiertos */
+export const isOnline = (userId) => (listeners.get(userId)?.size || 0) > 0;
+let presenceHook = null;
+export const onPresence = (fn) => { presenceHook = fn; };
 export function notify(userId, event, data) {
   for (const res of listeners.get(userId) || []) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
 }
@@ -39,9 +43,11 @@ function events(req, res, user) {
   res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive", "x-accel-buffering": "no" });
   res.write(`event: hello\ndata: ${JSON.stringify({ version: loadState(user.id).version })}\n\n`);
   if (!listeners.has(user.id)) listeners.set(user.id, new Set());
+  const was = isOnline(user.id);
   listeners.get(user.id).add(res);
+  if (!was) presenceHook?.(user.id, true);
   const ping = setInterval(() => res.write(": ping\n\n"), 25_000);
-  req.on("close", () => { clearInterval(ping); listeners.get(user.id)?.delete(res); });
+  req.on("close", () => { clearInterval(ping); listeners.get(user.id)?.delete(res); if (!isOnline(user.id)) presenceHook?.(user.id, false); });
 }
 
 /* ---------------- aplicar operaciones (también lo usa ONLYOFFICE) ---------------- */

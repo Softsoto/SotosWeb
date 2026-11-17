@@ -5,7 +5,28 @@
 import { db, now, rid } from "./db.mjs";
 import { fail, json, readJson } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
-import { notify } from "./fs.mjs";
+import { notify, isOnline, onPresence } from "./fs.mjs";
+
+/* ---------------- bloqueos ---------------- */
+export const isBlocked = (userId, otherId) => !!db.prepare("SELECT 1 FROM blocks WHERE user_id = ? AND blocked_id = ?").get(userId, otherId);
+
+/* ---------------- presencia ---------------- */
+// personas "cercanas": compañeros de algún mundo y quienes me tienen en su agenda (o yo a ellos)
+export function relatedUsers(uid) {
+  const me = db.prepare("SELECT email FROM users WHERE id = ?").get(uid); if (!me) return [];
+  const ids = new Set();
+  for (const r of db.prepare("SELECT DISTINCT b.user_id id FROM world_members a JOIN world_members b ON a.world_id = b.world_id WHERE a.user_id = ? AND b.user_id <> ?").all(uid, uid)) ids.add(r.id);
+  for (const r of db.prepare("SELECT DISTINCT user_id id FROM contacts WHERE email = ? AND user_id <> ?").all(me.email, uid)) ids.add(r.id);
+  for (const r of db.prepare("SELECT u.id FROM contacts c JOIN users u ON u.email = c.email WHERE c.user_id = ? AND u.id <> ?").all(uid, uid)) ids.add(r.id);
+  return [...ids];
+}
+onPresence((uid, online) => {
+  for (const other of relatedUsers(uid)) if (!isBlocked(uid, other)) notify(other, "presence", { user: uid, online });
+});
+export async function handlePresence(req, res) {
+  const u = requireUser(req);
+  return json(res, 200, { online: relatedUsers(u.id).filter(id => isOnline(id) && !isBlocked(id, u.id)) });
+}
 
 /* ---------------- notificaciones ---------------- */
 // kind: share | world-invite | world-post | world-comment | world-file
@@ -52,6 +73,8 @@ function withSotos(c) {
 export async function handleContacts(req, res, parts) {
   const u = requireUser(req);
   const [id] = parts;
+  if (id === "groups") return handleGroups(req, res, u, parts.slice(1));
+  if (id === "blocks") return handleBlocks(req, res, u, parts.slice(1));
   if (!id && req.method === "GET") return json(res, 200, { items: db.prepare("SELECT * FROM contacts WHERE user_id = ? ORDER BY name COLLATE NOCASE").all(u.id).map(withSotos) });
   if (!id && req.method === "POST") {
     const b = await readJson(req, 16384);
@@ -75,5 +98,45 @@ export async function handleContacts(req, res, parts) {
     return json(res, 200, { item: withSotos(db.prepare("SELECT * FROM contacts WHERE id = ?").get(id)) });
   }
   if (req.method === "DELETE") { db.prepare("DELETE FROM contacts WHERE id = ?").run(id); return json(res, 200, { ok: true }); }
+  fail(405, "Método no permitido");
+}
+
+/* ---------------- grupos de contactos ---------------- */
+const groupOut = (g) => ({ id: g.id, name: g.name, color: g.color, members: db.prepare("SELECT contact_id FROM contact_group_members WHERE group_id = ?").all(g.id).map(r => r.contact_id) });
+async function handleGroups(req, res, u, [gid]) {
+  if (!gid && req.method === "GET") return json(res, 200, { items: db.prepare("SELECT * FROM contact_groups WHERE user_id = ? ORDER BY name COLLATE NOCASE").all(u.id).map(groupOut) });
+  if (!gid && req.method === "POST") {
+    const b = await readJson(req, 4096); const name = clean(b.name, 60); if (!name) fail(400, "Escribe un nombre para el grupo");
+    if (db.prepare("SELECT COUNT(*) n FROM contact_groups WHERE user_id = ?").get(u.id).n >= 100) fail(400, "Demasiados grupos");
+    const id = rid(8); db.prepare("INSERT INTO contact_groups(id,user_id,name,color,created) VALUES(?,?,?,?,?)").run(id, u.id, name, COLORS.includes(b.color) ? b.color : COLORS[0], now());
+    return json(res, 201, { item: groupOut(db.prepare("SELECT * FROM contact_groups WHERE id = ?").get(id)) });
+  }
+  const g = gid && db.prepare("SELECT * FROM contact_groups WHERE id = ? AND user_id = ?").get(gid, u.id); if (!g) fail(404, "Grupo no encontrado");
+  if (req.method === "PUT") {
+    const b = await readJson(req, 65536);
+    const name = b.name !== undefined ? clean(b.name, 60) : g.name; if (!name) fail(400, "Escribe un nombre para el grupo");
+    db.prepare("UPDATE contact_groups SET name = ?, color = ? WHERE id = ?").run(name, COLORS.includes(b.color) ? b.color : g.color, gid);
+    if (Array.isArray(b.members)) {
+      db.prepare("DELETE FROM contact_group_members WHERE group_id = ?").run(gid);
+      for (const cid of b.members.slice(0, 2000)) if (db.prepare("SELECT 1 FROM contacts WHERE id = ? AND user_id = ?").get(String(cid), u.id))
+        db.prepare("INSERT OR IGNORE INTO contact_group_members(group_id,contact_id) VALUES(?,?)").run(gid, String(cid));
+    }
+    return json(res, 200, { item: groupOut(db.prepare("SELECT * FROM contact_groups WHERE id = ?").get(gid)) });
+  }
+  if (req.method === "DELETE") { db.prepare("DELETE FROM contact_groups WHERE id = ?").run(gid); return json(res, 200, { ok: true }); }
+  fail(405, "Método no permitido");
+}
+
+/* ---------------- bloqueos ---------------- */
+async function handleBlocks(req, res, u, [bid]) {
+  if (!bid && req.method === "GET") return json(res, 200, { items: db.prepare("SELECT b.blocked_id id, x.name, x.email, b.created FROM blocks b JOIN users x ON x.id = b.blocked_id WHERE b.user_id = ? ORDER BY b.created DESC").all(u.id) });
+  if (!bid && req.method === "POST") {
+    const { userId } = await readJson(req, 4096); const t = db.prepare("SELECT id, name FROM users WHERE id = ?").get(String(userId || ""));
+    if (!t || t.id === u.id) fail(400, "Usuario no válido");
+    db.prepare("INSERT OR IGNORE INTO blocks(user_id,blocked_id,created) VALUES(?,?,?)").run(u.id, t.id, now());
+    db.prepare("UPDATE inbox SET status = 'refused', decided = ? WHERE to_user = ? AND from_user = ? AND status = 'pending'").run(now(), u.id, t.id);
+    return json(res, 200, { ok: true, name: t.name });
+  }
+  if (bid && req.method === "DELETE") { db.prepare("DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?").run(u.id, bid); return json(res, 200, { ok: true }); }
   fail(405, "Método no permitido");
 }

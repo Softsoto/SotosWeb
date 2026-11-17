@@ -10,6 +10,7 @@ import { useVfs, fmtSize, fmtDate, typeOf, uniqueName } from "./vfs.js";
 import { NodeGlyph, DRAG_MIME } from "./files-ui.jsx";
 import { PersonAvatar } from "./contacts.jsx";
 import { timeAgo } from "./notifications.jsx";
+import { PresenceDot } from "./presence.jsx";
 import { DEMO, SHOWCASE_URL } from "./config.js";
 const { useState, useEffect, useRef, useCallback } = React;
 
@@ -17,6 +18,19 @@ const ICONS = ["diversity_3", "groups", "family_restroom", "school", "work", "sp
 const COLORS = ["#c4532f", "#4f7a3a", "#2f5d8a", "#c9902a", "#7a3e6b", "#1f7a78"];
 const meId = () => vfs.getState().user?.id;
 const linkify = (t) => t.split(/(https?:\/\/[^\s]+)/g).map((p, i) => i % 2 ? <a key={i} href={p} target="_blank" rel="noopener noreferrer">{p}</a> : p);
+
+/* contador de mensajes sin leer en todos los mundos (para el dock) */
+export function useWorldsUnread() {
+  const [n, setN] = useState(0);
+  const mode = useVfs(s => s.mode);
+  useEffect(() => {
+    if (mode !== "cloud") { setN(0); return; }
+    let t = null; const load = () => api("GET", "worlds").then(r => setN(r.items.reduce((s, w) => s + (w.unread || 0), 0))).catch(() => {});
+    load(); const off = onServer(["world", "world-msg"], () => { clearTimeout(t); t = setTimeout(load, 400); });
+    return () => { off(); clearTimeout(t); };
+  }, [mode]);
+  return n;
+}
 
 /* ---------------- app ---------------- */
 export function WorldsApp({ worldId, tab, openItem }) {
@@ -311,7 +325,7 @@ function WorldMembers({ w, info, owner, onChanged, onGone }) {
       </div>}
       {(info?.members || []).map(m => (
         <div key={m.id} className="member-row">
-          <PersonAvatar name={m.name} size={36} />
+          <span className="sendto-av"><PersonAvatar name={m.name} size={36} />{m.id !== meId() && <PresenceDot userId={m.id} />}</span>
           <div style={{ flex: 1, minWidth: 0 }}><b>{m.name}{m.id === meId() ? " (tú)" : ""}</b><div className="faint" style={{ fontSize: 12 }}>{m.email} · desde {fmtDate(m.joined)}</div></div>
           <span className={"member-role" + (m.role === "owner" ? " owner" : "")}>{m.role === "owner" ? "Creador" : "Miembro"}</span>
           {m.role !== "owner" && (owner || m.id === meId()) && <button className="tb-btn" onClick={() => remove(m)}>{m.id === meId() ? "Salir" : "Quitar"}</button>}

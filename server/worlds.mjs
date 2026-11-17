@@ -14,7 +14,7 @@ import { db, now, rid, BLOB_DIR } from "./db.mjs";
 import { fail, json, readJson } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
 import { notify, blobPath } from "./fs.mjs";
-import { addNotification } from "./social.mjs";
+import { addNotification, isBlocked } from "./social.mjs";
 import { applyOp, folderSize, ROOT } from "../web/src/os/tree-ops.js";
 
 const MAX_FILE = Number(process.env.SOTOS_MAX_FILE_MB || 512) * 1024 * 1024;
@@ -124,6 +124,7 @@ export async function handleWorlds(req, res, parts) {
       const em = txt(email, 254).toLowerCase();
       const t = db.prepare("SELECT id, name FROM users WHERE email = ?").get(em);
       if (!t) fail(404, "Ese correo no tiene cuenta en Sotos");
+      if (isBlocked(t.id, u.id) || isBlocked(u.id, t.id)) fail(403, "No es posible invitar a esta persona");
       if (db.prepare("SELECT 1 FROM world_members WHERE world_id = ? AND user_id = ?").get(wid, t.id)) fail(409, `${t.name} ya está en el mundo`);
       if (db.prepare("SELECT COUNT(*) n FROM world_members WHERE world_id = ?").get(wid).n >= 100) fail(400, "El mundo está lleno (100 personas)");
       db.prepare("INSERT INTO world_members(world_id,user_id,role,joined,last_read) VALUES(?,?,?,?,0)").run(wid, t.id, "member", now());

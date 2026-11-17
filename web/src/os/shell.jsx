@@ -51,6 +51,7 @@ import * as Term from "./terminal.jsx";
 import * as Worlds from "./worlds.jsx";
 import * as Contacts from "./contacts.jsx";
 import { NotificationBell } from "./notifications.jsx";
+import { SendToDialog, useInboxCount } from "./inbox.jsx";
 
 // registro de componentes de app (antes se resolvían con window[app.comp])
 const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts };
@@ -195,7 +196,7 @@ function CalendarPopover({ now, month, setMonth, clock24 }) {
 }
 
 /* -------------------- Dock -------------------- */
-function Dock({ position, order, running, minimized, onApp, dockApi }) {
+function Dock({ position, order, running, minimized, badges, onApp, dockApi }) {
   const [ctx, setCtx] = useSh(null);
   const drag = useRh(null);
   const onDrop = (i) => {
@@ -219,6 +220,7 @@ function Dock({ position, order, running, minimized, onApp, dockApi }) {
             <Tile icon={app.icon} color={app.color} app={id} />
             <span className="dock-tip">{app.name}</span>
             {running.has(id) && <span className={"run-dot" + (minimized?.has(id) ? " min" : "")} />}
+            {badges?.[id] > 0 && <span className="dock-badge" key={badges[id]}>{badges[id] > 99 ? "99+" : badges[id]}</span>}
           </button>
         );
       })}
@@ -445,6 +447,8 @@ function OS() {
   const lastUser = (() => { try { return JSON.parse(localStorage.getItem("sotos_last_user")); } catch { return null; } })();
   const [spot, setSpot] = useSh(false);
   const [shareId, setShareId] = useSh(null);
+  const [sendId, setSendId] = useSh(null);
+  useEh(() => { const f = (e) => setSendId(e.detail); window.addEventListener("sotos-sendto", f); return () => window.removeEventListener("sotos-sendto", f); }, []);
   const [demoWelcome, setDemoWelcome] = useSh(() => { try { return !localStorage.getItem("sotos_demo_seen"); } catch { return true; } });
   const zTop = useRh(10);
 
@@ -536,6 +540,7 @@ function OS() {
   // abrir el destino de una notificación: un mundo (y pestaña) o algo compartido conmigo
   const openLink = useCh((link) => {
     if (!link) return;
+    if (link.inbox) return openApp("files", { place: "inbox", nonce: Date.now() });
     if (link.world) return openApp("worlds", { worldId: link.world, tab: link.tab || "wall", nonce: Date.now() });
     if (link.share) {
       const app = { docx: "docs", xlsx: "sheets", csv: "sheets", pptx: "slides" }[link.node?.type];
@@ -599,6 +604,8 @@ function OS() {
   });
 
   const running = new Set(wins.map(w => w.appId));
+  const inboxCount = useInboxCount(), worldsUnread = Worlds.useWorldsUnread();
+  const badges = { files: inboxCount, worlds: worldsUnread };
   // apps cuyas ventanas están todas minimizadas: el indicador del dock se encoge y se pone gris
   const minimizedApps = new Set([...running].filter(a => wins.filter(w => w.appId === a).every(w => w.minimized)));
   const top = wins.reduce((a, b) => (!a || b.z > a.z) && !b.minimized ? b : a, null);
@@ -633,9 +640,10 @@ function OS() {
         );
       })}
       <MenuBar activeApp={activeApp} settings={settings} update={update} profile={shownProfile} onApp={openApp} onNew={newDoc} onLogout={logout} onSearch={() => setSpot(true)} onOpenLink={openLink} />
-      <Dock position={settings.skin === "grafito" ? "left rail" : settings.dock} order={dockCfg} running={running} minimized={minimizedApps} onApp={openApp} dockApi={dockApi} />
+      <Dock position={settings.skin === "grafito" ? "left rail" : settings.dock} order={dockCfg} running={running} minimized={minimizedApps} badges={badges} onApp={openApp} dockApi={dockApi} />
       {spot && <Spotlight onOpen={openItem} onApp={openApp} onClose={() => setSpot(false)} />}
       {shareId && <ShareDialog id={shareId} onClose={() => setShareId(null)} />}
+      {sendId && <SendToDialog nodeId={sendId} onClose={() => setSendId(null)} />}
       <GlobalContextMenu openApp={openApp} winAction={winAction} />
       {DEMO && demoWelcome && <DemoWelcome onApp={openApp} onClose={() => { setDemoWelcome(false); try { localStorage.setItem("sotos_demo_seen", "1"); } catch {} }} />}
       <Toasts />

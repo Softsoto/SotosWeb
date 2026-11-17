@@ -235,9 +235,9 @@ function ContextMenu({ x, y, items, onSelect, onClose }) {
 /* -------------------- Avatar -------------------- */
 function Avatar({ profile, size = 40 }) {
   if (profile && profile.avatar)
-    return <img src={profile.avatar} alt="" style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover" }} />;
+    return <img src={profile.avatar} alt="" style={{ width: size, height: size, minWidth: size, minHeight: size, flex: "0 0 auto", display: "block", borderRadius: "50%", objectFit: "cover", objectPosition: "center" }} />;
   const initials = (profile && profile.name ? profile.name : "Invitado").split(" ").map(w => w[0]).slice(0, 2).join("").toUpperCase();
-  return <div style={{ width: size, height: size, borderRadius: "50%", background: "var(--accent)", color: "var(--accent-ink)",
+  return <div style={{ width: size, height: size, minWidth: size, flex: "0 0 auto", borderRadius: "50%", background: "var(--accent)", color: "var(--accent-ink)",
     display: "grid", placeItems: "center", fontWeight: 800, fontSize: size * 0.4 }}>{initials}</div>;
 }
 

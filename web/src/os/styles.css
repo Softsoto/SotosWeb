@@ -1737,3 +1737,49 @@ select.wg-input { padding: 0 4px; }
 /* Grafito: más planas, esquina casi recta */
 [data-skin="grafito"] .win-ctrls button { border-radius: 3px !important; }
 @media (prefers-reduced-motion: reduce) { .win-ctrls svg * { transition: none !important; } }
+
+/* fase 1: contadores, presencia, enviar a…, bandeja */
+.dock-badge { position: absolute; top: -4px; right: -4px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: #e0352b; color: #fff;
+  font: 700 10.5px/18px var(--ui); text-align: center; box-shadow: 0 0 0 2px var(--dock, #fff); z-index: 2; animation: mo-pop .3s var(--mo-ease); pointer-events: none; }
+[data-skin="grafito"] .dock-badge { box-shadow: 0 0 0 2px #1e262d; border-radius: 3px; }
+@keyframes mo-pop { 0% { transform: scale(.4); } 70% { transform: scale(1.15); } 100% { transform: scale(1); } }
+.presence-dot { display: inline-block; border-radius: 50%; background: #9aa1a8; box-shadow: 0 0 0 2px var(--surface); flex: 0 0 auto; }
+.presence-dot.on { background: #3fb950; }
+.sendto { display: grid; gap: 10px; }
+.sendto-file { display: flex; gap: 10px; align-items: center; padding: 8px 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); font-size: 13px; }
+.sendto-file .faint { font-size: 11.5px; }
+.sendto-groups { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; align-items: center; gap: 4px; border: 1px solid var(--border-strong); background: var(--surface); color: var(--text); border-radius: 6px; padding: 3px 9px; font: 600 12px var(--ui); cursor: pointer; }
+.chip:hover { border-color: var(--chip, var(--accent)); color: var(--chip, var(--accent)); }
+.sendto-list { max-height: 220px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+.sendto-row { display: flex; align-items: center; gap: 10px; padding: 7px 10px; cursor: pointer; border-bottom: 1px solid var(--border); font-size: 13px; }
+.sendto-row:last-child { border-bottom: 0; }
+.sendto-row:hover { background: var(--hover); }
+.sendto-row.on { background: color-mix(in srgb, var(--accent) 10%, transparent); }
+.sendto-av { position: relative; display: inline-flex; }
+.sendto-av .presence-dot { position: absolute; right: -1px; bottom: -1px; }
+.sendto-name { display: flex; flex-direction: column; min-width: 0; }
+.sendto-name .faint { font-size: 11.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inbox-view { padding: 10px 16px; }
+.inbox-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; background: var(--surface); animation: mo-fade var(--mo-normal) var(--mo-ease); }
+.inbox-row.pending { border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); box-shadow: inset 3px 0 0 var(--accent); }
+.inbox-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 13px; }
+.inbox-main b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inbox-main .faint { font-size: 11.5px; }
+.inbox-msg { font-size: 12.5px; color: var(--text-dim); font-style: italic; }
+.inbox-status { font-size: 12px; font-weight: 700; }
+
+.contact-groups { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 8px; }
+.contact-groups.center { justify-content: center; margin: 8px 0 0; }
+.chip.on { background: var(--chip, var(--accent)); border-color: transparent; color: #fff; }
+.chip.on .faint { color: rgba(255,255,255,.8); }
+.contact-row .presence-dot { margin-left: auto; }
+
+
+.contact-groups { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 8px; }
+.contact-groups.center { justify-content: center; margin: 8px 0 0; }
+.chip.on { background: var(--chip, var(--accent)); border-color: transparent; color: #fff; }
+.chip.on .faint { color: rgba(255,255,255,.8); }
+.contact-row .presence-dot { margin-left: auto; }
+.contact-badge .presence-dot { box-shadow: none; }
+
