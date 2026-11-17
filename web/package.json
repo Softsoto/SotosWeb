@@ -1,6 +1,7 @@
 {
   "name": "sotos-os-web",
   "private": true,
+  "license": "MIT",
   "version": "2.0.0-alpha.1",
   "description": "Sotos OS — tu ordenador en la nube. © 2026 Sebastian Sotomontes",
   "author": "Sebastian Sotomontes",
@@ -21,6 +22,7 @@
     "jszip": "^3.10.2",
     "mammoth": "^1.13.0",
     "material-symbols": "^0.49.0",
+    "pdfjs-dist": "^6.5.438",
     "pptxgenjs": "^4.0.1",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

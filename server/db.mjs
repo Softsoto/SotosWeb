@@ -32,6 +32,44 @@ CREATE TABLE IF NOT EXISTS share_users (
   token TEXT NOT NULL REFERENCES shares(token) ON DELETE CASCADE,
   user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, PRIMARY KEY (token, user_id));
 CREATE INDEX IF NOT EXISTS idx_shares_user ON shares(user_id);
+
+-- Contactos (agenda personal; contact_user se rellena si el correo es de una cuenta de Sotos)
+CREATE TABLE IF NOT EXISTS contacts (
+  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL, email TEXT, phone TEXT, company TEXT, notes TEXT, color TEXT,
+  created INTEGER NOT NULL, updated INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_contacts_user ON contacts(user_id);
+
+-- Notificaciones
+CREATE TABLE IF NOT EXISTS notifications (
+  id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL, title TEXT NOT NULL, body TEXT, link TEXT, actor TEXT,
+  created INTEGER NOT NULL, read INTEGER NOT NULL DEFAULT 0);
+CREATE INDEX IF NOT EXISTS idx_notif_user ON notifications(user_id, created);
+
+-- Mundos: espacios compartidos con muro, carpeta y chat
+CREATE TABLE IF NOT EXISTS worlds (
+  id TEXT PRIMARY KEY, name TEXT NOT NULL, color TEXT NOT NULL, icon TEXT NOT NULL,
+  description TEXT, owner_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS world_members (
+  world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  role TEXT NOT NULL, joined INTEGER NOT NULL, last_read INTEGER NOT NULL DEFAULT 0,
+  PRIMARY KEY (world_id, user_id));
+CREATE TABLE IF NOT EXISTS world_posts (
+  id TEXT PRIMARY KEY, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, text TEXT NOT NULL, created INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_posts_world ON world_posts(world_id, created);
+CREATE TABLE IF NOT EXISTS world_comments (
+  id TEXT PRIMARY KEY, post_id TEXT NOT NULL REFERENCES world_posts(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, text TEXT NOT NULL, created INTEGER NOT NULL);
+CREATE TABLE IF NOT EXISTS world_messages (
+  id TEXT PRIMARY KEY, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, text TEXT NOT NULL, created INTEGER NOT NULL);
+CREATE INDEX IF NOT EXISTS idx_msgs_world ON world_messages(world_id, created);
+CREATE TABLE IF NOT EXISTS world_fs (
+  world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE,
+  version INTEGER NOT NULL, json TEXT NOT NULL, used INTEGER NOT NULL DEFAULT 0);
 `);
 
 /* secretos persistentes (firmas de ONLYOFFICE, etc.) */

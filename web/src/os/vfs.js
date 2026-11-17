@@ -158,6 +158,9 @@ function listen() {
   events = new EventSource("/api/fs/events");
   events.addEventListener("fs", (e) => { const d = JSON.parse(e.data); if (d.origin !== ORIGIN && d.version > version) pull().catch(() => {}); else if (d.version > version) version = d.version; });
   events.addEventListener("hello", (e) => { const d = JSON.parse(e.data); if (d.version > version) pull().catch(() => {}); if (queue.length) pump(); });
+  // resto de eventos (notificaciones, mundos, chat) → evento de ventana "sotos-server"
+  for (const type of ["notif", "notif-read", "world", "world-msg", "world-fs"])
+    events.addEventListener(type, (e) => window.dispatchEvent(new CustomEvent("sotos-server", { detail: { type, data: JSON.parse(e.data) } })));
   events.onerror = () => { if (state.sync.status === "ok") setSync({ status: "offline" }); };
   events.onopen = () => { if (state.sync.status === "offline") { setSync({ status: queue.length ? "syncing" : "ok" }); pump(); } };
 }
@@ -191,6 +194,8 @@ export async function read(id) {
   return new Blob([], { type: mimeOf(n.name) });
 }
 export const readText = async (id) => (await read(id)).text();
+/** contenido solo si ya está en este navegador (sin descargar) */
+export const cachedBlob = (id) => idb.get("blobs", id).catch(() => null);
 export async function objectUrl(id) {
   const n = node(id);
   if (n && n.url && !(n.size > 0) && !(await idb.get("blobs", id))) return n.url;

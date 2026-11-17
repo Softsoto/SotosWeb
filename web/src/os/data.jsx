@@ -15,6 +15,8 @@ const APPS = [
   { id: "video",   name: "Vídeo",     icon: "movie",             color: "#5a5689", comp: "VideoApp",     size: { w: 760, h: 520 } },
   { id: "pdf",     name: "PDF",       icon: "picture_as_pdf",    color: "#b8402f", comp: "PdfApp",       size: { w: 700, h: 620 } },
   { id: "mail",    name: "Correo",    icon: "mail",              color: "#3b6e8f", comp: "MailApp",      size: { w: 880, h: 580 } },
+  { id: "worlds",  name: "Mundos",    icon: "diversity_3",       color: "#c4532f", comp: "WorldsApp",    size: { w: 1040, h: 680 } },
+  { id: "contacts",name: "Contactos", icon: "contacts",          color: "#2f5d8a", comp: "ContactsApp",  size: { w: 860, h: 560 } },
   { id: "chat",    name: "Mensajes",  icon: "chat_bubble",       color: "#1f7a78", comp: "ChatApp",      size: { w: 780, h: 540 } },
   { id: "browser", name: "Navegador", icon: "language",          color: "#2a7f8f", comp: "BrowserApp",   size: { w: 880, h: 580 } },
   { id: "terminal",name: "Terminal",  icon: "terminal",          color: "#26231f", comp: "TerminalApp",  size: { w: 660, h: 440 } },
@@ -27,7 +29,7 @@ const APPS = [
 const APP_BY_ID = Object.fromEntries(APPS.map(a => [a.id, a]));
 
 // dock order
-const DOCK_IDS = ["launchpad","files","docs","sheets","slides","gallery","mail","chat","browser","music","games","__div__","terminal","store","settings"];
+const DOCK_IDS = ["launchpad","files","worlds","docs","sheets","slides","gallery","mail","contacts","browser","music","games","__div__","terminal","store","settings"];
 
 // extension -> app routing
 const ROUTE = { docx:"docs", txt:"editor", code:"editor", xlsx:"sheets", csv:"sheets",

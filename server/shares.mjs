@@ -8,6 +8,7 @@ import { db, now, rid } from "./db.mjs";
 import { fail, json, readJson } from "./http.mjs";
 import { requireUser, currentUser } from "./auth.mjs";
 import { loadState, blobPath } from "./fs.mjs";
+import { addNotification } from "./social.mjs";
 import { index, findNode, ROOT } from "../web/src/os/tree-ops.js";
 
 // tipos que se pueden mostrar en línea sin riesgo (nunca HTML/SVG/JS en el origen de Sotos)
@@ -71,7 +72,11 @@ export async function handleShares(req, res, parts) {
     for (const e of (Array.isArray(emails) ? emails : []).slice(0, 50)) {
       const em = String(e).trim().toLowerCase(); if (!em) continue;
       const t = db.prepare("SELECT id FROM users WHERE email = ?").get(em);
-      if (t && t.id !== u.id) db.prepare("INSERT OR IGNORE INTO share_users(token,user_id) VALUES(?,?)").run(token, t.id); else if (!t) missing.push(em);
+      if (t && t.id !== u.id) {
+        db.prepare("INSERT OR IGNORE INTO share_users(token,user_id) VALUES(?,?)").run(token, t.id);
+        const n = findNode({ root: loadState(u.id).state.root, trash: [] }, nodeId);
+        addNotification(t.id, { kind: "share", title: `${u.name} compartió “${n?.name}” contigo`, body: p === "edit" ? "Puedes editarlo" : "Puedes verlo y descargarlo", link: { share: token, node: n && { id: n.id, name: n.name, type: n.type } }, actor: u.id });
+      } else if (!t) missing.push(em);
     }
     return json(res, 201, { token, perm: p, expires: exp, missing });
   }

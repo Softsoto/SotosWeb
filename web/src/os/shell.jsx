@@ -48,9 +48,12 @@ import * as Apps4 from "./apps4.jsx";
 import * as Apps5 from "./apps5.jsx";
 import * as Games from "./games.jsx";
 import * as Term from "./terminal.jsx";
+import * as Worlds from "./worlds.jsx";
+import * as Contacts from "./contacts.jsx";
+import { NotificationBell } from "./notifications.jsx";
 
 // registro de componentes de app (antes se resolvían con window[app.comp])
-const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term };
+const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts };
 const DEFAULT_PROFILE = { name: "Invitado", avatar: null };
 const { useState: useSh, useEffect: useEh, useRef: useRh, useCallback: useCh } = React;
 
@@ -63,7 +66,7 @@ const WIN_STYLES = {
 };
 
 /* -------------------- Menu bar -------------------- */
-function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout, onSearch }) {
+function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout, onSearch, onOpenLink }) {
   const [now, setNow] = useSh(new Date());
   const [menu, setMenu] = useSh(null);
   const [cal, setCal] = useSh(false);
@@ -123,6 +126,7 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout,
       <div className="tray">
         {DEMO && <a className="demo-chip" href={SHOWCASE_URL} target="_blank" rel="noopener" title="Esto es un demo: los archivos se guardan solo en este navegador. Clic para conocer el proyecto.">DEMO</a>}
         <div className="ti" title="Buscar" onClick={onSearch}><Ic name="search" /></div>
+        <NotificationBell onOpenLink={onOpenLink} />
         <SyncIndicator />
         <BatteryIndicator />
         <div className="ti" title="Cerrar sesión" onClick={onLogout}><Ic name="power_settings_new" /></div>
@@ -401,7 +405,17 @@ function OS() {
     } catch { return DEFAULTS; }
   });
   const [profile, setProfileR] = useSh(() => { try { return { ...DEFAULT_PROFILE, ...JSON.parse(localStorage.getItem("sotos_profile") || "{}") }; } catch { return { ...DEFAULT_PROFILE }; } });
-  const [dockCfg, setDockCfg] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_dock")) || [...DOCK_IDS]; } catch { return [...DOCK_IDS]; } });
+  const [dockCfg, setDockCfg] = useSh(() => {
+    let d; try { d = JSON.parse(localStorage.getItem("sotos_dock")); } catch {}
+    if (!d) return [...DOCK_IDS];
+    // apps nuevas (v2.1): añadirlas una sola vez a docks ya personalizados
+    if (!localStorage.getItem("sotos_dock_v21")) {
+      if (!d.includes("worlds")) d.splice(Math.max(1, d.indexOf("files") + 1), 0, "worlds");
+      if (!d.includes("contacts")) d.splice(Math.max(1, d.indexOf("mail") + 1), 0, "contacts");
+      try { localStorage.setItem("sotos_dock_v21", "1"); } catch {}
+    }
+    return d;
+  });
   const [shortcuts, setShortcuts] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_sc")) || [...DEFAULT_SHORTCUTS]; } catch { return [...DEFAULT_SHORTCUTS]; } });
   const [widgets, setWidgets] = useSh(() => {
     const right = (i) => ({ x: window.innerWidth - 196, y: 48 + i * 196 });
@@ -501,6 +515,17 @@ function OS() {
     if (app) return openApp(app, { fileId: n.id });
     toast(`No hay una app para abrir “${n.name}”`, { icon: "help", action: { label: "Descargar", run: () => vfs.download(n.id) } });
   }, [openApp]);
+  // abrir el destino de una notificación: un mundo (y pestaña) o algo compartido conmigo
+  const openLink = useCh((link) => {
+    if (!link) return;
+    if (link.world) return openApp("worlds", { worldId: link.world, tab: link.tab || "wall", nonce: Date.now() });
+    if (link.share) {
+      const app = { docx: "docs", xlsx: "sheets", csv: "sheets", pptx: "slides" }[link.node?.type];
+      if (app) return openApp(app, { share: link.share, sharedNode: link.node, fileId: "share:" + link.share });
+      window.open(`${location.origin}${location.pathname}#/s/${link.share}`, "_blank", "noopener");
+    }
+  }, [openApp]);
+
   // nuevos documentos en blanco (archivos Office válidos desde el primer momento)
   const newDoc = useCh(async (kind) => {
     const docs = vfs.resolve("/Documentos") || vfs.getState().root;
@@ -586,7 +611,7 @@ function OS() {
           </Win>
         );
       })}
-      <MenuBar activeApp={activeApp} settings={settings} update={update} profile={shownProfile} onApp={openApp} onNew={newDoc} onLogout={logout} onSearch={() => setSpot(true)} />
+      <MenuBar activeApp={activeApp} settings={settings} update={update} profile={shownProfile} onApp={openApp} onNew={newDoc} onLogout={logout} onSearch={() => setSpot(true)} onOpenLink={openLink} />
       <Dock position={settings.dock} order={dockCfg} running={running} onApp={openApp} dockApi={dockApi} />
       {spot && <Spotlight onOpen={openItem} onApp={openApp} onClose={() => setSpot(false)} />}
       {shareId && <ShareDialog id={shareId} onClose={() => setShareId(null)} />}

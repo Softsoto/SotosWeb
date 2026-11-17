@@ -1,6 +1,7 @@
 {
   "name": "sotos-os-server",
   "private": true,
+  "license": "MIT",
   "version": "2.0.0-alpha.1",
   "description": "Servidor de Sotos OS (proxy del Navegador, API). © 2026 Sebastian Sotomontes",
   "author": "Sebastian Sotomontes",

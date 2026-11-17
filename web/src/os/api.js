@@ -18,6 +18,14 @@ export async function api(method, path, body, opts = {}) {
   return data;
 }
 
+/** suscripción a eventos en vivo del servidor (notif, world, world-msg, world-fs…) */
+export function onServer(types, fn) {
+  const list = [].concat(types);
+  const h = (e) => { if (list.includes(e.detail.type)) fn(e.detail.data, e.detail.type); };
+  window.addEventListener("sotos-server", h);
+  return () => window.removeEventListener("sotos-server", h);
+}
+
 /** ¿hay servidor de Sotos detrás? (en una web estática sin backend, no) */
 let serverP = null;
 export const hasServer = () => serverP || (serverP = fetch("/api/health", { cache: "no-store" }).then(r => r.ok && r.headers.get("content-type")?.includes("json")).catch(() => false));

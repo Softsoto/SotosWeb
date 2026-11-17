@@ -4,11 +4,11 @@
 
 A complete desktop that runs in the browser: windows, dock, real cloud files, Word/Excel/PowerPoint editing on genuine Office files, a web browser with an isolated proxy, a terminal, link sharing, and its own visual identity.
 
-© 2026 Sebastian Sotomontes. All rights reserved. **Private** source repository; the public showcase lives at [`Softsoto/SotosWeb`](https://github.com/Softsoto/SotosWeb) and the live demo at <https://softsoto.github.io/SotosWeb-demo/>.
+© 2026 Sebastian Sotomontes. Released under the [MIT License](LICENSE). This source repository is currently private; the public showcase lives at [`Softsoto/SotosWeb`](https://github.com/Softsoto/SotosWeb) and the live demo at <https://softsoto.github.io/SotosWeb-demo/>.
 
 | | |
 |---|---|
-| Version | 2.0 |
+| Version | 2.1 |
 | Desktop | React 18 + Vite 6 (`web/`) |
 | Server | Node.js ≥ 22, zero npm dependencies (`server/`) |
 | Data | SQLite built into Node (`node:sqlite`) + one file per blob; IndexedDB in the browser |
@@ -98,6 +98,8 @@ The installer messages are in Spanish, like the rest of the product.
 | `SOTOS_WEB` | `web/dist` | Built desktop |
 | `SOTOS_REGISTRATION` | `open` | `closed` disables new sign-ups |
 | `SOTOS_QUOTA_MB` | `2048` | Per-account quota |
+| `SOTOS_WORLD_QUOTA_MB` | `2048` | Quota of each world's shared folder |
+| `SOTOS_REG_LIMIT` | `5` (prod) / `500` (dev) | New accounts per hour and IP |
 | `SOTOS_MAX_FILE_MB` | `512` | Maximum file size |
 | `SOTOS_SHOW_LAN` | — | `1` exposes LAN addresses in `/api/info` and in Settings |
 | `OO_URL` | — | Public Document Server URL (enables the integration) |
@@ -121,6 +123,8 @@ server/
   auth.mjs                          accounts, scrypt, sessions
   fs.mjs                            per-user state, operations, blobs, SSE
   shares.mjs                        public links and "shared with me"
+  social.mjs                        notifications and contacts
+  worlds.mjs                        worlds: members, wall, chat, shared folder
   oo.mjs                            ONLYOFFICE Docs integration
   px.mjs                            browser proxy (rewriting + injected client)
 web/src/
@@ -131,7 +135,12 @@ web/src/
   os/api.js · config.js             API client, proxy origin, demo flag
   os/files-ui.jsx                   thumbnails, drag and drop, menus, properties, sharing
   os/apps1.jsx                      Files, Notes, Sheets, Gallery, autosave
-  os/apps2.jsx                      Music, Video, PDF
+  os/apps2.jsx                      Music (ID3 covers), Video, PDF
+  os/pdf-viewer.jsx                 pdf.js viewer: thumbnails, text layer, search, print
+  os/id3.js                         ID3v2.2/2.3/2.4 tags and embedded covers
+  os/worlds.jsx                     Worlds: wall, shared folder, live chat, members
+  os/contacts.jsx                   Contacts, vCard import/export
+  os/notifications.jsx              notification bell and toasts
   os/apps3.jsx                      Mail, Messages, Browser
   os/apps4.jsx                      Settings (account, wallpapers, network), Store
   os/apps5.jsx                      Documents, Slides, Launchpad, Trash
@@ -191,8 +200,15 @@ Every write requires the `X-Sotos: 1` header.
 | `GET /api/fs/state` | `{ version, state, fresh, used, quota }` |
 | `POST /api/fs/ops` | `{ ops, origin }` → `{ version }` |
 | `GET\|PUT /api/fs/blob/:id` | Content (PUT enforces quota and size limit, atomic write) |
-| `GET /api/fs/events` | SSE: `hello`, `fs` |
+| `GET /api/fs/events` | SSE: `hello`, `fs`, `notif`, `notif-read`, `world`, `world-msg`, `world-fs` |
 | `GET\|POST /api/shares` · `DELETE /api/shares/:token` | Own links |
+| `GET /api/notifications` · `POST …/read {ids?}` · `POST …/clear` | Notification center (last 200 per account) |
+| `GET\|POST /api/contacts` · `PUT\|DELETE /api/contacts/:id` | Address book; entries whose email has an account get `sotos: { id, name }` |
+| `GET\|POST /api/worlds` · `GET\|PUT\|DELETE /api/worlds/:id` | Worlds (shared spaces); only the owner edits or deletes |
+| `POST /api/worlds/:id/members {email}` · `DELETE …/members/:uid` | Invite (account required) · remove or leave |
+| `GET\|POST /api/worlds/:id/posts` · `DELETE …/posts/:pid` · `POST …/posts/:pid/comments` | Wall |
+| `GET\|POST /api/worlds/:id/messages` · `POST …/read` | Chat (`?before=` paging) and unread marker |
+| `GET /api/worlds/:id/fs/state` · `POST …/fs/ops` · `GET\|PUT …/fs/blob/:id` | Shared folder: same pure operations as personal files, own quota |
 | `GET /api/shares/with-me` | Shared with me |
 | `GET /api/s/:token[/blob/:id[?dl]]` | Public: metadata and content inside the shared item |
 | `GET /api/oo/status` · `POST /api/oo/config` | ONLYOFFICE integration |
@@ -270,6 +286,8 @@ VITE_DEMO=1 npm run build:demo     # → ../demo-dist
 - Formats: generated `.docx`, `.xlsx`, `.pptx` and `.pdf` files were validated by opening them with independent libraries in Node.
 - Formulas: precedence, ranges, multi-letter columns, cycles, division by zero and unknown names.
 - Sync: new account → local cache wiped → everything comes back from the server, content included.
+- Social layer (notifications, contacts, worlds, permissions, quotas, SSE fan-out): 26/26 API checks.
+- Two-browser end-to-end run (two accounts in separate headless Edge instances): contacts, vCard round-trip, world creation and invitation, live notification badge, wall posts and comments, chat, shared-folder upload seen live by the other member, PDF render/text layer/search, ID3 title/artist/album/cover: 18/18.
 - Public demo: tested live on GitHub Pages (apps open, `.docx`/`.xlsx` load through lazy chunks, no console or network errors).
 
 Automated screenshots (server and `web` running):
@@ -290,6 +308,9 @@ Launches headless Edge at 1600×1000 (device scale 1.5), uses a local screenshot
 | ![Browser](docs/capturas/navegador.jpg) | ![Context menu](docs/capturas/menu-contextual.jpg) |
 | ![Wallpapers](docs/capturas/fondos.jpg) | ![Sharing](docs/capturas/compartir.jpg) |
 | ![Public link](docs/capturas/enlace-publico.jpg) | ![Dark theme](docs/capturas/tema-oscuro.jpg) |
+| ![World wall](docs/capturas/mundos-muro.jpg) | ![World chat](docs/capturas/mundos-chat.jpg) |
+| ![Notifications](docs/capturas/notificaciones.jpg) | ![Contacts](docs/capturas/contactos.jpg) |
+| ![PDF viewer](docs/capturas/visor-pdf.jpg) | ![Music covers](docs/capturas/musica-caratulas.jpg) |
 
 ## 17. Roadmap
 
@@ -297,6 +318,6 @@ Launches headless Edge at 1600×1000 (device scale 1.5), uses a local screenshot
 - Syntax check of `instalar.sh` on real Linux.
 - Window controls: user's choice between Sotos, Mac and Windows styles.
 - Touch screens and a phone layout.
-- New apps (calculator, calendar, tasks, camera, maps, code editor), real-time chat between accounts, working Store.
+- New apps (calculator, calendar, tasks, camera, maps, code editor), working Store; world roles and post attachments.
 - File version history, admin panel, automatic server backups, two-factor sign-in.
 - Performance (lazy-loaded apps, icon font subset), strict CSP, per-account proxy limits.

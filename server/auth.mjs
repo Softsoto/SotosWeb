@@ -51,7 +51,8 @@ export async function handleAuth(req, res, sub) {
 
   if (sub === "register") {
     if (REGISTRATION === "closed") fail(403, "El registro está cerrado");
-    rateLimit("reg:" + ip, 5, 3600_000);
+    // 5 cuentas nuevas por hora e IP en producción; en desarrollo no estorba a las pruebas
+    rateLimit("reg:" + ip, Number(process.env.SOTOS_REG_LIMIT || (process.env.NODE_ENV === "production" ? 5 : 500)), 3600_000);
     const { email, name, password } = await readJson(req, 8192);
     const em = String(email || "").trim().toLowerCase();
     if (!EMAIL.test(em)) fail(400, "Correo no válido");

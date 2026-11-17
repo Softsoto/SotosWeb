@@ -7,6 +7,8 @@ import { Ic, SideItem, Toolbar, EmptyState, ContextMenu, toast } from "./ui.jsx"
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize, fmtDate } from "./vfs.js";
 import { NodeGlyph, dropTarget, useObjectUrl } from "./files-ui.jsx";
+import { PdfViewer } from "./pdf-viewer.jsx";
+import { useTrackInfo } from "./id3.js";
 const { useState: useS2, useRef: useR2, useEffect: useE2 } = React;
 
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -15,10 +17,26 @@ const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 const COLORS = ["#c4532f", "#4f7a3a", "#2f5d8a", "#c9902a", "#7a3e6b", "#1f7a78", "#8a5a3b", "#5a5689"];
 const colorOf = (id) => COLORS[[...id].reduce((s, c) => s + c.charCodeAt(0), 0) % COLORS.length];
 const fmtT = s => (!isFinite(s) ? "0:00" : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`);
-function trackInfo(n) {
-  if (n.meta?.title) return { title: n.meta.title, artist: n.meta.artist || "Desconocido", album: n.meta.album || "" };
-  const base = n.name.replace(/\.[^.]+$/, ""); const m = /^(.+?)\s+-\s+(.+)$/.exec(base);
-  return m ? { title: m[2], artist: m[1], album: "" } : { title: base, artist: "Desconocido", album: "" };
+// carátula: imagen de la etiqueta ID3 o un cuadro del color de la pista
+function Cover({ info, id, size, radius = 7, icon }) {
+  return info?.cover
+    ? <img className="track-cover" src={info.cover} alt="" style={{ width: size, height: size, borderRadius: radius, flex: `0 0 ${size}px` }} />
+    : <div className="track-cover" style={{ width: size, height: size, borderRadius: radius, background: id ? colorOf(id) : "var(--surface-3)", flex: `0 0 ${size}px` }}>{icon && <Ic name={icon} size={size * 0.45} />}</div>;
+}
+function TrackRow({ tr, i, on, playing, fav, onPlay, onFav, onMenu }) {
+  const ti = useTrackInfo(tr); // solo lee archivos ya presentes en este navegador
+  return (
+    <div className={"track-row" + (on ? " on" : "")} onDoubleClick={onPlay} onContextMenu={e => { e.preventDefault(); onMenu(e); }}>
+      <div className="track-num" onClick={onPlay}>{on && playing ? <Ic name="equalizer" size={18} /> : <span>{i + 1}</span>}<Ic name="play_arrow" size={18} className="hover-play" /></div>
+      <Cover info={ti} id={tr.id} size={38} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div className="track-title">{ti.title}</div>
+        <div className="faint" style={{ fontSize: 12 }}>{ti.artist}{ti.album ? " · " + ti.album : ""}{ti.year ? " · " + ti.year : ""}{tr.online ? " · en línea" : ""}</div>
+      </div>
+      <Ic name="favorite" size={18} className={"fav" + (fav ? " on" : "")} onClick={onFav} />
+      <Ic name="more_horiz" size={18} className="faint" style={{ cursor: "pointer" }} onClick={onMenu} />
+    </div>
+  );
 }
 
 /* -------------------- Música -------------------- */
@@ -44,6 +62,7 @@ function MusicApp({ fileId }) {
 
   const cur = curId ? vfs.node(curId) : null;
   const src = useObjectUrl(cur?.id, cur?.mtime);
+  const info = useTrackInfo(cur, true); // la que suena: se lee aunque haya que descargarla
   const list = view === "all" ? all : view === "favs" ? favs.map(vfs.node).filter(Boolean) : view === "recent" ? recent.map(vfs.node).filter(Boolean)
     : (lists.find(l => l.id === view)?.ids || []).map(vfs.node).filter(Boolean);
   const viewName = view === "all" ? "Todas las canciones" : view === "favs" ? "Favoritas" : view === "recent" ? "Recientes" : lists.find(l => l.id === view)?.name || "Lista";
@@ -63,16 +82,15 @@ function MusicApp({ fileId }) {
   // controles del sistema (teclas multimedia, pantalla de bloqueo del móvil)
   useE2(() => {
     if (!("mediaSession" in navigator) || !cur) return;
-    const info = trackInfo(cur);
-    navigator.mediaSession.metadata = new MediaMetadata({ title: info.title, artist: info.artist, album: info.album });
+    navigator.mediaSession.metadata = new MediaMetadata({ title: info.title, artist: info.artist, album: info.album, artwork: info.cover ? [{ src: info.cover, sizes: "512x512" }] : [] });
     navigator.mediaSession.setActionHandler("play", () => setPlaying(true));
     navigator.mediaSession.setActionHandler("pause", () => setPlaying(false));
     navigator.mediaSession.setActionHandler("nexttrack", () => next());
     navigator.mediaSession.setActionHandler("previoustrack", () => prev());
-  }, [curId, queue]);
+  }, [curId, queue, info]);
   const toggleFav = (id) => setFavs(f => f.includes(id) ? f.filter(x => x !== id) : [id, ...f]);
   const musicFolder = vfs.resolve("/Música") || vfs.getState().root;
-  const info = cur ? trackInfo(cur) : null;
+
 
   return (
     <div className="app" {...dropTarget(musicFolder.id)}>
@@ -97,7 +115,7 @@ function MusicApp({ fileId }) {
       <div className="app-main">
         <div className="scroll" style={{ flex: 1 }}>
           <div style={{ padding: "22px 22px 8px", display: "flex", gap: 18, alignItems: "flex-end" }}>
-            <div className="music-cover" style={{ background: cur ? colorOf(cur.id) : "var(--accent)" }}><Ic name={view === "favs" ? "favorite" : "music_note"} size={52} /></div>
+            <Cover info={cur ? info : null} id={cur?.id} size={120} radius={14} icon={view === "favs" ? "favorite" : "music_note"} />
             <div style={{ flex: 1 }}>
               <div className="faint" style={{ fontSize: 12, fontWeight: 700, letterSpacing: ".05em", textTransform: "uppercase" }}>Lista</div>
               {lists.some(l => l.id === view)
@@ -110,26 +128,16 @@ function MusicApp({ fileId }) {
             {!!list.length && <button className="tb-btn primary" onClick={() => play(list[0].id)}><Ic name="play_arrow" /> Reproducir</button>}
           </div>
           <div style={{ padding: "8px 14px 14px" }}>
-            {list.map((tr, i) => { const ti = trackInfo(tr); const on = curId === tr.id; return (
-              <div key={tr.id + i} className={"track-row" + (on ? " on" : "")} onDoubleClick={() => play(tr.id)}
-                onContextMenu={e => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id: tr.id }); }}>
-                <div className="track-num" onClick={() => play(tr.id)}>{on && playing ? <Ic name="equalizer" size={18} /> : <span>{i + 1}</span>}<Ic name="play_arrow" size={18} className="hover-play" /></div>
-                <div style={{ width: 34, height: 34, borderRadius: 7, background: colorOf(tr.id), flex: "0 0 34px" }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div className="track-title">{ti.title}</div>
-                  <div className="faint" style={{ fontSize: 12 }}>{ti.artist}{ti.album ? " · " + ti.album : ""}{tr.online ? " · en línea" : ""}</div>
-                </div>
-                <Ic name="favorite" size={18} className={"fav" + (favs.includes(tr.id) ? " on" : "")} onClick={() => toggleFav(tr.id)} />
-                <Ic name="more_horiz" size={18} className="faint" style={{ cursor: "pointer" }} onClick={e => setCtx({ x: e.clientX, y: e.clientY, id: tr.id })} />
-              </div>); })}
+            {list.map((tr, i) => <TrackRow key={tr.id + i} tr={tr} i={i} on={curId === tr.id} playing={playing} fav={favs.includes(tr.id)}
+              onPlay={() => play(tr.id)} onFav={() => toggleFav(tr.id)} onMenu={e => setCtx({ x: e.clientX, y: e.clientY, id: tr.id })} />)}
             {!list.length && <EmptyState icon="music_off" text={view === "all" ? "Sin música · arrastra archivos de audio aquí" : "Esta lista está vacía"} />}
           </div>
         </div>
         <div className="music-bar">
-          <div style={{ width: 44, height: 44, borderRadius: 8, background: cur ? colorOf(cur.id) : "var(--surface-3)", flex: "0 0 44px" }} />
+          <Cover info={cur ? info : null} id={cur?.id} size={44} radius={8} />
           <div style={{ width: 160, minWidth: 0 }}>
-            <div className="track-title">{info ? info.title : "Nada en reproducción"}</div>
-            <div className="faint" style={{ fontSize: 12 }}>{info?.artist || "—"}</div>
+            <div className="track-title">{cur ? info.title : "Nada en reproducción"}</div>
+            <div className="faint" style={{ fontSize: 12 }}>{cur ? info.artist : "—"}</div>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
             <button className={"tb-btn icon" + (shuffle ? " on" : "")} title="Aleatorio" onClick={() => setShuffle(s => !s)}><Ic name="shuffle" size={18} /></button>
@@ -202,7 +210,6 @@ function VideoApp({ fileId }) {
 function PdfApp({ fileId, openItem }) {
   useVfs(s => s.rev);
   const n = fileId ? vfs.node(fileId) : null;
-  const url = useObjectUrl(n?.id, n?.mtime);
   if (!fileId) {
     const pdfs = vfs.allOfType(["pdf"]);
     return (
@@ -216,19 +223,7 @@ function PdfApp({ fileId, openItem }) {
     );
   }
   if (!n) return <EmptyState icon="error" text="El archivo ya no existe" />;
-  return (
-    <div className="app" style={{ flexDirection: "column" }}>
-      <Toolbar>
-        <span className="office-badge pdf" style={{ marginRight: 2 }}>PDF</span>
-        <span className="tb-title" style={{ fontSize: 13.5 }}>{n.name}</span>
-        <span className="faint" style={{ fontSize: 12, marginLeft: 6 }}>{fmtSize(n.size)}</span>
-        <div className="tb-spacer" />
-        <button className="tb-btn" onClick={() => url && window.open(url, "_blank", "noopener")}><Ic name="open_in_new" /> Pestaña</button>
-        <button className="tb-btn icon" title="Descargar" onClick={() => vfs.download(n.id)}><Ic name="download" /></button>
-      </Toolbar>
-      {url ? <iframe title={n.name} src={url} style={{ flex: 1, border: "none", background: "#525659" }} /> : <EmptyState icon="hourglass_empty" text="Abriendo…" />}
-    </div>
-  );
+  return <PdfViewer fileId={fileId} />;
 }
 
 export { MusicApp, VideoApp, PdfApp };
