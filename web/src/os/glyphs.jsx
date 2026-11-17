@@ -120,6 +120,16 @@ export const GLYPHS = {
     <path d="M6.2 8.6h11.6l-.8 10.8a1.6 1.6 0 0 1-1.6 1.4H8.6A1.6 1.6 0 0 1 7 19.4Z" fill="currentColor" />
     <path d="M10 11.4v6.2M14 11.4v6.2" stroke={ink} strokeWidth="1.3" strokeLinecap="round" />
   </>,
+  calendar: <>
+    <rect x="3.2" y="4.6" width="17.6" height="16" rx="1.8" fill="currentColor" />
+    <rect x="3.2" y="4.6" width="17.6" height="4.6" rx="1.8" fill={ink} opacity=".35" />
+    <path d="M7.6 2.8v3.6M16.4 2.8v3.6" {...line} strokeWidth="2" />
+    <text x="12" y="18.2" textAnchor="middle" fontSize="8.4" fontWeight="800" fill={ink} fontFamily="Lato, sans-serif">{new Date().getDate()}</text>
+  </>,
+  tasks: <>
+    <rect x="3.4" y="3.4" width="17.2" height="17.2" rx="2.4" fill="currentColor" />
+    <path d="M7.4 12.2l3 3 6.2-6.4" fill="none" stroke={ink} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
+  </>,
   launchpad: <>
     {[6, 12, 18].map(y => [6, 12, 18].map(x => <rect key={x + "-" + y} x={x - 2.2} y={y - 2.2} width="4.4" height="4.4" rx="1.1" fill="currentColor" />))}
   </>,

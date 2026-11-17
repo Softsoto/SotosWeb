@@ -23,6 +23,7 @@ import { handleOO } from "./oo.mjs";
 import { handleNotifications, handleContacts, handlePresence } from "./social.mjs";
 import { handleInbox } from "./inbox.mjs";
 import { handleAdmin } from "./admin.mjs";
+import { handleCalendar, handleTasks } from "./agenda.mjs";
 import { handleWorlds } from "./worlds.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -90,6 +91,8 @@ async function handleApi(req, res) {
     case "inbox": return handleInbox(req, res, rest);
     case "presence": return handlePresence(req, res);
     case "admin": return handleAdmin(req, res, rest);
+    case "calendar": return handleCalendar(req, res, rest);
+    case "tasks": return handleTasks(req, res, rest);
   }
   return json(res, 404, { error: "No encontrado" });
 }

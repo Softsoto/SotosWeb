@@ -51,12 +51,14 @@ import * as Term from "./terminal.jsx";
 import * as Worlds from "./worlds.jsx";
 import * as Contacts from "./contacts.jsx";
 import * as Admin from "./admin.jsx";
+import * as Cal from "./calendar.jsx";
+import * as Tasks from "./tasks.jsx";
 import { NotificationBell } from "./notifications.jsx";
 import { SendToDialog, useInboxCount } from "./inbox.jsx";
 import { setRegion, tz as regionTz } from "./region.js";
 
 // registro de componentes de app (antes se resolvían con window[app.comp])
-const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts, ...Admin };
+const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts, ...Admin, ...Cal, ...Tasks };
 const DEFAULT_PROFILE = { name: "Invitado", avatar: null };
 const { useState: useSh, useEffect: useEh, useRef: useRh, useCallback: useCh } = React;
 
@@ -430,6 +432,10 @@ function OS() {
       if (!d.includes("contacts")) d.splice(Math.max(1, d.indexOf("mail") + 1), 0, "contacts");
       try { localStorage.setItem("sotos_dock_v21", "1"); } catch {}
     }
+    if (!localStorage.getItem("sotos_dock_v22")) { // Calendario y Tareas (v2.2)
+      for (const id of ["tasks", "calendar"]) if (!d.includes(id)) d.splice(Math.max(1, d.indexOf("worlds") + 1), 0, id);
+      try { localStorage.setItem("sotos_dock_v22", "1"); } catch {}
+    }
     return d;
   });
   const [shortcuts, setShortcuts] = useSh(() => { try { return JSON.parse(localStorage.getItem("sotos_sc")) || [...DEFAULT_SHORTCUTS]; } catch { return [...DEFAULT_SHORTCUTS]; } });
@@ -546,6 +552,8 @@ function OS() {
   const openLink = useCh((link) => {
     if (!link) return;
     if (link.inbox) return openApp("files", { place: "inbox", nonce: Date.now() });
+    if (link.app === "calendar") return openApp("calendar", { date: link.date, nonce: Date.now() });
+    if (link.app === "tasks") return openApp("tasks", { list: link.list, nonce: Date.now() });
     if (link.world) return openApp("worlds", { worldId: link.world, tab: link.tab || "wall", nonce: Date.now() });
     if (link.share) {
       const app = { docx: "docs", xlsx: "sheets", csv: "sheets", pptx: "slides" }[link.node?.type];
