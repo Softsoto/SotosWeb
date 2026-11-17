@@ -214,7 +214,7 @@ function Dock({ position, order, running, minimized, onApp, dockApi }) {
             onContextMenu={e => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }); }}
             onDragStart={() => { drag.current = i; }}
             onDragOver={e => e.preventDefault()} onDrop={() => onDrop(i)}>
-            <Tile icon={app.icon} color={app.color} />
+            <Tile icon={app.icon} color={app.color} app={id} />
             <span className="dock-tip">{app.name}</span>
             {running.has(id) && <span className={"run-dot" + (minimized?.has(id) ? " min" : "")} />}
           </button>
@@ -295,7 +295,7 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
       <div className="desk-icons" style={{ left: shifted ? 92 : 14 }}>
         {apps.map(ic => (
           <div key={ic.label} className="desk-icon" onDoubleClick={() => openApp(ic.id)}>
-            <Tile icon={ic.icon} color={ic.color} /><span className="lbl">{ic.label}</span>
+            <Tile icon={ic.icon} color={ic.color} app={ic.id} /><span className="lbl">{ic.label}</span>
           </div>
         ))}
         {items.map(it => (
@@ -321,7 +321,7 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
           onDrop={e => { e.preventDefault(); e.stopPropagation(); setTrashHot(false); try { const ids = JSON.parse(e.dataTransfer.getData("application/x-sotos-ids")); runItemAction("trash", ids.map(vfs.node).filter(Boolean), helpers); } catch {} }}
           onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtx({ x: e.clientX, y: e.clientY, item: null }); }}>
           <div style={{ position: "relative" }}>
-            <Tile icon={trashCount ? "delete" : "delete_outline"} color="#7d8590" />
+            <Tile icon={trashCount ? "delete" : "delete_outline"} color="#7d8590" app="trash" />
             {trashCount > 0 && <span className="trash-badge">{trashCount}</span>}
           </div>
           <span className="lbl">Papelera</span>
@@ -382,7 +382,7 @@ function Spotlight({ onOpen, onApp, onClose }) {
         {!!results.length && <div className="spot-results">
           {results.map((r, i) => (
             <div key={i} className={"spot-row" + (i === hi ? " hi" : "")} onMouseEnter={() => setHi(i)} onClick={() => go(r)}>
-              {r.kind === "app" ? <Tile icon={r.app.icon} color={r.app.color} size={28} /> : <NodeGlyph node={r.node} size={26} />}
+              {r.kind === "app" ? <Tile icon={r.app.icon} color={r.app.color} size={28} app={r.app.id} /> : <NodeGlyph node={r.node} size={26} />}
               <div><div className="spot-name">{r.kind === "app" ? r.app.name : r.node.name}</div>
                 <div className="spot-path">{r.kind === "app" ? "Aplicación" : ["Sotos Drive", ...vfs.pathOf(r.node.id).slice(0, -1).map(p => p.name)].join(" › ")}</div></div>
             </div>
@@ -404,7 +404,10 @@ function OS() {
       // enlaces directos: ?tema=grafito|sotos y ?modo=oscuro|claro (útil para mostrar el demo)
       const q = new URLSearchParams(location.search);
       const tema = q.get("tema"), modo = q.get("modo");
-      if (tema === "grafito" || tema === "sotos") { s.skin = tema; if (["#c4532f", "#60b25e"].includes(s.accent)) s.accent = tema === "grafito" ? "#60b25e" : "#c4532f"; }
+      if (tema === "grafito" || tema === "sotos") { s.skin = tema; if (["#c4532f", "#60b25e"].includes(s.accent)) s.accent = tema === "grafito" ? "#60b25e" : "#c4532f";
+        const isPhoto = String(s.wallpaper).startsWith("foto-");
+        if (tema === "grafito" && !isPhoto && !String(s.wallpaper).startsWith("file:")) s.wallpaper = "foto-usaquen";
+        if (tema === "sotos" && isPhoto) s.wallpaper = "paramo"; }
       if (modo === "oscuro" || modo === "claro") s.theme = modo === "oscuro" ? "dark" : "light";
       if (tema || modo) { try { localStorage.setItem("sotos", JSON.stringify(s)); } catch {} }
       return s;

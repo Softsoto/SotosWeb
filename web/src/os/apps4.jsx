@@ -8,7 +8,7 @@ import { Tile, Ic, SideItem, Avatar, Modal, toast } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize } from "./vfs.js";
 import { api } from "./api.js";
-import { WALLS, wallUrl } from "./wallpapers.js";
+import { WALLS, PHOTO_WALLS, wallUrl } from "./wallpapers.js";
 const { useState: useS4, useRef: useR4 } = React;
 
 function Row({ label, desc, children }) {
@@ -59,6 +59,7 @@ function WallThumb({ w, on, onPick }) {
       <span className="wall-img" style={{ backgroundImage: src ? `url("${src}")` : undefined }} />
       <span className="wall-name">{w.name}{on && <Ic name="check" size={15} />}</span>
       <span className="wall-hint">{w.hint}</span>
+      {w.author && <a className="wall-credit" href={w.link} target="_blank" rel="noopener noreferrer" onClick={e => e.stopPropagation()}>Foto: {w.author} · CC0</a>}
     </button>
   );
 }
@@ -162,8 +163,13 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
           {tab === "fondo" && <>
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>Fondo de escritorio</h2>
             <div className="muted" style={{ fontSize: 13, marginTop: -4 }}>Ilustraciones de Sotos inspiradas en paisajes de Colombia, dibujadas a la resolución de tu pantalla. También puedes usar una foto: clic derecho sobre una imagen → <b>Usar como fondo</b>.</div>
+            <div className="wall-group">Ilustraciones</div>
             <div className="wall-grid">
               {WALLS.map(w => <WallThumb key={w.id} w={w} on={settings.wallpaper === w.id} onPick={() => update("wallpaper", w.id)} />)}
+            </div>
+            <div className="wall-group">Fotos <span className="faint">· de Colombia, libres de derechos (CC0). En el tema Grafito se ven en blanco y negro.</span></div>
+            <div className="wall-grid">
+              {PHOTO_WALLS.map(w => <WallThumb key={w.id} w={w} on={settings.wallpaper === w.id} onPick={() => update("wallpaper", w.id)} />)}
             </div>
             {String(settings.wallpaper).startsWith("file:") && <div className="faint" style={{ fontSize: 12.5, marginTop: 12 }}><Ic name="image" size={15} /> Ahora usas una imagen propia como fondo.</div>}
           </>}
@@ -173,7 +179,10 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
               {[{ v: "sotos", label: "Sotos", desc: "Papel, tinta y color plano", accent: "#c4532f" },
                 { v: "grafito", label: "Grafito", desc: "Gris y carbón, dock lateral, fondo en blanco y negro", accent: "#60b25e" }].map(k => (
                 <button key={k.v} className={"skin-card" + ((settings.skin || "sotos") === k.v ? " on" : "")}
-                  onClick={() => { update("skin", k.v); if (["#c4532f", "#60b25e"].includes(settings.accent)) update("accent", k.accent); }}>
+                  onClick={() => { update("skin", k.v); if (["#c4532f", "#60b25e"].includes(settings.accent)) update("accent", k.accent);
+                    const isPhoto = String(settings.wallpaper).startsWith("foto-");
+                    if (k.v === "grafito" && !isPhoto && !String(settings.wallpaper).startsWith("file:")) update("wallpaper", "foto-usaquen");
+                    if (k.v === "sotos" && isPhoto) update("wallpaper", "paramo"); }}>
                   <span className={"skin-prev skin-prev-" + k.v + (settings.theme === "dark" ? " dark" : "")}><i /><b /><em /></span>
                   <span className="skin-name">{k.label}{(settings.skin || "sotos") === k.v && <Ic name="check_circle" size={16} />}</span>
                   <span className="skin-desc">{k.desc}</span>
@@ -265,7 +274,7 @@ function StoreApp() {
             {list.map(a => (
               <div key={a.name} style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 16, background: "var(--surface)", boxShadow: "var(--shadow-card)" }}>
                 <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  <Tile icon={a.icon} color={a.color} size={48} />
+                  <Tile icon={a.icon} color={a.color} size={48} app={a.id} />
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 14.5 }}>{a.name}</div>
                     <div className="faint" style={{ fontSize: 12 }}>{a.cat}</div>

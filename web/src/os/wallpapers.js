@@ -18,6 +18,20 @@ export const WALLS = [
   { id: "tinta",   name: "Tinta",     hint: "Oscuro, para el tema nocturno" },
 ];
 
+/* Fotos (licencia CC0, Wikimedia Commons), en web/public/fondos. Combinan con el tema Grafito,
+   que las pasa a blanco y negro. Autor y enlace se muestran en Ajustes como crédito. */
+const C = "https://commons.wikimedia.org/wiki/File:";
+export const PHOTO_WALLS = [
+  { id: "foto-usaquen", file: "usaquen",       name: "Bogotá",         hint: "La ciudad desde Usaquén",            author: "Alejandro Turola", link: C + "Panor%C3%A1mica_de_Usaquen,_Bogot%C3%A1_D.C.jpg" },
+  { id: "foto-centro",  file: "centro-bogota", name: "Centro",         hint: "Bogotá desde el Ricaurte",           author: "Apphiron",         link: C + "Centro_de_Bogota_desde_el_Ricaurte.jpg" },
+  { id: "foto-cable",   file: "cable-bogota",  name: "TransMiCable",   hint: "Ciudad Bolívar desde el cable",      author: "Mussi Katz",       link: C + "Cablecar_in_Bogot%C3%A1_(52421535060).jpg" },
+  { id: "foto-cielo",   file: "cielo-bogota",  name: "Atardecer",      hint: "El cielo sobre Bogotá",              author: "Cristian Baron",   link: C + "El_cielo_del_atardecer_sobre_Bogot%C3%A1,_Colombia,_2015,_por_Cristian_Baron_(Unsplash).jpg" },
+  { id: "foto-cocora",  file: "cocora",        name: "Cocora",         hint: "Palmas de cera al anochecer",        author: "Deivid Sáenz",     link: C + "Valle_Del_Cocora_silhouette_(Unsplash).jpg" },
+  { id: "foto-salento", file: "salento",       name: "Salento",        hint: "Camino entre montañas del Quindío",  author: "Maifiredragon",    link: C + "Salento_tierra_quindiense.jpg" },
+];
+const photoOf = (id) => PHOTO_WALLS.find(p => p.id === id);
+const photoSrc = (p, small) => `${import.meta.env.BASE_URL}fondos/${p.file}${small ? "-mini" : ""}.jpg`;
+
 /* ---------------- utilidades de dibujo ---------------- */
 function rng(seed) { let s = seed >>> 0 || 1; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
 const shade = (hex, f) => { const n = parseInt(hex.slice(1), 16); const c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.max(0, Math.min(255, Math.round(f < 0 ? v * (1 + f) : v + (255 - v) * f)))); return "#" + c.map(v => v.toString(16).padStart(2, "0")).join(""); };
@@ -250,9 +264,10 @@ export function renderWall(id, w, h) {
 }
 /** URL (blob) del fondo a la resolución de la pantalla, cacheada */
 export async function wallUrl(id, w = Math.min(2560, Math.round(screen.width * (window.devicePixelRatio || 1))), h = Math.round(w * screen.height / screen.width)) {
+  const ph = photoOf(id); if (ph) return photoSrc(ph, w <= 600);
   const key = `${id}@${w}x${h}`;
   if (cache.has(key)) return cache.get(key);
   const p = new Promise(res => { const c = renderWall(id, w, h); c.toBlob(b => res(URL.createObjectURL(b)), "image/jpeg", 0.9); });
   cache.set(key, p); return p;
 }
-export const isWall = (id) => WALLS.some(w => w.id === id);
+export const isWall = (id) => WALLS.some(w => w.id === id) || !!photoOf(id);

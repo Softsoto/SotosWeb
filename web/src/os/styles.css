@@ -1540,3 +1540,52 @@ input[type="checkbox"]:checked, input[type="radio"]:checked { animation: mo-ring
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 1ms !important; animation-iteration-count: 1 !important; transition-duration: 1ms !important; }
 }
+
+/* ============================================================
+   ICONOS GRAFITO — cuadrados brillantes de esquina casi recta,
+   símbolo blanco relleno; algunos en ficha blanca con símbolo de color.
+   © 2026 Sebastian Sotomontes
+   ============================================================ */
+[data-skin="grafito"] .tile { --g1: #8a939b; --g2: #5d666e; border-radius: 4px; color: #fff;
+  background: linear-gradient(180deg, var(--g1), var(--g2)) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.45), inset 0 -1px 0 rgba(0,0,0,.22), 0 1px 2px rgba(0,0,0,.35); overflow: hidden; }
+[data-skin="grafito"] .tile::after { display: block !important; content: ""; position: absolute; left: 0; right: 0; top: 0; height: 50%; border-radius: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.26), rgba(255,255,255,.06)); pointer-events: none; }
+[data-skin="grafito"] .tile .material-symbols-rounded { font-size: 58%; font-variation-settings: "FILL" 1, "wght" 500; text-shadow: 0 1px 1px rgba(0,0,0,.28); position: relative; z-index: 1; }
+/* fichas blancas con símbolo de color */
+[data-skin="grafito"] .tile.white, [data-skin="grafito"] .tile[data-app="music"], [data-skin="grafito"] .tile[data-app="pdf"], [data-skin="grafito"] .tile[data-app="mail"], [data-skin="grafito"] .tile[data-app="browser"], [data-skin="grafito"] .tile[data-app="web"] {
+  --g1: #ffffff; --g2: #e4e7ea; box-shadow: inset 0 1px 0 #fff, inset 0 -1px 0 rgba(0,0,0,.14), 0 1px 2px rgba(0,0,0,.35); }
+[data-skin="grafito"] .tile[data-app="music"], [data-skin="grafito"] .tile[data-app="pdf"], [data-skin="grafito"] .tile[data-app="mail"], [data-skin="grafito"] .tile[data-app="browser"], [data-skin="grafito"] .tile[data-app="web"] { }
+[data-skin="grafito"] .tile[data-app="music"] .material-symbols-rounded { color: #2f86e0; text-shadow: none; }
+[data-skin="grafito"] .tile[data-app="pdf"] .material-symbols-rounded { color: #e0352b; text-shadow: none; }
+[data-skin="grafito"] .tile[data-app="mail"] .material-symbols-rounded { color: #d93a30; text-shadow: none; }
+[data-skin="grafito"] .tile[data-app="browser"] .material-symbols-rounded, [data-skin="grafito"] .tile[data-app="web"] .material-symbols-rounded { color: #2a7de1; text-shadow: none; }
+[data-skin="grafito"] .tile[data-app="music"]::after, [data-skin="grafito"] .tile[data-app="pdf"]::after, [data-skin="grafito"] .tile[data-app="mail"]::after, [data-skin="grafito"] .tile[data-app="browser"]::after, [data-skin="grafito"] .tile[data-app="web"]::after { display: none !important; }
+/* colores por app */
+[data-skin="grafito"] .tile[data-app="files"]     { --g1: #6cd476; --g2: #2f9e3b; }
+[data-skin="grafito"] .tile[data-app="worlds"]    { --g1: #f5596f; --g2: #cc2840; }
+[data-skin="grafito"] .tile[data-app="chat"]      { --g1: #6fcdf3; --g2: #2a98d3; }
+[data-skin="grafito"] .tile[data-app="contacts"]  { --g1: #5aa4f2; --g2: #1f62c4; }
+[data-skin="grafito"] .tile[data-app="docs"]      { --g1: #4f8bd6; --g2: #22559c; }
+[data-skin="grafito"] .tile[data-app="sheets"]    { --g1: #3fae6a; --g2: #1c6d3c; }
+[data-skin="grafito"] .tile[data-app="slides"]    { --g1: #f07a48; --g2: #c4421b; }
+[data-skin="grafito"] .tile[data-app="editor"]    { --g1: #f6c64e; --g2: #d69a12; }
+[data-skin="grafito"] .tile[data-app="gallery"]   { --g1: #b07ad9; --g2: #7340a8; }
+[data-skin="grafito"] .tile[data-app="video"]     { --g1: #f0584e; --g2: #b8241e; }
+[data-skin="grafito"] .tile[data-app="games"]     { --g1: #8577ef; --g2: #4b3cc0; }
+[data-skin="grafito"] .tile[data-app="store"]     { --g1: #f6ad4a; --g2: #d27a10; }
+[data-skin="grafito"] .tile[data-app="terminal"]  { --g1: #4b5157; --g2: #1d2125; }
+[data-skin="grafito"] .tile[data-app="launchpad"] { --g1: #4b5258; --g2: #262b30; }
+[data-skin="grafito"] .tile[data-app="settings"]  { --g1: #9aa3ab; --g2: #5c656d; }
+[data-skin="grafito"] .tile[data-app="trash"]     { --g1: #a7afb6; --g2: #6d767e; }
+/* en el riel el icono llena la casilla, como en el original */
+[data-skin="grafito"] .dock.rail .tile { border-radius: 3px; }
+[data-skin="grafito"] .dock.rail .tile .material-symbols-rounded { font-size: 56%; }
+
+.wall-group { margin: 22px 0 -4px; font-weight: 700; font-size: 13.5px; }
+.wall-group:first-of-type { margin-top: 14px; }
+.wall-group .faint { font-weight: 400; font-size: 12px; }
+.wall-credit { font-size: 11px; color: var(--text-faint); text-decoration: none; }
+.wall-credit:hover { color: var(--accent); text-decoration: underline; }
+[data-wallgray="1"] .wall-thumb[title] .wall-img { filter: grayscale(1); }
+

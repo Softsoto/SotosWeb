@@ -196,6 +196,13 @@ const EMBED_HOME = [
   { name: "Wikcionario", icon: "translate", color: "#0aa5b5", url: "https://es.wiktionary.org" },
 ];
 
+// sitios que, por su propia seguridad, se niegan a funcionar dentro de otra página
+// (lo detectan con JavaScript y muestran un aviso). Se respetan: se abren en pestaña nueva.
+const NO_FRAME = ["ilovepdf.com", "accounts.google.com", "login.microsoftonline.com", "login.live.com", "appleid.apple.com", "paypal.com",
+  "mercadopago.com", "bancolombia.com", "davivienda.com", "bancodebogota.com", "nequi.com.co", "dian.gov.co", "web.whatsapp.com", "discord.com"];
+const hostOf = (a) => { try { return new URL(a).hostname.replace(/^www\./, ""); } catch { return ""; } };
+export const refusesFrame = (a) => { const h = hostOf(a); return !!h && NO_FRAME.some(d => h === d || h.endsWith("." + d)); };
+
 // muchos sitios bloquean el iframe sin disparar onError (X-Frame-Options / CSP frame-ancestors).
 // si no carga en 3.5s, lo damos por bloqueado y avisamos para reintentar por proxy.
 // con proxy, la página avisa por postMessage de su URL/título reales.
@@ -319,7 +326,8 @@ function BrowserApp({ shortcuts = [], url, scName }) {
   }, []);
 
   const marks = [...EMBED_HOME, ...WEB_SERVICES.slice(0, 6), ...shortcuts.map(s => ({ ...s, sc: true }))];
-  const showBlocked = knownBlocked(t.addr) && !proxyMode;
+  const refused = t.addr !== "inicio" && refusesFrame(t.addr);
+  const showBlocked = refused || (knownBlocked(t.addr) && !proxyMode);
   const usingProxy = t.addr !== "inicio" && isProxied(t.addr);
   const realUrl = t.live || t.addr;
 
@@ -377,10 +385,11 @@ function BrowserApp({ shortcuts = [], url, scName }) {
         <div className="app webview-launch" style={{ flex: 1 }}>
           <div className="wl-card">
             <div className="lp-svc" style={{ background: (svcOf(t.addr)?.color) || "#7d8590", width: 72, height: 72, borderRadius: 20 }}><Ic name={svcOf(t.addr)?.icon || "public"} size={38} /></div>
-            <div className="wl-title">{svcOf(t.addr)?.name || "Sitio protegido"}</div>
-            <div className="wl-sub">{DEMO ? <>Este sitio no permite mostrarse dentro de otra página. En el demo no hay servidor; con Sotos instalado, su <b>proxy</b> lo abre aquí dentro.</> : <>Activa el <b>Modo Proxy</b> para abrirlo aquí dentro sin salir de Sotos.</>}</div>
+            <div className="wl-title">{svcOf(t.addr)?.name || (refused ? hostOf(t.addr) : "Sitio protegido")}</div>
+            <div className="wl-sub">{refused ? <>Este sitio, por seguridad, no permite usarse dentro de otra página. Ábrelo en una pestaña nueva; Sotos sigue abierto aquí.</> : DEMO ? <>Este sitio no permite mostrarse dentro de otra página. En el demo no hay servidor; con Sotos instalado, su <b>proxy</b> lo abre aquí dentro.</> : <>Activa el <b>Modo Proxy</b> para abrirlo aquí dentro sin salir de Sotos.</>}</div>
             <div className="wl-btns">
-              {DEMO ? <><button className="tb-btn primary" onClick={() => window.open(t.addr, "_blank", "noopener")}><Ic name="open_in_new" /> Abrir en pestaña nueva</button><button className="tb-btn" onClick={() => window.open(SHOWCASE_URL, "_blank", "noopener")}><Ic name="info" /> Conocer Sotos</button></> : <button className="tb-btn primary" onClick={() => setProxyMode(true)}><Ic name="shield" /> Abrir aquí con Proxy</button>}
+              {refused ? <button className="tb-btn primary" onClick={() => window.open(t.addr, "_blank", "noopener")}><Ic name="open_in_new" /> Abrir en pestaña nueva</button>
+              : DEMO ? <><button className="tb-btn primary" onClick={() => window.open(t.addr, "_blank", "noopener")}><Ic name="open_in_new" /> Abrir en pestaña nueva</button><button className="tb-btn" onClick={() => window.open(SHOWCASE_URL, "_blank", "noopener")}><Ic name="info" /> Conocer Sotos</button></> : <button className="tb-btn primary" onClick={() => setProxyMode(true)}><Ic name="shield" /> Abrir aquí con Proxy</button>}
             </div>
           </div>
         </div>

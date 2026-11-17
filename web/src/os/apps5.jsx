@@ -366,7 +366,7 @@ function LaunchpadApp({ openApp, shortcuts = [], scApi }) {
           <div className="lp-grid">
             {launchable.map(a => (
               <button key={a.id} className="lp-cell" onClick={() => openApp(a.id)}>
-                <Tile icon={a.icon} color={a.color} size={62} /><span>{a.name}</span>
+                <Tile icon={a.icon} color={a.color} size={62} app={a.id} /><span>{a.name}</span>
               </button>
             ))}
           </div>
