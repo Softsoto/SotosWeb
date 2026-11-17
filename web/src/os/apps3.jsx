@@ -2,6 +2,8 @@
    Sotos OS — Mail, Chat, Browser, Terminal
    ============================================================ */
 import React from "react";
+import { RealMail } from "./mail.jsx";
+import { useVfs } from "./vfs.js";
 import { APPS, APP_BY_ID, WEB_SERVICES, MAIL, CHATS } from "./data.jsx";
 import { Ic, SideItem, Toolbar, EmptyState } from "./ui.jsx";
 import { PX_ORIGIN, pxUrl, DEMO, SHOWCASE_URL } from "./config.js";
@@ -10,7 +12,12 @@ import { showMenu, saveImageFromUrl } from "./context-menu.jsx";
 const { useState: useS3, useRef: useR3, useEffect: useE3 } = React;
 
 /* -------------------- Mail (funcional) -------------------- */
-function MailApp({ openApp }) {
+// con cuenta de Sotos: correo real (IMAP/SMTP); como invitado o en el demo: buzón de ejemplo
+function MailApp(props) {
+  const mode = useVfs(s => s.mode);
+  return mode === "cloud" && !DEMO ? <RealMail /> : <DemoMail {...props} />;
+}
+function DemoMail({ openApp }) {
   const [mails, setMails] = useS3(() => { try { return JSON.parse(localStorage.getItem("sotos_mail")) || MAIL.map(m => ({ ...m, folder: "in" })); } catch { return MAIL.map(m => ({ ...m, folder: "in" })); } });
   const [sel, setSel] = useS3(MAIL[0].id);
   const [folder, setFolder] = useS3("in");

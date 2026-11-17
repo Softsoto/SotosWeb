@@ -56,6 +56,7 @@ import * as Tasks from "./tasks.jsx";
 import { NotificationBell } from "./notifications.jsx";
 import { SendToDialog, useInboxCount } from "./inbox.jsx";
 import { setRegion, tz as regionTz } from "./region.js";
+import { loadInstalled, subscribeInstalled } from "./installed.js";
 
 // registro de componentes de app (antes se resolvían con window[app.comp])
 const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts, ...Admin, ...Cal, ...Tasks };
@@ -584,7 +585,9 @@ function OS() {
   }, [stage]);
 
   // arranque: ¿hay servidor? ¿hay sesión? → nube; si no, invitado recordado o pantalla de acceso
-  const bootTask = useCh(async () => { const r = await bootInner(); try { vfs.migrateSampleVideos(); } catch {} return r; }, []);
+  const bootTask = useCh(async () => { const r = await bootInner(); try { vfs.migrateSampleVideos(); } catch {} await loadInstalled().catch(() => {}); return r; }, []);
+  const [, reInstalled] = useSh(0);
+  useEh(() => subscribeInstalled(() => reInstalled(x => x + 1)), []);
   const bootInner = useCh(async () => {
     if (DEMO) { await vfs.init(); localStorage.setItem("sotos_in", "1"); return "desktop"; } // demo: directo al escritorio, como invitado
     const server = await hasServer();
@@ -642,7 +645,7 @@ function OS() {
       {wins.map(win => {
         const app = APP_BY_ID[win.appId];
         const Comp = APP_COMPONENTS[app.comp];
-        const extra = { ...storeProps, ...(win.payload || {}), winId: win.id };
+        const extra = { ...storeProps, ...(win.payload || {}), winId: win.id, appId: win.appId };
         const fnode = win.payload && win.payload.fileId ? vfs.node(win.payload.fileId) : null;
         const title = fnode ? fnode.name : win.payload?.sharedNode ? win.payload.sharedNode.name + " · compartido" : (win.payload && win.payload.scName) ? win.payload.scName : app.name;
         return (

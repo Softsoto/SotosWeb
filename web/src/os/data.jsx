@@ -22,6 +22,13 @@ const APPS = [
   { id: "chat",    name: "Mensajes",  icon: "chat_bubble",       color: "#1f7a78", comp: "ChatApp",      size: { w: 780, h: 540 } },
   { id: "browser", name: "Navegador", icon: "language",          color: "#2a7f8f", comp: "BrowserApp",   size: { w: 880, h: 580 } },
   { id: "terminal",name: "Terminal",  icon: "terminal",          color: "#26231f", comp: "TerminalApp",  size: { w: 660, h: 440 } },
+  // apps de la Tienda (proyectos HTML propios en web/public/apps; se ven al instalarlas)
+  { id: "pdfmeta",     name: "Metadatos PDF",     icon: "plagiarism",      color: "#b8402f", comp: "WebApp", url: "apps/pdfmeta/index.html",     size: { w: 1100, h: 760 }, store: true, cat: "Herramientas",  desc: "Extrae metadatos, XMP, estructura y permisos de cualquier PDF. Todo en tu navegador." },
+  { id: "audioext",    name: "Extractor de audio", icon: "graphic_eq",     color: "#7a3e6b", comp: "WebApp", url: "apps/audioext/index.html",    size: { w: 1000, h: 720 }, store: true, cat: "Multimedia",    desc: "Saca el audio de videos pesados (MP4, MKV, AVI, MOV) sin subirlos a ningún sitio." },
+  { id: "informes",    name: "Informes técnicos", icon: "summarize",       color: "#2f5d8a", comp: "WebApp", url: "apps/informes/index.html",    size: { w: 1100, h: 780 }, store: true, cat: "Productividad", desc: "Genera informes de soporte y mantenimiento en PDF con tablas y firmas." },
+  { id: "diagnostico", name: "Diagnóstico",       icon: "build",           color: "#1f7a78", comp: "WebApp", url: "apps/diagnostico/index.html", size: { w: 1100, h: 780 }, store: true, cat: "Herramientas",  desc: "Banco de pruebas del equipo: teclado, pantalla, sonido, cámara y ficha técnica." },
+  { id: "panel",       name: "Panel personal",    icon: "space_dashboard", color: "#c9902a", comp: "WebApp", url: "apps/panel/index.html",       size: { w: 1100, h: 760 }, store: true, cat: "Productividad", desc: "Tareas, gastos del mes, notas y temporizador de enfoque en un solo tablero." },
+  { id: "pinball",     name: "Páramo Pinball",    icon: "sports_esports",  color: "#4f7a3a", comp: "WebApp", url: "apps/pinball/index.html",     size: { w: 820, h: 940 },  store: true, cat: "Juegos",        desc: "Pinball con tres mesas originales, física propia y récords." },
   { id: "admin",   name: "Administración", icon: "admin_panel_settings", color: "#3b4046", comp: "AdminApp", size: { w: 1080, h: 700 }, adminOnly: true },
   { id: "settings",name: "Ajustes",   icon: "settings",          color: "#6f6a60", comp: "SettingsApp",  size: { w: 720, h: 540 } },
   { id: "web",     name: "Web",       icon: "public",            color: "#2a7f8f", comp: "WebViewApp",   size: { w: 1000, h: 670 } },
@@ -246,9 +253,11 @@ const STORE_APPS = [
 export { APPS, APP_BY_ID, DOCK_IDS, ROUTE, TYPE_META, CTX_FILE, WEB_SERVICES, OFFICE_WEB, OFFICE_OF_TYPE, WALLPAPERS, ACCENTS, FS, MAIL, CHATS, TRACKS, VIDEOS, PHOTOS, STORE_APPS, DEFAULT_SHORTCUTS };
 
 /** ¿puede esta cuenta ver la app? (administración solo para admins; el admin puede ocultar apps por usuario) */
+import { isInstalled } from "./installed.js";
 export function appAllowed(id, user) {
   const a = APPS.find(x => x.id === id); if (!a) return false;
   if (a.adminOnly && user?.role !== "admin") return false;
+  if (a.store && !isInstalled(id)) return false; // las apps de la Tienda se ven al instalarlas
   if (user?.hiddenApps?.includes(id)) return false;
   return true;
 }

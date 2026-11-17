@@ -4,7 +4,8 @@
 import React from "react";
 import { APPS, WALLPAPERS, ACCENTS, STORE_APPS } from "./data.jsx";
 import { SotosLogo, SotosMark } from "./logo.jsx";
-import { Tile, Ic, SideItem, Avatar, Modal, toast } from "./ui.jsx";
+import { isInstalled, setInstalled, loadInstalled, subscribeInstalled, getRatings } from "./installed.js";
+import { Tile, Ic, SideItem, Avatar, Modal, toast, EmptyState } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize } from "./vfs.js";
 import { api } from "./api.js";
@@ -300,47 +301,81 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
   );
 }
 
-/* -------------------- Store -------------------- */
-function StoreApp() {
-  const [installed, setInstalled] = useS4({});
-  const [cat, setCat] = useS4("Todo");
-  const cats = ["Todo", ...new Set(STORE_APPS.map(a => a.cat))];
-  const list = STORE_APPS.filter(a => cat === "Todo" || a.cat === cat);
+/* -------------------- Tienda -------------------- */
+// apps de la Tienda: proyectos HTML que corren aislados en su ventana
+function WebApp({ appId }) {
+  const app = APPS.find(a => a.id === appId);
+  if (!app) return <EmptyState icon="error" text="App no encontrada" />;
+  return <iframe title={app.name} src={import.meta.env.BASE_URL + app.url} allow="fullscreen; clipboard-read; clipboard-write; camera; microphone; gamepad; autoplay"
+    style={{ flex: 1, width: "100%", height: "100%", border: 0, background: "#fff" }} />;
+}
+const Stars = ({ value = 0, size = 15, onPick }) => <span className="stars">{[1, 2, 3, 4, 5].map(i => onPick
+  ? <button key={i} type="button" className={"star-btn" + (i <= Math.round(value) ? " on" : "")} title={`${i} estrella${i > 1 ? "s" : ""}`} onClick={() => onPick(i)}><Ic name="star" size={size} style={{ fontVariationSettings: "'FILL' 1" }} /></button>
+  : <Ic key={i} name="star" size={size} className={i <= Math.round(value) ? "on" : ""} style={{ fontVariationSettings: "'FILL' 1" }} />)}</span>;
+function StoreApp({ openApp }) {
+  const mode = useVfs(s => s.mode), cloud = mode === "cloud";
+  const [, tick] = useS4(0);
+  const [cat, setCat] = useS4("Todo"), [detail, setDetail] = useS4(null), [busy, setBusy] = useS4(null);
+  React.useEffect(() => { loadInstalled(); return subscribeInstalled(() => tick(x => x + 1)); }, [mode]);
+  const items = APPS.filter(a => a.store);
+  const cats = ["Todo", ...new Set(items.map(a => a.cat))];
+  const list = items.filter(a => cat === "Todo" || a.cat === cat);
+  const ratings = getRatings();
+  const toggle = async (a) => { setBusy(a.id); try { const on = !isInstalled(a.id); await setInstalled(a.id, on); toast(on ? `${a.name} instalada · está en Aplicaciones` : `${a.name} desinstalada`, { icon: on ? "download_done" : "delete" }); } catch (e) { toast(e.message, { error: true }); } setBusy(null); };
   return (
     <div className="app">
-      <div className="app-side" style={{ width: 170, flexBasis: 170 }}>
+      <div className="app-side" style={{ width: 180, flexBasis: 180 }}>
         <div className="side-label">Tienda</div>
         {cats.map(c => <SideItem key={c} icon={c === "Todo" ? "apps" : "category"} label={c} active={cat === c} onClick={() => setCat(c)} />)}
+        <div className="side-label">Instaladas</div>
+        {items.filter(a => isInstalled(a.id)).map(a => <SideItem key={a.id} icon={a.icon} label={a.name} color={a.color} onClick={() => openApp(a.id)} />)}
       </div>
       <div className="app-main">
-        <div style={{ padding: "24px 28px 10px", borderBottom: "1px solid var(--border)", background: "linear-gradient(135deg, color-mix(in srgb,var(--accent) 16%,transparent), transparent)" }}>
+        <div className="store-hero">
           <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.02em" }}>Amplía tu Sotos</div>
-          <div className="muted" style={{ fontSize: 13.5, marginTop: 4 }}>Añade herramientas a tu escritorio. Se instalan al instante, sin descargas.</div>
+          <div className="muted" style={{ fontSize: 13.5, marginTop: 4 }}>Herramientas hechas por Sebastian Sotomontes. Se instalan al instante, sin descargas, y funcionan dentro de Sotos.</div>
         </div>
         <div className="scroll" style={{ flex: 1, padding: 20 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(230px,1fr))", gap: 14 }}>
-            {list.map(a => (
-              <div key={a.name} style={{ border: "1px solid var(--border)", borderRadius: 14, padding: 16, background: "var(--surface)", boxShadow: "var(--shadow-card)" }}>
-                <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
-                  <Tile icon={a.icon} color={a.color} size={48} app={a.id} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 14.5 }}>{a.name}</div>
-                    <div className="faint" style={{ fontSize: 12 }}>{a.cat}</div>
-                  </div>
+          <div className="store-grid">
+            {list.map(a => { const r = ratings[a.id], on = isInstalled(a.id); return (
+              <div key={a.id} className="store-card">
+                <div style={{ display: "flex", gap: 12, alignItems: "center", cursor: "pointer" }} onClick={() => setDetail(a)}>
+                  <Tile icon={a.icon} color={a.color} size={52} app={a.id} />
+                  <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: 14.5 }}>{a.name}</div><div className="faint" style={{ fontSize: 12 }}>{a.cat}</div>
+                    <div className="store-rating">{r ? <><Stars value={r.avg} size={13} /> <span className="faint">{r.avg} ({r.count})</span></> : <span className="faint">Sin reseñas</span>}</div></div>
                 </div>
-                <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.5, margin: "12px 0 14px", minHeight: 36 }}>{a.desc}</div>
-                <button onClick={() => setInstalled(s => ({ ...s, [a.name]: true }))}
-                  className={"tb-btn" + (installed[a.name] ? "" : " primary")}
-                  style={{ width: "100%", justifyContent: "center", opacity: installed[a.name] ? .7 : 1 }}>
-                  {installed[a.name] ? <><Ic name="check" /> Instalada</> : <><Ic name="download" /> Obtener</>}
-                </button>
-              </div>
-            ))}
+                <div className="muted" style={{ fontSize: 12.5, lineHeight: 1.5, margin: "10px 0 12px", minHeight: 38 }}>{a.desc}</div>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {on && <button className="tb-btn primary" style={{ flex: 1, justifyContent: "center" }} onClick={() => openApp(a.id)}><Ic name="open_in_new" /> Abrir</button>}
+                  <button className={"tb-btn" + (on ? "" : " primary")} style={{ flex: on ? "0 0 auto" : 1, justifyContent: "center" }} disabled={busy === a.id} onClick={() => toggle(a)}>
+                    {on ? <Ic name="delete" /> : <><Ic name="download" /> Instalar</>}</button>
+                </div>
+              </div>); })}
           </div>
         </div>
       </div>
+      {detail && <StoreDetail a={detail} cloud={cloud} onClose={() => setDetail(null)} onToggle={() => toggle(detail)} onOpen={() => { setDetail(null); openApp(detail.id); }} />}
     </div>
   );
 }
-
-export { SettingsApp, StoreApp };
+function StoreDetail({ a, cloud, onClose, onToggle, onOpen }) {
+  const [reviews, setReviews] = useS4(null), [stars, setStars] = useS4(0), [text, setText] = useS4("");
+  const load = () => cloud ? api("GET", `store/${a.id}/reviews`).then(r => { setReviews(r.items); const m = r.items.find(x => x.mine); if (m) { setStars(m.stars); setText(m.text || ""); } }).catch(() => setReviews([])) : setReviews([]);
+  React.useEffect(() => { load(); }, [a.id]);
+  const on = isInstalled(a.id);
+  return (
+    <Modal title={a.name} icon={a.icon} onClose={onClose} width={520}
+      actions={<><button className="tb-btn" onClick={onClose}>Cerrar</button>{on && <button className="tb-btn" onClick={onOpen}><Ic name="open_in_new" /> Abrir</button>}<button className={"tb-btn" + (on ? " danger" : " primary")} onClick={onToggle}>{on ? "Desinstalar" : "Instalar"}</button></>}>
+      <div style={{ display: "flex", gap: 14, alignItems: "center" }}><Tile icon={a.icon} color={a.color} size={64} app={a.id} />
+        <div><div className="faint" style={{ fontSize: 12 }}>{a.cat} · por Sebastian Sotomontes</div><div style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 4 }}>{a.desc}</div></div></div>
+      <div className="side-label" style={{ marginTop: 16 }}>Reseñas</div>
+      {cloud ? <div className="store-review-form"><Stars value={stars} size={22} onPick={setStars} />
+        <input placeholder="¿Qué te pareció? (opcional)" maxLength={1000} value={text} onChange={e => setText(e.target.value)} />
+        <button className="tb-btn primary" disabled={!stars} onClick={async () => { try { await api("POST", `store/${a.id}/reviews`, { stars, text }); toast("Gracias por tu reseña", { icon: "star" }); load(); loadInstalled(); } catch (e) { toast(e.message, { error: true }); } }}>Publicar</button></div>
+        : <div className="faint" style={{ fontSize: 12.5 }}>Inicia sesión para dejar una reseña.</div>}
+      <div className="store-reviews">{reviews?.map((r, i) => <div key={i} className="store-review"><Stars value={r.stars} size={13} /><b>{r.author}{r.mine ? " (tú)" : ""}</b><span className="faint">{new Date(r.created).toLocaleDateString("es-CO")}</span>{r.text && <div>{r.text}</div>}</div>)}
+        {reviews && !reviews.length && <div className="faint" style={{ fontSize: 12.5, padding: "6px 0" }}>Todavía nadie ha opinado.</div>}</div>
+    </Modal>
+  );
+}
+export { SettingsApp, StoreApp, WebApp };
