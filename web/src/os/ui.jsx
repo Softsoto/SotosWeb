@@ -52,6 +52,19 @@ export function animateWinGeometry(id) {
   el._geoT = setTimeout(() => el.classList.remove("win-geo"), MOTION.slow);
 }
 
+/* Controles de ventana de Sotos, dibujados: barra que baja, cuatro esquinas que se abren, X que gira */
+function WinGlyph({ kind }) {
+  const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.9, strokeLinecap: "round", strokeLinejoin: "round" };
+  return (
+    <svg className={"wcg-" + kind} viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">
+      {kind === "min" && <path className="wcg-bar" d="M4 11.5h8" {...p} strokeWidth="2.2" />}
+      {kind === "max" && <g {...p}><path className="c1" d="M3 6.2V3h3.2" /><path className="c2" d="M9.8 3H13v3.2" /><path className="c3" d="M13 9.8V13H9.8" /><path className="c4" d="M6.2 13H3V9.8" /></g>}
+      {kind === "restore" && <g {...p}><path className="c1" d="M6.2 3v3.2H3" /><path className="c2" d="M13 6.2H9.8V3" /><path className="c3" d="M9.8 13V9.8H13" /><path className="c4" d="M3 9.8h3.2V13" /></g>}
+      {kind === "close" && <g className="wcg-x" {...p}><path d="M4.2 4.2l7.6 7.6M11.8 4.2l-7.6 7.6" /></g>}
+    </svg>
+  );
+}
+
 /* -------------------- Window -------------------- */
 function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResize, children }) {
   const ref = useRef(null);
@@ -145,9 +158,9 @@ function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResi
         <span className="win-app"><Ic name={app.icon} size={16} /></span>
         <div className="title">{win.title || app.name}</div>
         <div className="win-ctrls">
-          <button onClick={onMin} title="Minimizar"><Ic name="minimize" size={18} /></button>
-          <button onClick={onMax} title={win.maximized ? "Restaurar" : "Maximizar"}><Ic name={win.maximized ? "filter_none" : "crop_square"} size={16} /></button>
-          <button className="close" onClick={onClose} title="Cerrar"><Ic name="close" size={18} /></button>
+          <button className="wc-min" onClick={onMin} title="Minimizar" aria-label="Minimizar"><WinGlyph kind="min" /></button>
+          <button className="wc-max" onClick={onMax} title={win.maximized ? "Restaurar" : "Maximizar"} aria-label={win.maximized ? "Restaurar" : "Maximizar"}><WinGlyph kind={win.maximized ? "restore" : "max"} /></button>
+          <button className="close wc-close" onClick={onClose} title="Cerrar" aria-label="Cerrar"><WinGlyph kind="close" /></button>
         </div>
       </div>
       <div className="win-body">{children}</div>

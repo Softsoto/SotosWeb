@@ -1707,3 +1707,33 @@ select.wg-input { padding: 0 4px; }
 [data-skin="grafito"] .folder-sym { color: rgba(30,36,42,.42); text-shadow: 0 1px 0 rgba(255,255,255,.35); }
 [data-skin="grafito"][data-theme="dark"] .folder-sym { color: rgba(0,0,0,.45); text-shadow: 0 1px 0 rgba(255,255,255,.12); }
 
+
+/* ============================================================
+   CONTROLES DE VENTANA — identidad Sotos (© 2026 Sebastian Sotomontes)
+   Fichas cuadradas; cada una con su color al pasar y un gesto propio.
+   ============================================================ */
+.win-ctrls { gap: 4px; padding-right: 4px; }
+.win-ctrls button { width: 28px !important; height: 26px !important; border-radius: 6px !important; color: var(--text-dim); background: transparent;
+  display: grid; place-items: center; transition: background-color var(--mo-fast) var(--mo-ease), color var(--mo-fast) var(--mo-ease), transform var(--mo-fast) var(--mo-ease); }
+.win-ctrls button svg { display: block; overflow: visible; }
+.win-ctrls button:active { transform: scale(.9); }
+.win-ctrls .wc-min:hover { background: #e8a33d !important; color: #fff !important; }
+.win-ctrls .wc-max:hover { background: #4f9e4a !important; color: #fff !important; }
+.win-ctrls .wc-close:hover { background: #d9452f !important; color: #fff !important; }
+/* gestos */
+.wcg-bar { transition: transform var(--mo-normal) var(--mo-ease); }
+.wc-min:hover .wcg-bar { transform: translateY(1.5px); }
+.wcg-max path, .wcg-restore path { transition: transform var(--mo-normal) var(--mo-ease); }
+.wc-max:hover .wcg-max .c1 { transform: translate(-1px, -1px); } .wc-max:hover .wcg-max .c2 { transform: translate(1px, -1px); }
+.wc-max:hover .wcg-max .c3 { transform: translate(1px, 1px); }  .wc-max:hover .wcg-max .c4 { transform: translate(-1px, 1px); }
+.wc-max:hover .wcg-restore .c1 { transform: translate(1px, 1px); } .wc-max:hover .wcg-restore .c2 { transform: translate(-1px, 1px); }
+.wc-max:hover .wcg-restore .c3 { transform: translate(-1px, -1px); } .wc-max:hover .wcg-restore .c4 { transform: translate(1px, -1px); }
+.wcg-x { transform-origin: 8px 8px; transition: transform var(--mo-normal) var(--mo-ease); }
+.wc-close:hover .wcg-x { transform: rotate(90deg); }
+/* ventana sin foco: controles más tenues */
+.window:not(.focused) .win-ctrls button { color: var(--text-faint); }
+/* Sotos (papel y tinta): fichas con contorno de tinta al pasar */
+[data-skin="sotos"] .win-ctrls button:hover, :root:not([data-skin]) .win-ctrls button:hover { box-shadow: inset 0 0 0 1.5px rgba(0,0,0,.25); }
+/* Grafito: más planas, esquina casi recta */
+[data-skin="grafito"] .win-ctrls button { border-radius: 3px !important; }
+@media (prefers-reduced-motion: reduce) { .win-ctrls svg * { transition: none !important; } }
