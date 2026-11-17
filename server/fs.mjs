@@ -25,6 +25,26 @@ function saveState(userId, version, state) {
     .run(userId, version, JSON.stringify(state), used);
 }
 
+/* ---------------- versiones (como getVersions de inevio) ----------------
+   Antes de sobrescribir un contenido se guarda el anterior en versions/<usuario>/<id>/<marca>.
+   Cambios seguidos (menos de 5 min) se agrupan en una sola versión; se guardan hasta 30. */
+const VERSION_DIR = path.join(BLOB_DIR, "_versions");
+const MAX_VERSIONS = 30, GROUP_MS = 5 * 60_000;
+const vdir = (userId, id) => { blobPath(userId, id); return path.join(VERSION_DIR, userId, id); };
+export function snapshotVersion(userId, id) {
+  const cur = blobPath(userId, id); if (!fs.existsSync(cur)) return;
+  const dir = vdir(userId, id); fs.mkdirSync(dir, { recursive: true });
+  const list = fs.readdirSync(dir).filter(f => /^\d+$/.test(f)).sort();
+  const last = list[list.length - 1];
+  if (last && Date.now() - Number(last) < GROUP_MS) return; // ya hay una versión reciente de esta tanda de cambios
+  fs.copyFileSync(cur, path.join(dir, String(Date.now())));
+  for (const old of list.slice(0, Math.max(0, list.length + 1 - MAX_VERSIONS))) fs.rmSync(path.join(dir, old), { force: true });
+}
+export function listVersions(userId, id) {
+  const dir = vdir(userId, id); if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir).filter(f => /^\d+$/.test(f)).sort().reverse().map(f => ({ at: Number(f), size: fs.statSync(path.join(dir, f)).size }));
+}
+
 export const blobPath = (userId, id) => {
   if (!SAFE_ID.test(id) || !SAFE_ID.test(userId)) fail(400, "Identificador no válido");
   return path.join(BLOB_DIR, userId, id);
@@ -84,6 +104,23 @@ export async function handleFs(req, res, parts) {
     catch (e) { fail(400, e.message); }
     return json(res, 200, { version });
   }
+  if (kind === "versions" && id) {
+    if (!userNode(user.id, id)) fail(404, "Archivo no encontrado");
+    const at = parts[2], action = parts[3];
+    if (!at && req.method === "GET") return json(res, 200, { items: listVersions(user.id, id) });
+    if (!/^\d+$/.test(at || "")) fail(400, "Versión no válida");
+    const vp = path.join(vdir(user.id, id), at); if (!fs.existsSync(vp)) fail(404, "Esa versión ya no existe");
+    if (!action && req.method === "GET") { const st = fs.statSync(vp); res.writeHead(200, { "content-type": "application/octet-stream", "content-length": st.size, "cache-control": "private, no-store" }); return pipeline(fs.createReadStream(vp), res); }
+    if (action === "restore" && req.method === "POST") {
+      const cur = blobPath(user.id, id);
+      // lo actual también queda como versión, por si te arrepientes
+      if (fs.existsSync(cur)) { const dir = vdir(user.id, id); fs.copyFileSync(cur, path.join(dir, String(Date.now()))); }
+      fs.copyFileSync(vp, cur);
+      const size = fs.statSync(cur).size;
+      const version = applyOps(user.id, [{ t: "write", id, size, mtime: Date.now() }], "versions");
+      return json(res, 200, { ok: true, size, version });
+    }
+  }
   if (kind === "blob" && id) {
     const p = blobPath(user.id, id);
     if (req.method === "GET") {
@@ -98,6 +135,7 @@ export async function handleFs(req, res, parts) {
       const used = db.prepare("SELECT used FROM fs_state WHERE user_id = ?").get(user.id)?.used || 0;
       if (used + len > user.quota) fail(507, "No queda espacio en tu cuenta");
       fs.mkdirSync(path.dirname(p), { recursive: true });
+      try { snapshotVersion(user.id, id); } catch {} // el contenido anterior pasa al historial
       const tmp = p + ".part-" + process.pid;
       let n = 0;
       try {

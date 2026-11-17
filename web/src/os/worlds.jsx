@@ -242,7 +242,7 @@ function WorldFiles({ w, openItem }) {
       if (ids.length) toast(`${ids.length} archivo(s) compartido(s) en ${w.name}`, { icon: "folder_shared" });
     } else if (e.dataTransfer.files?.length) uploadFiles([...e.dataTransfer.files]);
   };
-  const getBlob = async (n) => { const r = await api("GET", `worlds/${w.id}/fs/blob/${n.id}`, null, { raw: true }); return new Blob([await r.arrayBuffer()], { type: vfs.mimeOf(n.name) }); };
+  const getBlob = async (n) => { const r = await api("GET", `worlds/${w.id}/fs/blob/${n.id}?v=${n.mtime || 0}`, null, { raw: true }); return new Blob([await r.arrayBuffer()], { type: vfs.mimeOf(n.name) }); };
   const download = async (n) => { const b = await getBlob(n); const u = URL.createObjectURL(b); const a = document.createElement("a"); a.href = u; a.download = n.name; a.click(); setTimeout(() => URL.revokeObjectURL(u), 20_000); };
   const saveMine = async (n, open) => {
     const dest = vfs.resolve("/Descargas") || vfs.getState().root;

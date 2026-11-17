@@ -158,6 +158,12 @@ async function pull() {
   let s = r.state;
   for (const it of queue) if (it.k === "op") { try { const x = applyOp(s, it.op); s = { root: x.root, trash: x.trash }; } catch {} }
   version = r.version;
+  // contenidos que cambiaron en otro dispositivo (o al restaurar una versión): se descarta la copia local vieja
+  if (state.root) {
+    const before = new Map(); walk(n => { if (!n.children) before.set(n.id, n.mtime); });
+    const changed = []; const go = (n) => { if (n.children) n.children.forEach(go); else if (before.has(n.id) && before.get(n.id) !== n.mtime) changed.push(n.id); }; go(s.root);
+    for (const id of changed) await dropCache(id);
+  }
   commit({ root: s.root, trash: s.trash, sync: { ...state.sync, quota: r.quota, used: r.used } });
   return r;
 }
@@ -185,6 +191,11 @@ function exec(op) {
 /* ---------------- contenido ---------------- */
 const urlCache = new Map();
 const findAny = (id) => node(id) || state.trash.map(t => index(t.node).get(id)?.node).find(Boolean) || null;
+/** olvida la copia local de un contenido (se volverá a pedir al servidor) */
+export async function dropCache(id) {
+  await idb.del("blobs", id).catch(() => {});
+  const c = urlCache.get(id); if (c) { URL.revokeObjectURL(c.url); urlCache.delete(id); }
+}
 export async function read(id) {
   const n = findAny(id);
   if (!n) throw new Error("No existe");
@@ -192,7 +203,8 @@ export async function read(id) {
   if (b) return b;
   if (state.mode === "cloud" && (n.size > 0 || !n.url)) {
     try {
-      const r = await api("GET", "fs/blob/" + id, null, { raw: true });
+      // ?v=mtime: cada contenido tiene su dirección (el servidor lo marca inmutable para la caché del navegador)
+      const r = await api("GET", `fs/blob/${id}?v=${n.mtime || 0}`, null, { raw: true });
       const blob = new Blob([await r.arrayBuffer()], { type: mimeOf(n.name) });
       if (blob.size < 200 * 1024 * 1024) idb.put("blobs", id, blob).catch(() => {});
       return blob;

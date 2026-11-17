@@ -64,6 +64,20 @@ function WallThumb({ w, on, onPick }) {
   );
 }
 
+/* Copia de seguridad de la cuenta: descargar todo / importar una copia */
+function BackupRows() {
+  const [busy, setBusy] = useS4(null), inp = useR4(null);
+  const run = async (label, fn) => { setBusy(label + "…"); try { await fn((i, n) => setBusy(`${label} ${i} de ${n}…`)); } catch (e) { toast(e.message, { error: true }); } setBusy(null); };
+  return <>
+    <input ref={inp} type="file" accept=".zip" style={{ display: "none" }} onChange={e => { const f = e.target.files[0]; e.target.value = ""; if (f) run("Importando", async (p) => { const { importBackup } = await import("./backup.js"); const r = await importBackup(f, p); toast(`Copia importada: ${r.files} archivo(s), ${r.contacts} contacto(s), ${r.events} evento(s), ${r.tasks} tarea(s)`, { icon: "restore" }); }); }} />
+    <Row label="Copia de seguridad" desc={busy || "Todos tus archivos, contactos, calendario, tareas y ajustes en un .zip"}>
+      <div className="wl-btns" style={{ margin: 0 }}>
+        <button className="tb-btn" disabled={!!busy} onClick={() => run("Preparando", async (p) => { const { downloadBackup } = await import("./backup.js"); const size = await downloadBackup(p); toast(`Copia descargada (${fmtSize(size)})`, { icon: "download_done" }); })}><Ic name="cloud_download" /> Descargar copia</button>
+        <button className="tb-btn" disabled={!!busy} onClick={() => inp.current.click()}><Ic name="restore" /> Importar copia</button>
+      </div>
+    </Row>
+  </>;
+}
 function AccountPanel({ user, env, onLogout }) {
   const sync = useVfs(s => s.sync);
   const [cur, setCur] = useS4(""), [next, setNext] = useS4(""), [busy, setBusy] = useS4(false), [confirm, setConfirm] = useS4(false);
@@ -71,6 +85,7 @@ function AccountPanel({ user, env, onLogout }) {
     <h2 style={{ fontSize: 19, fontWeight: 800 }}>Cuenta</h2>
     <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.6, maxWidth: 520 }}>Estás usando Sotos como <b>invitado</b>: tus archivos viven solo en este navegador. {env?.server ? "Con una cuenta tus archivos te siguen a cualquier dispositivo y puedes compartirlos con enlaces." : "Este Sotos funciona sin servidor, así que las cuentas no están disponibles aquí."}</div>
     {env?.server && <div className="wl-btns" style={{ justifyContent: "flex-start" }}><button className="tb-btn primary" onClick={onLogout}><Ic name="login" /> Iniciar sesión o crear cuenta</button></div>}
+    <BackupRows />
     <Row label="Restablecer Sotos" desc="Borra todos los archivos y ajustes de este navegador">
       <button className="tb-btn danger" onClick={() => setConfirm(true)}><Ic name="restart_alt" /> Restablecer</button>
     </Row>
@@ -97,6 +112,7 @@ function AccountPanel({ user, env, onLogout }) {
     <Row label="Archivos de invitado" desc="Copia a tu cuenta lo que creaste sin iniciar sesión en este navegador">
       <button className="tb-btn" onClick={async () => { try { const n = await vfs.importGuest(); toast(n ? `${n} archivo(s) copiados a “Archivos de invitado”` : "No hay archivos de invitado en este navegador"); } catch { toast("No hay archivos de invitado en este navegador"); } }}><Ic name="drive_folder_upload" /> Importar</button>
     </Row>
+    <BackupRows />
     <div style={{ padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
       <div style={{ fontWeight: 600, fontSize: 14 }}>Cambiar contraseña</div>
       <div style={{ display: "flex", gap: 10, marginTop: 10, flexWrap: "wrap", alignItems: "flex-end" }}>

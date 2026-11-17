@@ -113,7 +113,9 @@ export function itemMenu(nodes, { canPaste } = {}) {
   if (one && isArchive(one)) items.push({ id: "unzip", label: "Extraer aquí", icon: "unarchive" });
   items.push({ id: "compress", label: nodes.length > 1 ? `Comprimir ${nodes.length} elementos en .zip` : "Comprimir en .zip", icon: "folder_zip" });
   items.push({ sep: true });
-  if (one) items.push({ id: "rename", label: "Renombrar", icon: "drive_file_rename_outline" }, { id: "props", label: "Propiedades", icon: "info" });
+  if (one) items.push({ id: "rename", label: "Renombrar", icon: "drive_file_rename_outline" });
+  if (one && one.type !== "folder" && vfs.getState().mode === "cloud") items.push({ id: "versions", label: "Versiones anteriores…", icon: "history" });
+  if (one) items.push({ id: "props", label: "Propiedades", icon: "info" });
   items.push({ id: "trash", label: "Mover a la papelera", icon: "delete", danger: true });
   return items;
 }
@@ -140,6 +142,7 @@ export async function runItemAction(id, nodes, { openItem, update, startRename, 
     case "props": showProps && showProps(one.id); return true;
     case "share": showShare ? showShare(one.id) : window.dispatchEvent(new CustomEvent("sotos-share", { detail: one.id })); return true;
     case "sendto": window.dispatchEvent(new CustomEvent("sotos-sendto", { detail: ids })); return true;
+    case "versions": window.dispatchEvent(new CustomEvent("sotos-versions", { detail: one.id })); return true;
     case "trash": {
       const n = vfs.trash(ids);
       if (n) toast(`${n} elemento(s) en la papelera`, { icon: "delete", action: { label: "Deshacer", run: () => vfs.restore(ids) } });
@@ -200,6 +203,7 @@ export function PropertiesModal({ id, onClose, openItem }) {
         <button className="tb-btn" onClick={() => act("download")}><Ic name="download" /> Descargar</button>
         {isArchive(n) && <button className="tb-btn" onClick={() => act("unzip")}><Ic name="unarchive" /> Extraer</button>}
         <button className="tb-btn" onClick={() => act("share")}><Ic name="group_add" /> Compartir</button>
+        {!isFolder && vfs.getState().mode === "cloud" && <button className="tb-btn" onClick={() => act("versions")}><Ic name="history" /> Versiones</button>}
         <button className="tb-btn primary" onClick={onClose}>Cerrar</button></>}>
       <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
         <div style={{ width: 70, display: "grid", placeItems: "center" }}><NodeGlyph node={n} size={56} /></div>
@@ -270,3 +274,26 @@ export function ShareDialog({ id, onClose }) {
 }
 
 export { fmtSize, fmtDate };
+
+/* ---------------- versiones anteriores ---------------- */
+export function VersionsDialog({ id, onClose }) {
+  const n = vfs.useVfs(() => vfs.node(id));
+  const [items, setItems] = useState(null), [busy, setBusy] = useState(false);
+  const load = () => api("GET", `fs/versions/${id}`).then(r => setItems(r.items)).catch(e => { toast(e.message, { error: true }); setItems([]); });
+  useEffect(() => { load(); }, [id]);
+  if (!n) return null;
+  const download = async (v) => { const r = await api("GET", `fs/versions/${id}/${v.at}`, null, { raw: true }); const b = new Blob([await r.arrayBuffer()], { type: vfs.mimeOf(n.name) });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = n.name.replace(/(\.[^.]+)?$/, ` (${new Date(v.at).toLocaleString("es-CO").replace(/[/:]/g, "-")})$1`); a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 20000); };
+  const restore = async (v) => { setBusy(true); try { await api("POST", `fs/versions/${id}/${v.at}/restore`, {}); await vfs.dropCache(id); toast(`“${n.name}” volvió a la versión del ${new Date(v.at).toLocaleString("es-CO")}`, { icon: "history" }); load(); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
+  return (
+    <Modal title={`Versiones de ${n.name}`} icon="history" onClose={onClose} width={500} actions={<button className="tb-btn primary" onClick={onClose}>Cerrar</button>}>
+      <div className="faint" style={{ fontSize: 12.5, marginBottom: 10 }}>Sotos guarda la versión anterior cada vez que el archivo cambia (los cambios seguidos se agrupan). Restaurar no borra la actual: también queda en esta lista.</div>
+      <div className="versions">
+        <div className="version-row now"><Ic name="radio_button_checked" /><span><b>Versión actual</b><span className="faint">{new Date(n.mtime).toLocaleString("es-CO")} · {fmtSize(n.size)}</span></span></div>
+        {items?.map(v => <div key={v.at} className="version-row"><Ic name="history" /><span><b>{new Date(v.at).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</b><span className="faint">{fmtSize(v.size)}</span></span>
+          <button className="tb-btn" onClick={() => download(v)}><Ic name="download" /> Descargar</button><button className="tb-btn" disabled={busy} onClick={() => restore(v)}><Ic name="restore" /> Restaurar</button></div>)}
+        {items && !items.length && <div className="faint" style={{ padding: 12, fontSize: 13 }}>Todavía no hay versiones anteriores de este archivo.</div>}
+      </div>
+    </Modal>
+  );
+}

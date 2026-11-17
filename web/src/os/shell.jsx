@@ -9,7 +9,7 @@ import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toast
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, DESKTOP } from "./vfs.js";
-import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl, ShareDialog } from "./files-ui.jsx";
+import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl, ShareDialog, VersionsDialog } from "./files-ui.jsx";
 import { LoginScreen } from "./auth-ui.jsx";
 import { wallUrl, isWall } from "./wallpapers.js";
 import { GlobalContextMenu } from "./context-menu.jsx";
@@ -456,7 +456,8 @@ function OS() {
   const lastUser = (() => { try { return JSON.parse(localStorage.getItem("sotos_last_user")); } catch { return null; } })();
   const [spot, setSpot] = useSh(false);
   const [shareId, setShareId] = useSh(null);
-  const [sendId, setSendId] = useSh(null);
+  const [sendId, setSendId] = useSh(null), [versionsId, setVersionsId] = useSh(null);
+  useEh(() => { const f = (e) => setVersionsId(e.detail); window.addEventListener("sotos-versions", f); return () => window.removeEventListener("sotos-versions", f); }, []);
   useEh(() => { const f = (e) => setSendId(e.detail); window.addEventListener("sotos-sendto", f); return () => window.removeEventListener("sotos-sendto", f); }, []);
   const [demoWelcome, setDemoWelcome] = useSh(() => { try { return !localStorage.getItem("sotos_demo_seen"); } catch { return true; } });
   const zTop = useRh(10);
@@ -657,6 +658,7 @@ function OS() {
       {spot && <Spotlight onOpen={openItem} onApp={openApp} onClose={() => setSpot(false)} />}
       {shareId && <ShareDialog id={shareId} onClose={() => setShareId(null)} />}
       {sendId && <SendToDialog nodeId={sendId} onClose={() => setSendId(null)} />}
+      {versionsId && <VersionsDialog id={versionsId} onClose={() => setVersionsId(null)} />}
       <GlobalContextMenu openApp={openApp} winAction={winAction} />
       {DEMO && demoWelcome && <DemoWelcome onApp={openApp} onClose={() => { setDemoWelcome(false); try { localStorage.setItem("sotos_demo_seen", "1"); } catch {} }} />}
       <Toasts />
