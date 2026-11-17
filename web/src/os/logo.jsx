@@ -57,4 +57,32 @@ function SotosLogo({ size = 96, animate = false, badge = true }) {
     </div>
   );
 }
-export { SotosLogo };
+/* ------------------------------------------------------------
+   Marca de Sotos: una S de dos arcos dentro de una órbita abierta
+   (los archivos dan la vuelta por la nube). Un solo color, legible
+   desde 16 px. variant "mono" usa currentColor; "tile" va en ficha.
+   © 2026 Sebastian Sotomontes
+   ------------------------------------------------------------ */
+export const MARK_PATHS = {
+  s: "M61.3 30.5 A13 13 0 1 0 50 50 A13 13 0 1 1 38.7 69.5",
+  orbit: "M77 23 A38 38 0 0 1 23 77 M23 77 A38 38 0 0 1 77 23",
+};
+function SotosMark({ size = 24, variant = "mono", color, spin = false, title = "Sotos" }) {
+  const ink = variant === "tile" ? "#fff" : (color || "currentColor");
+  return (
+    <svg className={"sotos-mark" + (spin ? " spin" : "")} viewBox="0 0 100 100" width={size} height={size} role="img" aria-label={title}>
+      {variant === "tile" && <rect x="0" y="0" width="100" height="100" rx="22" fill={color || "var(--accent)"} />}
+      <g fill="none" stroke={ink} strokeLinecap="round">
+        <circle className="sm-orbit" cx="50" cy="50" r="40" strokeWidth="6" strokeDasharray="100 25.66" strokeDashoffset="18.5" />
+        <path d={MARK_PATHS.s} strokeWidth="11" />
+      </g>
+      <circle className="sm-dot" cx="78.3" cy="21.7" r="6" fill={ink} />
+    </svg>
+  );
+}
+/** SVG del favicon (ficha de color) como data URL */
+export function markDataUrl(bg = "#c4532f") {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="${bg}"/><g fill="none" stroke="#fff" stroke-linecap="round"><circle cx="50" cy="50" r="40" stroke-width="6" stroke-dasharray="100 25.66" stroke-dashoffset="18.5"/><path d="${MARK_PATHS.s}" stroke-width="11"/></g><circle cx="78.3" cy="21.7" r="6" fill="#fff"/></svg>`;
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+}
+export { SotosLogo, SotosMark };

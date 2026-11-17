@@ -5,7 +5,7 @@
 import React from "react";
 import { Ic, Avatar } from "./ui.jsx";
 import { api } from "./api.js";
-import { SotosLogo } from "./logo.jsx";
+import { SotosMark } from "./logo.jsx";
 const { useState, useEffect } = React;
 
 export function LoginScreen({ wallpaper, server, registration, lastUser, onAccount, onGuest }) {
@@ -35,7 +35,7 @@ export function LoginScreen({ wallpaper, server, registration, lastUser, onAccou
       </div>
       <div className="login-card">
         {mode === "choose" && <>
-          <div className="login-logo"><SotosLogo size={92} /></div>
+          <div className="login-logo"><SotosMark size={84} variant="tile" /></div>
           <div className="login-user">Bienvenido a Sotos</div>
           <div className="login-sub">Tu ordenador en la nube</div>
           <button className="login-enter" onClick={() => setMode("login")}><Ic name="login" size={20} /> Iniciar sesión</button>

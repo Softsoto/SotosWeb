@@ -1,3 +1,4 @@
+import { liveUrl, OPEN_MOVIES } from "./open-movies.js";
 /* ============================================================
    Sotos OS — sistema de archivos virtual (VFS) con sincronización
    © 2026 Sebastian Sotomontes
@@ -106,6 +107,12 @@ export function resolve(path, cwdId = ROOT) {
   }
   return cur;
 }
+/** cuentas creadas antes del cambio de vídeos de ejemplo: renombra los 4 archivos una sola vez */
+export function migrateSampleVideos() {
+  const olds = []; walk(n => { if (n.url && n.url.includes("gtv-videos-bucket")) { const m = OPEN_MOVIES.find(v => n.url.includes("/" + v.legacy + ".")); if (m && n.name === m.oldName) olds.push([n.id, m.name]); } });
+  olds.forEach(([id, name]) => { try { rename(id, name); } catch {} });
+  return olds.length;
+}
 export function walk(fn, from) { const go = (n) => { fn(n); (n.children || []).forEach(go); }; if (state.root) go(from || state.root); }
 export function search(q, limit = 30) { const out = []; const ql = q.toLowerCase(); walk(n => { if (n.id !== ROOT && n.name.toLowerCase().includes(ql) && out.length < limit) out.push(n); }); return out; }
 export const allOfType = (types) => { const out = []; walk(n => { if (types.includes(n.type)) out.push(n); }); return out; };
@@ -190,7 +197,7 @@ export async function read(id) {
       return blob;
     } catch (e) { if (!n.url) { if (e.status === 404) return new Blob([], { type: mimeOf(n.name) }); throw e; } }
   }
-  if (n.url) { const r = await fetch(n.url); if (!r.ok) throw new Error("No se pudo descargar"); return r.blob(); }
+  if (n.url) { const r = await fetch(liveUrl(n.url)); if (!r.ok) throw new Error("No se pudo descargar"); return r.blob(); }
   return new Blob([], { type: mimeOf(n.name) });
 }
 export const readText = async (id) => (await read(id)).text();
@@ -198,7 +205,7 @@ export const readText = async (id) => (await read(id)).text();
 export const cachedBlob = (id) => idb.get("blobs", id).catch(() => null);
 export async function objectUrl(id) {
   const n = node(id);
-  if (n && n.url && !(n.size > 0) && !(await idb.get("blobs", id))) return n.url;
+  if (n && n.url && !(n.size > 0) && !(await idb.get("blobs", id))) return liveUrl(n.url);
   const cached = urlCache.get(id); if (cached && cached.rev === n?.mtime) return cached.url;
   const b = await read(id); const url = URL.createObjectURL(b);
   if (cached) URL.revokeObjectURL(cached.url);

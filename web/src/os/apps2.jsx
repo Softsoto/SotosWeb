@@ -9,6 +9,13 @@ import { useVfs, fmtSize, fmtDate } from "./vfs.js";
 import { NodeGlyph, dropTarget, useObjectUrl } from "./files-ui.jsx";
 import { PdfViewer } from "./pdf-viewer.jsx";
 import { useTrackInfo } from "./id3.js";
+import { useVideoThumb } from "./video-thumb.js";
+import { movieCredit } from "./open-movies.js";
+import { coverOf } from "./cover-art.js";
+function VidThumb({ v }) {
+  const t = useVideoThumb(v);
+  return <div className="vid-thumb" style={{ background: t ? `center / cover no-repeat url("${t}")` : colorOf(v.id) }}><Ic name="play_arrow" size={20} /></div>;
+}
 const { useState: useS2, useRef: useR2, useEffect: useE2 } = React;
 
 const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -18,9 +25,12 @@ const COLORS = ["#c4532f", "#4f7a3a", "#2f5d8a", "#c9902a", "#7a3e6b", "#1f7a78"
 const colorOf = (id) => COLORS[[...id].reduce((s, c) => s + c.charCodeAt(0), 0) % COLORS.length];
 const fmtT = s => (!isFinite(s) ? "0:00" : `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`);
 // carátula: imagen de la etiqueta ID3 o un cuadro del color de la pista
+// portada: la de la etiqueta del archivo; si no trae, una dibujada para su álbum (misma portada para el mismo álbum)
+
 function Cover({ info, id, size, radius = 7, icon }) {
-  return info?.cover
-    ? <img className="track-cover" src={info.cover} alt="" style={{ width: size, height: size, borderRadius: radius, flex: `0 0 ${size}px` }} />
+  const src = coverOf(info);
+  return src
+    ? <img className="track-cover" src={src} alt="" style={{ width: size, height: size, borderRadius: radius, flex: `0 0 ${size}px` }} />
     : <div className="track-cover" style={{ width: size, height: size, borderRadius: radius, background: id ? colorOf(id) : "var(--surface-3)", flex: `0 0 ${size}px` }}>{icon && <Ic name={icon} size={size * 0.45} />}</div>;
 }
 function TrackRow({ tr, i, on, playing, fav, onPlay, onFav, onMenu }) {
@@ -82,7 +92,7 @@ function MusicApp({ fileId }) {
   // controles del sistema (teclas multimedia, pantalla de bloqueo del móvil)
   useE2(() => {
     if (!("mediaSession" in navigator) || !cur) return;
-    navigator.mediaSession.metadata = new MediaMetadata({ title: info.title, artist: info.artist, album: info.album, artwork: info.cover ? [{ src: info.cover, sizes: "512x512" }] : [] });
+    navigator.mediaSession.metadata = new MediaMetadata({ title: info.title, artist: info.artist, album: info.album, artwork: coverOf(info) ? [{ src: coverOf(info), sizes: "300x300" }] : [] });
     navigator.mediaSession.setActionHandler("play", () => setPlaying(true));
     navigator.mediaSession.setActionHandler("pause", () => setPlaying(false));
     navigator.mediaSession.setActionHandler("nexttrack", () => next());
@@ -188,10 +198,10 @@ function VideoApp({ fileId }) {
           <button className="tb-btn icon" title="Añadir vídeo" onClick={() => up.current.click()}><Ic name="add" /></button></div>
         {vids.map(v => (
           <div key={v.id} onClick={() => setCurId(v.id)} className={"vid-row" + (cur?.id === v.id ? " on" : "")}>
-            <div className="vid-thumb" style={{ background: colorOf(v.id) }}><Ic name="play_arrow" size={20} /></div>
+            <VidThumb v={v} />
             <div style={{ minWidth: 0 }}>
               <div className="track-title" style={{ fontSize: 13 }}>{v.name.replace(/\.[^.]+$/, "")}</div>
-              <div className="faint" style={{ fontSize: 11.5 }}>{v.online && !v.size ? "En línea" : fmtSize(v.size)}</div>
+              <div className="faint" style={{ fontSize: 11.5 }}>{v.online && !v.size ? (v.meta?.credit || movieCredit(v.url) || "En línea") : fmtSize(v.size)}</div>
             </div>
           </div>
         ))}

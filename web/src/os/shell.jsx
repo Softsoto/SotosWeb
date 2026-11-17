@@ -4,7 +4,7 @@
    ============================================================ */
 import React from "react";
 import { APPS, APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, DEFAULT_SHORTCUTS } from "./data.jsx";
-import { SotosLogo } from "./logo.jsx";
+import { SotosLogo, SotosMark } from "./logo.jsx";
 import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, animateWinOut, animateWinGeometry } from "./ui.jsx";
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
@@ -27,7 +27,7 @@ function DemoWelcome({ onClose, onApp }) {
   return (
     <div className="share-modal" onMouseDown={onClose}>
       <div className="share-card demo-card" onMouseDown={e => e.stopPropagation()}>
-        <SotosLogo size={64} />
+        <SotosMark size={64} variant="tile" />
         <div className="demo-title">Bienvenido al demo de Sotos</div>
         <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.55 }}>Un ordenador completo dentro del navegador. En el demo no hay servidor: todo lo que hagas se guarda <b>solo en este navegador</b>. Con Sotos instalado tendrás cuentas, nube, compartir y el navegador con proxy.</div>
         <div className="demo-tips">{tips.map(([i, t]) => <div key={i}><Ic name={i} size={18} /><span>{t}</span></div>)}</div>
@@ -108,7 +108,7 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout,
 
   return (
     <div className="menubar">
-      <div className="brand" onClick={() => onApp("settings")} style={{ cursor: "pointer" }}><SotosLogo size={19} badge={false} />Sotos</div>
+      <div className="brand" onClick={() => onApp("settings")} style={{ cursor: "pointer" }}><SotosMark size={17} />Sotos</div>
       <div className="menu-item active-app">{activeApp ? activeApp.name : "Escritorio"}</div>
       {Object.keys(MENUS).map(name => (
         <div key={name} className="menu-wrap" onMouseDown={e => e.stopPropagation()}>
@@ -205,8 +205,10 @@ function Dock({ position, order, running, minimized, onApp, dockApi }) {
   };
   return (
     <div className={"dock " + position}>
+      {position.includes("rail") && <button className="rail-logo" title="Aplicaciones" onClick={() => onApp("launchpad")}><SotosMark size={32} /></button>}
       {order.map((id, i) => {
         if (id === "__div__") return <div key={"d" + i} className="divider" />;
+        if (id === "launchpad" && position.includes("rail")) return null; // en el riel, la marca abre Aplicaciones
         const app = APP_BY_ID[id]; if (!app) return null;
         return (
           <button key={id} className="dock-item" data-app={id} draggable
@@ -351,7 +353,7 @@ function BootScreen({ onDone, quick, task }) {
   }, []);
   return (
     <div className="boot">
-      <div className="boot-logo"><SotosLogo size={120} animate /></div>
+      <div className="boot-logo"><SotosMark size={116} variant="tile" spin /></div>
       <div className="boot-name">Sotos</div>
       {!err && <div className="boot-bar"><div className="boot-fill" /></div>}
       <div className="boot-tag">{err ? "No se pudo iniciar el almacenamiento: " + err : slow ? "Preparando tus archivos por primera vez…" : "tu ordenador en la nube"}</div>
@@ -563,7 +565,8 @@ function OS() {
   }, [stage]);
 
   // arranque: ¿hay servidor? ¿hay sesión? → nube; si no, invitado recordado o pantalla de acceso
-  const bootTask = useCh(async () => {
+  const bootTask = useCh(async () => { const r = await bootInner(); try { vfs.migrateSampleVideos(); } catch {} return r; }, []);
+  const bootInner = useCh(async () => {
     if (DEMO) { await vfs.init(); localStorage.setItem("sotos_in", "1"); return "desktop"; } // demo: directo al escritorio, como invitado
     const server = await hasServer();
     let me = null, registration = "open";
@@ -613,7 +616,7 @@ function OS() {
       <Desktop shifted={settings.dock === "left" || settings.skin === "grafito"} openApp={openApp} openItem={openItem} settings={settings} update={update} widgetApi={widgetApi} />
       {widgets.map(w => (
         <Widget key={w.id} w={w} note={notes[w.id]} onNote={setNote}
-          onMove={widgetApi.move} onClose={widgetApi.remove} />
+          onMove={widgetApi.move} onClose={widgetApi.remove} onOpen={openItem} />
       ))}
       {wins.map(win => {
         const app = APP_BY_ID[win.appId];

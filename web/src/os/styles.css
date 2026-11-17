@@ -1589,3 +1589,121 @@ input[type="checkbox"]:checked, input[type="radio"]:checked { animation: mo-ring
 .wall-credit:hover { color: var(--accent); text-decoration: underline; }
 [data-wallgray="1"] .wall-thumb[title] .wall-img { filter: grayscale(1); }
 
+
+
+
+
+/* marca de Sotos */
+.sotos-mark { display: block; flex: 0 0 auto; }
+.sotos-mark.spin .sm-orbit { transform-origin: 50px 50px; animation: sm-orbit 9s linear infinite; }
+.sotos-mark.spin .sm-dot { transform-origin: 50px 50px; animation: sm-orbit 9s linear infinite; }
+@keyframes sm-orbit { to { transform: rotate(360deg); } }
+.menubar .brand .sotos-mark { margin-right: 1px; }
+.boot-logo .sotos-mark, .about-logo .sotos-mark, .login-logo .sotos-mark { filter: drop-shadow(0 6px 18px rgba(0,0,0,.25)); }
+.about-mascots { display: flex; justify-content: center; margin-top: 10px; }
+.about-thanks { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border-strong); display: flex; gap: 5px; justify-content: center; align-items: baseline; flex-wrap: wrap; }
+.about-thanks .faint { font-size: 11px; letter-spacing: .1em; text-transform: uppercase; margin-right: 4px; }
+/* riel de Grafito: la marca arriba, como botón de Aplicaciones */
+.rail-logo { width: 50px; height: 44px; flex: 0 0 44px; display: grid; place-items: center; border: 0; background: none; color: #fff; cursor: pointer; margin-bottom: 4px; transition: transform var(--mo-fast) var(--mo-ease), opacity var(--mo-fast); opacity: .92; }
+.rail-logo:hover { opacity: 1; }
+.rail-logo:active { transform: scale(.92); }
+
+/* widgets nuevos */
+.widget { min-width: 176px; }
+.wg-seg { display: flex; gap: 2px; background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 2px; }
+.wg-seg button { border: 0; background: none; font: inherit; font-size: 11px; font-weight: 600; padding: 3px 7px; border-radius: 4px; color: var(--text-dim); cursor: pointer; }
+.wg-seg button.on { background: var(--surface); color: var(--text); box-shadow: 0 1px 2px rgba(0,0,0,.12); }
+.wg-timer-num { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; font: 700 21px var(--mono); font-variant-numeric: tabular-nums; }
+.wg-timer-num span { font: 600 9.5px var(--ui); color: var(--text-faint); letter-spacing: .08em; text-transform: uppercase; margin-top: 2px; }
+.wg-row { display: flex; gap: 6px; align-items: center; justify-content: center; }
+.wg-btn { width: 34px; height: 30px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); display: grid; place-items: center; cursor: pointer; }
+.wg-btn.primary { background: var(--accent); border-color: transparent; color: #fff; }
+.wg-mini { width: 24px; height: 22px; border-radius: 4px; border: 1px solid var(--border-strong); background: var(--surface-2); color: var(--text); cursor: pointer; }
+.wg-calc-screen { background: var(--surface-2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px; text-align: right; display: flex; flex-direction: column; min-height: 46px; justify-content: center; }
+.wg-calc-screen span { font: 600 16px var(--mono); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-calc-screen b { font: 500 11.5px var(--mono); color: var(--text-faint); min-height: 14px; }
+.wg-calc { display: grid; grid-template-columns: repeat(4, 38px); gap: 4px; }
+.wg-calc button { height: 30px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface); color: var(--text); font: 600 13px var(--ui); cursor: pointer; transition: background-color var(--mo-fast); }
+.wg-calc button:hover { background: var(--hover); }
+.wg-calc button.op { background: var(--surface-3); }
+.wg-calc button:last-child { background: var(--accent); color: #fff; border-color: transparent; }
+.wg-calc button.clr { color: #d9452f; }
+.wg-file { display: flex; align-items: center; gap: 7px; border: 0; background: none; color: var(--text); font: inherit; font-size: 12.5px; padding: 5px 6px; border-radius: 5px; cursor: pointer; text-align: left; width: 210px; }
+.wg-file:hover { background: var(--hover); }
+.wg-file .material-symbols-rounded { color: var(--text-faint); }
+.wg-file span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-file em { font-style: normal; font-size: 10.5px; color: var(--text-faint); white-space: nowrap; }
+.wg-zone { display: flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 4px 0; border-bottom: 1px solid var(--border); min-width: 196px; }
+.wg-zone:last-child { border-bottom: 0; }
+.wg-zone .material-symbols-rounded { color: var(--text-faint); }
+.wg-zone span { flex: 1; }
+.wg-zone b { font: 700 13px var(--mono); font-variant-numeric: tabular-nums; }
+.wg-zone em { font-style: normal; font-size: 10px; color: var(--accent); width: 14px; }
+.wg-fx { display: flex; justify-content: space-between; gap: 12px; font-size: 12.5px; min-width: 176px; }
+.wg-fx b { font: 700 13px var(--mono); }
+.wg-fx.total { border-top: 1px solid var(--border); padding-top: 5px; }
+.wg-fx.total b { color: var(--accent); }
+select.wg-input { padding: 0 4px; }
+
+/* ---- Grafito v2: dock translúcido y fichas con símbolos dibujados a mano ---- */
+.tile-glyph { display: none; }
+[data-skin="grafito"] .tile-glyph { display: block; position: relative; z-index: 1; width: 64%; height: 64%; color: #fff; filter: drop-shadow(0 1px 0 rgba(0,0,0,.3)); overflow: visible; }
+[data-skin="grafito"] .tile:has(.tile-glyph) > .material-symbols-rounded { display: none; }
+[data-skin="grafito"] .tile[data-app="music"] .tile-glyph { color: #2f86e0; filter: none; }
+[data-skin="grafito"] .tile[data-app="pdf"] .tile-glyph { color: #e0352b; filter: none; }
+[data-skin="grafito"] .tile[data-app="mail"] .tile-glyph { color: #d93a30; filter: none; }
+[data-skin="grafito"] .tile[data-app="browser"] .tile-glyph, [data-skin="grafito"] .tile[data-app="web"] .tile-glyph { color: #2a7de1; filter: none; }
+/* ficha: degradado marcado, filo claro arriba y borde oscuro abajo, como lámina brillante */
+[data-skin="grafito"] .tile { border-radius: 4px;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.5), inset 0 -2px 0 rgba(0,0,0,.18), 0 0 0 1px rgba(0,0,0,.28), 0 2px 3px rgba(0,0,0,.3); }
+[data-skin="grafito"] .tile::after { height: 48% !important; background: linear-gradient(180deg, rgba(255,255,255,.22), rgba(255,255,255,.08)) !important; }
+/* dock translúcido (sin vidrio esmerilado): se ve el fondo detrás */
+[data-skin="grafito"][data-theme="light"] { --rail: rgba(24, 32, 40, .8); }
+[data-skin="grafito"][data-theme="dark"] { --rail: rgba(14, 18, 22, .84); }
+[data-skin="grafito"] .dock.rail { background: var(--rail); box-shadow: 1px 0 0 rgba(255,255,255,.06); padding: 6px 5px; gap: 5px; }
+[data-skin="grafito"] .dock.rail .dock-item { width: 54px; height: 54px; flex-basis: 54px; }
+[data-skin="grafito"] .dock.rail .tile { border-radius: 4px; }
+[data-skin="grafito"] .dock.rail .run-dot { left: -5px; }
+[data-skin="grafito"] .menubar { background: var(--rail); }
+
+/* miniaturas de vídeo */
+.vid-glyph { position: relative; display: inline-block; border-radius: 3px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.18), 0 2px 5px rgba(0,0,0,.25); background: #111; flex: 0 0 auto; }
+.vid-glyph img { width: 100%; height: 100%; object-fit: cover; display: block; animation: mo-fade var(--mo-normal) var(--mo-ease); }
+.vid-glyph-play { position: absolute; inset: 0; display: grid; place-items: center; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.7); }
+.vid-thumb { background-size: cover !important; }
+.vid-thumb .material-symbols-rounded { text-shadow: 0 1px 4px rgba(0,0,0,.7); }
+
+.game-group { font-weight: 700; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-faint); margin: 2px 0 10px; }
+.pixel-cover { width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; }
+.game-cover { overflow: hidden; }
+
+
+.game-card { color: var(--text); font: inherit; }
+[data-skin="grafito"] .game-card { border-radius: 4px; box-shadow: var(--shadow-card); }
+[data-skin="grafito"] .game-card:hover { transform: translateY(-2px); }
+
+
+/* juego abierto: sin barra, el juego ocupa la ventana; "volver" aparece al pasar el ratón */
+.game-full { position: relative; }
+.game-back { position: absolute; top: 10px; left: 10px; z-index: 5; display: inline-flex; align-items: center; gap: 4px; padding: 5px 10px 5px 7px; border: 0; border-radius: 4px;
+  background: rgba(0,0,0,.55); color: #fff; font: 600 12.5px var(--ui); cursor: pointer; opacity: 0; transition: opacity var(--mo-normal) var(--mo-ease); }
+.game-full:hover .game-back, .game-back:focus-visible { opacity: 1; }
+.game-back:hover { background: rgba(0,0,0,.8); }
+
+.game-cover.pixel { height: auto; aspect-ratio: 136 / 150; background: #06040e !important; padding: 0; }
+.game-cover.pixel .pixel-cover { object-fit: contain; }
+
+
+/* carpetas del sistema y canciones con portada */
+.folder-glyph { position: relative; display: inline-grid; place-items: center; flex: 0 0 auto; }
+.folder-glyph > .material-symbols-rounded:first-child { grid-area: 1 / 1; }
+.folder-sym { grid-area: 1 / 1; margin-top: 12%; color: rgba(255,255,255,.92); font-variation-settings: "FILL" 1; text-shadow: 0 1px 0 rgba(0,0,0,.2); pointer-events: none; }
+[data-skin="grafito"] .folder-sym { color: #fff; }
+.audio-glyph { position: relative; display: inline-block; border-radius: 4px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0,0,0,.15), 0 2px 5px rgba(0,0,0,.22); flex: 0 0 auto; }
+.audio-glyph img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.audio-badge { position: absolute; right: 2px; bottom: 2px; color: #fff; background: rgba(0,0,0,.5); border-radius: 50%; padding: 1px; }
+
+.folder-sym { margin-top: 14%; }
+[data-skin="grafito"] .folder-sym { color: rgba(30,36,42,.42); text-shadow: 0 1px 0 rgba(255,255,255,.35); }
+[data-skin="grafito"][data-theme="dark"] .folder-sym { color: rgba(0,0,0,.45); text-shadow: 0 1px 0 rgba(255,255,255,.12); }
+

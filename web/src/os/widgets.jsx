@@ -2,7 +2,7 @@
    Sotos OS — Desktop widgets
    ============================================================ */
 import React from "react";
-import { Ic } from "./ui.jsx";
+import { Ic, toast } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize } from "./vfs.js";
 const { useState: useSw, useEffect: useEw } = React;
@@ -13,7 +13,146 @@ const WIDGET_TYPES = [
   { id: "weather", name: "Clima",         icon: "wb_sunny" },
   { id: "note",    name: "Nota adhesiva", icon: "sticky_note_2" },
   { id: "storage", name: "Almacenamiento",icon: "donut_large" },
+  { id: "timer",   name: "Temporizador",  icon: "timer" },
+  { id: "calc",    name: "Calculadora",   icon: "calculate" },
+  { id: "recent",  name: "Recientes",     icon: "history" },
+  { id: "world",   name: "Reloj mundial", icon: "public" },
+  { id: "fx",      name: "Monedas",       icon: "currency_exchange" },
+  { id: "system",  name: "Sistema",       icon: "memory" },
 ];
+const store = (k, v) => { try { if (v === undefined) return JSON.parse(localStorage.getItem(k)); localStorage.setItem(k, JSON.stringify(v)); } catch { return null; } };
+
+/* Temporizador: pomodoro 25/5, cuenta atrás libre y cronómetro */
+function beep() { try { const a = new (window.AudioContext || window.webkitAudioContext)(); [0, .25, .5].forEach(t => { const o = a.createOscillator(), g = a.createGain(); o.frequency.value = 880; g.gain.setValueAtTime(.18, a.currentTime + t); g.gain.exponentialRampToValueAtTime(.001, a.currentTime + t + .2); o.connect(g).connect(a.destination); o.start(a.currentTime + t); o.stop(a.currentTime + t + .21); }); } catch {} }
+function TimerWidget({ id }) {
+  const key = "sotos_timer_" + id;
+  const [st, setSt] = useSw(() => store(key) || { mode: "pomo", phase: "work", total: 25 * 60, end: null, left: 25 * 60, mins: 10, sw: 0, swStart: null });
+  const [, tick] = useSw(0);
+  useEw(() => { store(key, st); }, [st]);
+  useEw(() => { const t = setInterval(() => tick(x => x + 1), 250); return () => clearInterval(t); }, []);
+  const now = Date.now();
+  const running = st.mode === "sw" ? !!st.swStart : !!st.end;
+  const left = st.end ? Math.max(0, Math.round((st.end - now) / 1000)) : st.left;
+  const sw = st.sw + (st.swStart ? now - st.swStart : 0);
+  useEw(() => {
+    if (st.mode !== "sw" && st.end && left === 0) {
+      beep();
+      if (st.mode === "pomo") { const ph = st.phase === "work" ? "rest" : "work", tot = (ph === "work" ? 25 : 5) * 60; setSt(s => ({ ...s, phase: ph, total: tot, left: tot, end: null })); toast(ph === "rest" ? "¡Pomodoro terminado! Toma 5 minutos." : "Descanso terminado. ¡A trabajar!", { icon: "timer" }); }
+      else { setSt(s => ({ ...s, left: s.total, end: null })); toast("¡Se acabó el tiempo!", { icon: "timer" }); }
+    }
+  });
+  const fmt = (sec) => `${String(Math.floor(sec / 60)).padStart(2, "0")}:${String(sec % 60).padStart(2, "0")}`;
+  const setMode = (m) => setSt(s => ({ ...s, mode: m, end: null, swStart: null, ...(m === "pomo" ? { phase: "work", total: 1500, left: 1500 } : m === "count" ? { total: s.mins * 60, left: s.mins * 60 } : {}) }));
+  const toggle = () => setSt(s => s.mode === "sw" ? (s.swStart ? { ...s, sw: s.sw + Date.now() - s.swStart, swStart: null } : { ...s, swStart: Date.now() })
+    : (s.end ? { ...s, left: Math.max(0, Math.round((s.end - Date.now()) / 1000)), end: null } : { ...s, end: Date.now() + s.left * 1000 }));
+  const reset = () => setSt(s => s.mode === "sw" ? { ...s, sw: 0, swStart: null } : { ...s, end: null, left: s.total });
+  const pct = st.mode === "sw" ? 0 : 1 - left / st.total, r = 40, c = 2 * Math.PI * r;
+  return (
+    <div className="wg-body" style={{ alignItems: "center", gap: 6 }}>
+      <div className="wg-seg">{[["pomo", "Pomodoro"], ["count", "Timer"], ["sw", "Crono"]].map(([m, l]) => <button key={m} className={st.mode === m ? "on" : ""} onClick={() => setMode(m)}>{l}</button>)}</div>
+      <div style={{ position: "relative", width: 104, height: 104 }}>
+        <svg viewBox="0 0 100 100" style={{ width: 104, height: 104 }}><circle cx="50" cy="50" r={r} fill="none" stroke="var(--surface-3)" strokeWidth="7" />
+          {st.mode !== "sw" && <circle cx="50" cy="50" r={r} fill="none" stroke={st.phase === "rest" && st.mode === "pomo" ? "#2f9e57" : "var(--accent)"} strokeWidth="7" strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - pct)} transform="rotate(-90 50 50)" />}</svg>
+        <div className="wg-timer-num">{st.mode === "sw" ? `${fmt(Math.floor(sw / 1000))}.${Math.floor(sw / 100) % 10}` : fmt(left)}
+          <span>{st.mode === "pomo" ? (st.phase === "work" ? "enfoque" : "descanso") : st.mode === "count" ? "temporizador" : "cronómetro"}</span></div>
+      </div>
+      {st.mode === "count" && !running && <div className="wg-row"><button className="wg-mini" onClick={() => setSt(s => { const m = Math.max(1, s.mins - 1); return { ...s, mins: m, total: m * 60, left: m * 60 }; })}>−</button><span style={{ fontSize: 12 }}>{st.mins} min</span><button className="wg-mini" onClick={() => setSt(s => { const m = Math.min(180, s.mins + 1); return { ...s, mins: m, total: m * 60, left: m * 60 }; })}>+</button></div>}
+      <div className="wg-row"><button className="wg-btn primary" onClick={toggle}><Ic name={running ? "pause" : "play_arrow"} size={18} /></button><button className="wg-btn" onClick={reset}><Ic name="restart_alt" size={18} /></button></div>
+    </div>
+  );
+}
+
+/* Calculadora con evaluador propio (sin eval): + − × ÷ %, paréntesis y decimales */
+function calc(expr) {
+  const t = expr.replace(/×/g, "*").replace(/÷/g, "/").replace(/,/g, ".").match(/\d+(\.\d+)?|[-+*/%()]/g) || []; let i = 0;
+  const peek = () => t[i], next = () => t[i++];
+  const atom = () => { const x = next(); if (x === "(") { const v = sum(); next(); return v; } if (x === "-") return -atom(); if (x === "+") return atom(); const n = parseFloat(x); if (isNaN(n)) throw 0; return peek() === "%" ? (next(), n / 100) : n; };
+  const prod = () => { let v = atom(); while (peek() === "*" || peek() === "/") { const o = next(), b = atom(); v = o === "*" ? v * b : v / b; } return v; };
+  const sum = () => { let v = prod(); while (peek() === "+" || peek() === "-") { const o = next(), b = prod(); v = o === "+" ? v + b : v - b; } return v; };
+  const v = sum(); if (i !== t.length || !isFinite(v)) throw 0; return Math.round(v * 1e10) / 1e10;
+}
+function CalcWidget() {
+  const [e, setE] = useSw(""), [res, setRes] = useSw(null);
+  const press = (k) => { if (k === "C") { setE(""); setRes(null); } else if (k === "⌫") setE(x => x.slice(0, -1)); else if (k === "=") { try { const v = calc(e); setRes(v); setE(String(v)); } catch { setRes("Error"); } } else setE(x => x + k); };
+  let live = null; try { live = e && !/[-+×÷(]$/.test(e) ? calc(e) : null; } catch {}
+  return (
+    <div className="wg-body" style={{ gap: 6 }} onKeyDown={ev => { const k = ev.key; if (/^[\d.+\-*/%()]$/.test(k)) press(k === "*" ? "×" : k === "/" ? "÷" : k); else if (k === "Enter") press("="); else if (k === "Backspace") press("⌫"); else if (k === "Escape") press("C"); }} tabIndex={0}>
+      <div className="wg-calc-screen"><span>{e || "0"}</span><b>{res === "Error" ? "Error" : live != null && String(live) !== e ? "= " + live.toLocaleString("es-CO") : " "}</b></div>
+      <div className="wg-calc">{["C", "(", ")", "÷", "7", "8", "9", "×", "4", "5", "6", "-", "1", "2", "3", "+", "%", "0", ".", "="].map(k => <button key={k} className={/[÷×+\-=]/.test(k) ? "op" : k === "C" ? "clr" : ""} onClick={() => press(k)}>{k}</button>)}</div>
+    </div>
+  );
+}
+
+/* Archivos recientes (por fecha de modificación) */
+function RecentWidget({ onOpen }) {
+  useVfs(s => s.rev);
+  const items = []; try { vfs.walk(n => { if (!n.children && n.type !== "folder" && n.mtime) items.push(n); }); } catch {}
+  items.sort((a, b) => b.mtime - a.mtime);
+  const ago = (t) => { const m = Math.round((Date.now() - t) / 60000); return m < 1 ? "ahora" : m < 60 ? `hace ${m} min` : m < 1440 ? `hace ${Math.round(m / 60)} h` : `hace ${Math.round(m / 1440)} d`; };
+  return (
+    <div className="wg-body" style={{ gap: 2, padding: "6px 6px 8px" }}>
+      {items.slice(0, 6).map(n => <button key={n.id} className="wg-file" onClick={() => onOpen && onOpen(n)} title={n.name}><Ic name={{ docx: "description", xlsx: "table_chart", pptx: "slideshow", pdf: "picture_as_pdf", img: "image", audio: "music_note", video: "movie", txt: "notes", code: "code" }[n.type] || "draft"} size={17} /><span>{n.name}</span><em>{ago(n.mtime)}</em></button>)}
+      {!items.length && <div className="faint" style={{ fontSize: 12, padding: 8 }}>Aún no hay archivos.</div>}
+    </div>
+  );
+}
+
+/* Reloj mundial */
+const ZONES = [["Bogotá", "America/Bogota"], ["Ciudad de México", "America/Mexico_City"], ["Nueva York", "America/New_York"], ["Madrid", "Europe/Madrid"], ["Buenos Aires", "America/Argentina/Buenos_Aires"], ["Tokio", "Asia/Tokyo"]];
+function WorldWidget() {
+  const [now, setNow] = useSw(new Date());
+  useEw(() => { const t = setInterval(() => setNow(new Date()), 15000); return () => clearInterval(t); }, []);
+  const here = now.toLocaleDateString("en-CA", { timeZone: "America/Bogota" });
+  return (
+    <div className="wg-body" style={{ gap: 0, padding: "4px 12px 8px" }}>
+      {ZONES.map(([name, tz]) => { const h = +now.toLocaleString("en-US", { timeZone: tz, hour: "numeric", hour12: false }) % 24, day = now.toLocaleDateString("en-CA", { timeZone: tz });
+        return <div key={tz} className="wg-zone"><Ic name={h >= 6 && h < 18 ? "light_mode" : "dark_mode"} size={15} /><span>{name}</span><b>{now.toLocaleTimeString("es-CO", { timeZone: tz, hour: "2-digit", minute: "2-digit", hour12: false })}</b><em>{day > here ? "+1" : day < here ? "−1" : ""}</em></div>; })}
+    </div>
+  );
+}
+
+/* Monedas: dólar y euro en pesos colombianos (open.er-api.com, sin clave), con conversor */
+function FxWidget() {
+  const [rates, setRates] = useSw(() => store("sotos_fx")), [err, setErr] = useSw(null), [amt, setAmt] = useSw("100"), [cur, setCur] = useSw("USD");
+  useEw(() => {
+    if (rates && Date.now() - rates.at < 6 * 3600_000) return;
+    fetch("https://open.er-api.com/v6/latest/USD").then(r => r.json()).then(d => { if (d.result !== "success") throw 0; const v = { at: Date.now(), cop: d.rates.COP, eur: d.rates.EUR, mxn: d.rates.MXN, upd: d.time_last_update_unix * 1000 }; store("sotos_fx", v); setRates(v); }).catch(() => setErr("Sin conexión"));
+  }, []);
+  if (!rates) return <div className="wg-body" style={{ alignItems: "center", justifyContent: "center" }}><span className="faint" style={{ fontSize: 12 }}>{err || "Cargando tasas…"}</span></div>;
+  const perCop = { USD: rates.cop, EUR: rates.cop / rates.eur, MXN: rates.cop / rates.mxn };
+  const n = parseFloat(String(amt).replace(",", ".")) || 0;
+  const cop = (v) => "$ " + Math.round(v).toLocaleString("es-CO");
+  return (
+    <div className="wg-body" style={{ gap: 6 }}>
+      <div className="wg-fx"><span>1 USD</span><b>{cop(perCop.USD)}</b></div>
+      <div className="wg-fx"><span>1 EUR</span><b>{cop(perCop.EUR)}</b></div>
+      <div className="wg-row" style={{ marginTop: 4 }}><input className="wg-input" style={{ width: 70 }} value={amt} onChange={e => setAmt(e.target.value)} inputMode="decimal" />
+        <select className="wg-input" style={{ width: 66 }} value={cur} onChange={e => setCur(e.target.value)}>{Object.keys(perCop).map(k => <option key={k}>{k}</option>)}</select></div>
+      <div className="wg-fx total"><span>= COP</span><b>{cop(n * perCop[cur])}</b></div>
+      <div className="faint" style={{ fontSize: 10.5 }}>Tasa de referencia · {new Date(rates.upd || rates.at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}</div>
+    </div>
+  );
+}
+
+/* Sistema: lo que el navegador informa del equipo */
+function SystemWidget() {
+  const [bat, setBat] = useSw(null), [, tick] = useSw(0), [online, setOnline] = useSw(navigator.onLine);
+  useEw(() => {
+    let b; navigator.getBattery?.().then(x => { b = x; const up = () => setBat({ level: x.level, charging: x.charging }); up(); x.addEventListener("levelchange", up); x.addEventListener("chargingchange", up); }).catch(() => {});
+    const on = () => setOnline(navigator.onLine); window.addEventListener("online", on); window.addEventListener("offline", on);
+    const t = setInterval(() => tick(v => v + 1), 3000);
+    return () => { clearInterval(t); window.removeEventListener("online", on); window.removeEventListener("offline", on); };
+  }, []);
+  const c = navigator.connection, mem = performance.memory;
+  const rows = [
+    bat && ["battery_" + (bat.charging ? "charging_full" : bat.level > .6 ? "full" : bat.level > .2 ? "4_bar" : "1_bar"), "Batería", Math.round(bat.level * 100) + "%" + (bat.charging ? " · cargando" : "")],
+    [online ? "wifi" : "wifi_off", "Conexión", online ? (c?.effectiveType ? c.effectiveType.toUpperCase() + (c.downlink ? ` · ${c.downlink} Mb/s` : "") : "En línea") : "Sin conexión"],
+    ["developer_board", "Núcleos", String(navigator.hardwareConcurrency || "—")],
+    navigator.deviceMemory && ["memory", "Memoria", "≈ " + navigator.deviceMemory + " GB"],
+    mem && ["data_usage", "Sotos usa", fmtSize(mem.usedJSHeapSize)],
+  ].filter(Boolean);
+  return <div className="wg-body" style={{ gap: 2, padding: "6px 12px 8px" }}>{rows.map(([i, k, v]) => <div key={k} className="wg-zone"><Ic name={i} size={15} /><span>{k}</span><b style={{ fontSize: 12.5 }}>{v}</b></div>)}</div>;
+}
 
 function ClockWidget() {
   const [now, setNow] = useSw(new Date());
@@ -123,10 +262,10 @@ function StorageWidget() {
   );
 }
 
-function Widget({ w, shifted, onMove, onClose, note, onNote }) {
+function Widget({ w, shifted, onMove, onClose, note, onNote, onOpen }) {
   const drag = React.useRef(null);
   const start = (e) => {
-    if (e.target.closest(".wg-note") || e.target.closest(".wg-x")) return;
+    if (e.target.closest(".wg-note, .wg-x, button, input, select")) return;
     drag.current = { sx: e.clientX, sy: e.clientY, ox: w.x, oy: w.y };
     const move = (ev) => { const d = drag.current; if (!d) return; onMove(w.id, Math.max(40, d.ox + ev.clientX - d.sx), Math.max(36, d.oy + ev.clientY - d.sy)); };
     const up = () => { drag.current = null; window.removeEventListener("mousemove", move); window.removeEventListener("mouseup", up); };
@@ -142,8 +281,14 @@ function Widget({ w, shifted, onMove, onClose, note, onNote }) {
       {w.type === "weather" && <WeatherWidget id={w.id} />}
       {w.type === "note" && <NoteWidget id={w.id} note={note} onNote={onNote} />}
       {w.type === "storage" && <StorageWidget />}
+      {w.type === "timer" && <TimerWidget id={w.id} />}
+      {w.type === "calc" && <CalcWidget />}
+      {w.type === "recent" && <RecentWidget onOpen={onOpen} />}
+      {w.type === "world" && <WorldWidget />}
+      {w.type === "fx" && <FxWidget />}
+      {w.type === "system" && <SystemWidget />}
     </div>
   );
 }
 
-export { WIDGET_TYPES, Widget };
+export { WIDGET_TYPES, Widget, calc };

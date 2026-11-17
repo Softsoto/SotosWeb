@@ -24,7 +24,7 @@ const APPS = [
   { id: "web",     name: "Web",       icon: "public",            color: "#2a7f8f", comp: "WebViewApp",   size: { w: 1000, h: 670 } },
   { id: "store",   name: "Tienda",    icon: "shopping_bag",      color: "#7a3e6b", comp: "StoreApp",     size: { w: 800, h: 560 } },
   { id: "trash",   name: "Papelera",  icon: "delete",            color: "#6f6a60", comp: "TrashApp",     size: { w: 760, h: 520 } },
-  { id: "games",   name: "Juegos",    icon: "sports_esports",    color: "#8a5a3b", comp: "GamesApp",     size: { w: 560, h: 620 } },
+  { id: "games",   name: "Juegos",    icon: "sports_esports",    color: "#8a5a3b", comp: "GamesApp",     size: { w: 980, h: 700 } },
 ];
 const APP_BY_ID = Object.fromEntries(APPS.map(a => [a.id, a]));
 

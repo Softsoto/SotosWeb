@@ -1,3 +1,4 @@
+import { OPEN_MOVIES } from "./open-movies.js";
 /* ============================================================
    Sotos OS — contenido inicial (archivos reales de ejemplo)
    © 2026 Sebastian Sotomontes
@@ -152,7 +153,7 @@ export async function buildSeed({ put, newId, typeOf }) {
     ]),
     folder("Imágenes", await Promise.all(ART.map(([name], i) => file(name, pics[i])))),
     folder("Música", await Promise.all(music.map(([t, a, al], i) => file(`${t}.mp3`, null, { url: AUDIO(i + 1), meta: { title: t, artist: a, album: al }, online: true })))),
-    folder("Vídeos", await Promise.all(videos.map(([n, f]) => file(n, null, { url: VID + f, online: true })))),
+    folder("Vídeos", await Promise.all(OPEN_MOVIES.map(v => file(v.name, null, { url: v.url, online: true, meta: { credit: v.credit } })))),
     folder("Proyectos", [
       folder("web-sotos", [await file("index.html", txt(INDEX_HTML, "text/html")), await file("estilos.css", txt(CSS, "text/css"))]),
       await file("Roadmap.md", txt(ROADMAP, "text/markdown")),

@@ -4,7 +4,7 @@
    ============================================================ */
 import React from "react";
 import { Ic, EmptyState } from "./ui.jsx";
-import { SotosLogo } from "./logo.jsx";
+import { SotosMark } from "./logo.jsx";
 import { NodeGlyph } from "./files-ui.jsx";
 import { api } from "./api.js";
 import { fmtSize, fmtDate } from "./vfs.js";
@@ -89,5 +89,5 @@ export function SharePage({ token }) {
   );
 }
 function Header() {
-  return <div className="sp-top"><a href="/" className="sp-brand"><SotosLogo size={26} badge={false} /> Sotos</a><div className="tb-spacer" /><a className="tb-btn" href="/">Abrir Sotos</a></div>;
+  return <div className="sp-top"><a href="/" className="sp-brand"><SotosMark size={24} color="var(--accent)" /> Sotos</a><div className="tb-spacer" /><a className="tb-btn" href="/">Abrir Sotos</a></div>;
 }

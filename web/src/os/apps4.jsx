@@ -3,7 +3,7 @@
    ============================================================ */
 import React from "react";
 import { APPS, WALLPAPERS, ACCENTS, STORE_APPS } from "./data.jsx";
-import { SotosLogo } from "./logo.jsx";
+import { SotosLogo, SotosMark } from "./logo.jsx";
 import { Tile, Ic, SideItem, Avatar, Modal, toast } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize } from "./vfs.js";
@@ -228,9 +228,9 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
           </>}
           {tab === "acerca" && <>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 0", gap: 12 }}>
-              <div className="about-logo"><SotosLogo size={96} animate /></div>
+              <div className="about-logo"><SotosMark size={96} variant="tile" spin /></div>
               <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-.02em" }}>Sotos OS</div>
-              <div className="muted" style={{ fontSize: 14 }}>Tu ordenador en la nube · Versión 2.0</div>
+              <div className="muted" style={{ fontSize: 14 }}>Tu ordenador en la nube · Versión 2.2</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, width: 320, marginTop: 8, border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
                 {[["Usuario", profile.name], ["Modo", user ? "Cuenta en la nube" : "Invitado (este navegador)"], ["Almacenamiento", fmtSize(vfs.usedBytes()) + " usados"], ["Apps", (APPS.length - 1) + " instaladas"]].map(([k, v], i) => (
                   <React.Fragment key={i}>
@@ -243,6 +243,8 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
               <div className="about-credit">
                 <div style={{ fontWeight: 700 }}>Diseñado por Sebastián Sotomontes</div>
                 <div className="muted" style={{ marginTop: 6, lineHeight: 1.6 }}>Dedicado a mis 3 gatas <b>Luna</b>, <b>Lumia</b> y <b>Lyra</b><br />y a mi husky <b>Hashy</b> 🐾</div>
+                <div className="about-mascots"><SotosLogo size={58} badge={false} animate /></div>
+                <div className="about-thanks"><span className="faint">Agradecimientos</span><b>Basted</b> y <b>Lyanna</b></div>
               </div>
             </div>
           </>}

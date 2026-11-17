@@ -273,32 +273,63 @@ const GAMES = [
   { id: "snake", name: "Snake", icon: "pest_control", color: "#34c759", comp: Snake, desc: "Crece sin chocar" },
   { id: "2048", name: "2048", icon: "grid_4x4", color: "#f59563", comp: G2048, desc: "Une los números" },
   { id: "mines", name: "Buscaminas", icon: "bomb", color: "#e2483d", comp: Mines, desc: "Evita las minas" },
-];
+].map(g => ({ ...g, group: "Sotos" }));
+// Dos Lunas: cada juego por separado (proyecto DosLunas, `npm run build:sotos`; portadas con su propio paintThumb)
+const DL = [["bloques", "Torre de Luna", "Piezas que caen; 10 líneas abren el mensaje"], ["laberinto", "Laberinto Lunar", "Recoge luces y esquiva a tres espíritus"], ["espiritus", "Lluvia de Huskies", "Lanza estrellas a las oleadas que bajan"],
+  ["duelo", "Duelo de Lunas", "Faroles que se pasan una lunita, solo o a dos"], ["tejados", "Carrera por los Tejados", "Corre y salta los huecos entre casas"], ["muro", "Muro de Faroles", "Haz rebotar la luz y apaga el muro"],
+  ["dragon", "Dragón de Papel", "Come flores de cerezo para crecer"], ["parejas", "Parejas de Huskies", "Encuentra las parejas en tres rondas"], ["fichas", "Fichas del Templo", "Quita fichas iguales que estén libres"],
+  ["carreras", "Ruta de los Faroles", "Carrera contra el reloj, estilo clásico"], ["pinball", "Pinball de las Lunas", "Mesa de tres pisos con misiones y rangos"], ["esferas", "Cadena de Lunas", "Dispara esferas y rompe la cadena"], ["mascotas", "Casa de Patitas", "Cuida gatitos y perritos virtuales"]];
+const DL_GAMES = DL.map(([id, name, desc]) => ({ id: "dl-" + id, name, desc, group: "Dos Lunas", color: "#151838", pixel: true,
+  cover: `juegos/dos-lunas/portadas/${id}.png`, frame: `juegos/dos-lunas/index.html?juego=${id}` }));
+// Sala clásica: el motor de sotomontes-web/arcade, un juego por entrada (<arcade-solo>)
+const SALA = [["pac", "Come-cocos", "Laberinto, pastillas y cuatro fantasmas", "radio_button_checked", "#f2c94c"], ["blocks", "Bloques", "Encaja piezas y desbloquea poderes", "view_quilt", "#17c0eb"],
+  ["invaders", "Invasores", "Defiende la base del enjambre", "rocket", "#7bed6a"], ["pong", "Paletas", "Duelo contra la CPU, que sube de nivel", "sports_tennis", "#f3f2f2"],
+  ["bricks", "Ladrillos", "Power-ups y multibola", "grid_view", "#ff7a59"], ["mines", "Minas", "El clásico de escritorio, con ratón", "flag", "#ec3013"]];
+const SALA_GAMES = SALA.map(([id, name, desc, icon, ink]) => ({ id: "sala-" + id, name, desc, icon, ink, group: "Sala clásica", color: "#0b0b0b", frame: `juegos/sala/index.html?juego=${id}` }));
+const ALL_GAMES = [...GAMES, ...DL_GAMES, ...SALA_GAMES];
+const GROUPS = [["Sotos", "Juegos de Sotos"], ["Dos Lunas", "Dos Lunas · pixel art, con logros y récords"], ["Sala clásica", "Sala clásica · teclado, P pausa, Esc salir, M silencio"]];
+// juego que corre en su propia página (iframe del mismo origen): avisa al cerrarse con postMessage
+function FrameGame({ g, onClose }) {
+  React.useEffect(() => {
+    const onMsg = (e) => { if (e.origin === location.origin && e.data?.type === "sotos-game-close") onClose(); };
+    window.addEventListener("message", onMsg); return () => window.removeEventListener("message", onMsg);
+  }, [onClose]);
+  return <iframe title={g.name} src={import.meta.env.BASE_URL + g.frame} allow="fullscreen; gamepad" style={{ flex: 1, width: "100%", border: 0, background: "#0a0b1e" }} />;
+}
 function GamesApp() {
   const [game, setGame] = useG(null);
-  const G = game && GAMES.find(x => x.id === game);
+  const G = game && ALL_GAMES.find(x => x.id === game);
   return (
-    <div className="app" style={{ flexDirection: "column", background: "var(--surface-2)" }}>
-      <Toolbar>
+    <div className={"app" + (G?.frame ? " game-full" : "")} style={{ flexDirection: "column", background: G?.frame ? "#000" : "var(--surface-2)" }}>
+      {G?.frame && <button className="game-back" title="Volver a Juegos (Esc en la sala)" onClick={() => setGame(null)}><Ic name="arrow_back" size={18} /> Juegos</button>}
+      {!G?.frame && <Toolbar>
         {game && <button className="tb-btn icon" onClick={() => setGame(null)}><Ic name="arrow_back" /></button>}
         <span className="tb-title">{G ? G.name : "Juegos"}</span>
         <div className="tb-spacer" />
-        <span className="faint" style={{ fontSize: 12 }}>{GAMES.length} juegos</span>
-      </Toolbar>
+        <span className="faint" style={{ fontSize: 12 }}>{ALL_GAMES.length} juegos</span>
+      </Toolbar>}
       {!game ? (
         <div className="scroll" style={{ flex: 1, padding: 22 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: 16 }}>
-            {GAMES.map(g => (
-              <button key={g.id} className="game-card" onClick={() => setGame(g.id)}>
-                <div className="game-cover" style={{ background: `linear-gradient(150deg, ${g.color}, ${g.color}99)` }}><Ic name={g.icon} size={46} style={{ color: "#fff" }} /></div>
-                <div style={{ padding: "12px 14px", textAlign: "left" }}>
-                  <div style={{ fontWeight: 700, fontSize: 15 }}>{g.name}</div>
-                  <div className="faint" style={{ fontSize: 12.5, marginTop: 2 }}>{g.desc}</div>
-                </div>
-              </button>
-            ))}
-          </div>
+          {GROUPS.map(([grp, label]) => (
+            <React.Fragment key={grp}>
+              <div className="game-group">{label}</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(170px,1fr))", gap: 14, marginBottom: 22 }}>
+                {ALL_GAMES.filter(g => g.group === grp).map(g => (
+                  <button key={g.id} className="game-card" onClick={() => setGame(g.id)}>
+                    <div className={"game-cover" + (g.pixel ? " pixel" : "")} style={{ background: g.pixel ? g.color : `linear-gradient(150deg, ${g.color}, ${g.color}99)` }}>
+                      {g.cover ? <img className={g.pixel ? "pixel-cover" : ""} src={import.meta.env.BASE_URL + g.cover} alt="" /> : <Ic name={g.icon} size={46} style={{ color: g.ink || "#fff" }} />}</div>
+                    <div style={{ padding: "11px 13px", textAlign: "left" }}>
+                      <div style={{ fontWeight: 700, fontSize: 14.5 }}>{g.name}</div>
+                      <div className="faint" style={{ fontSize: 12, marginTop: 2 }}>{g.desc}</div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </React.Fragment>
+          ))}
         </div>
+      ) : G.frame ? (
+        <FrameGame g={G} onClose={() => setGame(null)} />
       ) : (
         <div style={{ flex: 1, display: "grid", placeItems: "center", overflow: "auto", padding: 16 }}>
           <G.comp />

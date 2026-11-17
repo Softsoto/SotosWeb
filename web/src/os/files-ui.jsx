@@ -7,6 +7,29 @@ import * as vfs from "./vfs.js";
 import { fmtSize, fmtDate } from "./vfs.js";
 import { FileGlyph, Modal, toast, Ic } from "./ui.jsx";
 import { api } from "./api.js";
+import { useVideoThumb } from "./video-thumb.js";
+import { useTrackInfo } from "./id3.js";
+import { coverOf } from "./cover-art.js";
+
+// carpetas del sistema con su símbolo encima (como una carpeta con cámara para Imágenes)
+const SPECIAL = { "Imágenes": "photo_camera", "Música": "music_note", "Vídeos": "movie", "Documentos": "description", "Descargas": "download", "Escritorio": "desktop_windows", "Proyectos": "rocket_launch", "Papelera": "delete" };
+function FolderGlyph({ node, size }) {
+  const sym = SPECIAL[node.name];
+  const isTop = vfs.pathOf(node.id).length === 1;
+  return (
+    <span className="folder-glyph" style={{ width: size * 1.08, height: size * 1.08 }}>
+      <FileGlyph type="folder" size={size} />
+      {sym && isTop && <Ic name={sym} className="folder-sym" style={{ fontSize: size * 0.44 }} />}
+    </span>
+  );
+}
+// canción: su portada (etiqueta ID3 o dibujada para el álbum) con una nota pequeña encima
+function AudioGlyph({ node, size }) {
+  const info = useTrackInfo(node);
+  const src = coverOf(info);
+  if (!src) return <FileGlyph type="audio" size={size} />;
+  return <span className="audio-glyph" style={{ width: size * 0.92, height: size * 0.92 }}><img src={src} alt="" /><Ic name="music_note" className="audio-badge" style={{ fontSize: Math.max(10, size * 0.26) }} /></span>;
+}
 const { useState, useEffect } = React;
 
 /* URL de objeto para un archivo (miniaturas, reproductores) */
@@ -20,12 +43,21 @@ export function useObjectUrl(id, mtime) {
   return url;
 }
 
+// vídeo: cuadro real del vídeo con un botón de reproducir encima (si no se puede, el icono de siempre)
+function VideoGlyph({ node, size }) {
+  const thumb = useVideoThumb(node);
+  if (!thumb) return <FileGlyph type="video" size={size} />;
+  return <span className="vid-glyph" style={{ width: size * 1.15, height: size * 0.82 }}><img src={thumb} alt="" /><span className="vid-glyph-play" style={{ fontSize: Math.max(10, size * 0.32) }}>▶</span></span>;
+}
 export function NodeGlyph({ node, size = 46 }) {
   const isImg = node && node.type === "img" && (node.size || node.url) && node.size < 25 * 1024 * 1024;
   const url = useObjectUrl(isImg ? node.id : null, node?.mtime);
   if (!node) return null;
   if (node.type === "img") return <FileGlyph type="img" src={url} size={size} />;
   if (node.type === "csv") return <FileGlyph type="csv" size={size} />;
+  if (node.type === "video") return <VideoGlyph node={node} size={size} />;
+  if (node.type === "audio") return <AudioGlyph node={node} size={size} />;
+  if (node.type === "folder") return <FolderGlyph node={node} size={size} />;
   if (node.type === "zip") return <Ic name="folder_zip" style={{ fontSize: size, color: "#c99a2e" }} />;
   if (node.type === "file") return <Ic name="draft" style={{ fontSize: size, color: "#8a929c" }} />;
   return <FileGlyph type={node.type} size={size} />;
