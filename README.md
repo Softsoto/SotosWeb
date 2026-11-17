@@ -10,11 +10,11 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 2.0 |
+| **Versión** | 2.1 |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy |
 | **Demo** | [softsoto.github.io/SotosWeb-demo](https://softsoto.github.io/SotosWeb-demo/), sin registro: todo se guarda en tu navegador |
-| **Código** | Privado. Esta página es solo una presentación. |
+| **Licencia** | [MIT](LICENSE) |
 
 ---
 
@@ -27,6 +27,14 @@ Los documentos se abren y se guardan en sus formatos de siempre (`.docx`, `.xlsx
 <p align="center"><img src="images/escritorio.jpg" alt="Escritorio de Sotos con la ventana de Archivos sobre el fondo Páramo" width="100%"></p>
 
 ## Novedades
+
+**Versión 2.1**, Sotos se vuelve un lugar para compartir con otras personas:
+
+- **Mundos**: espacios compartidos con tu familia, amigos o equipo, con muro de publicaciones y comentarios, carpeta en común y chat en vivo.
+- **Notificaciones**: una campana en la barra superior avisa al instante cuando te invitan a un mundo, te comparten un archivo o alguien publica, comenta o sube algo.
+- **Contactos**: agenda propia que importa y exporta `.vcf` (celular, Gmail, Outlook) y reconoce quién ya tiene cuenta en Sotos.
+- **Visor de PDF propio**: miniaturas, texto seleccionable, búsqueda dentro del documento, zoom, rotación, imprimir y pantalla completa.
+- **Música con carátulas**: título, artista, álbum y portada se leen de las etiquetas de cada MP3.
 
 **Versión 2.0**, reconstrucción completa del proyecto original:
 
@@ -105,6 +113,38 @@ Quien recibe el enlace no necesita cuenta: ve el documento directamente en el na
 
 <p align="center"><img src="images/enlace-publico.jpg" alt="Página pública de un documento compartido" width="100%"></p>
 
+### Mundos
+
+Un mundo es un espacio compartido entre varias cuentas. Tiene un **muro** para publicar y comentar, una **carpeta en común** a la que se arrastran archivos desde el equipo o desde tus propios archivos de Sotos, y un **chat**. Todo se actualiza en vivo en los navegadores de todos los miembros, sin recargar. Quien crea el mundo elige nombre, icono y color, invita por correo y puede quitar miembros.
+
+<p align="center"><img src="images/mundos-muro.jpg" alt="Muro de un mundo con una publicación y un comentario" width="100%"></p>
+
+<p align="center"><img src="images/mundos-chat.jpg" alt="Chat en vivo dentro de un mundo" width="100%"></p>
+
+### Notificaciones
+
+La campana de la barra superior cuenta lo que no has visto y muestra un aviso en cuanto llega algo nuevo. Al pulsar una notificación se abre directamente el mundo, la pestaña o el documento compartido.
+
+<p align="center"><img src="images/notificaciones.jpg" alt="Panel de notificaciones con una invitación a un mundo" width="100%"></p>
+
+### Contactos
+
+Agenda con búsqueda, ficha de cada persona, importación y exportación `.vcf`. Los contactos que ya usan Sotos se marcan y se pueden añadir a un mundo con un clic.
+
+<p align="center"><img src="images/contactos.jpg" alt="Ficha de un contacto con cuenta en Sotos" width="100%"></p>
+
+### Visor de PDF
+
+Visor propio con miniaturas de las páginas, texto que se puede seleccionar y copiar, búsqueda con resaltado, ajuste al ancho o a la página, rotación, impresión, descarga y pantalla completa.
+
+<p align="center"><img src="images/visor-pdf.jpg" alt="Visor de PDF con miniaturas y búsqueda" width="100%"></p>
+
+### Música
+
+La biblioteca lee las etiquetas de cada canción para mostrar título, artista, álbum, año y carátula, también en los controles multimedia del sistema.
+
+<p align="center"><img src="images/musica-caratulas.jpg" alt="Biblioteca de Música con la carátula de una canción" width="100%"></p>
+
 ### Tema oscuro
 
 <p align="center"><img src="images/tema-oscuro.jpg" alt="Música y Galería en tema oscuro sobre el fondo Tatacoa" width="100%"></p>
@@ -113,7 +153,7 @@ Quien recibe el enlace no necesita cuenta: ve el documento directamente en el na
 
 ## Demo en línea
 
-**[Abrir el demo](https://softsoto.github.io/SotosWeb-demo/)**: funciona sin servidor ni registro. Trae los archivos de ejemplo, las aplicaciones, los fondos y el menú contextual completos; lo que hagas se queda solo en tu navegador. Las funciones que necesitan servidor (cuentas, nube, compartir y el proxy del Navegador) están en las instalaciones completas.
+**[Abrir el demo](https://softsoto.github.io/SotosWeb-demo/)**: funciona sin servidor ni registro. Trae los archivos de ejemplo, las aplicaciones, los fondos y el menú contextual completos; lo que hagas se queda solo en tu navegador. Las funciones que necesitan servidor (cuentas, nube, compartir, Mundos, notificaciones y el proxy del Navegador) están en las instalaciones completas.
 
 ## Cómo se usa
 
@@ -143,9 +183,10 @@ Quien recibe el enlace no necesita cuenta: ve el documento directamente en el na
 
 - **Escritorio**: ventanas que se mueven, se redimensionan, se maximizan y se ajustan a media pantalla; dock que se reordena; iconos en el escritorio; widgets de reloj, calendario, clima real, notas y almacenamiento; búsqueda global.
 - **Archivos**: explorador completo, papelera con restauración a la carpeta original, subida de carpetas, `.zip`.
-- **Oficina**: Documentos (`.docx`), Hojas (`.xlsx`, `.csv`), Presentaciones (`.pptx`), visor de PDF, Notas con resaltado de líneas y vista previa de HTML y Markdown.
-- **Multimedia**: Galería con presentación y uso como fondo; Música con listas, favoritas, aleatorio, repetición y teclas multimedia del sistema; Vídeo.
+- **Oficina**: Documentos (`.docx`), Hojas (`.xlsx`, `.csv`), Presentaciones (`.pptx`), visor de PDF con búsqueda y miniaturas, Notas con resaltado de líneas y vista previa de HTML y Markdown.
+- **Multimedia**: Galería con presentación y uso como fondo; Música con carátulas, listas, favoritas, aleatorio, repetición y teclas multimedia del sistema; Vídeo.
 - **Internet**: Navegador con proxy, accesos directos y servicios con reproductor oficial (YouTube, Spotify, mapas).
+- **Personas**: Mundos (muro, carpeta y chat compartidos), notificaciones en vivo y Contactos con `.vcf`.
 - **Nube**: cuentas, sincronización en vivo, funcionamiento sin conexión, cuota de espacio, compartir con enlaces, "Compartido conmigo".
 - **Personalización**: ocho fondos ilustrados o una foto propia, tema claro u oscuro, seis colores de acento, cuatro tipografías y tres estilos de ventana.
 - **Extras**: Terminal, Juegos, Tienda y Correo/Mensajes de demostración.
@@ -280,4 +321,4 @@ Papel y tinta: superficies de color crema, bordes de tinta y sombras desplazadas
 
 ---
 
-<sub>© 2026 Sebastian Sotomontes. Todos los derechos reservados.</sub>
+<sub>© 2026 Sebastian Sotomontes · Licencia [MIT](LICENSE).</sub>
