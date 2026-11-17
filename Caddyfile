@@ -1,14 +1,14 @@
-# Sotos OS — proxy inverso con HTTPS automático
+# Sotos — reverse proxy with automatic HTTPS
 # © 2026 Sebastian Sotomontes
 
 {$SOTOS_DOMAIN} {
 	encode zstd gzip
 	reverse_proxy sotos:8787 {
-		flush_interval -1   # eventos en vivo (SSE)
+		flush_interval -1   # live events (SSE)
 	}
 }
 
-# origen aislado para las páginas abiertas desde el Navegador de Sotos
+# isolated origin for pages opened in the Sotos Browser
 {$PX_DOMAIN} {
 	reverse_proxy sotos:8787
 }

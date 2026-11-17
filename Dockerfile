@@ -1,7 +1,7 @@
-# Sotos OS — imagen de producción
+# Sotos — production image
 # © 2026 Sebastian Sotomontes
 
-# 1) compilar el escritorio
+# 1) build the desktop
 FROM node:24-alpine AS web
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json ./
@@ -11,7 +11,7 @@ ARG VITE_PX_ORIGIN
 ENV VITE_PX_ORIGIN=${VITE_PX_ORIGIN}
 RUN npm run build
 
-# 2) servidor (sin dependencias de npm: solo Node)
+# 2) server (no npm dependencies: Node only)
 FROM node:24-alpine
 ENV NODE_ENV=production SOTOS_DATA=/data SOTOS_WEB=/app/web/dist PORT=8787
 WORKDIR /app

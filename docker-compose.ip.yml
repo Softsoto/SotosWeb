@@ -1,11 +1,11 @@
-# Sotos OS — Docker por IP (sin dominio ni HTTPS): red local o un VPS recién creado
+# Sotos — Docker by IP (no domain, no HTTPS): local network or a fresh VPS
 # © 2026 Sebastian Sotomontes
 #
-#   El instalador lo configura solo. A mano:
+#   The installer sets this up. By hand:
 #   SOTOS_IP=192.168.1.50 OO_JWT_SECRET=$(openssl rand -hex 32) docker compose -f docker-compose.ip.yml up -d --build
 #
-#   Escritorio:  http://IP:8787   ·   proxy del navegador: http://IP:8788   ·   ONLYOFFICE: http://IP:8080
-#   Para usar dominio y HTTPS, usa docker-compose.yml.
+#   Desktop: http://IP:8787   ·   browser proxy: http://IP:8788   ·   ONLYOFFICE: http://IP:8080
+#   For a domain and HTTPS, use docker-compose.yml.
 
 services:
   sotos:

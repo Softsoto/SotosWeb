@@ -1,153 +1,159 @@
 <p align="center"><img src="docs/banner.png" alt="Sotos Web" width="100%"></p>
 
-# Sotos — tu ordenador en la nube
+# Sotos — your computer in the cloud
 
-Escritorio completo que corre en el navegador: ventanas, dock, archivos reales en la nube, Word/Excel/PowerPoint con archivos auténticos, navegador con proxy aislado, terminal, compartir con enlaces e identidad visual propia.
+A complete desktop that runs in the browser: windows, dock, real cloud files, Word/Excel/PowerPoint editing on genuine Office files, a web browser with an isolated proxy, a terminal, link sharing, and its own visual identity.
 
-© 2026 Sebastian Sotomontes. Todos los derechos reservados. Repositorio de código **privado**; la presentación pública está en `Softsoto/SotosWeb`.
+© 2026 Sebastian Sotomontes. All rights reserved. **Private** source repository; the public showcase lives at [`Softsoto/SotosWeb`](https://github.com/Softsoto/SotosWeb) and the live demo at <https://softsoto.github.io/SotosWeb-demo/>.
 
 | | |
 |---|---|
-| Versión | 2.0 |
-| Escritorio | React 18 + Vite 6 (`web/`) |
-| Servidor | Node.js ≥ 22, sin dependencias de npm (`server/`) |
-| Datos | SQLite integrado en Node (`node:sqlite`) + un archivo por contenido; IndexedDB en el navegador |
-| Despliegue | Este equipo · servidor Linux con systemd y Caddy · Docker (Caddy + Sotos + servidor de documentos) |
+| Version | 2.0 |
+| Desktop | React 18 + Vite 6 (`web/`) |
+| Server | Node.js ≥ 22, zero npm dependencies (`server/`) |
+| Data | SQLite built into Node (`node:sqlite`) + one file per blob; IndexedDB in the browser |
+| Deployment | This computer · Linux server with systemd and Caddy · Docker (Caddy + Sotos + document server) |
+| UI language | Spanish |
 
-<p align="center"><img src="docs/capturas/escritorio.jpg" alt="Escritorio" width="100%"></p>
+<p align="center"><img src="docs/capturas/escritorio.jpg" alt="Desktop" width="100%"></p>
 
 ---
 
-## Índice
+## Contents
 
-1. [Puesta en marcha para desarrollo](#1-puesta-en-marcha-para-desarrollo)
-2. [Instalador](#2-instalador)
-3. [Variables de entorno](#3-variables-de-entorno)
-4. [Estructura del repositorio](#4-estructura-del-repositorio)
-5. [Arquitectura](#5-arquitectura)
-6. [Sistema de archivos y sincronización](#6-sistema-de-archivos-y-sincronización)
+1. [Development setup](#1-development-setup)
+2. [Installer](#2-installer)
+3. [Environment variables](#3-environment-variables)
+4. [Repository layout](#4-repository-layout)
+5. [Architecture](#5-architecture)
+6. [File system and sync](#6-file-system-and-sync)
 7. [API](#7-api)
-8. [Proxy del navegador](#8-proxy-del-navegador)
-9. [Formatos de Office y fórmulas](#9-formatos-de-office-y-fórmulas)
-10. [Servidor de documentos (ONLYOFFICE)](#10-servidor-de-documentos-onlyoffice)
-11. [Identidad visual y fondos](#11-identidad-visual-y-fondos)
-12. [Menú contextual global](#12-menú-contextual-global)
-13. [Seguridad](#13-seguridad)
-14. [Pruebas y capturas](#14-pruebas-y-capturas)
-15. [Capturas](#15-capturas)
-16. [Pendientes](#16-pendientes)
+8. [Browser proxy](#8-browser-proxy)
+9. [Office formats and formulas](#9-office-formats-and-formulas)
+10. [Document server (ONLYOFFICE)](#10-document-server-onlyoffice)
+11. [Visual identity and wallpapers](#11-visual-identity-and-wallpapers)
+12. [Global context menu](#12-global-context-menu)
+13. [Security](#13-security)
+14. [Public demo](#14-public-demo)
+15. [Tests and screenshots](#15-tests-and-screenshots)
+16. [Screenshots](#16-screenshots)
+17. [Roadmap](#17-roadmap)
 
 ---
 
-## 1. Puesta en marcha para desarrollo
+## 1. Development setup
 
 ```powershell
-# terminal 1 — servidor (API + proxy) en :8787, solo escucha en este equipo
+# terminal 1 — server (API + proxy) on :8787, bound to this machine only
 cd server
 npm run dev
 
-# terminal 2 — escritorio con recarga en caliente en :5173 (redirige /api al :8787)
+# terminal 2 — desktop with hot reload on :5173 (proxies /api to :8787)
 cd web
 npm install
 npm run dev
 ```
 
-Abre <http://localhost:5173>. Sin servidor, el escritorio funciona en modo invitado (todo en IndexedDB).
+Open <http://localhost:5173>. Without the server, the desktop runs in guest mode (everything in IndexedDB).
 
-Compilación de producción: `cd web && npm run build` → `web/dist`, que el servidor sirve con `NODE_ENV=production`.
+Production build: `cd web && npm run build` → `web/dist`, served by the server with `NODE_ENV=production`.
 
-## 2. Instalador
+## 2. Installer
 
-| Script | Sistema | Modos |
+| Script | System | Modes |
 |---|---|---|
-| `instalar.ps1` | Windows (PowerShell 5.1+) | `equipo`, `docker`, `-Actualizar`, `-Desinstalar` |
-| `instalar.sh` | Linux y macOS | `equipo`, `servidor`, `docker`, `actualizar`, `desinstalar` |
+| `instalar.ps1` | Windows (PowerShell 5.1+) | `equipo` (this computer), `docker`, `-Actualizar` (update), `-Desinstalar` (uninstall) |
+| `instalar.sh` | Linux and macOS | `equipo`, `servidor` (server), `docker`, `actualizar`, `desinstalar` |
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File instalar.ps1                       # asistente
+powershell -ExecutionPolicy Bypass -File instalar.ps1                       # wizard
 powershell -ExecutionPolicy Bypass -File instalar.ps1 -Modo equipo -Inicio -Firewall
 ```
 ```bash
-./instalar.sh                              # asistente
-./instalar.sh servidor os.midominio.com    # VPS con HTTPS automático
-./instalar.sh docker                       # contenedores (por IP o dominio)
+./instalar.sh                              # wizard
+./instalar.sh servidor os.example.com      # VPS with automatic HTTPS
+./instalar.sh docker                       # containers (by IP or domain)
 ```
 
-**Este equipo** — comprueba Node ≥ 22 (en Windows ofrece instalarlo con winget; en Debian/Ubuntu con NodeSource), compila `web/`, escribe `server/sotos.env` (puerto 8787, proxy 8788, datos en `%LOCALAPPDATA%\SotosOS` o `~/.local/share/sotos-os`, `SOTOS_SHOW_LAN=1`), crea `iniciar-sotos.cmd|sh`, opcionalmente arranque con la sesión (acceso directo en Inicio de Windows o servicio `systemd --user`) y regla de firewall solo para redes privadas. Al terminar imprime `http://localhost:8787` y las IP de la red local.
+The installer messages are in Spanish, like the rest of the product.
 
-**Servidor** — copia a `/opt/sotos-os`, compila, crea el usuario de sistema `sotos`, `/etc/sotos-os.env` (600) y la unidad `sotos-os.service` con `ProtectSystem=strict`, `NoNewPrivileges` y `ReadWritePaths=/var/lib/sotos-os`. Con dominio instala Caddy y configura `os.` y `px.`; sin dominio publica por IP con el proxy en `PORT+1` e imprime la IP pública.
+**This computer (`equipo`)** — checks for Node ≥ 22 (offers to install it with winget on Windows, NodeSource on Debian/Ubuntu), builds `web/`, writes `server/sotos.env` (port 8787, proxy on 8788, data in `%LOCALAPPDATA%\SotosOS` or `~/.local/share/sotos-os`, `SOTOS_SHOW_LAN=1`), creates `iniciar-sotos.cmd|sh`, optionally starts with the user session (Startup shortcut on Windows, `systemd --user` service on Linux) and opens the firewall for private networks only. It finishes by printing `http://localhost:8787` and the LAN addresses.
 
-**Docker** — genera `.env` con un secreto de 32 bytes. Con dominio usa `docker-compose.yml` (Caddy con HTTPS + Sotos + ONLYOFFICE, tres subdominios); sin dominio escribe `COMPOSE_FILE=docker-compose.ip.yml` (puertos 8787, 8788 y 8080).
+**Server (`servidor`)** — copies to `/opt/sotos-os`, builds, creates the `sotos` system user, `/etc/sotos-os.env` (mode 600) and the `sotos-os.service` unit with `ProtectSystem=strict`, `NoNewPrivileges` and `ReadWritePaths=/var/lib/sotos-os`. With a domain it installs Caddy and configures the desktop and `px.` hosts; without one it serves by IP with the proxy on `PORT+1` and prints the public IP.
 
-## 3. Variables de entorno
+**Docker** — generates `.env` with a 32-byte secret. With a domain it uses `docker-compose.yml` (Caddy with HTTPS + Sotos + ONLYOFFICE on three subdomains); without one it writes `COMPOSE_FILE=docker-compose.ip.yml` (ports 8787, 8788 and 8080).
 
-| Variable | Por defecto | Uso |
+## 3. Environment variables
+
+| Variable | Default | Purpose |
 |---|---|---|
-| `NODE_ENV` | — | `production` sirve `web/dist` y separa el proxy por host |
-| `PORT` | `8787` | Escritorio + API |
-| `HOST` | `127.0.0.1` (dev) / `0.0.0.0` (prod) | Interfaz de escucha |
-| `PX_PORT` | — | Proxy del navegador en un puerto propio (modo IP) |
-| `PX_HOST` | — | Host que se atiende solo como proxy (modo dominio) |
-| `PX_PUBLIC` | — | Origen público del proxy que se inyecta en la página |
-| `TRUST_PROXY` | — | Confiar en `X-Forwarded-*` (detrás de Caddy) |
-| `SOTOS_DATA` | `server/data` | Base de datos, contenidos y secretos |
-| `SOTOS_WEB` | `web/dist` | Escritorio compilado |
-| `SOTOS_REGISTRATION` | `open` | `closed` impide crear cuentas nuevas |
-| `SOTOS_QUOTA_MB` | `2048` | Cuota por cuenta |
-| `SOTOS_MAX_FILE_MB` | `512` | Tamaño máximo por archivo |
-| `SOTOS_SHOW_LAN` | — | `1` publica las IP de la red en `/api/info` y en Ajustes |
-| `OO_URL` | — | URL pública del Document Server (activa la integración) |
-| `OO_INTERNAL` | `OO_URL` | URL con la que el servidor descarga lo guardado |
-| `SOTOS_INTERNAL` | `http://host.docker.internal:8787` | URL con la que el Document Server llega a Sotos |
-| `SOTOS_OO_JWT` | `data/secrets.json` | Secreto JWT compartido con ONLYOFFICE |
+| `NODE_ENV` | — | `production` serves `web/dist` and routes the proxy by host |
+| `PORT` | `8787` | Desktop + API |
+| `HOST` | `127.0.0.1` (dev) / `0.0.0.0` (prod) | Listening interface |
+| `PX_PORT` | — | Browser proxy on its own port (IP mode) |
+| `PX_HOST` | — | Host served only as the proxy (domain mode) |
+| `PX_PUBLIC` | — | Public proxy origin injected into the page |
+| `TRUST_PROXY` | — | Trust `X-Forwarded-*` (behind Caddy) |
+| `SOTOS_DATA` | `server/data` | Database, blobs and secrets |
+| `SOTOS_WEB` | `web/dist` | Built desktop |
+| `SOTOS_REGISTRATION` | `open` | `closed` disables new sign-ups |
+| `SOTOS_QUOTA_MB` | `2048` | Per-account quota |
+| `SOTOS_MAX_FILE_MB` | `512` | Maximum file size |
+| `SOTOS_SHOW_LAN` | — | `1` exposes LAN addresses in `/api/info` and in Settings |
+| `OO_URL` | — | Public Document Server URL (enables the integration) |
+| `OO_INTERNAL` | `OO_URL` | URL the server uses to download saved versions |
+| `SOTOS_INTERNAL` | `http://host.docker.internal:8787` | URL the Document Server uses to reach Sotos |
+| `SOTOS_OO_JWT` | `data/secrets.json` | JWT secret shared with ONLYOFFICE |
 
-## 4. Estructura del repositorio
+## 4. Repository layout
 
 ```
-instalar.ps1 · instalar.sh          instaladores (3 modos + actualizar/desinstalar)
-Dockerfile · docker-compose*.yml    imagen y despliegues (dominio+HTTPS / IP)
-Caddyfile · .env.example            proxy inverso con certificados automáticos
+instalar.ps1 · instalar.sh          installers (3 modes + update/uninstall)
+Dockerfile · docker-compose*.yml    image and deployments (domain+HTTPS / IP)
+Caddyfile · .env.example            reverse proxy with automatic certificates
 scripts/
-  capturas.mjs                      capturas automáticas (Edge sin ventana + CDP)
-  onlyoffice-dev.ps1                Document Server local para desarrollo
+  capturas.mjs                      automated screenshots (headless Edge + CDP)
+  onlyoffice-dev.ps1                local Document Server for development
 server/
-  index.mjs                         enrutado, estáticos, origen del proxy inyectado
-  http.mjs                          utilidades HTTP, límite de intentos, JWT HS256
-  db.mjs                            SQLite, rutas de datos, secretos
-  auth.mjs                          cuentas, scrypt, sesiones
-  fs.mjs                            estado por usuario, operaciones, contenidos, SSE
-  shares.mjs                        enlaces públicos y "compartido conmigo"
-  oo.mjs                            integración con ONLYOFFICE Docs
-  px.mjs                            proxy del navegador (reescritura + cliente inyectado)
+  index.mjs                         routing, static files, injected proxy origin
+  http.mjs                          HTTP helpers, rate limiting, HS256 JWT
+  db.mjs                            SQLite, data paths, secrets
+  auth.mjs                          accounts, scrypt, sessions
+  fs.mjs                            per-user state, operations, blobs, SSE
+  shares.mjs                        public links and "shared with me"
+  oo.mjs                            ONLYOFFICE Docs integration
+  px.mjs                            browser proxy (rewriting + injected client)
 web/src/
-  main.jsx                          arranque, ruta pública /#/s/<token>
-  os/shell.jsx                      SO: arranque, acceso, barra, dock, escritorio, ventanas
-  os/tree-ops.js                    operaciones puras del árbol (compartido con el servidor)
-  os/vfs.js                         sistema de archivos, IndexedDB, cola y sincronización
-  os/api.js · config.js             cliente de la API, origen del proxy
-  os/files-ui.jsx                   miniaturas, arrastrar/soltar, menús, propiedades, compartir
-  os/apps1.jsx                      Archivos, Notas, Hojas, Galería, guardado automático
-  os/apps2.jsx                      Música, Vídeo, PDF
-  os/apps3.jsx                      Correo, Mensajes, Navegador
-  os/apps4.jsx                      Ajustes (cuenta, fondos, red), Tienda
-  os/apps5.jsx                      Documentos, Presentaciones, Lanzador, Papelera
+  main.jsx                          bootstrap, public route /#/s/<token>
+  os/shell.jsx                      OS: boot, sign-in, menu bar, dock, desktop, windows
+  os/tree-ops.js                    pure tree operations (shared with the server)
+  os/vfs.js                         file system, IndexedDB, queue and sync
+  os/api.js · config.js             API client, proxy origin, demo flag
+  os/files-ui.jsx                   thumbnails, drag and drop, menus, properties, sharing
+  os/apps1.jsx                      Files, Notes, Sheets, Gallery, autosave
+  os/apps2.jsx                      Music, Video, PDF
+  os/apps3.jsx                      Mail, Messages, Browser
+  os/apps4.jsx                      Settings (account, wallpapers, network), Store
+  os/apps5.jsx                      Documents, Slides, Launchpad, Trash
   os/terminal.jsx                   sotos-sh
-  os/office.js                      .docx/.xlsx/.csv/.pptx/.pdf, limpieza de HTML, impresión
-  os/formula.js                     motor de fórmulas
-  os/onlyoffice.jsx                 editor ONLYOFFICE y respaldo con editores propios
-  os/context-menu.jsx               menú contextual global
-  os/wallpapers.js                  fondos ilustrados por código
-  os/seed.js                        contenido de ejemplo real del primer arranque
-  os/auth-ui.jsx · share-page.jsx   acceso y página pública de enlaces
+  os/office.js                      .docx/.xlsx/.csv/.pptx/.pdf, HTML sanitizing, printing
+  os/formula.js                     formula engine
+  os/onlyoffice.jsx                 ONLYOFFICE editor with built-in editors as fallback
+  os/context-menu.jsx               global context menu
+  os/wallpapers.js                  procedurally drawn wallpapers
+  os/seed.js                        real sample content created on first boot
+  os/auth-ui.jsx · share-page.jsx   sign-in and public share page
 ```
 
-## 5. Arquitectura
+Source comments and UI strings are in Spanish.
+
+## 5. Architecture
 
 ```mermaid
 flowchart LR
-  subgraph B["Navegador"]
-    UI["shell.jsx + apps"] <--> V["vfs.js<br/>IndexedDB · cola"]
-    UI <-. postMessage .-> F["iframe del proxy"]
+  subgraph B["Browser"]
+    UI["shell.jsx + apps"] <--> V["vfs.js<br/>IndexedDB · queue"]
+    UI <-. postMessage .-> F["proxy iframe"]
   end
   subgraph S["server/index.mjs"]
     A["auth.mjs"] & FS["fs.mjs"] & SH["shares.mjs"] & OO["oo.mjs"]
@@ -161,122 +167,136 @@ flowchart LR
   FS --- DB & BL
 ```
 
-En producción, un host (o un puerto) es solo proxy: las cookies de sesión del escritorio nunca llegan a las páginas proxificadas.
+In production one host (or port) is proxy-only, so the desktop session cookies never reach proxied pages.
 
-## 6. Sistema de archivos y sincronización
+## 6. File system and sync
 
-- Estado = `{ root, trash }`. Nodos `{ id, name, type, size, ctime, mtime, children?, url?, meta? }`; `root` y `desktop` son fijos.
-- `tree-ops.js#applyOp` implementa `replace`, `create`, `write`, `rename`, `move`, `copy`, `trash`, `restore`, `destroy` de forma pura e idempotente donde aplica; devuelve efectos (`copyBlobs`, `deleteBlobs`) que solo ejecuta el servidor.
-- El cliente decide ids (`Date.now().toString(36)` + aleatorio), nombres únicos y fechas, así la operación es determinista.
-- Cola: `[{k:"blob",id} | {k:"op",op}]`, persistida en IndexedDB `kv/queue`; las operaciones consecutivas se agrupan (hasta 200 por petición). Errores: 401 → `auth`, 507/413 → `full`, red → reintento cada 5 s.
-- Al recibir `fs` por SSE de otro origen: `GET /api/fs/state` y reaplicación de la cola pendiente encima.
-- Cuenta nueva: se genera el contenido de ejemplo, se encolan sus blobs y una operación `replace`.
-- Bases IndexedDB: `sotos-os` (invitado) y `sotos-os-<uid>` (cada cuenta). Ajustes → Cuenta → Importar copia lo de invitado a la cuenta.
+- State = `{ root, trash }`. Nodes `{ id, name, type, size, ctime, mtime, children?, url?, meta? }`; `root` and `desktop` are fixed.
+- `tree-ops.js#applyOp` implements `replace`, `create`, `write`, `rename`, `move`, `copy`, `trash`, `restore` and `destroy` as pure functions (idempotent where it applies) and returns side effects (`copyBlobs`, `deleteBlobs`) that only the server executes.
+- The client decides ids (`Date.now().toString(36)` + random), unique names and timestamps, so every operation is deterministic.
+- Queue: `[{k:"blob",id} | {k:"op",op}]`, persisted in IndexedDB `kv/queue`; consecutive operations are batched (up to 200 per request). Errors: 401 → `auth`, 507/413 → `full`, network → retry every 5 s.
+- On an `fs` SSE event from another origin: `GET /api/fs/state`, then the pending queue is re-applied on top.
+- New account: sample content is generated, its blobs are queued, followed by a `replace` operation.
+- IndexedDB databases: `sotos-os` (guest) and `sotos-os-<uid>` (one per account). Settings → Account → Import copies guest files into the account.
 
 ## 7. API
 
-Todas las escrituras exigen `X-Sotos: 1`.
+Every write requires the `X-Sotos: 1` header.
 
-| Método y ruta | Descripción |
+| Method and path | Description |
 |---|---|
-| `GET /api/health` · `GET /api/info` | Estado · IP de la red (si `SOTOS_SHOW_LAN=1`) |
-| `GET /api/auth/me` | Usuario de la sesión y política de registro |
-| `POST /api/auth/register \| login \| logout \| password` | Cuentas |
+| `GET /api/health` · `GET /api/info` | Health · LAN addresses (when `SOTOS_SHOW_LAN=1`) |
+| `GET /api/auth/me` | Session user and sign-up policy |
+| `POST /api/auth/register \| login \| logout \| password` | Accounts |
 | `GET /api/fs/state` | `{ version, state, fresh, used, quota }` |
 | `POST /api/fs/ops` | `{ ops, origin }` → `{ version }` |
-| `GET\|PUT /api/fs/blob/:id` | Contenido (PUT con cuota y límite de tamaño, escritura atómica) |
+| `GET\|PUT /api/fs/blob/:id` | Content (PUT enforces quota and size limit, atomic write) |
 | `GET /api/fs/events` | SSE: `hello`, `fs` |
-| `GET\|POST /api/shares` · `DELETE /api/shares/:token` | Enlaces propios |
-| `GET /api/shares/with-me` | Compartido conmigo |
-| `GET /api/s/:token[/blob/:id[?dl]]` | Público: metadatos y contenido dentro de lo compartido |
-| `GET /api/oo/status` · `POST /api/oo/config` | Integración ONLYOFFICE |
-| `GET /api/oo/file?t=` · `POST /api/oo/callback?t=` | Usados por el Document Server, firmados con JWT |
+| `GET\|POST /api/shares` · `DELETE /api/shares/:token` | Own links |
+| `GET /api/shares/with-me` | Shared with me |
+| `GET /api/s/:token[/blob/:id[?dl]]` | Public: metadata and content inside the shared item |
+| `GET /api/oo/status` · `POST /api/oo/config` | ONLYOFFICE integration |
+| `GET /api/oo/file?t=` · `POST /api/oo/callback?t=` | Used by the Document Server, JWT-signed |
 
-## 8. Proxy del navegador
+## 8. Browser proxy
 
-`/px/<url absoluta>`:
+`/px/<absolute url>`:
 
-- Petición: reenvía método, cuerpo y cabeceras útiles; cookies desde un jar en memoria por `sotos_px_sid`; `Referer`/`Origin` del sitio real.
-- Respuesta: elimina `X-Frame-Options`, CSP, COOP/COEP/CORP, HSTS, `Set-Cookie` (al jar) y similares; redirecciones reescritas; `Access-Control-Allow-Origin: *`.
-- HTML: reescritura de `href|src|action|poster|data-src|srcset`, `style` y `<style>` con `url()`/`@import`, `meta refresh`, eliminación de `<base>`, `integrity` y `nonce`, e inyección del cliente.
-- Cliente inyectado: parchea `fetch`, `XMLHttpRequest`, `window.open`, `history.pushState/replaceState`, `sendBeacon`, `Worker`, observa el DOM, informa `{type:"sotos-px", url, title}` y reenvía el clic derecho como `{type:"sotos-ctx", …}`; ejecuta `{type:"sotos-cmd"}` (insertar texto, borrar, seleccionar todo) solo si viene de `window.parent`.
-- Peticiones con ruta raíz huérfana (`/static/x.js`) → 307 al último origen (por `Referer` o cookie `sotos_px_origin`).
-- SSRF: resuelve DNS y rechaza loopback, privadas, CGNAT, enlace local y multicast.
-- Cookies del proxy: `SameSite=None; Secure` bajo HTTPS o `localhost`; `SameSite=Lax` por IP en HTTP (mismo sitio que el escritorio).
+- Request: forwards method, body and useful headers; cookies come from an in-memory jar keyed by `sotos_px_sid`; `Referer`/`Origin` of the real site.
+- Response: strips `X-Frame-Options`, CSP, COOP/COEP/CORP, HSTS, `Set-Cookie` (moved to the jar) and similar headers; rewrites redirects; adds `Access-Control-Allow-Origin: *`.
+- HTML: rewrites `href|src|action|poster|data-src|srcset`, `style` and `<style>` `url()`/`@import`, `meta refresh`; removes `<base>`, `integrity` and `nonce`; injects the client.
+- Injected client: patches `fetch`, `XMLHttpRequest`, `window.open`, `history.pushState/replaceState`, `sendBeacon` and `Worker`, observes the DOM, reports `{type:"sotos-px", url, title}` and forwards right-clicks as `{type:"sotos-ctx", …}`; it runs `{type:"sotos-cmd"}` (insert text, delete, select all) only when it comes from `window.parent`.
+- Orphan root-relative requests (`/static/x.js`) → 307 to the last origin (from `Referer` or the `sotos_px_origin` cookie).
+- SSRF: resolves DNS and rejects loopback, private, CGNAT, link-local and multicast addresses.
+- Proxy cookies: `SameSite=None; Secure` over HTTPS or `localhost`; `SameSite=Lax` over plain HTTP by IP (same site as the desktop).
 
-## 9. Formatos de Office y fórmulas
+## 9. Office formats and formulas
 
-| Librería | Uso |
+| Library | Use |
 |---|---|
 | mammoth | `.docx` → HTML |
-| docx | HTML → `.docx` (títulos, listas numeradas con definición propia, tablas, imágenes en data URL, formato de texto) |
-| ExcelJS | `.xlsx` ↔ modelo `{ sheets:[{ name, cells, fmt, widths }] }`, fórmulas con resultado en caché |
-| PptxGenJS + JSZip | `.pptx`; el modelo de Sotos se guarda en `sotos/slides.json` y se declara `Extension="json"` en `[Content_Types].xml` |
-| propio | CSV (separador `,` o `;`, comillas), PDF de texto (Helvetica, WinAnsi, xref) |
+| docx | HTML → `.docx` (headings, numbered lists with their own definition, tables, data-URL images, text formatting) |
+| ExcelJS | `.xlsx` ↔ model `{ sheets:[{ name, cells, fmt, widths }] }`, formulas with cached results |
+| PptxGenJS + JSZip | `.pptx`; the Sotos model is stored in `sotos/slides.json` and `Extension="json"` is declared in `[Content_Types].xml` |
+| in-house | CSV (`,` or `;` separator, quoting), text PDF (Helvetica, WinAnsi, xref) |
 
-`formula.js`: tokenizador → parser por precedencia → evaluador con memoria y ciclo. Referencias `A1`, `$B$2`, `AA10`, rangos; funciones en inglés y español. Sin `eval` ni `Function`.
+`formula.js`: tokenizer → precedence parser → evaluator with per-cell memoization and cycle detection. `A1`, `$B$2`, `AA10` references and ranges; function names in English and Spanish. No `eval` or `Function`.
 
-## 10. Servidor de documentos (ONLYOFFICE)
+## 10. Document server (ONLYOFFICE)
 
-`withOnlyOffice(App)` envuelve Documentos, Hojas y Presentaciones: con cuenta y `OO_URL` configurado usa el editor ONLYOFFICE; si no, el propio.
+`withOnlyOffice(App)` wraps Documents, Sheets and Slides: with an account and `OO_URL` set it uses the ONLYOFFICE editor; otherwise the built-in one.
 
-1. `POST /api/oo/config` → config firmada (`document.key = id-mtime-size`, URL de descarga y de callback con JWT de 12 h/48 h).
-2. El navegador carga `OO_URL/web-apps/apps/api/documents/api.js` y crea el editor en su propio iframe.
-3. Callback con estado 2 o 6: se verifica el JWT de la URL y el del cuerpo o cabecera, se comprueba que la descarga venga del host del Document Server, se escribe de forma atómica y se aplica una operación `write` (llega por SSE a los demás dispositivos).
+1. `POST /api/oo/config` → signed config (`document.key = id-mtime-size`, download and callback URLs with 12 h / 48 h JWTs).
+2. The browser loads `OO_URL/web-apps/apps/api/documents/api.js` and creates the editor in its own iframe.
+3. Callback with status 2 or 6: the URL JWT and the body or header JWT are verified, the download host must be the Document Server, the file is written atomically and a `write` operation is applied (other devices receive it through SSE).
 
-Desarrollo local: `scripts/onlyoffice-dev.ps1` (requiere Docker) y reiniciar `npm run dev` del servidor. **Estado: implementado, pendiente de prueba de extremo a extremo con Docker.**
+Local development: `scripts/onlyoffice-dev.ps1` (requires Docker), then restart the server's `npm run dev`. **Status: implemented, end-to-end test with Docker pending.**
 
-## 11. Identidad visual y fondos
+## 11. Visual identity and wallpapers
 
-- Tokens de papel y tinta (`--surface`, `--ink-line`, `--print-shadow`…) para claro y oscuro; sin `backdrop-filter`.
-- Ventanas con controles propios a la derecha, franja superior del color de la app y sombra desplazada.
-- Paleta de acentos: arcilla `#c4532f`, musgo `#4f7a3a`, cielo `#2f5d8a`, mostaza `#c9902a`, ciruela `#7a3e6b`, laguna `#1f7a78`.
-- `wallpapers.js`: 8 escenas deterministas (semilla por id) con tramado de puntos, capas con desfase de registro, elementos propios (frailejón, palma de cera, cactus, capilla, ciudad) y grano de papel; se renderizan a la resolución de la pantalla y se cachean como URL de blob.
+- Paper-and-ink tokens (`--surface`, `--ink-line`, `--print-shadow`, …) for light and dark themes; no `backdrop-filter`.
+- Windows with custom controls, a top stripe in the app's color and an offset "printed" shadow.
+- Accent palette: clay `#c4532f`, moss `#4f7a3a`, sky `#2f5d8a`, mustard `#c9902a`, plum `#7a3e6b`, lagoon `#1f7a78`.
+- `wallpapers.js`: 8 deterministic scenes (seeded by id) inspired by Colombian landscapes, with halftone skies, flat layers with a registration offset, scene elements (frailejón, wax palm, cactus, hilltop chapel, city) and paper grain; rendered at screen resolution and cached as blob URLs.
 
-## 12. Menú contextual global
+## 12. Global context menu
 
-`context-menu.jsx` escucha `contextmenu` en `document` después de las apps: si ninguna llamó a `preventDefault`, construye el menú según el destino (campo editable, selección, enlace, imagen, barra de título o ventana). Los botones del menú no roban el foco (`mousedown.preventDefault`), así se conserva la selección. `showMenu(x, y, items)` lo usa el Navegador para las páginas proxificadas. `Mayús + clic derecho` deja el menú nativo.
+`context-menu.jsx` listens to `contextmenu` on `document` after the apps: if none called `preventDefault`, it builds a menu for the target (editable field, selection, link, image, title bar or window). Menu buttons do not steal focus (`mousedown.preventDefault`), so text selections survive. `showMenu(x, y, items)` is also used by the Browser for proxied pages. `Shift + right-click` keeps the native menu.
 
-## 13. Seguridad
+## 13. Security
 
-- scrypt (N = 2¹⁵, r = 8, p = 1) con sal de 16 bytes; sesiones de 30 días, token de 32 bytes, se guarda su SHA-256.
-- Límite de intentos: registro 5/h por IP; inicio de sesión 20/15 min por IP y 8/15 min por correo.
-- Cookie `Secure` solo bajo HTTPS (detectado por socket o `X-Forwarded-Proto` con `TRUST_PROXY`).
-- Identificadores de archivo validados con `^[a-z0-9]{6,40}$` antes de tocar disco; escritura en `.part` + `rename`.
-- Contenido compartido: `nosniff`, CSP `sandbox` (salvo PDF), descarga forzada para tipos no seguros.
-- `sanitizeHtml` con lista blanca de etiquetas y atributos para documentos, pegado e impresión (iframe sin `allow-scripts`).
-- Cabeceras del escritorio: `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
+- scrypt (N = 2¹⁵, r = 8, p = 1) with a 16-byte salt; 30-day sessions, 32-byte token, only its SHA-256 is stored.
+- Rate limits: sign-up 5/h per IP; sign-in 20/15 min per IP and 8/15 min per email; equal work whether or not the account exists.
+- `Secure` cookie only over HTTPS (detected from the socket, or from `X-Forwarded-Proto` with `TRUST_PROXY`).
+- Blob ids validated with `^[a-z0-9]{6,40}$` before touching disk; writes go to `.part` + `rename`.
+- Shared content: `nosniff`, CSP `sandbox` (except PDF), forced download for unsafe types.
+- `sanitizeHtml` with an allow-list of tags and attributes for documents, pasting and printing (iframe without `allow-scripts`).
+- Desktop headers: `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
 
-## 14. Pruebas y capturas
+## 14. Public demo
 
-- Prueba de humo de la API (registro, sesión, operaciones, blobs, enlaces públicos, anti-CSRF, borrado definitivo): 20/20.
-- Formatos: los `.docx`, `.xlsx`, `.pptx` y `.pdf` generados se validaron abriéndolos con librerías independientes en Node.
-- Fórmulas: casos de precedencia, rangos, columnas de varias letras, ciclos, división por cero y nombres desconocidos.
-- Sincronización: cuenta nueva → borrado de la caché local → todo vuelve del servidor, incluido el contenido.
+Static build, guest mode only, no proxy:
 
-Capturas automáticas (servidor y `web` en marcha):
+```bash
+cd web
+VITE_DEMO=1 npm run build:demo     # → ../demo-dist
+```
+
+`demo-dist/` is its own git repository (ignored here) published as [`Softsoto/SotosWeb-demo`](https://github.com/Softsoto/SotosWeb-demo) with GitHub Pages: <https://softsoto.github.io/SotosWeb-demo/>. In this mode `config.js#DEMO` skips sign-in, never calls the API, hides the proxy toggle and shows a welcome dialog and a DEMO badge. To update it: rebuild, then commit and push inside `demo-dist/`.
+
+## 15. Tests and screenshots
+
+- API smoke test (sign-up, session, operations, blobs, public links, anti-CSRF, permanent deletion): 20/20.
+- Formats: generated `.docx`, `.xlsx`, `.pptx` and `.pdf` files were validated by opening them with independent libraries in Node.
+- Formulas: precedence, ranges, multi-letter columns, cycles, division by zero and unknown names.
+- Sync: new account → local cache wiped → everything comes back from the server, content included.
+- Public demo: tested live on GitHub Pages (apps open, `.docx`/`.xlsx` load through lazy chunks, no console or network errors).
+
+Automated screenshots (server and `web` running):
 
 ```powershell
 node scripts/capturas.mjs docs/capturas
 ```
 
-Lanza Edge sin ventana a 1600×1000 (densidad 1,5), usa una cuenta local de capturas y recorre el sistema mediante `window.__sotos` (solo existe en desarrollo) y eventos reales de ratón y teclado por CDP.
+Launches headless Edge at 1600×1000 (device scale 1.5), uses a local screenshot account and drives the system through `window.__sotos` (development builds only) plus real mouse and keyboard events over CDP.
 
-## 15. Capturas
+## 16. Screenshots
 
 | | |
 |---|---|
-| ![Acceso](docs/capturas/acceso.jpg) | ![Archivos](docs/capturas/archivos.jpg) |
+| ![Sign-in](docs/capturas/acceso.jpg) | ![Files](docs/capturas/archivos.jpg) |
 | ![Word](docs/capturas/word.jpg) | ![Excel](docs/capturas/excel.jpg) |
-| ![Presentaciones](docs/capturas/presentaciones.jpg) | ![Terminal](docs/capturas/terminal.jpg) |
-| ![Navegador](docs/capturas/navegador.jpg) | ![Menú contextual](docs/capturas/menu-contextual.jpg) |
-| ![Fondos](docs/capturas/fondos.jpg) | ![Compartir](docs/capturas/compartir.jpg) |
-| ![Enlace público](docs/capturas/enlace-publico.jpg) | ![Tema oscuro](docs/capturas/tema-oscuro.jpg) |
+| ![Slides](docs/capturas/presentaciones.jpg) | ![Terminal](docs/capturas/terminal.jpg) |
+| ![Browser](docs/capturas/navegador.jpg) | ![Context menu](docs/capturas/menu-contextual.jpg) |
+| ![Wallpapers](docs/capturas/fondos.jpg) | ![Sharing](docs/capturas/compartir.jpg) |
+| ![Public link](docs/capturas/enlace-publico.jpg) | ![Dark theme](docs/capturas/tema-oscuro.jpg) |
 
-## 16. Pendientes
+## 17. Roadmap
 
-- Probar ONLYOFFICE de extremo a extremo (Docker) y fijar `OO_VERSION`.
-- Comprobar la sintaxis de `instalar.sh` en Linux real.
-- Bloque 3: ventanas y pantallas táctiles (gestos, modo celular).
-- Bloque 4: calculadora, calendario, tareas, cámara, mapas, editor de código; chat entre cuentas por WebSocket; tienda funcional.
-- Bloque 5: rendimiento (carga diferida de apps, subconjunto de la fuente de iconos), CSP estricta, límites del proxy por cuenta, publicación.
+- End-to-end ONLYOFFICE test with Docker and a pinned `OO_VERSION`.
+- Syntax check of `instalar.sh` on real Linux.
+- Window controls: user's choice between Sotos, Mac and Windows styles.
+- Touch screens and a phone layout.
+- New apps (calculator, calendar, tasks, camera, maps, code editor), real-time chat between accounts, working Store.
+- File version history, admin panel, automatic server backups, two-factor sign-in.
+- Performance (lazy-loaded apps, icon font subset), strict CSP, per-account proxy limits.

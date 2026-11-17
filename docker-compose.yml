@@ -1,14 +1,14 @@
-# Sotos OS — despliegue en un servidor (VPS) con Docker
+# Sotos — server (VPS) deployment with Docker, domain + HTTPS
 # © 2026 Sebastian Sotomontes
 #
-#   cp .env.example .env   (rellenar dominios y secreto)
+#   cp .env.example .env   (fill in domains and secret)
 #   docker compose up -d --build
 #
-# Necesita 3 subdominios apuntando al servidor (registros A/AAAA):
-#   SOTOS_DOMAIN   el escritorio         p. ej. os.midominio.com
-#   PX_DOMAIN      proxy del navegador   p. ej. px.midominio.com
-#   OFFICE_DOMAIN  ONLYOFFICE            p. ej. office.midominio.com
-# Caddy obtiene y renueva los certificados HTTPS solo.
+# Needs three subdomains pointing to the server (A/AAAA records):
+#   SOTOS_DOMAIN   the desktop        e.g. os.example.com
+#   PX_DOMAIN      browser proxy      e.g. px.example.com
+#   OFFICE_DOMAIN  ONLYOFFICE         e.g. office.example.com
+# Caddy obtains and renews the HTTPS certificates automatically.
 
 services:
   caddy:
@@ -48,7 +48,7 @@ services:
       JWT_ENABLED: "true"
       JWT_SECRET: ${OO_JWT_SECRET}
       JWT_HEADER: Authorization
-      ALLOW_PRIVATE_IP_ADDRESS: "true"   # para descargar archivos de "sotos" por la red interna
+      ALLOW_PRIVATE_IP_ADDRESS: "true"   # lets it download files from "sotos" over the internal network
     volumes:
       - oo_data:/var/www/onlyoffice/Data
       - oo_lib:/var/lib/onlyoffice
