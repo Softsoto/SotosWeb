@@ -21,6 +21,30 @@ const gear = (() => {
 })();
 
 export const GLYPHS = {
+  whatsapp: <>
+    <path d="M12 3.2c-5 0-9 3.6-9 8 0 2.1.9 4 2.4 5.4l-.9 3.8 4-1.9c1.1.4 2.3.6 3.5.6 5 0 9-3.6 9-8s-4-7.9-9-7.9Z" fill="currentColor" />
+    <path d="M7.4 11.6l2 2 3.4-3.6M11.6 13.6l.4.4 3.6-3.8" stroke={ink} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  </>,
+  paint: <>
+    <path d="M12 3.2c-5 0-9 3.7-9 8.3 0 4.2 3.4 7.3 7.4 7.3 1.4 0 1.9-.9 1.6-1.9-.4-1.2.4-2.3 1.7-2.3h2.1c2.4 0 4.2-1.8 4.2-4.2 0-4-3.6-7.2-8-7.2Z" fill="currentColor" />
+    <circle cx="7.6" cy="11" r="1.4" fill={ink} /><circle cx="10.4" cy="7.4" r="1.4" fill={ink} /><circle cx="14.8" cy="7.2" r="1.4" fill={ink} /><circle cx="17.6" cy="10.6" r="1.3" fill={ink} />
+  </>,
+  diagrams: <>
+    <rect x="2.8" y="3.4" width="7.2" height="5.4" rx="1.2" fill="currentColor" />
+    <rect x="14" y="3.4" width="7.2" height="5.4" rx="1.2" fill="currentColor" opacity=".8" />
+    <rect x="8.4" y="15.2" width="7.2" height="5.4" rx="1.2" fill="currentColor" />
+    <path d="M6.4 8.8v3.2h11.2V8.8M12 12v3.2" {...line} strokeWidth="1.5" />
+  </>,
+  whiteboard: <>
+    <rect x="2.8" y="3.6" width="18.4" height="12.8" rx="1.4" fill="currentColor" />
+    <path d="M6.2 12.6c1.4-3.4 3-4.4 4.2-2.4s2.6 2.4 4.2-.8 2.4-2.6 3.2-1.4" stroke={ink} strokeWidth="1.5" fill="none" strokeLinecap="round" />
+    <path d="M8 16.4l-1.8 4.2M16 16.4l1.8 4.2" {...line} strokeWidth="1.6" />
+  </>,
+  code: <>
+    <rect x="2.6" y="3.8" width="18.8" height="16.4" rx="1.6" fill="currentColor" />
+    <rect x="2.6" y="3.8" width="18.8" height="3.6" rx="1.6" fill={ink} opacity=".3" />
+    <path d="M9.4 11l-2.8 2.6 2.8 2.6M14.6 11l2.8 2.6-2.8 2.6M12.8 10.2l-1.6 6.6" stroke={ink} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+  </>,
   files: <>
     <path d="M2.8 6.2A1.4 1.4 0 0 1 4.2 4.8h4.6l2 2h8.9a1.4 1.4 0 0 1 1.4 1.4v1.3H2.8Z" fill="currentColor" opacity=".72" />
     <path d="M2.8 9.2h18.4v8.6a1.4 1.4 0 0 1-1.4 1.4H4.2a1.4 1.4 0 0 1-1.4-1.4Z" fill="currentColor" opacity=".94" />

@@ -186,9 +186,9 @@ http.createServer(async (req, res) => {
     }
     if (!s || !s.db) return send(res, 409, { error: "WhatsApp no está vinculado" });
     if (route === "chats" && req.method === "GET") {
-      const rows = s.db.prepare(`SELECT c.jid, c.name, c.unread, c.archived, c.ts, m.text, m.kind, m.from_me
-        FROM chats c LEFT JOIN messages m ON m.jid = c.jid AND m.ts = (SELECT MAX(ts) FROM messages WHERE jid = c.jid)
-        ORDER BY c.ts DESC LIMIT 300`).all();
+      // un renglón por chat (antes, dos mensajes con la misma hora duplicaban el chat)
+      const lastOf = s.db.prepare("SELECT text, kind, from_me FROM messages WHERE jid = ? ORDER BY ts DESC, rowid DESC LIMIT 1");
+      const rows = s.db.prepare("SELECT jid, name, unread, archived, ts FROM chats ORDER BY ts DESC LIMIT 300").all().map(c => ({ ...c, ...(lastOf.get(c.jid) || {}) }));
       resolveLids(s, rows.filter(r => !r.name).map(r => r.jid)).catch(() => {});
       return send(res, 200, { chats: rows.filter(r => okJid(r.jid)).map(r => ({ jid: r.jid, name: r.name || nameOf(s, r.jid), group: !!isJidGroup(r.jid), unread: r.unread || 0, archived: !!r.archived, ts: r.ts || 0,
         last: r.kind ? { text: r.text, kind: r.kind, fromMe: !!r.from_me } : null })) });

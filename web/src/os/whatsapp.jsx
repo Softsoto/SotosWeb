@@ -6,7 +6,7 @@
    ============================================================ */
 import React from "react";
 import { Ic, EmptyState, Modal, toast } from "./ui.jsx";
-import { api } from "./api.js";
+import { api, onServer } from "./api.js";
 import * as vfs from "./vfs.js";
 import { fmtSize } from "./vfs.js";
 import { PersonAvatar } from "./contacts.jsx";
@@ -30,7 +30,7 @@ function Intro({ onStart, busy }) {
   return (
     <div className="wa-intro">
       <div className="wa-intro-card">
-        <div className="lp-svc" style={{ background: "#25a35a", width: 72, height: 72, borderRadius: 20 }}><Ic name="chat" size={38} /></div>
+        <div className="lp-svc" style={{ background: "#4f7a3a", width: 72, height: 72, borderRadius: 20 }}><Ic name="chat" size={38} /></div>
         <h2>Tu WhatsApp en Sotos</h2>
         <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.55 }}>Vincula tu WhatsApp como un dispositivo más (igual que WhatsApp Web) y usa tus chats con la interfaz de Sotos: mensajes, fotos, audios, documentos y archivos de tu nube. Cada cuenta de Sotos tiene su propia sesión.</div>
         <div className="wa-warn"><Ic name="warning" size={18} /><div><b>Antes de vincular:</b> Sotos se conecta con un cliente <b>no oficial</b> del protocolo de WhatsApp. WhatsApp no lo autoriza y puede <b>suspender el número</b> que lo usa, sobre todo si envía muchos mensajes seguidos o a desconocidos. Úsalo con un número que puedas arriesgar. Tus chats recientes se guardan en tu servidor de Sotos.</div></div>
@@ -127,23 +127,27 @@ function Conversation({ chat, onBack }) {
 export function NativeWhatsApp() {
   const [st, setSt] = useState({ state: "loading" }), [chats, setChats] = useState(null), [sel, setSel] = useState(null), [q, setQ] = useState(""), [busy, setBusy] = useState(false), [newChat, setNewChat] = useState(null);
   const loadChats = useCallback(() => api("GET", "wa/chats").then(r => setChats(r.chats)).catch(() => {}), []);
-  useEffect(() => {
-    const es = new EventSource("/api/wa/events"); let t = null;
-    const fire = (type) => (e) => { const data = JSON.parse(e.data); window.dispatchEvent(new CustomEvent("sotos-wa", { detail: { type, data } }));
+  // estado inicial con una petición normal; los cambios en vivo llegan por la conexión que Sotos ya tiene
+  // abierta (/api/fs/events → "wa"), así WhatsApp no ocupa conexiones extra del navegador
+  useEffect(() => { let stop = false;
+    const poll = () => api("GET", "wa/status").then(s => { if (!stop) setSt(cur => cur.state === "loading" || cur.state === "reconnecting" || s.state !== cur.state ? { ...cur, ...s } : cur); }).catch(() => {});
+    poll(); const iv = setInterval(poll, 20000); // red de seguridad por si se pierde algún evento
+    return () => { stop = true; clearInterval(iv); }; }, []);
+  useEffect(() => { let t = null;
+    const off = onServer("wa", ({ type, data }) => {
+      window.dispatchEvent(new CustomEvent("sotos-wa", { detail: { type, data } }));
       if (type === "status") setSt(data);
-      if (type === "chats" || type === "message") { clearTimeout(t); t = setTimeout(loadChats, 400); } };
-    ["status", "chats", "message", "ack", "reaction"].forEach(k => es.addEventListener(k, fire(k)));
-    es.onerror = () => setSt(s => s.state === "loading" ? { state: "error" } : s);
-    return () => { es.close(); clearTimeout(t); };
+      if (type === "chats" || type === "message") { clearTimeout(t); t = setTimeout(loadChats, 400); } });
+    return () => { off(); clearTimeout(t); };
   }, []);
   useEffect(() => { if (st.state === "open") loadChats(); }, [st.state]);
   const start = async () => { setBusy(true); try { setSt(await api("POST", "wa/start")); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
   const logout = async () => { try { await api("POST", "wa/logout"); setSt({ state: "off" }); setChats(null); setSel(null); toast("WhatsApp desvinculado de Sotos", { icon: "link_off" }); } catch (e) { toast(e.message, { error: true }); } };
   if (st.state === "loading") return <div className="app"><EmptyState icon="hourglass_empty" text="Conectando con WhatsApp…" /></div>;
-  if (st.state === "error") return <div className="app"><EmptyState icon="cloud_off" text="El servicio de WhatsApp de este servidor no responde." /></div>;
+
   if (st.state === "off") return <div className="app">{st.reason && <div className="proxy-bar"><Ic name="info" size={14} /> {st.reason}</div>}<Intro onStart={start} busy={busy} /></div>;
   if (st.state === "qr") return <div className="app"><Qr qr={st.qr} onCancel={logout} /></div>;
-  const list = (chats || []).filter(c => !q || (c.name || "").toLowerCase().includes(q.toLowerCase()));
+  const list = [...new Map((chats || []).map(c => [c.jid, c])).values()].filter(c => !q || (c.name || "").toLowerCase().includes(q.toLowerCase()));
   const cur = sel && (chats || []).find(c => c.jid === sel) || (sel ? { jid: sel, name: newChat?.name || sel.split("@")[0], group: sel.endsWith("@g.us") } : null);
   return (
     <div className={"app wa-app" + (sel ? " has-chat" : "")}>

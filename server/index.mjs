@@ -63,6 +63,8 @@ const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; cha
   ".svg": "image/svg+xml", ".png": "image/png", ".jpg": "image/jpeg", ".ico": "image/x-icon", ".woff": "font/woff", ".woff2": "font/woff2", ".webmanifest": "application/manifest+json", ".txt": "text/plain; charset=utf-8" };
 const SEC = { "x-content-type-options": "nosniff", "referrer-policy": "strict-origin-when-cross-origin", "x-frame-options": "DENY", "permissions-policy": "geolocation=(), camera=(self), microphone=(self)" };
 
+// lo que el escritorio necesita saber del servidor sin iniciar sesión (servicios opcionales propios)
+const clientConfig = () => ({ drawio: (process.env.DRAWIO_URL || "").replace(/\/$/, "") || null });
 function serveStatic(req, res) {
   let rel = decodeURIComponent(new URL(req.url, "http://x").pathname);
   let file = path.join(WEB_DIR, rel);
@@ -72,7 +74,7 @@ function serveStatic(req, res) {
   const ext = path.extname(file);
   const headers = { "content-type": MIME[ext] || "application/octet-stream", "cache-control": rel.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache", ...SEC };
   if (path.basename(file) === "index.html") {
-    const cfg = JSON.stringify({ pxOrigin: pxOriginFor(req) }).replace(/</g, "\\u003c");
+    const cfg = JSON.stringify({ pxOrigin: pxOriginFor(req), ...clientConfig() }).replace(/</g, "\\u003c");
     const html = fs.readFileSync(file, "utf8").replace("<head>", `<head><script>window.__SOTOS__=${cfg}</script>`);
     res.writeHead(200, headers); return res.end(html);
   }
@@ -88,6 +90,7 @@ async function handleApi(req, res) {
   if (!["GET", "HEAD"].includes(req.method) && !signedByOO && req.headers["x-sotos"] !== "1") return json(res, 403, { error: "Petición no permitida" });
   switch (area) {
     case "health": return json(res, 200, { ok: true, name: "Sotos OS", by: "Sebastian Sotomontes" });
+    case "client-config": return json(res, 200, clientConfig());
     case "info": // direcciones para entrar desde otros equipos de la red (solo en el modo "este equipo")
       return json(res, 200, { port: PORT, lan: process.env.SOTOS_SHOW_LAN === "1" ? lanAddresses().map(ip => `http://${ip}:${PORT}`) : [] });
     case "auth": return handleAuth(req, res, rest[0]);

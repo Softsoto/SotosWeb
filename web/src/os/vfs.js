@@ -43,7 +43,7 @@ const EXT = {
   png: "img", jpg: "img", jpeg: "img", gif: "img", webp: "img", bmp: "img", svg: "img", avif: "img", ico: "img",
   mp3: "audio", wav: "audio", ogg: "audio", m4a: "audio", flac: "audio", aac: "audio", opus: "audio",
   mp4: "video", webm: "video", mov: "video", mkv: "video", ogv: "video", m4v: "video",
-  txt: "txt", log: "txt", ini: "txt", cfg: "txt", nfo: "txt",
+  txt: "txt", log: "txt", ini: "txt", cfg: "txt", nfo: "txt", drawio: "drawio", excalidraw: "excalidraw",
   md: "code", html: "code", htm: "code", css: "code", js: "code", mjs: "code", jsx: "code", ts: "code", tsx: "code", json: "code", xml: "code", yml: "code", yaml: "code",
   py: "code", c: "code", h: "code", cpp: "code", cs: "code", java: "code", php: "code", sh: "code", ps1: "code", bat: "code", sql: "code", go: "code", rs: "code", rb: "code", lua: "code", toml: "code",
   zip: "zip", rar: "zip", "7z": "zip", tar: "zip", gz: "zip",
@@ -52,7 +52,7 @@ const MIME = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation", pdf: "application/pdf", csv: "text/csv", txt: "text/plain", html: "text/html", htm: "text/html",
   css: "text/css", js: "text/javascript", json: "application/json", md: "text/markdown", svg: "image/svg+xml", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif",
-  webp: "image/webp", mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", m4a: "audio/mp4", mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime", zip: "application/zip",
+  webp: "image/webp", mp3: "audio/mpeg", wav: "audio/wav", ogg: "audio/ogg", m4a: "audio/mp4", mp4: "video/mp4", webm: "video/webm", mov: "video/quicktime", zip: "application/zip", drawio: "application/vnd.jgraph.mxfile", excalidraw: "application/json",
 };
 export const extOf = (name) => { const m = /\.([^.]+)$/.exec(name || ""); return m ? m[1].toLowerCase() : ""; };
 export const typeOf = (name) => EXT[extOf(name)] || "file";
@@ -173,7 +173,7 @@ function listen() {
   events.addEventListener("fs", (e) => { const d = JSON.parse(e.data); if (d.origin !== ORIGIN && d.version > version) pull().catch(() => {}); else if (d.version > version) version = d.version; });
   events.addEventListener("hello", (e) => { const d = JSON.parse(e.data); if (d.version > version) pull().catch(() => {}); if (queue.length) pump(); });
   // resto de eventos (notificaciones, mundos, chat) → evento de ventana "sotos-server"
-  for (const type of ["notif", "notif-read", "world", "world-msg", "world-fs", "presence", "inbox", "calendar", "tasks", "store"])
+  for (const type of ["notif", "notif-read", "world", "world-msg", "world-fs", "presence", "inbox", "calendar", "tasks", "store", "wa"])
     events.addEventListener(type, (e) => window.dispatchEvent(new CustomEvent("sotos-server", { detail: { type, data: JSON.parse(e.data) } })));
   events.onerror = () => { if (state.sync.status === "ok") setSync({ status: "offline" }); };
   events.onopen = () => { if (state.sync.status === "offline") { setSync({ status: queue.length ? "syncing" : "ok" }); pump(); } };

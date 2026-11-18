@@ -455,9 +455,9 @@ function WhatsAppApp() {
   return (
     <div className="app webview-launch" style={{ flex: 1 }}>
       <div className="wl-card">
-        <div className="lp-svc" style={{ background: "#25a35a", width: 72, height: 72, borderRadius: 20 }}><Ic name="chat" size={38} /></div>
+        <div className="lp-svc" style={{ background: "#4f7a3a", width: 72, height: 72, borderRadius: 20 }}><Ic name="chat" size={38} /></div>
         <div className="wl-title">WhatsApp</div>
-        <div className="wl-sub">WhatsApp Web no permite abrirse dentro de otra página, así que se abre en una pestaña aparte. {DEMO ? "Con Sotos instalado y el navegador virtual activado, se usa aquí dentro." : "Si el administrador activa el navegador virtual en el servidor, se usará aquí dentro."}</div>
+        <div className="wl-sub">{!DEMO && mode !== "cloud" ? <>WhatsApp en Sotos va unido a tu <b>cuenta</b>: en modo invitado no se puede vincular. Inicia sesión con tu cuenta de Sotos y ábrelo de nuevo. Mientras tanto, puedes usar WhatsApp Web en una pestaña aparte.</> : <>WhatsApp Web no permite abrirse dentro de otra página, así que se abre en una pestaña aparte. {DEMO ? "Con Sotos instalado, se usa aquí dentro." : "Si el administrador activa WhatsApp en el servidor, se usará aquí dentro."}</>}</div>
         <div className="wl-btns"><button className="tb-btn primary" onClick={open}><Ic name="open_in_new" /> Abrir WhatsApp Web</button></div>
       </div>
     </div>

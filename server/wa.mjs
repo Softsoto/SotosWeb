@@ -11,7 +11,7 @@ import http from "node:http";
 import { secret } from "./db.mjs";
 import { fail, json, readJson, rateLimit } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
-import { userNode, blobPath } from "./fs.mjs";
+import { userNode, blobPath, notify } from "./fs.mjs";
 
 const WA_URL = (process.env.WA_URL || "").replace(/\/$/, "");
 const KEY = () => process.env.WA_SECRET || secret("wa");
@@ -37,11 +37,33 @@ function call(user, route, { method = "GET", query = {}, body, res: pipeTo } = {
     if (data) rq.write(data); rq.end();
   });
 }
+// una suscripción por cuenta a los eventos del servicio; se reenvían por la conexión en vivo que la
+// pestaña ya tiene abierta (/api/fs/events), así WhatsApp no ocupa conexiones extra del navegador
+const upstreams = new Map();
+function follow(user) {
+  if (!WA_URL || upstreams.has(user)) return;
+  const st = { req: null }; upstreams.set(user, st);
+  const connect = () => {
+    const u = new URL(`${WA_URL}/events`); u.searchParams.set("user", user);
+    const rq = http.get(u, { headers: { "x-wa-secret": KEY() } }, (r) => {
+      if (r.statusCode !== 200) { r.resume(); return retry(); }
+      let buf = ""; r.setEncoding("utf8");
+      r.on("data", (c) => { buf += c; let i; while ((i = buf.indexOf("\n\n")) >= 0) { const block = buf.slice(0, i); buf = buf.slice(i + 2);
+        const type = /^event: (.+)$/m.exec(block)?.[1], data = /^data: (.+)$/m.exec(block)?.[1];
+        if (type && data) { try { notify(user, "wa", { type, data: JSON.parse(data) }); } catch {} } } });
+      r.on("end", retry); r.on("error", retry);
+    });
+    rq.on("error", retry); st.req = rq;
+  };
+  let waiting = false; const retry = () => { if (waiting) return; waiting = true; setTimeout(() => { waiting = false; connect(); }, 3000); };
+  connect();
+}
 const relay = async (res, user, route, opts) => { const r = await call(user, route, opts).catch(e => fail(e.status || 502, e.message)); return json(res, r.status, r.body); };
 
 export async function handleWa(req, res, parts) {
   const u = requireUser(req);
   const [a] = parts; const url = new URL(req.url, "http://x"); const q = (k) => url.searchParams.get(k);
+  follow(u.id);
   if (!a && req.method === "GET") {
     if (!WA_URL) return json(res, 200, { enabled: false });
     const r = await call(u.id, "status").catch(() => null);

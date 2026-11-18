@@ -21,8 +21,12 @@ const APPS = [
   { id: "contacts",name: "Contactos", icon: "contacts",          color: "#2f5d8a", comp: "ContactsApp",  size: { w: 860, h: 560 } },
   { id: "chat",    name: "Mensajes",  icon: "chat_bubble",       color: "#1f7a78", comp: "ChatApp",      size: { w: 780, h: 540 } },
   { id: "browser", name: "Navegador", icon: "language",          color: "#2a7f8f", comp: "BrowserApp",   size: { w: 880, h: 580 } },
-  { id: "whatsapp", name: "WhatsApp", icon: "chat",              color: "#25a35a", comp: "WhatsAppApp",  size: { w: 1280, h: 800 } },
+  { id: "whatsapp", name: "WhatsApp", icon: "chat",              color: "#4f7a3a", comp: "WhatsAppApp",  size: { w: 1280, h: 800 } },
   { id: "terminal",name: "Terminal",  icon: "terminal",          color: "#26231f", comp: "TerminalApp",  size: { w: 660, h: 440 } },
+  { id: "paint",    name: "Paint",     icon: "palette",           color: "#7a3e6b", comp: "PaintApp",     size: { w: 1180, h: 800 } },
+  { id: "diagrams", name: "Diagramas", icon: "account_tree",      color: "#3b6e8f", comp: "DiagramsApp",  size: { w: 1280, h: 820 } },
+  { id: "whiteboard", name: "Pizarra", icon: "draw",              color: "#5a5689", comp: "WhiteboardApp", size: { w: 1240, h: 800 } },
+  { id: "code",     name: "Código",    icon: "code",              color: "#1f7a78", comp: "CodeApp",      size: { w: 1100, h: 720 } },
   // apps de la Tienda (proyectos HTML propios en web/public/apps; se ven al instalarlas)
   { id: "pdfmeta",     name: "Metadatos PDF",     icon: "plagiarism",      color: "#b8402f", comp: "WebApp", url: "apps/pdfmeta/index.html",     size: { w: 1100, h: 760 }, store: true, cat: "Herramientas",  desc: "Extrae metadatos, XMP, estructura y permisos de cualquier PDF. Todo en tu navegador." },
   { id: "audioext",    name: "Extractor de audio", icon: "graphic_eq",     color: "#7a3e6b", comp: "WebApp", url: "apps/audioext/index.html",    size: { w: 1000, h: 720 }, store: true, cat: "Multimedia",    desc: "Saca el audio de videos pesados (MP4, MKV, AVI, MOV) sin subirlos a ningún sitio." },
@@ -43,7 +47,7 @@ const APP_BY_ID = Object.fromEntries(APPS.map(a => [a.id, a]));
 const DOCK_IDS = ["launchpad","files","worlds","calendar","tasks","docs","sheets","slides","gallery","mail","contacts","browser","music","games","__div__","terminal","store","settings"];
 
 // extension -> app routing
-const ROUTE = { docx:"docs", txt:"editor", code:"editor", xlsx:"sheets", csv:"sheets",
+const ROUTE = { docx:"docs", txt:"editor", code:"code", drawio:"diagrams", excalidraw:"whiteboard", xlsx:"sheets", csv:"sheets",
   pptx:"slides", pdf:"pdf", img:"gallery", audio:"music", video:"video" };
 
 // file-type visual metadata (FileGlyph)
@@ -61,6 +65,8 @@ const TYPE_META = {
   video:  { kind: "icon", icon: "movie", color: "#8e5cf6" },
   txt:    { kind: "icon", icon: "description", color: "#8a929c" },
   code:   { kind: "icon", icon: "code", color: "#0aa5b5" },
+  drawio: { kind: "icon", icon: "account_tree", color: "#2f5d8a" },
+  excalidraw: { kind: "icon", icon: "draw", color: "#5a5689" },
 };
 
 // right-click menu for files

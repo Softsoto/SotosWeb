@@ -5,6 +5,7 @@
 import React from "react";
 import { APPS, APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, DEFAULT_SHORTCUTS, appAllowed } from "./data.jsx";
 import { SotosLogo, SotosMark, BrandMark, setBrandLogo } from "./logo.jsx";
+import * as Creative from "./creative.jsx";
 import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, animateWinOut, animateWinGeometry } from "./ui.jsx";
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
@@ -59,7 +60,7 @@ import { setRegion, tz as regionTz } from "./region.js";
 import { loadInstalled, subscribeInstalled } from "./installed.js";
 
 // registro de componentes de app (antes se resolvían con window[app.comp])
-const APP_COMPONENTS = { ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts, ...Admin, ...Cal, ...Tasks };
+const APP_COMPONENTS = { ...Creative, ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts, ...Admin, ...Cal, ...Tasks };
 const DEFAULT_PROFILE = { name: "Invitado", avatar: null };
 const { useState: useSh, useEffect: useEh, useRef: useRh, useCallback: useCh } = React;
 
@@ -617,8 +618,10 @@ function OS() {
     const o = (e) => openItem(vfs.node(e.detail));
     const sh = (e) => setShareId(e.detail);
     const sp = () => setSpot(true);
+    const ow = (e) => e.detail?.app && openApp(e.detail.app, { fileId: e.detail.fileId }); // "abrir con" desde el menú contextual
+    window.addEventListener("sotos-open-with", ow);
     document.addEventListener("keydown", k); window.addEventListener("sotos-open", o); window.addEventListener("sotos-share", sh); window.addEventListener("sotos-spotlight", sp);
-    return () => { document.removeEventListener("keydown", k); window.removeEventListener("sotos-open", o); window.removeEventListener("sotos-share", sh); window.removeEventListener("sotos-spotlight", sp); };
+    return () => { document.removeEventListener("keydown", k); window.removeEventListener("sotos-open", o); window.removeEventListener("sotos-open-with", ow); window.removeEventListener("sotos-share", sh); window.removeEventListener("sotos-spotlight", sp); };
   }, [stage]);
 
   // arranque: ¿hay servidor? ¿hay sesión? → nube; si no, invitado recordado o pantalla de acceso

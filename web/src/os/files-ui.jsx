@@ -109,7 +109,9 @@ export function itemMenu(nodes, { canPaste } = {}) {
     { id: "download", label: one && one.type === "folder" ? "Descargar como .zip" : "Descargar", icon: "download" });
   if (one) items.push({ id: "share", label: "Compartir…", icon: "group_add" });
   if (vfs.getState().mode === "cloud") items.push({ id: "sendto", label: nodes.length > 1 ? `Enviar ${nodes.length} elementos a…` : "Enviar a…", icon: "send" });
-  if (one && one.type === "img") items.push({ id: "wallpaper", label: "Usar como fondo", icon: "wallpaper" });
+  if (one && one.type === "img") items.push({ id: "wallpaper", label: "Usar como fondo", icon: "wallpaper" }, { id: "with:paint", label: "Editar con Paint", icon: "palette" });
+  if (one && one.type === "txt") items.push({ id: "with:code", label: "Abrir en el editor de código", icon: "code" });
+  if (one && one.type === "code") items.push({ id: "with:editor", label: "Abrir en Notas (vista previa)", icon: "edit_note" });
   if (one && isArchive(one)) items.push({ id: "unzip", label: "Extraer aquí", icon: "unarchive" });
   items.push({ id: "compress", label: nodes.length > 1 ? `Comprimir ${nodes.length} elementos en .zip` : "Comprimir en .zip", icon: "folder_zip" });
   items.push({ sep: true });
@@ -125,6 +127,7 @@ export async function runItemAction(id, nodes, { openItem, update, startRename, 
   const one = nodes[0];
   switch (id) {
     case "open": openItem(one); return true;
+    case "with:paint": case "with:code": case "with:editor": window.dispatchEvent(new CustomEvent("sotos-open-with", { detail: { app: id.slice(5), fileId: one.id } })); return true;
     case "copy": vfs.clip("copy", ids); toast(`${ids.length} elemento(s) copiado(s) al portapapeles`, { icon: "content_copy" }); return true;
     case "cut": vfs.clip("cut", ids); toast(`${ids.length} elemento(s) cortado(s)`, { icon: "content_cut" }); return true;
     case "pasteInto": { const n = await vfs.paste(one.id); if (n) toast(`${n} elemento(s) pegado(s) en ${one.name}`); return true; }

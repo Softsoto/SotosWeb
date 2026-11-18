@@ -10,7 +10,7 @@ const { useState, useRef, useEffect, useCallback } = React;
 // App icon tile
 function Tile({ icon, color, size = 46, style, app }) {
   return (
-    <div className="tile" data-app={app} style={{ width: size, height: size, background: color, fontSize: size, ...style }}>
+    <div className="tile" data-app={app} style={{ width: size, height: size, background: color, "--c": color, fontSize: size, ...style }}>
       <span className="material-symbols-rounded">{icon}</span>
       {app && <TileGlyph app={app} />}
     </div>
