@@ -1,8 +1,8 @@
 <p align="center"><img src="images/banner.png" alt="Sotos Web" width="100%"></p>
 
-<p align="center">Un ordenador completo dentro del navegador: archivos en la nube, Word, Excel y PowerPoint, navegador propio, terminal y una identidad visual propia.</p>
+<p align="center">Un ordenador completo dentro del navegador: archivos en la nube, Word, Excel y PowerPoint, correo real, calendario, tareas, navegador propio, terminal y una identidad visual propia. También es un homenaje a inevio.</p>
 
-<p align="center"><a href="https://softsoto.github.io/SotosWeb-demo/"><b>▶ Probar el demo</b></a> · <a href="https://sotomontes.com/#sotos-web">Ver en sotomontes.com</a> · <a href="#recorrido">Recorrido</a> · <a href="#instalación">Instalación</a> · <a href="#cómo-funciona-por-dentro">Cómo funciona</a> · <a href="#novedades">Novedades</a></p>
+<p align="center"><a href="https://softsoto.github.io/SotosWeb-demo/"><b>▶ Probar el demo</b></a> · <a href="https://sotomontes.com/#sotos-web">Ver en sotomontes.com</a> · <a href="#recorrido">Recorrido</a> · <a href="#instalación">Instalación</a> · <a href="#cómo-funciona-por-dentro">Cómo funciona</a> · <a href="#novedades">Novedades</a> · <a href="#un-homenaje-a-inevio">Homenaje a inevio</a></p>
 
 | Ficha técnica | |
 |---|---|
@@ -10,9 +10,9 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 2.1 |
+| **Versión** | 2.3 |
 | **Estado** | Funcional |
-| **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy |
+| **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
 | **Demo** | [softsoto.github.io/SotosWeb-demo](https://softsoto.github.io/SotosWeb-demo/), sin registro: todo se guarda en tu navegador |
 | **Licencia** | [MIT](LICENSE) |
 
@@ -26,7 +26,26 @@ Los documentos se abren y se guardan en sus formatos de siempre (`.docx`, `.xlsx
 
 <p align="center"><img src="images/escritorio.jpg" alt="Escritorio de Sotos con la ventana de Archivos sobre el fondo Páramo" width="100%"></p>
 
+## Un homenaje a inevio
+
+Sotos también es un homenaje a **inevio**, aquel escritorio en la nube que demostró hace años que un sistema operativo completo podía vivir en una pestaña del navegador. El tema Grafito, el movimiento de las ventanas y muchas de las funciones de las versiones 2.2 y 2.3 (correo, calendario, tareas, bandeja de recibidos, versiones de archivos, grupos de contactos, presencia y tienda) rinden tributo a lo que inevio hizo posible.
+
+Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde cero. inevio es una marca de sus respectivos dueños y Sotos no tiene relación con ella.
+
 ## Novedades
+
+**Versión 2.3**, Sotos se vuelve tu oficina completa:
+
+- **Correo real** con tus cuentas de Gmail, Outlook, iCloud, Yahoo o cualquier otro proveedor: carpetas, búsqueda, leer, responder, reenviar, destacar, mover y adjuntar archivos de Sotos. Puedes vincular **varias cuentas** y añadir **alias** para enviar desde otras direcciones, por ejemplo tu dominio propio en iCloud+.
+- **Calendario y Tareas**: varios calendarios, recordatorios, eventos compartidos en los mundos, importar y exportar `.ics`; listas de tareas con fechas, prioridades y comentarios.
+- **Versiones de archivos**: cada documento guarda sus versiones anteriores para verlas, descargarlas o restaurarlas, y una copia de seguridad completa de tu cuenta se exporta e importa desde Ajustes.
+- **Enviar a…**: manda uno o varios archivos o carpetas a otra cuenta; llegan a su bandeja de **Recibidos** para aceptarlos o rechazarlos.
+- **Personas**: quién está en línea, grupos de contactos y bloqueo.
+- **Tienda**: herramientas y juegos que se instalan al instante en tu cuenta, con reseñas de estrellas.
+- **Panel de administración**: usuarios, cuotas, registro abierto o cerrado y estadísticas del servidor.
+- **ONLYOFFICE o Euro-Office**: editores de oficina completos dentro de Sotos, probados con ambos motores.
+- **Navegador virtual y WhatsApp**: un Firefox real en el servidor abre las páginas que no se dejan mostrar dentro de otra web, y la app de **WhatsApp** lo usa para tener WhatsApp Web dentro de Sotos.
+- **Juegos** separados con portadas propias, **11 widgets** (temporizador, calculadora, recientes, reloj mundial, monedas, sistema…), miniaturas de vídeo, carátulas de música, símbolos en las carpetas del sistema, descompresor de `.zip`, `.7z`, `.rar` y `.tar`, y eliminar definitivamente desde la Papelera.
 
 **Versión 2.1**, Sotos se vuelve un lugar para compartir con otras personas:
 
@@ -154,6 +173,40 @@ Además de la identidad de papel y tinta, Sotos trae un segundo estilo completo:
 
 <p align="center"><img src="images/tema-grafito-dark.jpg" alt="Tema Grafito en oscuro" width="100%"></p>
 
+### Correo
+
+Varias cuentas, alias para enviar desde otras direcciones y la elección de remitente al redactar. Los correos en HTML se muestran aislados y sin scripts, y las imágenes externas quedan bloqueadas hasta que las pidas, para que nadie sepa que abriste su mensaje.
+
+<p align="center"><img src="images/correo.jpg" alt="Correo con un boletín abierto" width="100%"></p>
+
+<p align="center"><img src="images/correo-alias.jpg" alt="Redactar eligiendo la cuenta o el alias de envío" width="100%"></p>
+
+### Calendario y Tareas
+
+<p align="center"><img src="images/calendario.jpg" alt="Calendario en vista de mes" width="100%"></p>
+
+<p align="center"><img src="images/tareas.jpg" alt="Listas de tareas" width="100%"></p>
+
+### Versiones y Tienda
+
+<p align="center"><img src="images/versiones.jpg" alt="Historial de versiones de un documento" width="100%"></p>
+
+<p align="center"><img src="images/tienda.jpg" alt="Tienda de aplicaciones" width="100%"></p>
+
+### Euro-Office dentro de Sotos
+
+<p align="center"><img src="images/euro-office.jpg" alt="Documento abierto en Euro-Office dentro de una ventana de Sotos" width="100%"></p>
+
+### Navegador virtual
+
+<p align="center"><img src="images/navegador-virtual.jpg" alt="Navegador virtual abriendo una página que no se deja incrustar" width="100%"></p>
+
+### Juegos y widgets
+
+<p align="center"><img src="images/juegos.jpg" alt="Sala de juegos" width="100%"></p>
+
+<p align="center"><img src="images/widgets.jpg" alt="Widgets del escritorio en el tema Grafito" width="100%"></p>
+
 ### Tema oscuro
 
 <p align="center"><img src="images/tema-oscuro.jpg" alt="Música y Galería en tema oscuro sobre el fondo Tatacoa" width="100%"></p>
@@ -162,7 +215,7 @@ Además de la identidad de papel y tinta, Sotos trae un segundo estilo completo:
 
 ## Demo en línea
 
-**[Abrir el demo](https://softsoto.github.io/SotosWeb-demo/)**: funciona sin servidor ni registro. Trae los archivos de ejemplo, las aplicaciones, los fondos y el menú contextual completos; lo que hagas se queda solo en tu navegador. Las funciones que necesitan servidor (cuentas, nube, compartir, Mundos, notificaciones y el proxy del Navegador) están en las instalaciones completas.
+**[Abrir el demo](https://softsoto.github.io/SotosWeb-demo/)**: funciona sin servidor ni registro. Trae los archivos de ejemplo, las aplicaciones, los fondos y el menú contextual completos; lo que hagas se queda solo en tu navegador. Las funciones que necesitan servidor (cuentas, nube, compartir, Mundos, notificaciones, correo real, calendario compartido, versiones, Tienda, el proxy y el navegador virtual) están en las instalaciones completas.
 
 ## Cómo se usa
 
@@ -198,7 +251,9 @@ Además de la identidad de papel y tinta, Sotos trae un segundo estilo completo:
 - **Personas**: Mundos (muro, carpeta y chat compartidos), notificaciones en vivo y Contactos con `.vcf`.
 - **Nube**: cuentas, sincronización en vivo, funcionamiento sin conexión, cuota de espacio, compartir con enlaces, "Compartido conmigo".
 - **Personalización**: ocho fondos ilustrados o una foto propia, tema claro u oscuro, seis colores de acento, cuatro tipografías y tres estilos de ventana.
-- **Extras**: Terminal, Juegos, Tienda y Correo/Mensajes de demostración.
+- **Correo**: varias cuentas IMAP/SMTP con alias, contraseñas cifradas en el servidor.
+- **Organización**: Calendario con recordatorios e `.ics`, Tareas con comentarios, versiones de archivos y copias de seguridad.
+- **Extras**: Terminal, Juegos, Tienda, WhatsApp (con el navegador virtual), widgets y panel de administración.
 
 ## Instalación
 
@@ -208,7 +263,7 @@ Sotos se instala con un asistente que pregunta dónde va a vivir y deja todo fun
 |---|---|---|
 | **Este equipo** | Usarlo en casa o en la oficina, para ti y tu red local | Comprueba o instala Node.js, compila el escritorio, guarda los datos en tu carpeta de usuario, puede arrancar Sotos con el sistema y abrir el firewall solo para redes privadas. Muestra `http://localhost:8787` y `http://TU-IP:8787`. |
 | **Servidor / hosting** | Un VPS Linux accesible desde internet | Instala Sotos como servicio `systemd` con usuario propio y permisos mínimos, que se reinicia solo. Con dominio configura **HTTPS automático** con Caddy; sin dominio publica por IP y muestra tu IP pública. |
-| **Docker** | Despliegue en contenedores | Genera la configuración con un secreto aleatorio y levanta Sotos junto al servidor de documentos (en integración). Por IP o con tres subdominios y HTTPS. |
+| **Docker** | Despliegue en contenedores | Genera la configuración con un secreto aleatorio y levanta Sotos junto al servidor de documentos (ONLYOFFICE o Euro-Office). Por IP o con tres subdominios y HTTPS. |
 
 Los tres modos usan la misma compilación: la dirección del proxy del navegador se decide al arrancar, no al compilar. El instalador también **actualiza** y **desinstala** sin tocar tus archivos.
 
@@ -291,9 +346,13 @@ Casi todos los sitios prohíben mostrarse dentro de otra página. El proxy de So
 - Bloquea direcciones privadas y locales para que no se pueda usar contra la red interna.
 - El clic derecho dentro de la página se envía al escritorio por `postMessage`, y las acciones de pegar o seleccionar vuelven a la página por el mismo canal.
 
-### Servidor de documentos (en integración)
+### Servidor de documentos: ONLYOFFICE o Euro-Office
 
-Con un servidor de documentos compatible, Documentos, Hojas y Presentaciones pueden abrir editores de oficina completos dentro de Sotos. El servidor firma con JWT la configuración, la descarga del archivo y el aviso de guardado, valida el origen de cada versión nueva y la guarda como una operación más, así el resto de dispositivos la recibe al instante. Si no hay servidor de documentos, o se usa Sotos como invitado, se usan los editores propios.
+Con ONLYOFFICE Docs o con Euro-Office (su versión europea, con la misma interfaz de programación), Documentos, Hojas y Presentaciones pueden abrir editores de oficina completos dentro de Sotos. El servidor firma con JWT la configuración, la descarga del archivo y el aviso de guardado, valida el origen de cada versión nueva y la guarda como una operación más, así el resto de dispositivos la recibe al instante. Si no hay servidor de documentos, o se usa Sotos como invitado, se usan los editores propios. Ambos motores están probados de punta a punta: lo que se escribe en el editor vuelve guardado al `.docx` y la versión anterior queda en el historial.
+
+### Correo sin intermediarios
+
+El servidor de Sotos habla directamente con tu proveedor por IMAP y SMTP, con un cliente y un lector MIME escritos para Sotos, sin librerías externas. Las contraseñas de correo se guardan cifradas (AES-256-GCM) y nunca vuelven al navegador. En iCloud se entra con la dirección principal @icloud.com y una contraseña específica para apps; el dominio propio se añade como alias.
 
 ### Fondos ilustrados
 
@@ -308,7 +367,7 @@ Las escenas usan un generador pseudoaleatorio con semilla, así cada fondo sale 
 
 ### Identidad visual
 
-Papel y tinta: superficies de color crema, bordes de tinta y sombras desplazadas como de lámina impresa, sin cristal difuminado ni brillos. La paleta de acentos (arcilla, musgo, cielo, mostaza, ciruela y laguna) colorea también los iconos de las aplicaciones y las carpetas color manila. El logo, un husky y una gata, acompaña el arranque y la marca.
+Papel y tinta: superficies de color crema, bordes de tinta y sombras desplazadas como de lámina impresa, sin cristal difuminado ni brillos. La paleta de acentos (arcilla, musgo, cielo, mostaza, ciruela y laguna) colorea también los iconos de las aplicaciones y las carpetas color manila. El logo es una S de dos arcos con una órbita abierta; Basted y Lyanna, un husky y una gata, siguen como mascotas en «Acerca de».
 
 ### Seguridad
 
@@ -325,8 +384,12 @@ Papel y tinta: superficies de color crema, bordes de tinta y sombras desplazadas
 - Algunos sitios con protección contra bots o aplicaciones muy pesadas (inicios de sesión de grandes plataformas, banca) no funcionan a través del proxy. Para ellos está el botón para abrirlos en una pestaña real.
 - Entrando por IP sin HTTPS, el navegador no deja a Sotos leer el portapapeles para la opción de pegar del menú; `Ctrl + V` sigue funcionando.
 - El servidor de documentos necesita Docker y unos 4 GB de RAM.
+- El navegador virtual (y con él WhatsApp) es uno por servidor: lo comparte quien tenga acceso a él.
+- La interfaz está solo en español por ahora.
 
-**Créditos:** React, Vite, mammoth, docx, ExcelJS, PptxGenJS, JSZip, Material Symbols, fuentes Onest, Hanken Grotesk, Space Grotesk y JetBrains Mono, Caddy y el servicio de clima Open-Meteo.
+**Créditos:** React, Vite, mammoth, docx, ExcelJS, PptxGenJS, JSZip, pdf.js, libarchive.js, Material Symbols, fuentes Onest, Hanken Grotesk, Space Grotesk, Lato y JetBrains Mono, Caddy, ONLYOFFICE Docs, Euro-Office, Neko, el servicio de clima Open-Meteo y las tasas de ExchangeRate-API. Fondos fotográficos de dominio público (CC0). Gracias a Basted y Lyanna.
+
+Homenaje a inevio. Sotos no está afiliado a inevio ni a sus dueños.
 
 ---
 
