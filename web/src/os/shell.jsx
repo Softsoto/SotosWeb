@@ -674,7 +674,7 @@ function OS() {
     await vfs.init({ user: u });
     localStorage.setItem("sotos_in", "1"); localStorage.setItem("sotos_mode", "cloud");
     localStorage.setItem("sotos_last_user", JSON.stringify({ name: u.name, email: u.email }));
-    setProfile({ name: u.name }); setWins([]); setStage("desktop");
+    setProfile({ name: u.name, avatar: u.avatar || null }); setWins([]); setStage("desktop");
   }, []);
   const enterGuest = useCh(async () => {
     await vfs.init();
@@ -700,7 +700,7 @@ function OS() {
   const top = wins.reduce((a, b) => (!a || b.z > a.z) && !b.minimized ? b : a, null);
   const activeApp = top ? APP_BY_ID[top.appId] : null;
 
-  const shownProfile = user ? { ...profile, name: user.name } : profile;
+  const shownProfile = user ? { ...profile, name: user.name, avatar: profile.avatar || user.avatar || null } : profile;
   const storeProps = { openApp, openItem, newDoc, settings, update, profile: shownProfile, setProfile, shortcuts, scApi, dockApi, dockCfg, user, env, onLogout: logout, openSpotlight: () => setSpot(true) };
 
   if (stage === "boot") return <BootScreen quick={quickBoot.current} task={bootTask} onDone={(s) => setStage(s)} />;

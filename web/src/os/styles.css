@@ -2154,3 +2154,13 @@ select.wg-input { padding: 0 4px; }
 .sv-prep-bar { width: min(420px, 80%); height: 6px; border-radius: 3px; background: #2a2d32; overflow: hidden; }
 .sv-prep-bar i { display: block; height: 100%; background: var(--accent); transition: width .6s; }
 
+
+.person-avatar.img { border-radius: 50%; object-fit: cover; flex: 0 0 auto; display: block; background: var(--surface-2); box-shadow: 0 0 0 1px rgba(0,0,0,.08); }
+
+
+.avatar-picks { display: flex; gap: 8px; margin-top: 10px; }
+.avatar-pick { width: 46px; height: 46px; padding: 0; border-radius: 50%; border: 2px solid transparent; background: none; cursor: pointer; overflow: hidden; }
+.avatar-pick img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.avatar-pick.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--surface); }
+.avatar-pick:hover { transform: scale(1.06); }
+

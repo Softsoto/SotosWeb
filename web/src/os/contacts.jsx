@@ -6,6 +6,7 @@
    ============================================================ */
 import React from "react";
 import { Ic, EmptyState, Modal, toast, ContextMenu } from "./ui.jsx";
+import { avatarUrl, avatarFor } from "./ui.jsx";
 import { api } from "./api.js";
 import { useVfs } from "./vfs.js";
 import * as vfs from "./vfs.js";
@@ -14,9 +15,9 @@ const { useState, useEffect, useMemo, useRef } = React;
 
 const COLORS = ["#c4532f", "#4f7a3a", "#2f5d8a", "#c9902a", "#7a3e6b", "#1f7a78", "#8a5a3b", "#5a5689"];
 const initials = (n) => (n || "?").split(/\s+/).filter(Boolean).map(w => w[0]).slice(0, 2).join("").toUpperCase();
-export function PersonAvatar({ name, color, size = 36 }) {
-  const c = color || COLORS[[...(name || "?")].reduce((s, ch) => s + ch.charCodeAt(0), 0) % COLORS.length];
-  return <span className="person-avatar" style={{ width: size, height: size, background: c, fontSize: size * 0.4 }}>{initials(name)}</span>;
+export function PersonAvatar({ name, avatar, size = 36 }) {
+  // foto de la persona si la hay; si no, uno de los avatares por defecto (siempre el mismo para ese nombre)
+  return <img className="person-avatar img" src={avatarUrl(avatar || avatarFor(name))} alt="" style={{ width: size, height: size }} />;
 }
 
 /* ---------------- almacén: servidor o local ---------------- */

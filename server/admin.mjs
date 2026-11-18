@@ -9,7 +9,7 @@ import path from "node:path";
 import os from "node:os";
 import { db, now, rid, BLOB_DIR, DATA_DIR, getSetting, setSetting } from "./db.mjs";
 import { fail, json, readJson } from "./http.mjs";
-import { requireUser, hashPassword, registration, defaultQuota, verifyPassword } from "./auth.mjs";
+import { requireUser, hashPassword, registration, defaultQuota, verifyPassword, AVATARS } from "./auth.mjs";
 import { loadState, applyOps, blobPath } from "./fs.mjs";
 import { addNotification } from "./social.mjs";
 
@@ -30,7 +30,7 @@ const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 function requireAdmin(req) { const u = requireUser(req); if (u.role !== "admin") fail(403, "Solo para administradores"); return u; }
 const admins = () => db.prepare("SELECT COUNT(*) n FROM users WHERE role = 'admin' AND disabled = 0").get().n;
 const userRow = (u) => ({
-  id: u.id, name: u.name, email: u.email, role: u.role, disabled: !!u.disabled, quota: u.quota, created: u.created, lastSeen: u.last_seen || null,
+  id: u.id, name: u.name, email: u.email, role: u.role, avatar: u.avatar || null, disabled: !!u.disabled, quota: u.quota, created: u.created, lastSeen: u.last_seen || null,
   used: db.prepare("SELECT used FROM fs_state WHERE user_id = ?").get(u.id)?.used || 0,
   sessions: db.prepare("SELECT COUNT(*) n FROM sessions WHERE user_id = ? AND expires > ?").get(u.id, now()).n,
   hiddenApps: (() => { try { return JSON.parse(u.hidden_apps || "[]"); } catch { return []; } })(),
@@ -74,7 +74,7 @@ export async function handleAdmin(req, res, parts) {
       if (String(b.password || "").length < 8) fail(400, "La contraseña debe tener al menos 8 caracteres");
       if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(email)) fail(409, "Ya existe una cuenta con ese correo");
       const uid = rid(12), quota = b.quotaMb ? Math.round(Number(b.quotaMb)) * MB : defaultQuota();
-      db.prepare("INSERT INTO users(id,email,name,pass,quota,created,role) VALUES(?,?,?,?,?,?,?)").run(uid, email, name, await hashPassword(String(b.password)), quota, now(), b.role === "admin" ? "admin" : "user");
+      db.prepare("INSERT INTO users(id,email,name,pass,quota,created,role,avatar) VALUES(?,?,?,?,?,?,?,?)").run(uid, email, name, await hashPassword(String(b.password)), quota, now(), b.role === "admin" ? "admin" : "user", "def:" + AVATARS[Math.floor(Math.random() * AVATARS.length)]);
       return json(res, 201, { item: userRow(db.prepare("SELECT * FROM users WHERE id = ?").get(uid)) });
     }
     const u = id && db.prepare("SELECT * FROM users WHERE id = ?").get(id); if (!u) fail(404, "Usuario no encontrado");

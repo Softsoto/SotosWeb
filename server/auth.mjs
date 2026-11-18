@@ -11,6 +11,10 @@ import { db, now, rid, getSetting } from "./db.mjs";
 import { fail, json, readJson, cookies, clientIp, rateLimit } from "./http.mjs";
 
 const SESSION_DAYS = 30;
+// foto de perfil: uno de los avatares por defecto ("def:perro"…) o una imagen subida (data URL pequeña)
+export const AVATARS = ["perro", "gato", "persona", "balon", "musica"];
+if (!db.prepare("PRAGMA table_info(users)").all().some(c => c.name === "avatar")) db.exec("ALTER TABLE users ADD COLUMN avatar TEXT");
+{ const pick = db.prepare("UPDATE users SET avatar = ? WHERE id = ?"); for (const r of db.prepare("SELECT id FROM users WHERE avatar IS NULL").all()) pick.run("def:" + AVATARS[crypto.randomInt(AVATARS.length)], r.id); }
 const ENV_QUOTA_MB = Number(process.env.SOTOS_QUOTA_MB || 2048);
 export const defaultQuota = () => Number(getSetting("defaultQuotaMb", ENV_QUOTA_MB)) * 1024 * 1024;
 const COOKIE = "sotos_sid";
@@ -29,7 +33,7 @@ async function checkPassword(pw, stored) {
   return k.length === want.length && crypto.timingSafeEqual(k, want);
 }
 const sha = (t) => crypto.createHash("sha256").update(t).digest("hex");
-const publicUser = (u) => u && ({ id: u.id, email: u.email, name: u.name, quota: u.quota, role: u.role || "user", hiddenApps: (() => { try { return JSON.parse(u.hidden_apps || "[]"); } catch { return []; } })() });
+const publicUser = (u) => u && ({ id: u.id, email: u.email, name: u.name, quota: u.quota, role: u.role || "user", avatar: u.avatar || null, hiddenApps: (() => { try { return JSON.parse(u.hidden_apps || "[]"); } catch { return []; } })() });
 
 function startSession(req, res, userId) {
   const token = crypto.randomBytes(32).toString("base64url");
@@ -52,6 +56,13 @@ export function requireUser(req) { const u = currentUser(req); if (!u) fail(401,
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 export async function handleAuth(req, res, sub) {
   if (sub === "me" && req.method === "GET") return json(res, 200, { user: publicUser(currentUser(req)), registration: registration() });
+  if (sub === "avatar" && req.method === "PUT") {
+    const u = requireUser(req); const { avatar } = await readJson(req, 600 * 1024);
+    const v = String(avatar || "");
+    if (!(v.startsWith("def:") && AVATARS.includes(v.slice(4))) && !/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v)) fail(400, "Imagen no válida");
+    if (v.length > 400 * 1024) fail(413, "La imagen es muy grande");
+    db.prepare("UPDATE users SET avatar = ? WHERE id = ?").run(v, u.id); return json(res, 200, { ok: true, avatar: v });
+  }
   if (req.method !== "POST") fail(405, "Método no permitido");
   const ip = clientIp(req);
 
@@ -68,7 +79,7 @@ export async function handleAuth(req, res, sub) {
     if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(em)) fail(409, "Ya existe una cuenta con ese correo");
     const id = rid(12);
     const first = !db.prepare("SELECT 1 FROM users LIMIT 1").get(); // la primera cuenta administra el servidor
-    db.prepare("INSERT INTO users(id,email,name,pass,quota,created,role) VALUES(?,?,?,?,?,?,?)").run(id, em, nm, await hashPassword(password), defaultQuota(), now(), first ? "admin" : "user");
+    db.prepare("INSERT INTO users(id,email,name,pass,quota,created,role,avatar) VALUES(?,?,?,?,?,?,?,?)").run(id, em, nm, await hashPassword(password), defaultQuota(), now(), first ? "admin" : "user", "def:" + AVATARS[crypto.randomInt(AVATARS.length)]);
     startSession(req, res, id);
     return json(res, 201, { user: publicUser(db.prepare("SELECT * FROM users WHERE id = ?").get(id)) });
   }

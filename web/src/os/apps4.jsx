@@ -5,7 +5,7 @@ import React from "react";
 import { APPS, WALLPAPERS, ACCENTS, STORE_APPS } from "./data.jsx";
 import { SotosLogo, SotosMark } from "./logo.jsx";
 import { isInstalled, setInstalled, loadInstalled, subscribeInstalled, getRatings } from "./installed.js";
-import { Tile, Ic, SideItem, Avatar, Modal, toast, EmptyState } from "./ui.jsx";
+import { Tile, Ic, SideItem, Avatar, Modal, toast, EmptyState, DEFAULT_AVATARS, avatarUrl } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize } from "./vfs.js";
 import { api } from "./api.js";
@@ -165,7 +165,12 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
     { id: "region", icon: "language", label: "Región" },
     { id: "acerca", icon: "info", label: "Acerca de" },
   ];
-  const onAvatar = (e) => { const f = e.target.files[0]; if (!f) return; const rd = new FileReader(); rd.onload = () => setProfile({ avatar: rd.result }); rd.readAsDataURL(f); e.target.value = ""; };
+  // la foto se guarda en la cuenta (si hay) y en este navegador; las subidas se reducen a 256×256
+  const saveAvatar = async (av) => { setProfile({ avatar: av }); if (user) { try { await api("PUT", "auth/avatar", { avatar: av }); toast("Foto de perfil actualizada", { icon: "account_circle" }); } catch (e) { toast(e.message, { error: true }); } } };
+  const onAvatar = (e) => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; const url = URL.createObjectURL(f); const im = new Image();
+    im.onload = () => { const c = document.createElement("canvas"); c.width = c.height = 256; const s = Math.min(im.naturalWidth, im.naturalHeight);
+      c.getContext("2d").drawImage(im, (im.naturalWidth - s) / 2, (im.naturalHeight - s) / 2, s, s, 0, 0, 256, 256); URL.revokeObjectURL(url); saveAvatar(c.toDataURL("image/jpeg", 0.86)); };
+    im.onerror = () => toast("No se pudo leer esa imagen", { error: true }); im.src = url; };
   const fonts = [
     { v: "Onest", label: "Onest" },
     { v: "Hanken Grotesk", label: "Hanken" },
@@ -196,9 +201,9 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
               <div>
                 <div className="wl-btns" style={{ marginTop: 0 }}>
                   <button className="tb-btn primary" onClick={() => avatarInput.current.click()}><Ic name="upload" /> Cambiar foto</button>
-                  {profile.avatar && <button className="tb-btn" onClick={() => setProfile({ avatar: null })}><Ic name="delete" /> Quitar</button>}
                 </div>
-                <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>PNG o JPG. Se guarda en tu sesión.</div>
+                <div className="avatar-picks">{DEFAULT_AVATARS.map(([k, label]) => <button key={k} title={label} className={"avatar-pick" + (profile.avatar === "def:" + k ? " on" : "")} onClick={() => saveAvatar("def:" + k)}><img src={avatarUrl("def:" + k)} alt={label} /></button>)}</div>
+                <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>Elige uno de los avatares o sube tu foto (PNG o JPG). {user ? "Se guarda en tu cuenta." : "Se guarda en este navegador."}</div>
               </div>
             </div>
             <Row label="Nombre" desc="Aparece en el login y la barra superior">

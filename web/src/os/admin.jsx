@@ -61,7 +61,7 @@ export function AdminApp() {
             <div className="admin-row head"><span>Persona</span><span>Espacio</span><span>Última actividad</span><span>Rol</span><span /></div>
             {list.map(u => (
               <div key={u.id} className={"admin-row" + (u.disabled ? " off" : "")}>
-                <span className="admin-who"><PersonAvatar name={u.name} size={30} /><span><b>{u.name}{u.id === user.id ? " (tú)" : ""}</b><span className="faint">{u.email}</span></span></span>
+                <span className="admin-who"><PersonAvatar name={u.name} avatar={u.avatar} size={30} /><span><b>{u.name}{u.id === user.id ? " (tú)" : ""}</b><span className="faint">{u.email}</span></span></span>
                 <span><div className="admin-bar sm"><i style={{ width: Math.min(100, Math.max(1, u.used / u.quota * 100)) + "%" }} /></div><span className="faint">{fmtSize(u.used)} de {fmtSize(u.quota)}</span></span>
                 <span className="faint">{u.disabled ? "Desactivada" : u.lastSeen ? fmtDate(u.lastSeen) : "nunca"}{u.sessions ? ` · ${u.sessions} sesión(es)` : ""}</span>
                 <span><span className={"member-role" + (u.role === "admin" ? " owner" : "")}>{u.role === "admin" ? "Administrador" : "Usuario"}</span></span>
