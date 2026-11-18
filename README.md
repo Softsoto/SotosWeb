@@ -1,379 +1,483 @@
 <p align="center"><img src="docs/banner.png" alt="Sotos Web" width="100%"></p>
 
-# Sotos — your computer in the cloud
+<p align="center">Un ordenador completo dentro del navegador: archivos en la nube, Word, Excel y PowerPoint, correo real, calendario, tareas, navegador propio, terminal y una identidad visual propia. También es un homenaje a inevio.</p>
 
-A complete desktop that runs in the browser: windows, dock, real cloud files, Word/Excel/PowerPoint editing on genuine Office files (built-in editors, or ONLYOFFICE / Euro-Office), real e-mail over IMAP/SMTP with several accounts and aliases, calendar, tasks, file versions, an app store, a web browser with an isolated proxy and a virtual browser, a terminal, link sharing, and its own visual identity.
+<p align="center"><a href="https://sotomontes.com/#sotos-web">Ver en sotomontes.com</a> · <a href="docs/README.en.md">English</a> · <a href="#recorrido">Recorrido</a> · <a href="#instalación">Instalación</a> · <a href="#cómo-funciona-por-dentro">Cómo funciona</a> · <a href="#para-desarrolladores">Para desarrolladores</a> · <a href="#novedades">Novedades</a> · <a href="CHANGELOG.md">Historial de cambios</a> · <a href="#un-homenaje-a-inevio">Homenaje a inevio</a></p>
 
-© 2026 Sebastian Sotomontes. Released under the [MIT License](LICENSE). The public showcase (in Spanish) lives at [`Softsoto/SotosWeb`](https://github.com/Softsoto/SotosWeb).
-
-### A tribute to inevio
-
-Sotos is also a tribute to **inevio**, the web desktop that showed, years ago, that a whole operating system could live in a browser tab. The Grafito skin, the window motion and many of the features added in versions 2.2 and 2.3 (mail, calendar, tasks, inbox, file versions, contact groups, presence, store) pay homage to what inevio made possible. Sotos does not use inevio's code, artwork or assets: everything here is written from scratch. inevio is a trademark of its respective owners; Sotos is not affiliated with it.
-
-| | |
+| Ficha técnica | |
 |---|---|
-| Version | 3.0 (official release) · see [CHANGELOG](CHANGELOG.md) |
-| Desktop | React 18 + Vite 6 (`web/`) |
-| Server | Node.js ≥ 22, zero npm dependencies (`server/`) |
-| Data | SQLite built into Node (`node:sqlite`) + one file per blob; IndexedDB in the browser |
-| Deployment | This computer · Linux server with systemd and Caddy · Docker (Caddy + Sotos + document server) |
-| UI language | Spanish |
-
-<p align="center"><img src="docs/capturas/escritorio.jpg" alt="Desktop" width="100%"></p>
-
----
-
-## Contents
-
-1. [Development setup](#1-development-setup)
-2. [Installer](#2-installer)
-3. [Environment variables](#3-environment-variables)
-4. [Repository layout](#4-repository-layout)
-5. [Architecture](#5-architecture)
-6. [File system and sync](#6-file-system-and-sync)
-7. [API](#7-api)
-8. [Browser proxy](#8-browser-proxy)
-9. [Office formats and formulas](#9-office-formats-and-formulas)
-10. [Document server (ONLYOFFICE)](#10-document-server-onlyoffice)
-11. [Visual identity and wallpapers](#11-visual-identity-and-wallpapers)
-12. [Global context menu](#12-global-context-menu)
-13. [Security](#13-security)
-14. [Static demo build](#14-static-demo-build)
-15. [Tests and screenshots](#15-tests-and-screenshots)
-16. [Screenshots](#16-screenshots)
-17. [Roadmap](#17-roadmap)
+| **Autor** | Sebastian Sotomontes |
+| **Tipo** | Escritorio web · ordenador en la nube |
+| **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
+| **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
+| **Versión** | 3.0 · lanzamiento oficial |
+| **Estado** | Funcional |
+| **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
+| **Licencia** | [MIT](LICENSE) |
+| **Repositorio** | Este mismo: código completo, capturas, instaladores e historial. Antes estaba repartido en `SotosWeb-src` y la vitrina; ahora todo vive aquí. |
 
 ---
 
-## 1. Development setup
+## Qué es
+
+Sotos es un sistema operativo de escritorio que vive en una pestaña del navegador. Tiene ventanas, dock, escritorio con iconos, menú contextual, búsqueda global y más de quince aplicaciones. Los archivos son reales: se guardan en el servidor con tu cuenta y te siguen a cualquier dispositivo, o se quedan en el propio navegador si lo usas como invitado.
+
+Los documentos se abren y se guardan en sus formatos de siempre (`.docx`, `.xlsx`, `.pptx`, `.pdf`), así que cualquier archivo creado en Sotos se puede descargar y seguir editando en otro programa, y al revés.
+
+<p align="center"><img src="docs/capturas/escritorio.jpg" alt="Escritorio de Sotos con la ventana de Archivos sobre el fondo Páramo" width="100%"></p>
+
+## Un homenaje a inevio
+
+<p align="center"><img src="docs/homenaje-inevio.png" alt="Gracias, inevio: banner de homenaje de Sotos Web" width="100%"></p>
+
+Sotos también es un homenaje a **inevio**, aquel escritorio en la nube que demostró hace años que un sistema operativo completo podía vivir en una pestaña del navegador. El tema Grafito, el movimiento de las ventanas y muchas de las funciones de las versiones 2.2 y 2.3 (correo, calendario, tareas, bandeja de recibidos, versiones de archivos, grupos de contactos, presencia y tienda) rinden tributo a lo que inevio hizo posible.
+
+Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde cero. inevio es una marca de sus respectivos dueños y Sotos no tiene relación con ella.
+
+## Novedades
+
+**Versión 3.0, lanzamiento oficial** ([historial completo](CHANGELOG.md)):
+
+- **WhatsApp dentro de Sotos**: cada cuenta vincula su WhatsApp con un código QR y lo usa con la interfaz de Sotos: chats, fotos, videos, audios, documentos y archivos de tu nube.
+- **Bóveda secreta**: un espacio oculto y cifrado con tu propia clave; ni el servidor ni un administrador pueden ver lo que guardas.
+- **Paint**, **Diagramas** (draw.io), **Pizarra** (Excalidraw) y **Código** (el editor de VS Code), todos guardando en tus archivos.
+- **Correo profesional**: varias cuentas, alias con remitente principal, firma y editor en HTML.
+- **Películas MKV con audio y subtítulos**: el servidor las prepara una vez sin perder calidad de imagen; luego se ven como un video normal, eligiendo audio y subtítulos.
+- **Gestor de transferencias**, **avatares**, **iconos arrastrables**, logo clásico a elegir y un panel de administración para revisar archivos carpeta por carpeta con registro de cada acción.
+
+**Versión 2.3**, Sotos se vuelve tu oficina completa:
+
+- **Correo real** con tus cuentas de Gmail, Outlook, iCloud, Yahoo o cualquier otro proveedor: carpetas, búsqueda, leer, responder, reenviar, destacar, mover y adjuntar archivos de Sotos. Puedes vincular **varias cuentas** y añadir **alias** para enviar desde otras direcciones, por ejemplo tu dominio propio en iCloud+.
+- **Calendario y Tareas**: varios calendarios, recordatorios, eventos compartidos en los mundos, importar y exportar `.ics`; listas de tareas con fechas, prioridades y comentarios.
+- **Versiones de archivos**: cada documento guarda sus versiones anteriores para verlas, descargarlas o restaurarlas, y una copia de seguridad completa de tu cuenta se exporta e importa desde Ajustes.
+- **Enviar a…**: manda uno o varios archivos o carpetas a otra cuenta; llegan a su bandeja de **Recibidos** para aceptarlos o rechazarlos.
+- **Personas**: quién está en línea, grupos de contactos y bloqueo.
+- **Tienda**: herramientas y juegos que se instalan al instante en tu cuenta, con reseñas de estrellas.
+- **Panel de administración**: usuarios, cuotas, registro abierto o cerrado y estadísticas del servidor.
+- **ONLYOFFICE o Euro-Office**: editores de oficina completos dentro de Sotos, probados con ambos motores.
+- **Navegador virtual y WhatsApp**: un Firefox real en el servidor abre las páginas que no se dejan mostrar dentro de otra web, y la app de **WhatsApp** lo usa para tener WhatsApp Web dentro de Sotos.
+- **Juegos** separados con portadas propias, **11 widgets** (temporizador, calculadora, recientes, reloj mundial, monedas, sistema…), miniaturas de vídeo, carátulas de música, símbolos en las carpetas del sistema, descompresor de `.zip`, `.7z`, `.rar` y `.tar`, y eliminar definitivamente desde la Papelera.
+
+**Versión 2.1**, Sotos se vuelve un lugar para compartir con otras personas:
+
+- **Mundos**: espacios compartidos con tu familia, amigos o equipo, con muro de publicaciones y comentarios, carpeta en común y chat en vivo.
+- **Notificaciones**: una campana en la barra superior avisa al instante cuando te invitan a un mundo, te comparten un archivo o alguien publica, comenta o sube algo.
+- **Contactos**: agenda propia que importa y exporta `.vcf` (celular, Gmail, Outlook) y reconoce quién ya tiene cuenta en Sotos.
+- **Visor de PDF propio**: miniaturas, texto seleccionable, búsqueda dentro del documento, zoom, rotación, imprimir y pantalla completa.
+- **Música con carátulas**: título, artista, álbum y portada se leen de las etiquetas de cada MP3.
+- **Tema Grafito**: un segundo estilo para todo el sistema, gris y carbón, con dock lateral, ventanas planas y fondo en blanco y negro, en claro y oscuro.
+
+**Versión 2.0**, reconstrucción completa del proyecto original:
+
+- **Archivos reales** con almacenamiento en la nube por cuenta, caché local y funcionamiento sin conexión.
+- **Cuentas**, sincronización en vivo entre dispositivos y **enlaces para compartir** con permisos y caducidad.
+- **Word, Excel y PowerPoint** que leen y escriben archivos de Office auténticos, con fórmulas y guardado automático.
+- **Navegador propio** que abre cualquier página dentro de Sotos gracias a un proxy aislado.
+- **Terminal** con comandos reales sobre tus archivos.
+- **Identidad visual nueva** de papel y tinta, con ocho fondos ilustrados de paisajes colombianos.
+- **Menú contextual** en todo el sistema, también dentro de las páginas web.
+- **Instalador** para tres escenarios: tu propio equipo, un servidor o Docker.
+
+## Recorrido
+
+### Acceso
+
+Al abrir Sotos se elige entre iniciar sesión, crear una cuenta o probarlo como invitado. La hora y el fondo del sistema acompañan la pantalla de bienvenida.
+
+<p align="center"><img src="docs/capturas/acceso.jpg" alt="Pantalla de acceso con el fondo Páramo" width="100%"></p>
+
+### Archivos
+
+Explorador completo: iconos o lista con columnas, orden por nombre, fecha, tamaño o tipo, selección múltiple, arrastrar y soltar (también carpetas enteras desde el equipo), copiar, cortar, pegar, renombrar, papelera con deshacer, descarga de carpetas como `.zip`, extracción de `.zip` y propiedades de cada elemento. La barra lateral muestra el espacio usado real de tu cuenta.
+
+<p align="center"><img src="docs/capturas/archivos.jpg" alt="Archivos en vista de lista dentro de Documentos" width="100%"></p>
+
+### Documentos
+
+Editor de texto enriquecido que abre y guarda `.docx` reales: fuentes, tamaños, color, resaltado, listas, alineación, títulos, citas, tablas, imágenes y enlaces. Exporta a PDF, guarda solo mientras escribes y limpia el formato peligroso de lo que se pega desde otras páginas.
+
+<p align="center"><img src="docs/capturas/word.jpg" alt="Documento de Word abierto en Sotos" width="100%"></p>
+
+### Hojas de cálculo
+
+Abre y guarda `.xlsx` y `.csv` con varias hojas. Tiene su propio motor de fórmulas (`SUM`, `AVERAGE`, `IF`, `ROUND`, `CONCAT` y más, también con sus nombres en español), selección de rangos con la suma, el promedio y el recuento al pie, autosuma, negrita, cursiva, alineación, copiar y pegar compatible con otras hojas de cálculo y deshacer.
+
+<p align="center"><img src="docs/capturas/excel.jpg" alt="Presupuesto con fórmulas y un rango seleccionado" width="100%"></p>
+
+### Presentaciones
+
+Diapositivas de título y de viñetas, fondos de la paleta de Sotos, reordenar, duplicar y modo presentación a pantalla completa con teclado. Guarda `.pptx` reales que se abren en PowerPoint, y al volver a Sotos se recupera la presentación sin pérdidas.
+
+<p align="center"><img src="docs/capturas/presentaciones.jpg" alt="Editor de presentaciones" width="100%"></p>
+
+### Terminal
+
+Una consola con comandos de verdad sobre tus archivos: `ls`, `cd`, `tree`, `mkdir`, `touch`, `cat`, `head`, `tail`, `echo` con redirección, `cp`, `mv`, `rm`, `find`, `grep`, `du`, `wc`, `open` y `download`. Tiene autocompletado con Tab, historial con las flechas y comillas para nombres con espacios.
+
+<p align="center"><img src="docs/capturas/terminal.jpg" alt="Terminal con ls -l y neofetch" width="100%"></p>
+
+### Navegador
+
+Pestañas, historial, barra de direcciones con búsqueda y un **modo proxy** que abre dentro de Sotos páginas que normalmente prohíben mostrarse dentro de otra web. La barra de direcciones y el título siguen la navegación dentro de la página, y el clic derecho sobre enlaces e imágenes ofrece abrir en otra pestaña o guardar la imagen en tus archivos.
+
+<p align="center"><img src="docs/capturas/navegador.jpg" alt="Wikipedia dentro del Navegador de Sotos con el menú contextual sobre una imagen" width="100%"></p>
+
+### Menú contextual en todo el sistema
+
+El clic derecho funciona en cualquier lugar: archivos, escritorio, dock, barras de título (minimizar, maximizar, ajustar a media pantalla), campos de texto (deshacer, cortar, copiar, pegar, buscar en la web), enlaces, imágenes y páginas web abiertas en el Navegador.
+
+<p align="center"><img src="docs/capturas/menu-contextual.jpg" alt="Menú contextual sobre un archivo del escritorio" width="100%"></p>
+
+### Fondos e identidad
+
+Ocho fondos ilustrados que Sotos dibuja a la resolución exacta de tu pantalla: Páramo, Cerros, Cafetal, Caño, Tatacoa, Caribe, Papel y Tinta. También se puede usar cualquier foto propia como fondo.
+
+<p align="center"><img src="docs/capturas/fondos.jpg" alt="Ajustes, sección de fondos" width="100%"></p>
+
+### Compartir
+
+Cualquier archivo o carpeta se comparte con un enlace: para cualquiera o solo para cuentas concretas, con permiso de lectura o de edición y con caducidad opcional. Los enlaces activos se pueden copiar o revocar.
+
+<p align="center"><img src="docs/capturas/compartir.jpg" alt="Diálogo para compartir un documento" width="100%"></p>
+
+Quien recibe el enlace no necesita cuenta: ve el documento directamente en el navegador (Word, Excel, PDF, imágenes, audio, vídeo y texto) y lo puede descargar.
+
+<p align="center"><img src="docs/capturas/enlace-publico.jpg" alt="Página pública de un documento compartido" width="100%"></p>
+
+### Mundos
+
+Un mundo es un espacio compartido entre varias cuentas. Tiene un **muro** para publicar y comentar, una **carpeta en común** a la que se arrastran archivos desde el equipo o desde tus propios archivos de Sotos, y un **chat**. Todo se actualiza en vivo en los navegadores de todos los miembros, sin recargar. Quien crea el mundo elige nombre, icono y color, invita por correo y puede quitar miembros.
+
+<p align="center"><img src="docs/capturas/mundos-muro.jpg" alt="Muro de un mundo con una publicación y un comentario" width="100%"></p>
+
+<p align="center"><img src="docs/capturas/mundos-chat.jpg" alt="Chat en vivo dentro de un mundo" width="100%"></p>
+
+### Notificaciones
+
+La campana de la barra superior cuenta lo que no has visto y muestra un aviso en cuanto llega algo nuevo. Al pulsar una notificación se abre directamente el mundo, la pestaña o el documento compartido.
+
+<p align="center"><img src="docs/capturas/notificaciones.jpg" alt="Panel de notificaciones con una invitación a un mundo" width="100%"></p>
+
+### Contactos
+
+Agenda con búsqueda, ficha de cada persona, importación y exportación `.vcf`. Los contactos que ya usan Sotos se marcan y se pueden añadir a un mundo con un clic.
+
+<p align="center"><img src="docs/capturas/contactos.jpg" alt="Ficha de un contacto con cuenta en Sotos" width="100%"></p>
+
+### Visor de PDF
+
+Visor propio con miniaturas de las páginas, texto que se puede seleccionar y copiar, búsqueda con resaltado, ajuste al ancho o a la página, rotación, impresión, descarga y pantalla completa.
+
+<p align="center"><img src="docs/capturas/visor-pdf.jpg" alt="Visor de PDF con miniaturas y búsqueda" width="100%"></p>
+
+### Música
+
+La biblioteca lee las etiquetas de cada canción para mostrar título, artista, álbum, año y carátula, también en los controles multimedia del sistema.
+
+<p align="center"><img src="docs/capturas/musica-caratulas.jpg" alt="Biblioteca de Música con la carátula de una canción" width="100%"></p>
+
+### Tema Grafito
+
+Además de la identidad de papel y tinta, Sotos trae un segundo estilo completo: **Grafito**. Dock lateral oscuro de arriba abajo, ventanas planas en gris, barras laterales con el elemento activo en verde, carpetas grises, tipografía Lato y el fondo convertido a blanco y negro. Se elige en **Ajustes → Apariencia** y funciona en claro y en oscuro.
+
+<p align="center"><img src="docs/capturas/tema-grafito-light.jpg" alt="Tema Grafito en claro con Archivos y Música" width="100%"></p>
+
+<p align="center"><img src="docs/capturas/tema-grafito-dark.jpg" alt="Tema Grafito en oscuro" width="100%"></p>
+
+### Correo
+
+Varias cuentas, alias para enviar desde otras direcciones y la elección de remitente al redactar. Los correos en HTML se muestran aislados y sin scripts, y las imágenes externas quedan bloqueadas hasta que las pidas, para que nadie sepa que abriste su mensaje.
+
+<p align="center"><img src="docs/capturas/correo.jpg" alt="Correo con un boletín abierto" width="100%"></p>
+
+<p align="center"><img src="docs/capturas/correo-alias.jpg" alt="Redactar eligiendo la cuenta o el alias de envío" width="100%"></p>
+
+### Calendario y Tareas
+
+<p align="center"><img src="docs/capturas/calendario.jpg" alt="Calendario en vista de mes" width="100%"></p>
+
+<p align="center"><img src="docs/capturas/tareas.jpg" alt="Listas de tareas" width="100%"></p>
+
+### Versiones y Tienda
+
+<p align="center"><img src="docs/capturas/versiones.jpg" alt="Historial de versiones de un documento" width="100%"></p>
+
+<p align="center"><img src="docs/capturas/tienda.jpg" alt="Tienda de aplicaciones" width="100%"></p>
+
+### WhatsApp, correo y video
+
+<p align="center"><img src="docs/capturas/whatsapp.jpg" alt="Vincular WhatsApp en Sotos con aviso del riesgo" width="100%"></p>
+
+<p align="center"><img src="docs/capturas/correo-html.jpg" alt="Redactar un correo en HTML con firma y remitente principal" width="100%"></p>
+
+<p align="center"><img src="docs/capturas/video-mkv.jpg" alt="Video MKV con subtítulos y selector de audio" width="100%"></p>
+
+### Paint, Diagramas y avatares
+
+<p align="center"><img src="docs/capturas/paint.jpg" alt="Paint de Sotos" width="100%"></p>
+
+<p align="center"><img src="docs/capturas/diagramas.jpg" alt="Diagramas con draw.io alojado en el propio servidor" width="100%"></p>
+
+<p align="center"><img src="docs/capturas/avatares.jpg" alt="Elegir avatar en Ajustes" width="100%"></p>
+
+### Euro-Office dentro de Sotos
+
+<p align="center"><img src="docs/capturas/euro-office.jpg" alt="Documento abierto en Euro-Office dentro de una ventana de Sotos" width="100%"></p>
+
+### Navegador virtual
+
+<p align="center"><img src="docs/capturas/navegador-virtual.jpg" alt="Navegador virtual abriendo una página que no se deja incrustar" width="100%"></p>
+
+### Juegos y widgets
+
+<p align="center"><img src="docs/capturas/juegos.jpg" alt="Sala de juegos" width="100%"></p>
+
+<p align="center"><img src="docs/capturas/widgets.jpg" alt="Widgets del escritorio en el tema Grafito" width="100%"></p>
+
+### Tema oscuro
+
+<p align="center"><img src="docs/capturas/tema-oscuro.jpg" alt="Música y Galería en tema oscuro sobre el fondo Tatacoa" width="100%"></p>
+
+<p align="center"><img src="docs/capturas/arranque.jpg" alt="Pantalla de arranque" width="60%"></p>
+
+## Cómo se usa
+
+1. Abre la dirección de tu Sotos en cualquier navegador y **crea una cuenta**, o pulsa **Probar como invitado** para usarlo sin registrarte.
+2. Arrastra archivos o carpetas desde tu equipo a la ventana de **Archivos** o al escritorio. Se suben a tu nube.
+3. Haz doble clic en cualquier archivo: se abre en la aplicación adecuada. Los documentos se guardan solos.
+4. Crea documentos, hojas o presentaciones nuevas desde **Archivo → Nuevo**, con el botón **Nuevo** de Archivos o con el clic derecho.
+5. Pulsa **Ctrl + K** para buscar cualquier aplicación o archivo.
+6. Clic derecho sobre un archivo → **Compartir…** para generar un enlace.
+7. En **Ajustes** cambia el estilo (Sotos o Grafito), el fondo, el tema, el color de acento, la tipografía, el estilo de las ventanas y la posición del dock.
+8. Desde otro computador o desde el celular inicia sesión con la misma cuenta: todo está ahí.
+
+### Atajos
+
+| Atajo | Acción |
+|---|---|
+| `Ctrl + K` / `Ctrl + Espacio` | Buscar apps y archivos |
+| `Ctrl + C`, `Ctrl + X`, `Ctrl + V` | Copiar, cortar y pegar archivos |
+| `Supr` / `F2` / `Enter` | Papelera, renombrar, abrir |
+| `Ctrl + A` | Seleccionar todo |
+| `Ctrl + S` | Guardar ya (en editores) |
+| `Ctrl + Z` | Deshacer (Hojas) |
+| `Tab` / `↑` `↓` | Autocompletar e historial en la Terminal |
+| `Mayús + clic derecho` | Menú nativo del navegador |
+
+## Funciones
+
+- **Escritorio**: ventanas que se mueven, se redimensionan, se maximizan y se ajustan a media pantalla; dock que se reordena; iconos en el escritorio; widgets de reloj, calendario, clima real, notas y almacenamiento; búsqueda global.
+- **Archivos**: explorador completo, papelera con restauración a la carpeta original, subida de carpetas, `.zip`.
+- **Oficina**: Documentos (`.docx`), Hojas (`.xlsx`, `.csv`), Presentaciones (`.pptx`), visor de PDF con búsqueda y miniaturas, Notas con resaltado de líneas y vista previa de HTML y Markdown.
+- **Multimedia**: Galería con presentación y uso como fondo; Música con carátulas, listas, favoritas, aleatorio, repetición y teclas multimedia del sistema; Vídeo.
+- **Internet**: Navegador con proxy, accesos directos y servicios con reproductor oficial (YouTube, Spotify, mapas).
+- **Personas**: Mundos (muro, carpeta y chat compartidos), notificaciones en vivo y Contactos con `.vcf`.
+- **Nube**: cuentas, sincronización en vivo, funcionamiento sin conexión, cuota de espacio, compartir con enlaces, "Compartido conmigo".
+- **Personalización**: ocho fondos ilustrados o una foto propia, tema claro u oscuro, seis colores de acento, cuatro tipografías y tres estilos de ventana.
+- **Correo**: varias cuentas IMAP/SMTP con alias, contraseñas cifradas en el servidor.
+- **Organización**: Calendario con recordatorios e `.ics`, Tareas con comentarios, versiones de archivos y copias de seguridad.
+- **Creatividad**: Paint, Diagramas (draw.io), Pizarra (Excalidraw) y Código (Monaco).
+- **Privacidad**: bóveda secreta cifrada con tu propia clave.
+- **Extras**: Terminal, Juegos, Tienda, WhatsApp, widgets, avatares y panel de administración con registro de acciones.
+
+## Instalación
+
+Sotos se instala con un asistente que pregunta dónde va a vivir y deja todo funcionando. Al terminar muestra las direcciones para entrar, incluida la **IP de tu red**, para abrirlo desde el celular u otro computador.
+
+| Modo | Para qué | Qué hace el instalador |
+|---|---|---|
+| **Este equipo** | Usarlo en casa o en la oficina, para ti y tu red local | Comprueba o instala Node.js, compila el escritorio, guarda los datos en tu carpeta de usuario, puede arrancar Sotos con el sistema y abrir el firewall solo para redes privadas. Muestra `http://localhost:8787` y `http://TU-IP:8787`. |
+| **Servidor / hosting** | Un VPS Linux accesible desde internet | Instala Sotos como servicio `systemd` con usuario propio y permisos mínimos, que se reinicia solo. Con dominio configura **HTTPS automático** con Caddy; sin dominio publica por IP y muestra tu IP pública. |
+| **Docker** | Despliegue en contenedores | Genera la configuración con un secreto aleatorio y levanta Sotos junto al servidor de documentos (ONLYOFFICE o Euro-Office). Por IP o con tres subdominios y HTTPS. |
+
+Los tres modos usan la misma compilación: la dirección del proxy del navegador se decide al arrancar, no al compilar. El instalador también **actualiza** y **desinstala** sin tocar tus archivos.
+
+Requisitos: Node.js 22 o superior (el instalador lo ofrece si falta), o Docker. Para el servidor de documentos en Docker se recomiendan 4 GB de RAM.
+
+## Para desarrolladores
+
+Todo el código está en este repositorio. Hay una guía técnica más extensa en inglés en [docs/README.en.md](docs/README.en.md) y el historial en inglés en [docs/CHANGELOG.en.md](docs/CHANGELOG.en.md).
+
+### Puesta en marcha
 
 ```powershell
-# terminal 1 — server (API + proxy) on :8787, bound to this machine only
+# terminal 1: servidor (API + proxy) en :8787, solo para este equipo
 cd server
 npm run dev
 
-# terminal 2 — desktop with hot reload on :5173 (proxies /api to :8787)
+# terminal 2: escritorio con recarga en caliente en :5173 (reenvía /api a :8787)
 cd web
 npm install
 npm run dev
 ```
 
-Open <http://localhost:5173>. Without the server, the desktop runs in guest mode (everything in IndexedDB).
+Abre <http://localhost:5173>. Sin servidor, el escritorio funciona como invitado (todo en IndexedDB). Para producción: `cd web && npm run build` y el servidor sirve `web/dist` con `NODE_ENV=production`.
 
-Production build: `cd web && npm run build` → `web/dist`, served by the server with `NODE_ENV=production`.
+### Servicios opcionales
 
-## 2. Installer
+Cada servicio se activa solo si su variable está en `server/.env`; si no está, la app correspondiente usa su alternativa o explica qué falta.
 
-| Script | System | Modes |
+| Servicio | Script | Puerto | Variable | Para qué |
+|---|---|---|---|---|
+| ONLYOFFICE o Euro-Office | `scripts/onlyoffice-dev.ps1 -Motor eurooffice` | 8099 | `OO_URL` | Editores de oficina completos |
+| Navegador virtual (Neko) | `scripts/neko-dev.ps1` | 8098 | `NEKO_URL` | Páginas que no se dejan incrustar |
+| draw.io propio | `scripts/drawio-dev.ps1` | 8097 | `DRAWIO_URL` | Diagramas sin depender del sitio público |
+| WhatsApp | `scripts/whatsapp-dev.ps1` | 8790 | `WA_URL` | WhatsApp nativo, una sesión por cuenta |
+| ffmpeg | instalado en el sistema | — | `FFMPEG_PATH`, `FFPROBE_PATH` | Películas MKV, audio AC3/DTS y subtítulos |
+
+### Variables de entorno principales
+
+| Variable | Por defecto | Uso |
 |---|---|---|
-| `instalar.ps1` | Windows (PowerShell 5.1+) | `equipo` (this computer), `docker`, `-Actualizar` (update), `-Desinstalar` (uninstall) |
-| `instalar.sh` | Linux and macOS | `equipo`, `servidor` (server), `docker`, `actualizar`, `desinstalar` |
+| `PORT` · `HOST` | `8787` · `127.0.0.1` | Escritorio y API |
+| `SOTOS_DATA` | `server/data` | Base de datos, contenido, secretos, bóvedas y videos preparados |
+| `SOTOS_REGISTRATION` | `open` | `closed` cierra el registro |
+| `SOTOS_QUOTA_MB` · `SOTOS_MAX_FILE_MB` | `2048` · `512` | Cuota por cuenta y tamaño máximo por archivo |
+| `SOTOS_ADMIN_EMAIL` | — | Cuenta administradora (si no, la primera) |
+| `SOTOS_MEDIA_CACHE_GB` | `30` | Espacio para videos preparados |
+| `PX_PORT` · `PX_HOST` · `PX_PUBLIC` | — | Proxy del navegador en otro puerto o dominio |
 
-```powershell
-powershell -ExecutionPolicy Bypass -File instalar.ps1                       # wizard
-powershell -ExecutionPolicy Bypass -File instalar.ps1 -Modo equipo -Inicio -Firewall
-```
-```bash
-./instalar.sh                              # wizard
-./instalar.sh servidor os.example.com      # VPS with automatic HTTPS
-./instalar.sh docker                       # containers (by IP or domain)
-```
+La lista completa está en la [guía técnica](docs/README.en.md#3-environment-variables).
 
-The installer messages are in Spanish, like the rest of the product.
-
-**This computer (`equipo`)** — checks for Node ≥ 22 (offers to install it with winget on Windows, NodeSource on Debian/Ubuntu), builds `web/`, writes `server/sotos.env` (port 8787, proxy on 8788, data in `%LOCALAPPDATA%\SotosOS` or `~/.local/share/sotos-os`, `SOTOS_SHOW_LAN=1`), creates `iniciar-sotos.cmd|sh`, optionally starts with the user session (Startup shortcut on Windows, `systemd --user` service on Linux) and opens the firewall for private networks only. It finishes by printing `http://localhost:8787` and the LAN addresses.
-
-**Server (`servidor`)** — copies to `/opt/sotos-os`, builds, creates the `sotos` system user, `/etc/sotos-os.env` (mode 600) and the `sotos-os.service` unit with `ProtectSystem=strict`, `NoNewPrivileges` and `ReadWritePaths=/var/lib/sotos-os`. With a domain it installs Caddy and configures the desktop and `px.` hosts; without one it serves by IP with the proxy on `PORT+1` and prints the public IP.
-
-**Docker** — generates `.env` with a 32-byte secret. With a domain it uses `docker-compose.yml` (Caddy with HTTPS + Sotos + ONLYOFFICE on three subdomains); without one it writes `COMPOSE_FILE=docker-compose.ip.yml` (ports 8787, 8788 and 8080).
-
-## 3. Environment variables
-
-| Variable | Default | Purpose |
-|---|---|---|
-| `NODE_ENV` | — | `production` serves `web/dist` and routes the proxy by host |
-| `PORT` | `8787` | Desktop + API |
-| `HOST` | `127.0.0.1` (dev) / `0.0.0.0` (prod) | Listening interface |
-| `PX_PORT` | — | Browser proxy on its own port (IP mode) |
-| `PX_HOST` | — | Host served only as the proxy (domain mode) |
-| `PX_PUBLIC` | — | Public proxy origin injected into the page |
-| `TRUST_PROXY` | — | Trust `X-Forwarded-*` (behind Caddy) |
-| `SOTOS_DATA` | `server/data` | Database, blobs and secrets |
-| `SOTOS_WEB` | `web/dist` | Built desktop |
-| `SOTOS_REGISTRATION` | `open` | `closed` disables new sign-ups |
-| `SOTOS_QUOTA_MB` | `2048` | Per-account quota |
-| `SOTOS_WORLD_QUOTA_MB` | `2048` | Quota of each world's shared folder |
-| `SOTOS_REG_LIMIT` | `5` (prod) / `500` (dev) | New accounts per hour and IP |
-| `SOTOS_MAX_FILE_MB` | `512` | Maximum file size |
-| `SOTOS_SHOW_LAN` | — | `1` exposes LAN addresses in `/api/info` and in Settings |
-| `OO_URL` | — | Public Document Server URL (enables the integration) |
-| `OO_INTERNAL` | `OO_URL` | URL the server uses to download saved versions |
-| `SOTOS_INTERNAL` | `http://host.docker.internal:8787` | URL the Document Server uses to reach Sotos |
-| `SOTOS_OO_JWT` | `data/secrets.json` | JWT secret shared with the Document Server |
-| `OO_ENGINE` | — | Informational: `onlyoffice` or `eurooffice` (written by `scripts/onlyoffice-dev.ps1`) |
-| `NEKO_URL` | — | Public URL of the Neko virtual browser (enables it) |
-| `NEKO_CONTAINER` | — | Docker container name, used to open a given address in the virtual browser |
-| `SOTOS_NEKO_PASS` | `data/secrets.json` | Neko room password |
-| `SOTOS_ADMIN_EMAIL` | — | Account promoted to administrator (otherwise the first account) |
-| `SOTOS_MAIL_INSECURE` | — | `1` disables TLS certificate checks for mail (local tests only) |
-| `WA_URL` | — | WhatsApp service (`services/whatsapp`, e.g. `http://127.0.0.1:8790`); enables native WhatsApp |
-| `WA_SECRET` | `data/secrets.json` | Secret shared with the WhatsApp service |
-| `DRAWIO_URL` | — | Self-hosted draw.io (`jgraph/drawio`); otherwise the public embed is used |
-| `FFMPEG_PATH` / `FFPROBE_PATH` | `ffmpeg` / `ffprobe` | Video preparation (MKV, AC3/DTS audio, subtitles) |
-| `SOTOS_MEDIA_CACHE_GB` | `30` | Disk space for prepared videos |
-
-## 4. Repository layout
+### Estructura
 
 ```
-instalar.ps1 · instalar.sh          installers (3 modes + update/uninstall)
-Dockerfile · docker-compose*.yml    image and deployments (domain+HTTPS / IP)
-Caddyfile · .env.example            reverse proxy with automatic certificates
-scripts/
-  capturas.mjs                      automated screenshots (headless Edge + CDP)
-  onlyoffice-dev.ps1                local Document Server (-Motor onlyoffice|eurooffice, -Puerto 8099)
-  neko-dev.ps1                      local Neko virtual browser (port 8098)
-  whatsapp-dev.ps1                  native WhatsApp service (port 8790)
-  drawio-dev.ps1                    self-hosted draw.io (port 8097)
-services/whatsapp/                  optional WhatsApp service (Baileys), one session per account
-  sync-apps.ps1                     copies the Store apps into web/public/apps
-server/
-  index.mjs                         routing, static files, injected proxy origin
-  http.mjs                          HTTP helpers, rate limiting, HS256 JWT
-  db.mjs                            SQLite, data paths, secrets
-  auth.mjs                          accounts, scrypt, sessions
-  fs.mjs                            per-user state, operations, blobs, SSE
-  shares.mjs                        public links and "shared with me"
-  social.mjs                        notifications and contacts
-  worlds.mjs                        worlds: members, wall, chat, shared folder
-  inbox.mjs                         "Send to…": files sent between accounts, accept/decline
-  agenda.mjs                        calendars, events with reminders, task lists, comments
-  store.mjs                         Store: per-account installs and star reviews
-  admin.mjs                         admin panel: stats, registration, quotas, users
-  mail.mjs                          IMAP/SMTP client and MIME parser (no dependencies), accounts, aliases
-  neko.mjs                          virtual browser session and "open this address"
-  wa.mjs                            bridge to the WhatsApp service (events over the main SSE)
-  media.mjs                         video preparation with ffmpeg (cached, served with Range), subtitles
-  vault.mjs                         secret vault: scrypt password, AES-256-GCM at rest
-  oo.mjs                            ONLYOFFICE / Euro-Office integration
-  px.mjs                            browser proxy (rewriting + injected client)
-web/src/
-  main.jsx                          bootstrap, public route /#/s/<token>
-  os/shell.jsx                      OS: boot, sign-in, menu bar, dock, desktop, windows
-  os/tree-ops.js                    pure tree operations (shared with the server)
-  os/vfs.js                         file system, IndexedDB, queue and sync
-  os/api.js · config.js             API client, proxy origin, demo flag
-  os/files-ui.jsx                   thumbnails, drag and drop, menus, properties, sharing
-  os/apps1.jsx                      Files, Notes, Sheets, Gallery, autosave
-  os/apps2.jsx                      Music (ID3 covers), Video, PDF
-  os/pdf-viewer.jsx                 pdf.js viewer: thumbnails, text layer, search, print
-  os/id3.js                         ID3v2.2/2.3/2.4 tags and embedded covers
-  os/worlds.jsx                     Worlds: wall, shared folder, live chat, members
-  os/contacts.jsx                   Contacts, vCard import/export
-  os/notifications.jsx              notification bell and toasts
-  os/apps3.jsx                      Mail, Messages, Browser
-  os/apps4.jsx                      Settings (account, wallpapers, network), Store
-  os/apps5.jsx                      Documents, Slides, Launchpad, Trash
-  os/terminal.jsx                   sotos-sh
-  os/office.js                      .docx/.xlsx/.csv/.pptx/.pdf, HTML sanitizing, printing
-  os/formula.js                     formula engine
-  os/onlyoffice.jsx                 ONLYOFFICE editor with built-in editors as fallback
-  os/context-menu.jsx               global context menu
-  os/wallpapers.js                  procedurally drawn wallpapers
-  os/seed.js                        real sample content created on first boot
-  os/auth-ui.jsx · share-page.jsx   sign-in and public share page
+instalar.ps1 · instalar.sh      instaladores (equipo, servidor, Docker, actualizar, desinstalar)
+Dockerfile · docker-compose*    despliegue en contenedores
+scripts/                        servicios de desarrollo y capturas automáticas
+services/whatsapp/              servicio opcional de WhatsApp (Baileys)
+server/                         Node.js sin dependencias: cuentas, archivos, compartir, mundos,
+                                correo, agenda, tienda, administración, bóveda, video, proxy
+web/src/os/                     el sistema: escritorio, ventanas, apps, sistema de archivos
+docs/                           banner, capturas, guía e historial en inglés
 ```
 
-Source comments and UI strings are in Spanish.
+### Pruebas
 
-## 5. Architecture
+Las funciones se prueban de punta a punta con Edge sin ventana controlado por CDP, a veces con dos navegadores y dos cuentas a la vez: API de archivos 20/20, capa social 26/26, mundos con dos navegadores 18/18, correo contra un servidor IMAP/SMTP de prueba 29/29, varias cuentas de correo 11/11, ONLYOFFICE y Euro-Office 5/5 cada uno, administración 11/11, transferencias 7/7, MKV con audio y subtítulos 7/7, bóveda 11/11, menús contextuales 52/52, entre otras.
+
+## Cómo funciona por dentro
+
+### Arquitectura
 
 ```mermaid
 flowchart LR
-  subgraph B["Browser"]
-    UI["shell.jsx + apps"] <--> V["vfs.js<br/>IndexedDB · queue"]
-    UI <-. postMessage .-> F["proxy iframe"]
+  subgraph NAV["Navegador del usuario"]
+    UI["Escritorio React<br/>ventanas · apps · menú contextual"]
+    VFS["Sistema de archivos virtual<br/>caché IndexedDB + cola sin conexión"]
+    IFR["Iframe aislado<br/>página web proxificada"]
+    UI <--> VFS
+    UI <-. "postMessage" .-> IFR
   end
-  subgraph S["server/index.mjs"]
-    A["auth.mjs"] & FS["fs.mjs"] & SH["shares.mjs"] & OO["oo.mjs"]
-    PX["px.mjs"]
-    DB[("sotos.db")] ; BL[("blobs/&lt;uid&gt;/&lt;id&gt;")]
+  subgraph SRV["Servidor de Sotos (Node.js, sin dependencias)"]
+    API["API<br/>cuentas · archivos · compartir"]
+    EV["Eventos en vivo (SSE)"]
+    PX["Proxy del navegador<br/>origen separado"]
+    DB[("SQLite<br/>usuarios · sesiones · árbol · enlaces")]
+    BL[("Contenido<br/>un archivo por blob")]
+    API --- DB
+    API --- BL
   end
-  V <-->|"/api/fs/ops · /api/fs/blob"| FS
-  FS -->|"SSE /api/fs/events"| V
-  F <--> PX --> NET(("Internet"))
-  OO <-.->|JWT| DS["ONLYOFFICE Docs"]
-  FS --- DB & BL
+  VFS <-->|"operaciones + contenido"| API
+  EV -->|"cambios de otros dispositivos"| VFS
+  IFR <-->|"HTML reescrito"| PX
+  PX <--> WEB(("Internet"))
+  API <-.->|"JWT"| OO["Servidor de documentos<br/>(opcional)"]
 ```
 
-In production one host (or port) is proxy-only, so the desktop session cookies never reach proxied pages.
+### Archivos: operaciones en lugar de copias
 
-## 6. File system and sync
+Cada cambio (crear, escribir, renombrar, mover, copiar, enviar a la papelera, restaurar, borrar) es una **operación pequeña y determinista**: identificadores, nombres y fechas los decide el cliente al momento. El mismo módulo aplica las operaciones en el navegador y en el servidor, así dos dispositivos llegan siempre al mismo árbol sin enviarse el árbol completo.
 
-- State = `{ root, trash }`. Nodes `{ id, name, type, size, ctime, mtime, children?, url?, meta? }`; `root` and `desktop` are fixed.
-- `tree-ops.js#applyOp` implements `replace`, `create`, `write`, `rename`, `move`, `copy`, `trash`, `restore` and `destroy` as pure functions (idempotent where it applies) and returns side effects (`copyBlobs`, `deleteBlobs`) that only the server executes.
-- The client decides ids (`Date.now().toString(36)` + random), unique names and timestamps, so every operation is deterministic.
-- Queue: `[{k:"blob",id} | {k:"op",op}]`, persisted in IndexedDB `kv/queue`; consecutive operations are batched (up to 200 per request). Errors: 401 → `auth`, 507/413 → `full`, network → retry every 5 s.
-- On an `fs` SSE event from another origin: `GET /api/fs/state`, then the pending queue is re-applied on top.
-- New account: sample content is generated, its blobs are queued, followed by a `replace` operation.
-- IndexedDB databases: `sotos-os` (guest) and `sotos-os-<uid>` (one per account). Settings → Account → Import copies guest files into the account.
-
-## 7. API
-
-Every write requires the `X-Sotos: 1` header.
-
-| Method and path | Description |
-|---|---|
-| `GET /api/health` · `GET /api/info` | Health · LAN addresses (when `SOTOS_SHOW_LAN=1`) |
-| `GET /api/auth/me` | Session user and sign-up policy |
-| `POST /api/auth/register \| login \| logout \| password` | Accounts |
-| `GET /api/fs/state` | `{ version, state, fresh, used, quota }` |
-| `POST /api/fs/ops` | `{ ops, origin }` → `{ version }` |
-| `GET\|PUT /api/fs/blob/:id` | Content (PUT enforces quota and size limit, atomic write) |
-| `GET /api/fs/events` | SSE: `hello`, `fs`, `notif`, `notif-read`, `world`, `world-msg`, `world-fs` |
-| `GET\|POST /api/shares` · `DELETE /api/shares/:token` | Own links |
-| `GET /api/notifications` · `POST …/read {ids?}` · `POST …/clear` | Notification center (last 200 per account) |
-| `GET\|POST /api/contacts` · `PUT\|DELETE /api/contacts/:id` | Address book; entries whose email has an account get `sotos: { id, name }` |
-| `GET\|POST /api/worlds` · `GET\|PUT\|DELETE /api/worlds/:id` | Worlds (shared spaces); only the owner edits or deletes |
-| `POST /api/worlds/:id/members {email}` · `DELETE …/members/:uid` | Invite (account required) · remove or leave |
-| `GET\|POST /api/worlds/:id/posts` · `DELETE …/posts/:pid` · `POST …/posts/:pid/comments` | Wall |
-| `GET\|POST /api/worlds/:id/messages` · `POST …/read` | Chat (`?before=` paging) and unread marker |
-| `GET /api/worlds/:id/fs/state` · `POST …/fs/ops` · `GET\|PUT …/fs/blob/:id` | Shared folder: same pure operations as personal files, own quota |
-| `GET /api/shares/with-me` | Shared with me |
-| `GET /api/s/:token[/blob/:id[?dl]]` | Public: metadata and content inside the shared item |
-| `GET /api/inbox` · `POST /api/inbox/send` · `POST …/:id/accept\|refuse` | Send files to another account |
-| `GET\|POST /api/calendar…` · `GET\|POST /api/tasks…` | Calendars, events, task lists, tasks and comments |
-| `GET /api/fs/versions/:id` · `POST …/:id/:at/restore` | File version history |
-| `GET /api/store` · `POST /api/store/:app/install\|uninstall` · `GET\|POST …/reviews` | Store |
-| `GET\|PUT /api/admin/…` | Admin panel (administrators only) |
-| `GET /api/mail/accounts` · `PUT\|DELETE /api/mail/account[?acc=]` · `PUT /api/mail/aliases?acc=` | Mail accounts and aliases |
-| `GET /api/mail/boxes\|messages[/:uid[/attachment]]?acc=` · `POST …/flags\|move` · `DELETE …/:uid` · `POST /api/mail/send` | Mailboxes, messages, sending |
-| `GET /api/neko` · `POST /api/neko/session\|open` | Virtual browser |
-| `GET /api/oo/status` · `POST /api/oo/config` | Document Server integration |
-| `GET /api/oo/file?t=` · `POST /api/oo/callback?t=` | Used by the Document Server, JWT-signed |
-
-## 8. Browser proxy
-
-`/px/<absolute url>`:
-
-- Request: forwards method, body and useful headers; cookies come from an in-memory jar keyed by `sotos_px_sid`; `Referer`/`Origin` of the real site.
-- Response: strips `X-Frame-Options`, CSP, COOP/COEP/CORP, HSTS, `Set-Cookie` (moved to the jar) and similar headers; rewrites redirects; adds `Access-Control-Allow-Origin: *`.
-- HTML: rewrites `href|src|action|poster|data-src|srcset`, `style` and `<style>` `url()`/`@import`, `meta refresh`; removes `<base>`, `integrity` and `nonce`; injects the client.
-- Injected client: patches `fetch`, `XMLHttpRequest`, `window.open`, `history.pushState/replaceState`, `sendBeacon` and `Worker`, observes the DOM, reports `{type:"sotos-px", url, title}` and forwards right-clicks as `{type:"sotos-ctx", …}`; it runs `{type:"sotos-cmd"}` (insert text, delete, select all) only when it comes from `window.parent`.
-- Orphan root-relative requests (`/static/x.js`) → 307 to the last origin (from `Referer` or the `sotos_px_origin` cookie).
-- SSRF: resolves DNS and rejects loopback, private, CGNAT, link-local and multicast addresses.
-- Proxy cookies: `SameSite=None; Secure` over HTTPS or `localhost`; `SameSite=Lax` over plain HTTP by IP (same site as the desktop).
-
-## 9. Office formats and formulas
-
-| Library | Use |
-|---|---|
-| mammoth | `.docx` → HTML |
-| docx | HTML → `.docx` (headings, numbered lists with their own definition, tables, data-URL images, text formatting) |
-| ExcelJS | `.xlsx` ↔ model `{ sheets:[{ name, cells, fmt, widths }] }`, formulas with cached results |
-| PptxGenJS + JSZip | `.pptx`; the Sotos model is stored in `sotos/slides.json` and `Extension="json"` is declared in `[Content_Types].xml` |
-| in-house | CSV (`,` or `;` separator, quoting), text PDF (Helvetica, WinAnsi, xref) |
-
-`formula.js`: tokenizer → precedence parser → evaluator with per-cell memoization and cycle detection. `A1`, `$B$2`, `AA10` references and ranges; function names in English and Spanish. No `eval` or `Function`.
-
-## 10. Document server (ONLYOFFICE)
-
-`withOnlyOffice(App)` wraps Documents, Sheets and Slides: with an account and `OO_URL` set it uses the ONLYOFFICE editor; otherwise the built-in one.
-
-1. `POST /api/oo/config` → signed config (`document.key = id-mtime-size`, download and callback URLs with 12 h / 48 h JWTs).
-2. The browser loads `OO_URL/web-apps/apps/api/documents/api.js` and creates the editor in its own iframe.
-3. Callback with status 2 or 6: the URL JWT and the body or header JWT are verified, the download host must be the Document Server, the file is written atomically and a `write` operation is applied (other devices receive it through SSE).
-
-Local development: `scripts/onlyoffice-dev.ps1 -Motor onlyoffice` or `-Motor eurooffice` (requires Docker; container `sotos-docs` on port 8099), then restart the server. Both engines share the same API and JWT. **Tested end to end** with `onlyoffice/documentserver:9.1.0` and `ghcr.io/euro-office/documentserver:v9.3.1`: the editor loads inside the Sotos window, typed text comes back inside the saved `.docx`, and the previous content is kept in the version history.
-
-### Mail
-
-`mail.mjs` is a small IMAP and SMTP client written for Sotos: literal-aware response parser, modified UTF-7 mailbox names, MIME parser (multipart, base64, quoted-printable, RFC 2047, charsets, `cid:` images inlined), SMTP over implicit TLS or STARTTLS with AUTH PLAIN/LOGIN and timeouts. Each user can link up to 10 accounts; passwords are encrypted with AES-256-GCM and never sent back to the browser. Every account can have aliases (send-as identities); the From selector lists all accounts and aliases and the message goes out through the account that owns the address. Presets for Gmail, Outlook, iCloud and Yahoo (iCloud requires the primary @icloud.com address as the login and an app-specific password; a custom domain goes in as an alias). HTML mail is shown in a sandboxed iframe without scripts, and remote images are blocked until the reader asks for them.
-
-### Native WhatsApp, vault and video preparation
-
-- **WhatsApp**: `services/whatsapp` runs Baileys with one session and one SQLite store per Sotos account, listening on localhost with a shared secret. `server/wa.mjs` proxies it and forwards its events over the existing SSE connection, so the app opens no extra browser connection. The app shows a clear notice that it is an unofficial client before linking.
-- **Secret vault**: hidden app (`vault.jsx`) with its own password; files and names are encrypted at rest with AES-256-GCM using a scrypt-derived key, so neither the server nor administrators can read them. Sessions auto-lock after 15 minutes idle.
-- **Video**: `server/media.mjs` prepares MKV/AVI or AC3/E-AC3/DTS videos once (video stream copied, audio to AAC), caches the result under `data/media-cache` and serves it with HTTP Range; embedded text subtitles are exported as WebVTT and external `.srt`/`.vtt` files next to the video are picked up.
-
-### Virtual browser (Neko)
-
-Some sites refuse to be shown inside another page (sign-ins, banks, WhatsApp Web). With `scripts/neko-dev.ps1`, a real Firefox runs in a container (`ghcr.io/m1k1o/neko/firefox:3.0.8`) and is streamed over WebRTC into the Browser (button **Virtual**) and into the **WhatsApp** app. The room is shared by everyone who can reach it, so on a multi-user server the WhatsApp session should be closed after use.
-
-## 11. Visual identity and wallpapers
-
-- Paper-and-ink tokens (`--surface`, `--ink-line`, `--print-shadow`, …) for light and dark themes; no `backdrop-filter`.
-- Windows with custom controls, a top stripe in the app's color and an offset "printed" shadow.
-- Accent palette: clay `#c4532f`, moss `#4f7a3a`, sky `#2f5d8a`, mustard `#c9902a`, plum `#7a3e6b`, lagoon `#1f7a78`.
-- `wallpapers.js`: 8 deterministic scenes (seeded by id) inspired by Colombian landscapes, with halftone skies, flat layers with a registration offset, scene elements (frailejón, wax palm, cactus, hilltop chapel, city) and paper grain; rendered at screen resolution and cached as blob URLs.
-
-### Grafito skin
-
-A second full skin selected in Settings → Appearance (`settings.skin = "grafito"`). `shell.jsx` sets `data-skin` and `data-wallgray` on `<html>`; every rule lives under `[data-skin="grafito"]` in `styles.css` with its own light and dark tokens. The dock becomes a full-height rail (`.dock.rail`), `--desk-left` offsets maximized and snapped windows, folders read `--folder-color`, the font switches to Lato and the wallpaper gets a grayscale filter (optional).
-
-## 12. Global context menu
-
-`context-menu.jsx` listens to `contextmenu` on `document` after the apps: if none called `preventDefault`, it builds a menu for the target (editable field, selection, link, image, title bar or window). Menu buttons do not steal focus (`mousedown.preventDefault`), so text selections survive. `showMenu(x, y, items)` is also used by the Browser for proxied pages. `Shift + right-click` keeps the native menu.
-
-## 13. Security
-
-- scrypt (N = 2¹⁵, r = 8, p = 1) with a 16-byte salt; 30-day sessions, 32-byte token, only its SHA-256 is stored.
-- Rate limits: sign-up 5/h per IP; sign-in 20/15 min per IP and 8/15 min per email; equal work whether or not the account exists.
-- `Secure` cookie only over HTTPS (detected from the socket, or from `X-Forwarded-Proto` with `TRUST_PROXY`).
-- Blob ids validated with `^[a-z0-9]{6,40}$` before touching disk; writes go to `.part` + `rename`.
-- Shared content: `nosniff`, CSP `sandbox` (except PDF), forced download for unsafe types.
-- `sanitizeHtml` with an allow-list of tags and attributes for documents, pasting and printing (iframe without `allow-scripts`).
-- Desktop headers: `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
-
-## 14. Static demo build
-
-A static, guest-only build without a server (`VITE_DEMO=1 npm run build:demo` → `../demo-dist`): `config.js#DEMO` skips sign-in, never calls the API, hides the proxy and shows a welcome dialog and a DEMO badge. The public online demo was retired; the build is kept for local presentations.
-
-## 15. Tests and screenshots
-
-- API smoke test (sign-up, session, operations, blobs, public links, anti-CSRF, permanent deletion): 20/20.
-- Formats: generated `.docx`, `.xlsx`, `.pptx` and `.pdf` files were validated by opening them with independent libraries in Node.
-- Formulas: precedence, ranges, multi-letter columns, cycles, division by zero and unknown names.
-- Sync: new account → local cache wiped → everything comes back from the server, content included.
-- Social layer (notifications, contacts, worlds, permissions, quotas, SSE fan-out): 26/26 API checks.
-- Two-browser end-to-end run (two accounts in separate headless Edge instances): contacts, vCard round-trip, world creation and invitation, live notification badge, wall posts and comments, chat, shared-folder upload seen live by the other member, PDF render/text layer/search, ID3 title/artist/album/cover: 18/18.
-- Static demo build: apps open, `.docx`/`.xlsx` load through lazy chunks, no console or network errors.
-- Version 2.3 suites (headless Edge + CDP, two browsers where it applies): presence/inbox/groups/blocking 16/16, calendar and tasks 15/15, versions and backup 11/11, admin and region 17/17, window motion 13/13, context menus 52/52, archives 10/10, Store and Mail UI 12/12, multiple mail accounts 11/11, aliases and iCloud setup 4/4, mail API against a local IMAP/SMTP test server 29/29, ONLYOFFICE and Euro-Office 5/5 each, virtual browser 5/5.
-
-Automated screenshots (server and `web` running):
-
-```powershell
-node scripts/capturas.mjs docs/capturas
+```mermaid
+sequenceDiagram
+  participant A as Navegador A
+  participant S as Servidor
+  participant B as Navegador B
+  A->>A: aplica la operación al instante (IndexedDB)
+  A->>S: sube el contenido nuevo (si lo hay)
+  A->>S: envía la operación
+  S->>S: aplica, guarda y sube la versión
+  S-->>B: evento "fs" con la versión nueva
+  B->>S: pide el estado
+  B->>B: reaplica encima sus cambios pendientes
 ```
 
-Launches headless Edge at 1600×1000 (device scale 1.5), uses a local screenshot account and drives the system through `window.__sotos` (development builds only) plus real mouse and keyboard events over CDP.
+- El contenido siempre se sube **antes** que la operación que lo referencia, y la cola se procesa en orden.
+- Sin conexión, las operaciones esperan en una cola guardada en IndexedDB y se envían al volver.
+- Cada cuenta tiene su propia caché local; el modo invitado usa otra, así nunca se mezclan.
+- Los archivos se descargan bajo demanda y se guardan en caché.
+- El servidor controla la cuota de cada cuenta y el tamaño máximo por archivo.
 
-## 16. Screenshots
+### Documentos de Office
 
-| | |
-|---|---|
-| ![Sign-in](docs/capturas/acceso.jpg) | ![Files](docs/capturas/archivos.jpg) |
-| ![Word](docs/capturas/word.jpg) | ![Excel](docs/capturas/excel.jpg) |
-| ![Slides](docs/capturas/presentaciones.jpg) | ![Terminal](docs/capturas/terminal.jpg) |
-| ![Browser](docs/capturas/navegador.jpg) | ![Context menu](docs/capturas/menu-contextual.jpg) |
-| ![Wallpapers](docs/capturas/fondos.jpg) | ![Sharing](docs/capturas/compartir.jpg) |
-| ![Public link](docs/capturas/enlace-publico.jpg) | ![Dark theme](docs/capturas/tema-oscuro.jpg) |
-| ![World wall](docs/capturas/mundos-muro.jpg) | ![World chat](docs/capturas/mundos-chat.jpg) |
-| ![Notifications](docs/capturas/notificaciones.jpg) | ![Contacts](docs/capturas/contactos.jpg) |
-| ![PDF viewer](docs/capturas/visor-pdf.jpg) | ![Music covers](docs/capturas/musica-caratulas.jpg) |
-| ![Grafito light](docs/capturas/tema-grafito-light.jpg) | ![Grafito dark](docs/capturas/tema-grafito-dark.jpg) |
-| ![Mail](docs/capturas/correo.jpg) | ![Mail accounts and aliases](docs/capturas/correo-alias.jpg) |
-| ![Calendar](docs/capturas/calendario.jpg) | ![Tasks](docs/capturas/tareas.jpg) |
-| ![Versions](docs/capturas/versiones.jpg) | ![Store](docs/capturas/tienda.jpg) |
-| ![Euro-Office](docs/capturas/euro-office.jpg) | ![Virtual browser](docs/capturas/navegador-virtual.jpg) |
-| ![Games](docs/capturas/juegos.jpg) | ![Widgets](docs/capturas/widgets.jpg) |
+| Formato | Lectura | Escritura |
+|---|---|---|
+| `.docx` | HTML a partir del documento, con limpieza de etiquetas y atributos | HTML del editor convertido en párrafos, títulos, listas numeradas y con viñetas, tablas, imágenes y formato de texto |
+| `.xlsx` | Valores, fórmulas, negrita, cursiva, alineación y anchos de columna | Fórmulas con su resultado calculado, para que otros programas muestren el valor sin recalcular |
+| `.pptx` | Texto de cada diapositiva | Diapositivas reales más el modelo de Sotos dentro del propio archivo, declarado en su lista de tipos de contenido |
+| `.pdf` | Visor del navegador | Generador propio de PDF de texto para los archivos de ejemplo; exportación de documentos por impresión |
 
-## 17. Roadmap
+Las librerías de formatos se cargan solo cuando se abre un archivo de ese tipo.
 
-- Syntax check of `instalar.sh` on real Linux.
-- Window controls: user's choice between Sotos, Mac and Windows styles.
-- Touch screens and a phone layout.
-- Interface languages besides Spanish.
-- A "lite" build without the virtual browser.
-- New apps (camera, maps, code editor); world roles and post attachments.
-- Automatic server backups, two-factor sign-in, per-user virtual browser rooms.
-- Performance (lazy-loaded apps, icon font subset), strict CSP, per-account proxy limits.
+### Motor de fórmulas
+
+Analizador propio: tokenizador, gramática por precedencias (comparación, concatenación, suma, producto, potencia, signo) y evaluador con memoria por celda y detección de referencias circulares. Nunca ejecuta código del documento, a diferencia de evaluar la fórmula como JavaScript, y devuelve los errores habituales (`#DIV/0!`, `#NOMBRE?`, `#VALOR!`, `#REF!`, `#CICLO!`).
+
+### Navegador y proxy
+
+Casi todos los sitios prohíben mostrarse dentro de otra página. El proxy de Sotos descarga la página, quita esas restricciones y reescribe enlaces, formularios, redirecciones, `srcset`, CSS y metadatos para que todo vuelva a pasar por él. Además inyecta un pequeño cliente que redirige `fetch`, `XMLHttpRequest`, `window.open` y el historial, y avisa al escritorio de la dirección y el título reales.
+
+- Se sirve desde un **origen distinto** al del escritorio: una página abierta nunca puede leer la sesión ni los archivos de Sotos.
+- Las cookies de cada sitio se guardan en el servidor por visitante, así los inicios de sesión sencillos funcionan.
+- Bloquea direcciones privadas y locales para que no se pueda usar contra la red interna.
+- El clic derecho dentro de la página se envía al escritorio por `postMessage`, y las acciones de pegar o seleccionar vuelven a la página por el mismo canal.
+
+### Servidor de documentos: ONLYOFFICE o Euro-Office
+
+Con ONLYOFFICE Docs o con Euro-Office (su versión europea, con la misma interfaz de programación), Documentos, Hojas y Presentaciones pueden abrir editores de oficina completos dentro de Sotos. El servidor firma con JWT la configuración, la descarga del archivo y el aviso de guardado, valida el origen de cada versión nueva y la guarda como una operación más, así el resto de dispositivos la recibe al instante. Si no hay servidor de documentos, o se usa Sotos como invitado, se usan los editores propios. Ambos motores están probados de punta a punta: lo que se escribe en el editor vuelve guardado al `.docx` y la versión anterior queda en el historial.
+
+### Correo sin intermediarios
+
+El servidor de Sotos habla directamente con tu proveedor por IMAP y SMTP, con un cliente y un lector MIME escritos para Sotos, sin librerías externas. Las contraseñas de correo se guardan cifradas (AES-256-GCM) y nunca vuelven al navegador. En iCloud se entra con la dirección principal @icloud.com y una contraseña específica para apps; el dominio propio se añade como alias.
+
+### Fondos ilustrados
+
+Cada fondo es una escena dibujada por código en un `<canvas>` a la resolución de la pantalla, imitando una serigrafía:
+
+1. Cielo plano con **tramado de puntos** que crece hacia el horizonte.
+2. Capas de color plano (montañas, ciudad, río, mar) con un **desfase de registro**: cada capa se imprime primero en un tono más oscuro y corrido unos píxeles.
+3. Elementos propios de cada paisaje: frailejones con tronco lanudo y roseta de hojas, palmas de cera, cactus, una capilla en la cima, ventanas iluminadas.
+4. **Grano de papel** y fibras sobre todo el conjunto.
+
+Las escenas usan un generador pseudoaleatorio con semilla, así cada fondo sale siempre igual. Las imágenes de ejemplo de la Galería son esas mismas ilustraciones.
+
+### Identidad visual
+
+Papel y tinta: superficies de color crema, bordes de tinta y sombras desplazadas como de lámina impresa, sin cristal difuminado ni brillos. La paleta de acentos (arcilla, musgo, cielo, mostaza, ciruela y laguna) colorea también los iconos de las aplicaciones y las carpetas color manila. El logo actual es una S de dos arcos con una órbita abierta. El logo original, un husky y una gata, sigue en «Acerca de» y se puede volver a elegir como logo de todo el sistema en **Ajustes → Apariencia**.
+
+### Seguridad
+
+- Contraseñas con **scrypt** y sal; la sesión es un token aleatorio en una cookie `HttpOnly` y en la base de datos solo se guarda su huella.
+- Límite de intentos de inicio de sesión por IP y por correo, y el mismo coste de cálculo exista o no la cuenta.
+- Toda petición que modifica datos exige una cabecera propia que un formulario de otra web no puede enviar.
+- Los identificadores de archivo se validan antes de tocar el disco.
+- El contenido compartido se sirve con `nosniff` y en una caja aislada; HTML y SVG nunca se muestran en el origen de Sotos.
+- El HTML de los documentos se limpia al abrir, al pegar y al imprimir.
+- En servidor, el servicio corre con usuario propio, sistema de archivos de solo lectura salvo sus datos y sin privilegios nuevos.
+
+## Limitaciones conocidas
+
+- Algunos sitios con protección contra bots o aplicaciones muy pesadas (inicios de sesión de grandes plataformas, banca) no funcionan a través del proxy. Para ellos está el botón para abrirlos en una pestaña real.
+- Entrando por IP sin HTTPS, el navegador no deja a Sotos leer el portapapeles para la opción de pegar del menú; `Ctrl + V` sigue funcionando.
+- El servidor de documentos necesita Docker y unos 4 GB de RAM.
+- El navegador virtual (y con él WhatsApp) es uno por servidor: lo comparte quien tenga acceso a él.
+- La interfaz está solo en español por ahora.
+
+**Créditos:** React, Vite, mammoth, docx, ExcelJS, PptxGenJS, JSZip, pdf.js, libarchive.js, Material Symbols, fuentes Onest, Hanken Grotesk, Space Grotesk, Lato y JetBrains Mono, Caddy, ONLYOFFICE Docs, Euro-Office, Neko, el servicio de clima Open-Meteo y las tasas de ExchangeRate-API. Fondos fotográficos de dominio público (CC0). Gracias a Basted y Lyanna.
+
+Homenaje a inevio. Sotos no está afiliado a inevio ni a sus dueños.
+
+---
+
+<sub>© 2026 Sebastian Sotomontes · Licencia [MIT](LICENSE).</sub>
