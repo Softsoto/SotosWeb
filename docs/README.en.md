@@ -121,6 +121,7 @@ The installer messages are in Spanish, like the rest of the product.
 | `DRAWIO_URL` | — | Self-hosted draw.io (`jgraph/drawio`); otherwise the public embed is used |
 | `FFMPEG_PATH` / `FFPROBE_PATH` | `ffmpeg` / `ffprobe` | Video preparation (MKV, AC3/DTS audio, subtitles) |
 | `SOTOS_MEDIA_CACHE_GB` | `30` | Disk space for prepared videos |
+| `SOTOS_VAULT_ADMIN` | `0` | `1` lets administrators review users' vaults (key escrow; asked by the installer) |
 
 ## 4. Repository layout
 

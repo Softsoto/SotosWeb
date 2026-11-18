@@ -2,6 +2,9 @@
 
 © 2026 Sebastian Sotomontes · MIT License. The Spanish [CHANGELOG](../CHANGELOG.md) is the reference.
 
+## 3.1 — 2026-11-18
+- Live co-editing of world documents (one Document Server session per file, members only); general search (apps, files, contacts, events, tasks, settings, web); Dock drag to add/remove, pin running apps; spring-loaded folders and Move to…; Gallery "Open file location"; drag from Files into the vault; password required to change profile photo/name; install-time `SOTOS_VAULT_ADMIN` (vault key escrow for admins, audited).
+
 ## 3.0 — Official release (2026-11-18)
 
 ### Added

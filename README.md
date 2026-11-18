@@ -10,7 +10,7 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 3.0 · lanzamiento oficial |
+| **Versión** | 3.1 |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
 | **Licencia** | [MIT](LICENSE) |
@@ -36,7 +36,15 @@ Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde 
 
 ## Novedades
 
-**Versión 3.0, lanzamiento oficial** ([historial completo](CHANGELOG.md)):
+**Versión 3.1** ([historial completo](CHANGELOG.md)):
+
+- **Coedición en vivo** de Word, Excel y PowerPoint entre los miembros de un mundo.
+- **Buscador general**: apps, archivos, contactos, eventos, tareas, ajustes e internet en un solo lugar.
+- **Dock a tu gusto**: arrastra para agregar o quitar, clic derecho para fijar.
+- **Mover entre carpetas** arrastrando (las carpetas se abren solas) o con «Mover a…», y «Abrir ubicación del archivo» en la Galería.
+- Cambiar el perfil pide tu contraseña, y al instalar se decide si el administrador puede revisar las bóvedas.
+
+**Versión 3.0, lanzamiento oficial**:
 
 - **WhatsApp dentro de Sotos**: cada cuenta vincula su WhatsApp con un código QR y lo usa con la interfaz de Sotos: chats, fotos, videos, audios, documentos y archivos de tu nube.
 - **Bóveda secreta**: un espacio oculto y cifrado con tu propia clave; ni el servidor ni un administrador pueden ver lo que guardas.
@@ -266,7 +274,7 @@ Varias cuentas, alias para enviar desde otras direcciones y la elección de remi
 
 ## Funciones
 
-- **Escritorio**: ventanas que se mueven, se redimensionan, se maximizan y se ajustan a media pantalla; dock que se reordena; iconos en el escritorio; widgets de reloj, calendario, clima real, notas y almacenamiento; búsqueda global.
+- **Escritorio**: ventanas que se mueven, se redimensionan, se maximizan y se ajustan a media pantalla; dock que se reordena, al que se agregan o quitan apps arrastrando; iconos en el escritorio; widgets de reloj, calendario, clima real, notas y almacenamiento; buscador general de apps, archivos, contactos, eventos, tareas y ajustes.
 - **Archivos**: explorador completo, papelera con restauración a la carpeta original, subida de carpetas, `.zip`.
 - **Oficina**: Documentos (`.docx`), Hojas (`.xlsx`, `.csv`), Presentaciones (`.pptx`), visor de PDF con búsqueda y miniaturas, Notas con resaltado de líneas y vista previa de HTML y Markdown.
 - **Multimedia**: Galería con presentación y uso como fondo; Música con carátulas, listas, favoritas, aleatorio, repetición y teclas multimedia del sistema; Vídeo.
@@ -335,6 +343,7 @@ Cada servicio se activa solo si su variable está en `server/.env`; si no está,
 | `SOTOS_QUOTA_MB` · `SOTOS_MAX_FILE_MB` | `2048` · `512` | Cuota por cuenta y tamaño máximo por archivo |
 | `SOTOS_ADMIN_EMAIL` | — | Cuenta administradora (si no, la primera) |
 | `SOTOS_MEDIA_CACHE_GB` | `30` | Espacio para videos preparados |
+| `SOTOS_VAULT_ADMIN` | `0` | `1` permite que el administrador revise las bóvedas (el instalador lo pregunta) |
 | `PX_PORT` · `PX_HOST` · `PX_PUBLIC` | — | Proxy del navegador en otro puerto o dominio |
 
 La lista completa está en la [guía técnica](docs/README.en.md#3-environment-variables).

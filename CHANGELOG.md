@@ -3,6 +3,20 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.1 — 18 de noviembre de 2026
+
+### Nuevo
+- **Coedición en los mundos**: un Word, Excel o PowerPoint de la carpeta de un mundo se abre en Euro-Office u ONLYOFFICE y todos los miembros lo editan a la vez, en una sola sesión en vivo. Quien no es miembro no puede abrirlo.
+- **Buscador general** (botón Buscar de la barra superior o `Ctrl + K`): apps, archivos, contactos, eventos, tareas, ajustes y búsqueda en internet, agrupados.
+- **Dock personalizable**: arrastra una app desde Aplicaciones o el escritorio para agregarla, arrástrala fuera para quitarla (con deshacer), clic derecho para «Agregar al Dock», «Quitar del Dock» o «Mantener en el Dock». Las apps abiertas que no están fijadas aparecen al final.
+- **Mover entre carpetas**: al arrastrar, las carpetas, la ruta de arriba y la barra lateral se abren solas si te detienes encima; y «Mover a…» en el clic derecho con un árbol de carpetas.
+- **Galería**: clic derecho sobre una foto con «Abrir ubicación del archivo», usar como fondo, editar con Paint, compartir, propiedades y papelera.
+- **Bóveda**: ahora se pueden arrastrar archivos y carpetas desde Archivos de Sotos (con opción de quitar los originales).
+- **Bóvedas y administración**: al instalar se elige si el administrador puede revisar las bóvedas de los usuarios (`SOTOS_VAULT_ADMIN`). Si se permite, el panel de administración las lista y las abre, y cada apertura queda en el registro.
+
+### Seguridad
+- Cambiar la foto o el nombre del perfil pide la contraseña de la cuenta; el servidor la verifica.
+
 ## 3.0 — Lanzamiento oficial (18 de noviembre de 2026)
 
 ### Nuevo
