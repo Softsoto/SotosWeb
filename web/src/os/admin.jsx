@@ -75,7 +75,7 @@ export function AdminApp() {
       </div>
 
       {files && <UserFiles u={files} onClose={() => setFiles(null)} onChanged={() => { loadUsers(); loadStats(); }} />}
-      {edit && <UserEditor u={edit} me={user} onFiles={() => setFiles(edit)} onClose={() => setEdit(null)} patch={(b, m) => patch(edit, b, m).then(() => setEdit(x => x && { ...x, ...b }))}
+      {edit && <UserEditor u={edit} me={user} onFiles={() => { setFiles(edit); setEdit(null); }} onClose={() => setEdit(null)} patch={(b, m) => patch(edit, b, m).then(() => setEdit(x => x && { ...x, ...b }))}
         onPassword={async (pw) => { try { await api("POST", `admin/users/${edit.id}/password`, { password: pw }); toast("Contraseña cambiada; sus sesiones se cerraron", { icon: "key" }); } catch (e) { toast(e.message, { error: true }); } }}
         onLogout={async () => { await api("POST", `admin/users/${edit.id}/logout`, {}); toast("Sesiones cerradas", { icon: "logout" }); loadUsers(); }}
         onDelete={() => setConfirm(edit)} />}
@@ -129,15 +129,29 @@ function UserEditor({ u, me, onClose, onFiles, patch, onPassword, onLogout, onDe
 
 /* archivos de una persona: para revisar contenido que infrinja derechos de autor o las normas del servidor */
 function UserFiles({ u, onClose, onChanged }) {
-  const [items, setItems] = useState(null), [q, setQ] = useState(""), [del, setDel] = useState(null);
-  const load = () => api("GET", `admin/users/${u.id}/files`).then(r => setItems(r.items)).catch(e => toast(e.message, { error: true }));
+  const [items, setItems] = useState(null), [vault, setVault] = useState(null), [q, setQ] = useState(""), [del, setDel] = useState(null), [dir, setDir] = useState("");
+  const load = () => api("GET", `admin/users/${u.id}/files`).then(r => { setItems(r.items); setVault(r.vault || null); }).catch(e => toast(e.message, { error: true }));
   useEffect(() => { load(); }, []);
-  const list = (items || []).filter(f => f.path.toLowerCase().includes(q.toLowerCase()));
+  // navegación por carpetas (con búsqueda: lista plana de todo lo que coincide)
+  const folderOf = (f) => f.path.replace(/\/[^/]*$/, "");
+  const inDir = (items || []).filter(f => folderOf(f) === dir);
+  const subdirs = [...new Set((items || []).map(folderOf).filter(p => p.startsWith(dir + "/") && p !== dir).map(p => dir + "/" + p.slice(dir.length + 1).split("/")[0]))].sort();
+  const sizeOf = (p) => (items || []).filter(f => f.path.startsWith(p + "/")).reduce((s, f) => s + f.size, 0);
+  const countOf = (p) => (items || []).filter(f => f.path.startsWith(p + "/")).length;
+  const list = q ? (items || []).filter(f => f.path.toLowerCase().includes(q.toLowerCase())) : inDir;
+  const crumbs = dir.split("/").filter(Boolean);
   return (
     <Modal title={`Archivos de ${u.name}`} icon="folder_open" onClose={onClose} width={820} actions={<button className="tb-btn" onClick={onClose}>Cerrar</button>}>
       <div className="admin-warn soft"><Ic name="policy" /><div>Úsalo solo para revisar contenido que infrinja derechos de autor o las normas de este servidor. Cada vez que abres o eliminas un archivo queda en el <b>Registro</b>, y la persona recibe un aviso con el motivo cuando eliminas algo.</div></div>
-      <div className="search-box" style={{ margin: "10px 0" }}><Ic name="search" size={16} /><input placeholder="Buscar por nombre o carpeta" value={q} onChange={e => setQ(e.target.value)} /></div>
+      <div className="search-box" style={{ margin: "10px 0" }}><Ic name="search" size={16} /><input placeholder="Buscar en todas sus carpetas" value={q} onChange={e => setQ(e.target.value)} /></div>
+      {!q && <div className="admin-crumbs"><button onClick={() => setDir("")}><Ic name="home" size={16} /> Inicio</button>
+        {crumbs.map((c, i) => <React.Fragment key={i}><Ic name="chevron_right" size={14} /><button onClick={() => setDir("/" + crumbs.slice(0, i + 1).join("/"))}>{c}</button></React.Fragment>)}</div>}
+      {vault && vault.files > 0 && <div className="faint" style={{ fontSize: 12, margin: "0 0 8px" }}><Ic name="lock" size={14} /> Además tiene {vault.files} archivo(s) en su bóveda privada ({fmtSize(vault.size)}): están cifrados con su clave y nadie más puede verlos.</div>}
       <div className="admin-files">
+        {!q && dir && <div className="admin-file folder" onClick={() => setDir(dir.replace(/\/[^/]*$/, ""))}><span className="admin-file-name"><b><Ic name="arrow_upward" size={16} /> ..</b></span></div>}
+        {!q && subdirs.map(p => <div key={p} className="admin-file folder" onClick={() => setDir(p)}>
+          <span className="admin-file-name"><b><Ic name="folder" size={16} style={{ color: "#c9902a" }} /> {p.split("/").pop()}</b><span className="faint">{countOf(p)} archivo(s)</span></span>
+          <span className="faint">{fmtSize(sizeOf(p))}</span><span /><span /><span /></div>)}
         {!items && <div className="faint" style={{ padding: 12 }}>Cargando…</div>}
         {items && !list.length && <EmptyState icon="folder_off" text="No hay archivos" />}
         {list.slice(0, 500).map(f => <div key={f.id} className="admin-file">
