@@ -712,6 +712,12 @@ function OS() {
       window.open(`${location.origin}${location.pathname}#/s/${link.share}`, "_blank", "noopener");
     }
   }, [openApp]);
+  // tocar un aviso del celular o del computador (service worker) abre el lugar del aviso
+  useEh(() => {
+    const f = (e) => openLink(e.detail); window.addEventListener("sotos-open-link", f);
+    const m = /^#abrir=(.+)$/.exec(location.hash); if (m && stage === "desktop") { try { openLink(JSON.parse(decodeURIComponent(m[1]))); } catch {} history.replaceState(null, "", location.pathname + location.search); }
+    return () => window.removeEventListener("sotos-open-link", f);
+  }, [openLink, stage]);
 
   // nuevos documentos en blanco (archivos Office válidos desde el primer momento)
   const newDoc = useCh(async (kind) => {

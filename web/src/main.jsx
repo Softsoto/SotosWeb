@@ -26,3 +26,8 @@ const share = /^#\/s\/([a-f0-9]{32})/.exec(location.hash);
 if (share) document.body.classList.add("is-share");
 createRoot(document.getElementById("root")).render(share ? <SharePage token={share[1]} /> : <OS />);
 window.addEventListener("hashchange", () => { if (/^#\/s\//.test(location.hash) !== !!share) location.reload(); });
+
+// service worker: avisos con Sotos cerrado y app instalable (en el celular o el computador)
+if ("serviceWorker" in navigator && !share && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1"))
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
+navigator.serviceWorker?.addEventListener("message", (e) => { if (e.data?.type === "sotos-open-link") window.dispatchEvent(new CustomEvent("sotos-open-link", { detail: e.data.link })); });

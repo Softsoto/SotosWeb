@@ -30,6 +30,8 @@ export async function handlePresence(req, res) {
 
 /* ---------------- notificaciones ---------------- */
 // kind: share | world-invite | world-post | world-comment | world-file
+let onNotif = null; // avisos por Web Push (push.mjs)
+export const setOnNotification = (fn) => { onNotif = fn; };
 export function addNotification(userId, { kind, title, body = "", link = null, actor = null }) {
   const row = { id: rid(10), user_id: userId, kind, title: String(title).slice(0, 200), body: String(body || "").slice(0, 500), link: link ? JSON.stringify(link) : null, actor, created: now(), read: 0 };
   db.prepare("INSERT INTO notifications(id,user_id,kind,title,body,link,actor,created,read) VALUES(?,?,?,?,?,?,?,?,0)")
@@ -37,6 +39,7 @@ export function addNotification(userId, { kind, title, body = "", link = null, a
   // conservar solo las 200 más recientes por usuario
   db.prepare("DELETE FROM notifications WHERE user_id = ? AND id NOT IN (SELECT id FROM notifications WHERE user_id = ? ORDER BY created DESC LIMIT 200)").run(userId, userId);
   notify(userId, "notif", publicNotif(row));
+  try { onNotif?.(userId, publicNotif(row)); } catch {}
   return row;
 }
 const publicNotif = (r) => ({ id: r.id, kind: r.kind, title: r.title, body: r.body, link: r.link ? JSON.parse(r.link) : null, actor: r.actor, created: r.created, read: !!r.read });

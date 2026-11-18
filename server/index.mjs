@@ -37,6 +37,7 @@ import { handleWa } from "./wa.mjs";
 import { handleMedia } from "./media.mjs";
 import { handleVault } from "./vault.mjs";
 import { handleDav, handleDavKeys } from "./dav.mjs";
+import { handlePush } from "./push.mjs";
 import "./backup.mjs";      // copias de seguridad diarias
 import "./maintenance.mjs"; // papelera automática y avisos de espacio
 import { handleWorlds } from "./worlds.mjs";
@@ -118,6 +119,7 @@ async function handleApi(req, res) {
     case "media": return handleMedia(req, res, rest);
     case "vault": return handleVault(req, res, rest);
     case "dav-keys": return handleDavKeys(req, res, rest);
+    case "push": return handlePush(req, res, rest);
   }
   return json(res, 404, { error: "No encontrado" });
 }

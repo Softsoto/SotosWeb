@@ -123,8 +123,34 @@ function AccountPanel({ user, env, onLogout }) {
       </div>
     </div>
     <TwoFactorPanel />
+    <PushPanel />
     <DavPanel user={user} />
   </>;
+}
+
+/** avisos de Sotos en este dispositivo aunque Sotos esté cerrado (Web Push) */
+function PushPanel() {
+  const supported = "serviceWorker" in navigator && "PushManager" in window && "Notification" in window;
+  const [on, setOn] = useS4(null), [busy, setBusy] = useS4(false);
+  const sub = async () => (await navigator.serviceWorker.ready).pushManager.getSubscription();
+  React.useEffect(() => { if (supported) sub().then(s => setOn(!!s && Notification.permission === "granted")).catch(() => setOn(false)); }, []);
+  const enable = async () => {
+    setBusy(true);
+    try {
+      const perm = await Notification.requestPermission(); if (perm !== "granted") throw new Error("El navegador no dio permiso para mostrar avisos. Puedes permitirlo en la configuración del sitio.");
+      const { key } = await api("GET", "push/key"); const reg = await navigator.serviceWorker.ready;
+      const raw = Uint8Array.from(atob(key.replace(/-/g, "+").replace(/_/g, "/")), c => c.charCodeAt(0));
+      const s = (await reg.pushManager.getSubscription()) || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: raw });
+      await api("POST", "push/subscribe", { subscription: s.toJSON() }); setOn(true); toast("Avisos activados en este dispositivo", { icon: "notifications_active" });
+    } catch (e) { toast(e.message, { error: true }); }
+    setBusy(false);
+  };
+  const disable = async () => { setBusy(true); try { const s = await sub(); if (s) { await api("POST", "push/unsubscribe", { endpoint: s.endpoint }).catch(() => {}); await s.unsubscribe(); } setOn(false); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
+  const test = async () => { try { const r = await api("POST", "push/test"); toast(r.sent ? "Aviso de prueba enviado" : "No se pudo enviar el aviso de prueba", { icon: "send", error: !r.sent }); } catch (e) { toast(e.message, { error: true }); } };
+  return <Row label="Avisos en este dispositivo" desc={!supported ? "Este navegador no permite avisos con Sotos cerrado. En iPhone, primero instala Sotos en la pantalla de inicio." : on ? "Te llegan los avisos de mensajes, mundos y archivos aunque Sotos esté cerrado." : "Recibe los avisos de Sotos aunque no lo tengas abierto, como los de una app del celular."}>
+    {supported && on !== null && (on ? <div style={{ display: "flex", gap: 6 }}><button className="tb-btn" onClick={test}><Ic name="send" /> Probar</button><button className="tb-btn" disabled={busy} onClick={disable}>Desactivar</button></div>
+      : <button className="tb-btn primary" disabled={busy} onClick={enable}><Ic name="notifications_active" /> Activar</button>)}
+  </Row>;
 }
 
 /** conectar Sotos como una unidad (WebDAV) con contraseñas de aplicación por dispositivo */
