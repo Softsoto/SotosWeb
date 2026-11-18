@@ -6,6 +6,7 @@ import React from "react";
 import { Ic, Avatar } from "./ui.jsx";
 import { api } from "./api.js";
 import { SotosMark } from "./logo.jsx";
+import { getLang, setLang } from "./i18n.js";
 const { useState, useEffect } = React;
 
 export function LoginScreen({ wallpaper, server, registration, lastUser, onAccount, onGuest }) {
@@ -33,6 +34,7 @@ export function LoginScreen({ wallpaper, server, registration, lastUser, onAccou
   return (
     <div className="login" style={{ background: wallpaper.css }}>
       <div className="login-veil" />
+      <button className="login-lang no-translate" onClick={() => setLang(getLang() === "es" ? "en" : "es")} title="Idioma · Language">{getLang() === "es" ? "English" : "Español"}</button>
       <div className="login-clock">
         <div className="lc-time">{now.toLocaleTimeString("es-ES", { hour: "2-digit", minute: "2-digit" })}</div>
         <div className="lc-date" style={{ textTransform: "capitalize" }}>{now.toLocaleDateString("es-ES", { weekday: "long", day: "numeric", month: "long" })}</div>

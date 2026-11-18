@@ -8,6 +8,7 @@ import { isInstalled, setInstalled, loadInstalled, subscribeInstalled, getRating
 import { Tile, Ic, SideItem, Avatar, Modal, toast, EmptyState, DEFAULT_AVATARS, avatarUrl } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize, fmtDate } from "./vfs.js";
+import { getLang, setLang, LANGS } from "./i18n.js";
 import { api } from "./api.js";
 import { WALLS, PHOTO_WALLS, wallUrl } from "./wallpapers.js";
 const { useState: useS4, useRef: useR4, useEffect: useE4 } = React;
@@ -259,8 +260,8 @@ function RegionPanel({ settings, update }) {
     <Row label="Extensiones de archivo" desc="Mostrar .docx, .pdf, .jpg… al final de los nombres">
       <Segmented value={r.showExt ? "y" : "n"} onChange={v => set("showExt", v === "y")} options={[{ v: "y", label: "Mostrar" }, { v: "n", label: "Ocultar" }]} />
     </Row>
-    <Row label="Idioma" desc="La traducción completa de Sotos llegará en una próxima versión">
-      <Segmented value="es" onChange={() => {}} options={[{ v: "es", label: "Español" }]} />
+    <Row label="Idioma de la interfaz" desc="La interfaz se recarga para cambiar el idioma. Fechas, horas y números siguen el idioma elegido.">
+      <Segmented value={getLang()} onChange={v => v !== getLang() && setLang(v)} options={LANGS.map(([v, label]) => ({ v, label: <span className="no-translate">{label}</span> }))} />
     </Row>
     <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>Ejemplo: {sample.toLocaleString("es-ES", { timeZone: r.timeZone === "auto" ? undefined : r.timeZone, dateStyle: "medium", timeStyle: "short" })}</div>
   </>;
