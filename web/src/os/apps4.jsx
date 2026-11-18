@@ -303,7 +303,7 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
   return (
     <div className="app">
       <div className="app-side" style={{ width: 180, flexBasis: 180 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px 14px" }}>
+        <div className="side-profile" style={{ display: "flex", alignItems: "center", gap: 10, padding: "8px 10px 14px" }}>
           <Avatar profile={profile} size={40} />
           <div><div style={{ fontWeight: 700, fontSize: 13.5 }}>{profile.name}</div><div className="faint" style={{ fontSize: 11.5 }}>{user ? user.email : "Invitado"}</div></div>
         </div>

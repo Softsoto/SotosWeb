@@ -261,7 +261,7 @@ export function PaintApp({ fileId }) {
         </div>
         <div className="paint-stage" ref={wrap}>
           <div className="paint-sheet" style={{ width: (canvas.current?.width || 1280) * zoom, height: (canvas.current?.height || 800) * zoom }}>
-            <canvas ref={canvas} style={{ width: "100%", height: "100%", cursor }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
+            <canvas ref={canvas} style={{ width: "100%", height: "100%", cursor, touchAction: "none" }} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} />
             <canvas ref={overlay} className="paint-overlay" />
             {textAt && <textarea className="paint-text" autoFocus value={textAt.value} style={{ left: textAt.x * zoom, top: textAt.y * zoom, color, fontSize: Math.max(12, size * 4) * zoom }}
               onChange={e => setTextAt(t => ({ ...t, value: e.target.value }))} onBlur={commitText} onKeyDown={e => { if (e.key === "Escape") setTextAt(null); if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitText(); } }} />}

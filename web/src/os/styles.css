@@ -2255,3 +2255,73 @@ select.wg-input { padding: 0 4px; }
 
 .dock-folder-ic { display: grid; place-items: center; width: 100%; height: 100%; }
 
+
+/* ============================================================
+   Celular y pantallas angostas: cada app a pantalla completa, Dock abajo que se desliza,
+   barras laterales como pestañas, menús que caben
+   ============================================================ */
+@media (max-width: 760px) {
+  :root { --m-top: 34px; --m-dock: calc(66px + env(safe-area-inset-bottom, 0px)); }
+  .menubar { height: var(--m-top) !important; gap: 8px !important; padding: 0 8px !important; padding-top: env(safe-area-inset-top, 0px); }
+  .menubar .menu-wrap, .menubar .wl-btns { display: none !important; }
+  .menubar .active-app { font-weight: 700; max-width: 34vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .menubar .brand { font-size: 0; gap: 0; }
+  .menubar .tray { gap: 2px !important; }
+
+  .menubar .tray .ti { padding: 0 5px; }
+  .menubar-search > span:last-child { display: none; }
+  .menubar .tray .ti.clock > span { display: none; }  /* en el celular, solo la hora */
+  .menubar .tray > .ti[title="Cerrar sesión"] { display: none; }
+  .app > .app-side .side-profile { display: none !important; }
+  .menubar-search { border: 0; padding: 0 4px; }
+  /* ventanas: pantalla completa entre la barra y el Dock */
+  .window:not(.minimized) { left: 0 !important; top: var(--m-top) !important; width: 100vw !important; height: calc(100dvh - var(--m-top) - var(--m-dock)) !important;
+    border-radius: 0 !important; border-left: 0 !important; border-right: 0 !important; box-shadow: none !important; transform: none !important; }
+  .window .resize-handle { display: none !important; }
+  .window .titlebar { min-height: 40px; }
+  .window .win-ctrls button, .window .win-ctrls > * { min-width: 34px; min-height: 34px; }
+  /* Dock: barra inferior a todo lo ancho que se desliza con el dedo */
+  .dock, .dock.bottom, .dock.left, .dock.left.rail { left: 0 !important; right: 0 !important; top: auto !important; bottom: 0 !important; transform: none !important; width: 100vw !important; height: var(--m-dock) !important;
+    flex-direction: row !important; align-items: center !important; justify-content: flex-start; overflow-x: auto; overflow-y: hidden; border-radius: 0 !important; border-left: 0 !important; border-right: 0 !important; border-bottom: 0 !important;
+    padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)) !important; gap: 8px !important; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: none; box-shadow: none !important; }
+  .dock::-webkit-scrollbar { display: none; }
+  .dock .dock-item { flex: 0 0 auto; width: 48px !important; height: 48px !important; scroll-snap-align: start; }
+  .dock .dock-item:hover { transform: none !important; }
+  .dock .dock-tip { display: none !important; }
+  .dock .divider { width: 1px !important; height: 34px !important; flex: 0 0 auto; }
+  .dock .rail-logo { flex: 0 0 auto; }
+  /* escritorio: cuadrícula de íconos como la pantalla de inicio de un celular; los widgets se ocultan */
+  .widget { display: none !important; }
+  .desk-icons, .desk-icons.free { position: absolute !important; inset: calc(var(--m-top) + 12px) 8px calc(var(--m-dock) + 8px) 8px !important; width: auto !important; height: auto !important;
+    display: grid !important; grid-template-columns: repeat(4, 1fr); grid-auto-rows: 96px; gap: 6px; overflow: auto; }
+  .desk-icons .desk-icon { position: static !important; left: auto !important; top: auto !important; width: auto !important; }
+  /* apps con barra lateral: la barra pasa a ser una fila de pestañas arriba */
+  .app:has(> .app-side) { flex-direction: column !important; }
+  .app > .app-side { width: auto !important; min-width: 0 !important; max-width: none !important; border-right: 0 !important; border-bottom: 1px solid var(--border); }
+  /* menús de secciones (Ajustes, Archivos, Administración…): pestañas que se deslizan */
+  .app > .app-side:has(.side-item) { flex: 0 0 auto !important; flex-direction: row !important; display: flex !important; overflow-x: auto; overflow-y: hidden; padding: 6px 8px !important; gap: 4px; scrollbar-width: none; }
+  /* listas (contactos, mundos, chats, canciones…): arriba, con su propio desplazamiento */
+  .app > .app-side:not(:has(.side-item)) { flex: 0 0 auto !important; max-height: 40dvh; overflow-y: auto !important; }
+  .app > .app-side::-webkit-scrollbar { display: none; }
+  .app > .app-side:has(.side-item) .side-group { display: contents; }
+  .app > .app-side .side-label, .app > .app-side .side-group:last-child:has(.faint) { display: none !important; }
+  .app > .app-side .side-item { flex: 0 0 auto; white-space: nowrap; margin: 0 !important; }
+  .app > .app-side:has(.side-item) > *:not(.side-group):not(.side-item):not(.side-label) { flex: 0 0 auto; }
+  .app-main { min-height: 0; }
+  /* barras de herramientas: se deslizan en vez de cortarse */
+  .toolbar, .tb-row { overflow-x: auto; flex-wrap: nowrap !important; scrollbar-width: none; }
+  .toolbar .search-box { min-width: 110px !important; width: 110px !important; }
+  /* diálogos, buscador y menús que caben en la pantalla */
+  .share-card { width: min(94vw, 520px) !important; max-height: 86dvh; overflow: auto; }
+  .spot { width: 94vw !important; top: calc(var(--m-top) + 10px) !important; }
+  .ctx-menu { max-width: 88vw; }
+  .login-card { width: min(92vw, 380px) !important; }
+  /* objetivos táctiles más cómodos */
+  .side-item, .ctx-item, .file-row, .tb-btn { min-height: 38px; }
+  .file-grid { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)) !important; }
+  /* tarjetas y formularios de ancho fijo: que quepan */
+  .mail-setup { padding: 12px !important; }
+  .mail-setup-card { width: auto !important; max-width: 100% !important; min-width: 0 !important; box-sizing: border-box; }
+  .mail-setup-card .chip-row, .mail-setup-card > div:has(> .chip) { flex-wrap: wrap; }
+  .win-body input, .win-body select, .win-body textarea { max-width: 100%; box-sizing: border-box; }
+}

@@ -14,6 +14,7 @@ import { withOnlyOffice } from "./onlyoffice.jsx";
 import { InboxView, useInboxCount } from "./inbox.jsx";
 import { shownName } from "./region.js";
 const { useState: useS1, useRef: useR1, useEffect: useE1, useMemo: useM1, useCallback: useC1 } = React;
+const TOUCH = () => window.matchMedia?.("(pointer: coarse)").matches;
 
 /* hook: guardado automático con estado visible */
 export function useAutosave(saveFn, delay = 1000) {
@@ -150,8 +151,8 @@ function FilesApp({ openApp, openItem, update, folderId, select, place }) {
     className: (view === "list" ? "file-row" : "file-cell") + (sel.includes(n.id) ? " sel" : "") + (hot === n.id ? " drop-hot" : "") + (cutIds.includes(n.id) ? " cut" : ""),
     draggable: renaming !== n.id,
     onMouseDown: (e) => { if (e.button === 0 && !sel.includes(n.id)) click(e, n, i); },
-    onClick: (e) => click(e, n, i),
-    onDoubleClick: () => open(n),
+    onClick: (e) => { click(e, n, i); if (TOUCH() && !e.ctrlKey && !e.shiftKey && !e.metaKey) open(n); }, // en pantallas táctiles un toque abre
+    onDoubleClick: () => { if (!TOUCH()) open(n); },
     onContextMenu: (e) => { e.preventDefault(); e.stopPropagation(); const s = sel.includes(n.id) ? sel : [n.id]; setSel(s); setCtx({ x: e.clientX, y: e.clientY, nodes: s.map(vfs.node).filter(Boolean) }); },
     onDragStart: (e) => dragIds(e, sel.includes(n.id) ? sel : [n.id]),
     ...(n.type === "folder" ? dropTarget(n.id, { onHot: (h) => setHot(h ? n.id : null), onSpring: go }) : {}),

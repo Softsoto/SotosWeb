@@ -64,6 +64,15 @@ import { loadInstalled, subscribeInstalled } from "./installed.js";
 const APP_COMPONENTS = { ...Creative, ...Vault, ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts, ...Admin, ...Cal, ...Tasks };
 const DEFAULT_PROFILE = { name: "Invitado", avatar: null };
 const { useState: useSh, useEffect: useEh, useRef: useRh, useCallback: useCh } = React;
+const TOUCH = () => window.matchMedia?.("(pointer: coarse)").matches;
+// iPhone y iPad no lanzan "contextmenu" al mantener presionado: se simula (Android ya lo hace solo)
+if (typeof window !== "undefined" && (/iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1))) {
+  let t = null, x = 0, y = 0, fired = false;
+  document.addEventListener("touchstart", (e) => { if (e.touches.length !== 1) return; const p = e.touches[0]; x = p.clientX; y = p.clientY; fired = false; clearTimeout(t);
+    const target = e.target; t = setTimeout(() => { fired = true; target.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: x, clientY: y })); navigator.vibrate?.(10); }, 550); }, { passive: true });
+  document.addEventListener("touchmove", (e) => { const p = e.touches[0]; if (Math.abs(p.clientX - x) > 10 || Math.abs(p.clientY - y) > 10) clearTimeout(t); }, { passive: true });
+  document.addEventListener("touchend", (e) => { clearTimeout(t); if (fired) e.preventDefault(); }, { passive: false });
+}
 
 const DEFAULTS = { region: { timeZone: "auto", dateFormat: "auto", showExt: true }, theme: "light", accent: "#c4532f", wallpaper: "paramo", dock: "bottom", font: "Onest", winStyle: "soft", clock24: true, skin: "sotos", wallGray: true };
 const WIN_STYLES = {
@@ -408,7 +417,7 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
       onContextMenu={e => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, item: null }); }}>
       <div className="desk-icons free" ref={iconsRef} style={{ left: shifted ? 92 : 14 }}>
         {apps.map(ic => (
-          <div key={ic.label} className="desk-icon" style={at("app:" + ic.id)} draggable onDragStart={e => { e.dataTransfer.setData(APP_MIME, ic.id); startDeskDrag(e, "app:" + ic.id); }} onDoubleClick={() => openApp(ic.id)}>
+          <div key={ic.label} className="desk-icon" style={at("app:" + ic.id)} draggable onDragStart={e => { e.dataTransfer.setData(APP_MIME, ic.id); startDeskDrag(e, "app:" + ic.id); }} onDoubleClick={() => openApp(ic.id)} onClick={() => TOUCH() && openApp(ic.id)}>
             <Tile icon={ic.icon} color={ic.color} app={ic.id} /><span className="lbl">{ic.label}</span>
           </div>
         ))}
@@ -418,6 +427,7 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
             onDragStart={e => { dragIds(e, [it.id]); startDeskDrag(e, it.id); }}
             {...(it.type === "folder" ? dropTarget(it.id) : {})}
             onMouseDown={() => setSel(it.id)}
+            onClick={() => TOUCH() && renaming !== it.id && openItem(it)}
             onDoubleClick={() => openItem(it)}
             onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setSel(it.id); setCtx({ x: e.clientX, y: e.clientY, item: it }); }}>
             <div style={{ width: 52, height: 50, display: "grid", placeItems: "center" }}><NodeGlyph node={it} size={44} /></div>
@@ -429,7 +439,7 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
               : <span className="lbl">{it.name}</span>}
           </div>
         ))}
-        <div className={"desk-icon desk-trash" + (trashHot ? " sel" : "")} style={at("trash")} draggable onDragStart={e => startDeskDrag(e, "trash")} onDoubleClick={() => openApp("trash")}
+        <div className={"desk-icon desk-trash" + (trashHot ? " sel" : "")} style={at("trash")} draggable onDragStart={e => startDeskDrag(e, "trash")} onDoubleClick={() => openApp("trash")} onClick={() => TOUCH() && openApp("trash")}
           onDragOver={e => { if ([...e.dataTransfer.types].includes("application/x-sotos-ids")) { e.preventDefault(); setTrashHot(true); } }}
           onDragLeave={() => setTrashHot(false)}
           onDrop={e => { e.preventDefault(); e.stopPropagation(); setTrashHot(false); try { const ids = JSON.parse(e.dataTransfer.getData("application/x-sotos-ids")); runItemAction("trash", ids.map(vfs.node).filter(Boolean), helpers); } catch {} }}
