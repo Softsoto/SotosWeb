@@ -7,7 +7,7 @@ import { SotosLogo, SotosMark } from "./logo.jsx";
 import { isInstalled, setInstalled, loadInstalled, subscribeInstalled, getRatings } from "./installed.js";
 import { Tile, Ic, SideItem, Avatar, Modal, toast, EmptyState, DEFAULT_AVATARS, avatarUrl } from "./ui.jsx";
 import * as vfs from "./vfs.js";
-import { useVfs, fmtSize } from "./vfs.js";
+import { useVfs, fmtSize, fmtDate } from "./vfs.js";
 import { api } from "./api.js";
 import { WALLS, PHOTO_WALLS, wallUrl } from "./wallpapers.js";
 const { useState: useS4, useRef: useR4, useEffect: useE4 } = React;
@@ -123,7 +123,49 @@ function AccountPanel({ user, env, onLogout }) {
       </div>
     </div>
     <TwoFactorPanel />
+    <DavPanel user={user} />
   </>;
+}
+
+/** conectar Sotos como una unidad (WebDAV) con contraseñas de aplicación por dispositivo */
+function DavPanel({ user }) {
+  const [items, setItems] = useS4(null), [ask, setAsk] = useS4(false), [name, setName] = useS4(""), [pw, setPw] = useS4(""), [made, setMade] = useS4(null), [busy, setBusy] = useS4(false), [help, setHelp] = useS4(false);
+  const load = () => api("GET", "dav-keys").then(r => setItems(r.items)).catch(() => {});
+  React.useEffect(() => { load(); }, []);
+  const addr = location.origin + "/dav/";
+  const create = async () => { setBusy(true); try { const r = await api("POST", "dav-keys", { name: name || "Mi dispositivo", password: pw }); setMade(r.password); setAsk(false); setPw(""); setName(""); load(); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
+  const copy = (t) => { navigator.clipboard?.writeText(t).then(() => toast("Copiado", { icon: "content_copy" })).catch(() => {}); };
+  if (!items) return null;
+  return <div style={{ padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 14 }}><Ic name="lan" size={17} /> Conectar como unidad</div>
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>Tus archivos de Sotos como una carpeta más en tu computador o celular, sin abrir el navegador. Cada dispositivo usa su propia clave, que puedes revocar cuando quieras.</div></div>
+      <button className="tb-btn primary" onClick={() => setAsk(true)}><Ic name="add_link" /> Conectar un dispositivo</button>
+    </div>
+    <div className="dav-addr"><span className="faint">Dirección</span><code>{addr}</code><button className="tb-btn icon" title="Copiar" onClick={() => copy(addr)}><Ic name="content_copy" size={16} /></button>
+      <span className="faint">Usuario</span><code>{user.email}</code><button className="tb-btn icon" title="Copiar" onClick={() => copy(user.email)}><Ic name="content_copy" size={16} /></button></div>
+    <button className="login-alt" style={{ padding: 0, fontSize: 12.5 }} onClick={() => setHelp(h => !h)}>{help ? "Ocultar instrucciones" : "¿Cómo lo conecto?"}</button>
+    {help && <div className="dav-help">
+      <div><b>Windows</b>: en el Explorador, clic derecho en «Este equipo» → <i>Agregar una ubicación de red</i> y pega la dirección. Windows solo acepta claves por HTTPS: si tu Sotos usa <code>http://</code>, usa una app como RaiDrive, Cyberduck o WinSCP.</div>
+      <div><b>Mac</b>: en Finder, <i>Ir → Conectarse al servidor</i> (⌘K) y pega la dirección.</div>
+      <div><b>Linux</b>: en Archivos, <i>Otras ubicaciones → Conectar al servidor</i>, con <code>davs://</code> (o <code>dav://</code>) en vez de <code>https://</code>.</div>
+      <div><b>Android</b>: Solid Explorer, CX File Explorer o Material Files («WebDAV»). <b>iPhone</b>: Documents de Readdle, FE File Explorer o Cyberduck.</div>
+      <div className="faint">Lo que borres desde la unidad va a la Papelera de Sotos.</div>
+    </div>}
+    {!!items.length && <div className="dav-list">{items.map(k => <div key={k.id} className="dav-row"><Ic name="devices" size={18} /><div style={{ flex: 1 }}><b>{k.name}</b><div className="faint" style={{ fontSize: 11.5 }}>Creada {fmtDate(k.created)} · {k.last_used ? "último uso " + fmtDate(k.last_used) : "aún sin usar"}</div></div>
+      <button className="tb-btn danger" onClick={async () => { await api("DELETE", "dav-keys/" + k.id).catch(e => toast(e.message, { error: true })); load(); toast("Ese dispositivo ya no tiene acceso", { icon: "link_off" }); }}>Revocar</button></div>)}</div>}
+    {ask && <Modal title="Conectar un dispositivo" icon="add_link" onClose={() => setAsk(false)} width={420}
+      actions={<><button className="tb-btn" onClick={() => setAsk(false)}>Cancelar</button><button className="tb-btn primary" disabled={!pw || busy} onClick={create}>Crear clave</button></>}>
+      <label className="field" style={{ marginBottom: 10 }}>Nombre del dispositivo<input placeholder="Ej. Portátil del trabajo" value={name} onChange={e => setName(e.target.value)} autoFocus /></label>
+      <label className="field">Tu contraseña de Sotos (para confirmar)<input type="password" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && pw && create()} /></label>
+    </Modal>}
+    {made && <Modal title="Clave para el dispositivo" icon="key" onClose={() => setMade(null)} width={440}
+      actions={<button className="tb-btn primary" onClick={() => setMade(null)}>Listo</button>}>
+      <div style={{ fontSize: 13, lineHeight: 1.5 }}>Escríbela en el dispositivo como contraseña, con tu correo como usuario. <b>Solo se muestra ahora.</b></div>
+      <div className="dav-key"><code>{made}</code><button className="tb-btn" onClick={() => copy(made)}><Ic name="content_copy" /> Copiar</button></div>
+      <div className="faint" style={{ fontSize: 12 }}>Dirección: {addr}</div>
+    </Modal>}
+  </div>;
 }
 
 /** verificación en dos pasos: código QR para la app de autenticación + códigos de recuperación */

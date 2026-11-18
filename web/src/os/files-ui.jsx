@@ -106,6 +106,7 @@ export function itemMenu(nodes, { canPaste } = {}) {
   const items = [];
   if (one) items.push({ id: "open", label: "Abrir", icon: "open_in_new" });
   if (one && one.type === "folder" && canPaste) items.push({ id: "pasteInto", label: "Pegar aquí dentro", icon: "content_paste" });
+  if (one && one.type === "folder") items.push({ id: "dock", label: "Agregar al Dock", icon: "add_to_home_screen" });
   items.push({ sep: true },
     { id: "moveto", label: "Mover a…", icon: "drive_file_move" },
     { id: "copy", label: "Copiar", icon: "content_copy" },
@@ -148,6 +149,7 @@ export async function runItemAction(id, nodes, { openItem, update, startRename, 
     case "rename": startRename && startRename(one.id); return true;
     case "props": showProps && showProps(one.id); return true;
     case "share": showShare ? showShare(one.id) : window.dispatchEvent(new CustomEvent("sotos-share", { detail: one.id })); return true;
+    case "dock": window.dispatchEvent(new CustomEvent("sotos-dock-folder", { detail: one.id })); return true;
     case "moveto": window.dispatchEvent(new CustomEvent("sotos-moveto", { detail: ids })); return true;
     case "sendto": window.dispatchEvent(new CustomEvent("sotos-sendto", { detail: ids })); return true;
     case "versions": window.dispatchEvent(new CustomEvent("sotos-versions", { detail: one.id })); return true;

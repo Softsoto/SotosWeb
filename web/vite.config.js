@@ -8,6 +8,6 @@ export default defineConfig({
   server: {
     port: 5173,
     // el backend (proxy, cuentas, archivos) corre en :8787 durante el desarrollo
-    proxy: { "/api": "http://localhost:8787", "/px": "http://localhost:8787" },
+    proxy: { "/api": "http://localhost:8787", "/px": "http://localhost:8787", "/dav": "http://localhost:8787" },
   },
 });

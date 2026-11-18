@@ -36,6 +36,7 @@ import { handleNeko } from "./neko.mjs";
 import { handleWa } from "./wa.mjs";
 import { handleMedia } from "./media.mjs";
 import { handleVault } from "./vault.mjs";
+import { handleDav, handleDavKeys } from "./dav.mjs";
 import "./backup.mjs";      // copias de seguridad diarias
 import "./maintenance.mjs"; // papelera automática y avisos de espacio
 import { handleWorlds } from "./worlds.mjs";
@@ -116,6 +117,7 @@ async function handleApi(req, res) {
     case "wa": return handleWa(req, res, rest);
     case "media": return handleMedia(req, res, rest);
     case "vault": return handleVault(req, res, rest);
+    case "dav-keys": return handleDavKeys(req, res, rest);
   }
   return json(res, 404, { error: "No encontrado" });
 }
@@ -124,6 +126,7 @@ const server = http.createServer(async (req, res) => {
   try {
     const host = String(req.headers.host || "").split(":")[0].toLowerCase();
     if (PROD && PX_HOST && host === PX_HOST) return await handleProxy(req, res);
+    if (req.url === "/dav" || req.url.startsWith("/dav/")) return await handleDav(req, res); // unidad de red (WebDAV)
     if (req.url.startsWith("/api/")) return await handleApi(req, res);
     if (PROD) return serveStatic(req, res);
     if (req.url === "/favicon.ico" && !(req.headers.referer || "").includes("/px/")) { res.writeHead(204); return res.end(); }

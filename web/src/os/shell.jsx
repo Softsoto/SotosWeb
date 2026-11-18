@@ -11,7 +11,7 @@ import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toast
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, DESKTOP } from "./vfs.js";
-import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl, ShareDialog, VersionsDialog, MoveToDialog } from "./files-ui.jsx";
+import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl, ShareDialog, VersionsDialog, MoveToDialog, DRAG_MIME } from "./files-ui.jsx";
 import { LoginScreen } from "./auth-ui.jsx";
 import { wallUrl, isWall } from "./wallpapers.js";
 import { GlobalContextMenu } from "./context-menu.jsx";
@@ -239,24 +239,42 @@ export const APP_MIME = "application/x-sotos-app"; // arrastrar una app (desde A
 function Dock({ position, order, running, minimized, badges, onApp, dockApi }) {
   const [ctx, setCtx] = useSh(null), [hotAt, setHotAt] = useSh(null);
   const drag = useRh(null), self = useRh(null);
-  const hasApp = (e) => [...e.dataTransfer.types].includes(APP_MIME);
+  const hasApp = (e) => [...e.dataTransfer.types].includes(APP_MIME) || [...e.dataTransfer.types].includes(DRAG_MIME);
   const onDrop = (i, e) => {
     setHotAt(null);
     const from = drag.current; drag.current = null;
     if (from != null) { if (from === i) return; const arr = [...order]; const [m] = arr.splice(from, 1); arr.splice(from < i ? i - 1 : i, 0, m); dockApi.reorder(arr); return; }
-    const id = e.dataTransfer.getData(APP_MIME); if (id && APP_BY_ID[id]) { dockApi.insert(id, i); toast(`${APP_BY_ID[id].name} agregada al Dock`, { icon: "add_circle" }); }
+    const id = e.dataTransfer.getData(APP_MIME); if (id && APP_BY_ID[id]) { dockApi.insert(id, i); toast(`${APP_BY_ID[id].name} agregada al Dock`, { icon: "add_circle" }); return; }
+    // carpetas arrastradas desde Archivos o el escritorio
+    let ids = []; try { ids = JSON.parse(e.dataTransfer.getData(DRAG_MIME) || "[]"); } catch {}
+    const folders = ids.map(vfs.node).filter(n => n && n.type === "folder");
+    folders.forEach((f, k) => dockApi.insert("f:" + f.id, i + k));
+    if (folders.length) toast(folders.length === 1 ? `Carpeta «${folders[0].name}» agregada al Dock` : `${folders.length} carpetas agregadas al Dock`, { icon: "create_new_folder" });
+    else if (ids.length) toast("Al Dock solo se pueden agregar apps y carpetas", { icon: "info" });
   };
   const over = (i) => (e) => { if (drag.current != null || hasApp(e)) { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move"; if (hotAt !== i) setHotAt(i); } };
   // soltar un ícono fuera del Dock lo quita (con deshacer)
   const dragEnd = (id) => (e) => {
     const from = drag.current; drag.current = null; setHotAt(null); if (from == null) return;
     const r = self.current?.getBoundingClientRect(); const out = r && (e.clientX < r.left - 40 || e.clientX > r.right + 40 || e.clientY < r.top - 40 || e.clientY > r.bottom + 40);
-    if (out && e.dataTransfer.dropEffect === "none") { const before = [...order]; dockApi.remove(id); toast(`${APP_BY_ID[id]?.name} quitada del Dock`, { icon: "remove_circle", action: { label: "Deshacer", run: () => dockApi.reorder(before) } }); }
+    if (out && e.dataTransfer.dropEffect === "none") { const before = [...order]; dockApi.remove(id); toast(`${id.startsWith("f:") ? "Carpeta «" + (vfs.node(id.slice(2))?.name || "") + "»" : APP_BY_ID[id]?.name} quitada del Dock`, { icon: "remove_circle", action: { label: "Deshacer", run: () => dockApi.reorder(before) } }); }
   };
   // apps abiertas que no están fijadas: se muestran al final, como en cualquier escritorio
   const extra = [...running].filter(id => !order.includes(id) && APP_BY_ID[id] && !APP_BY_ID[id].hidden && id !== "launchpad");
   const item = (id, i, pinned) => {
     if (id === "launchpad" && position.includes("rail")) return null; // en el riel, la marca abre Aplicaciones
+    if (id.startsWith("f:")) { // carpeta fijada en el Dock
+      const f = vfs.node(id.slice(2)); if (!f) return null;
+      return (
+        <button key={id} className={"dock-item dock-folder" + (hotAt === i && pinned ? " drop-before" : "")} data-folder={f.id} draggable
+          onClick={() => onApp("files", { folderId: f.id, nonce: Date.now() })}
+          onContextMenu={e => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id, pinned: true, folder: f }); }}
+          onDragStart={e => { drag.current = i; e.dataTransfer.setData(APP_MIME, id); e.dataTransfer.effectAllowed = "move"; }}
+          onDragEnd={dragEnd(id)} onDragOver={over(i)} onDrop={(e) => { e.preventDefault(); e.stopPropagation(); onDrop(i, e); }}>
+          <span className="dock-folder-ic"><NodeGlyph node={f} size={34} /></span>
+          <span className="dock-tip">{f.name}</span>
+        </button>);
+    }
     if (!appAllowed(id, vfs.getState().user)) return null;
     const app = APP_BY_ID[id]; if (!app) return null;
     return (
@@ -265,7 +283,7 @@ function Dock({ position, order, running, minimized, badges, onApp, dockApi }) {
         onContextMenu={e => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id, pinned }); }}
         onDragStart={e => { drag.current = i; e.dataTransfer.setData(APP_MIME, id); e.dataTransfer.effectAllowed = "move"; }}
         onDragEnd={dragEnd(id)}
-        onDragOver={pinned ? over(i) : undefined} onDrop={pinned ? (e) => { e.preventDefault(); onDrop(i, e); } : undefined}>
+        onDragOver={pinned ? over(i) : undefined} onDrop={pinned ? (e) => { e.preventDefault(); e.stopPropagation(); onDrop(i, e); } : undefined}>
         <Tile icon={app.icon} color={app.color} app={id} />
         <span className="dock-tip">{app.name}</span>
         {running.has(id) && <span className={"run-dot" + (minimized?.has(id) ? " min" : "")} />}
@@ -277,13 +295,13 @@ function Dock({ position, order, running, minimized, badges, onApp, dockApi }) {
     <div ref={self} className={"dock " + position + (hotAt === order.length ? " drop-end" : "")}
       onDragOver={over(order.length)} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setHotAt(null); }} onDrop={e => { e.preventDefault(); onDrop(order.length, e); }}>
       {position.includes("rail") && <button className="rail-logo" title="Aplicaciones" onClick={() => onApp("launchpad")}><BrandMark size={32} /></button>}
-      {order.map((id, i) => id === "__div__" ? <div key={"d" + i} className="divider" onDragOver={over(i)} onDrop={e => { e.preventDefault(); onDrop(i, e); }} /> : item(id, i, true))}
+      {order.map((id, i) => id === "__div__" ? <div key={"d" + i} className="divider" onDragOver={over(i)} onDrop={e => { e.preventDefault(); e.stopPropagation(); onDrop(i, e); }} /> : item(id, i, true))}
       {!!extra.length && <div className="divider" />}
       {extra.map((id, i) => item(id, order.length + i, false))}
       {ctx && <ContextMenu x={ctx.x} y={ctx.y}
-        items={[{ id: "open", label: running.has(ctx.id) ? "Mostrar" : "Abrir", icon: "open_in_new" }, { sep: true },
+        items={ctx.folder ? [{ id: "open", label: "Abrir carpeta", icon: "folder_open" }, { sep: true }, { id: "remove", label: "Quitar del Dock", icon: "remove_circle", danger: true }] : [{ id: "open", label: running.has(ctx.id) ? "Mostrar" : "Abrir", icon: "open_in_new" }, { sep: true },
           ctx.pinned ? { id: "remove", label: "Quitar del Dock", icon: "remove_circle", danger: true } : { id: "keep", label: "Mantener en el Dock", icon: "keep" }]}
-        onSelect={(a) => { if (a === "open") onApp(ctx.id); if (a === "remove") dockApi.remove(ctx.id); if (a === "keep") { dockApi.add(ctx.id); toast(`${APP_BY_ID[ctx.id].name} se queda en el Dock`, { icon: "keep" }); } }} onClose={() => setCtx(null)} />}
+        onSelect={(a) => { if (a === "open") ctx.folder ? onApp("files", { folderId: ctx.folder.id, nonce: Date.now() }) : onApp(ctx.id); if (a === "remove") dockApi.remove(ctx.id); if (a === "keep") { dockApi.add(ctx.id); toast(`${APP_BY_ID[ctx.id].name} se queda en el Dock`, { icon: "keep" }); } }} onClose={() => setCtx(null)} />}
     </div>
   );
 }
@@ -582,6 +600,7 @@ function OS() {
   const [sendId, setSendId] = useSh(null), [versionsId, setVersionsId] = useSh(null);
   useEh(() => { const f = (e) => setVersionsId(e.detail); window.addEventListener("sotos-versions", f); return () => window.removeEventListener("sotos-versions", f); }, []);
   const [moveIds, setMoveIds] = useSh(null);
+  useEh(() => { const f = (e) => { setDockCfg(d => d.includes("f:" + e.detail) ? d : [...d, "f:" + e.detail]); toast(`Carpeta «${vfs.node(e.detail)?.name}» agregada al Dock`, { icon: "create_new_folder" }); }; window.addEventListener("sotos-dock-folder", f); return () => window.removeEventListener("sotos-dock-folder", f); }, []);
   useEh(() => { const f = (e) => setMoveIds(e.detail); window.addEventListener("sotos-moveto", f); return () => window.removeEventListener("sotos-moveto", f); }, []);
   useEh(() => { const f = (e) => setSendId(e.detail); window.addEventListener("sotos-sendto", f); return () => window.removeEventListener("sotos-sendto", f); }, []);
   const [demoWelcome, setDemoWelcome] = useSh(() => { try { return !localStorage.getItem("sotos_demo_seen"); } catch { return true; } });
