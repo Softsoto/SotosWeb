@@ -28,7 +28,7 @@ export const ooEnabled = () => !!OO_URL;
 
 export async function handleOO(req, res, parts) {
   const [a] = parts;
-  if (a === "status") return json(res, 200, { enabled: ooEnabled(), url: OO_URL || null });
+  if (a === "status") return json(res, 200, { enabled: ooEnabled(), url: OO_URL || null, engine: /euro/i.test(process.env.OO_ENGINE || "") ? "Euro-Office" : "ONLYOFFICE" });
   if (!ooEnabled()) fail(503, "ONLYOFFICE no está configurado en este servidor");
 
   // configuración firmada para abrir un documento (propio o compartido con permiso)
