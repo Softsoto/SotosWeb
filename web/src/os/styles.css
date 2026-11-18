@@ -2101,3 +2101,13 @@ select.wg-input { padding: 0 4px; }
 .tr-bar i { display: block; height: 100%; background: var(--accent); transition: width .3s; }
 .tr-row.error .tr-bar i { background: #c0392b; } .tr-row.cancelled .tr-bar i { background: var(--text-faint); }
 .tr-meta { font-size: 11px; color: var(--text-dim); }
+
+/* reproductor preparado por el servidor (audio y subtítulos de MKV) */
+.sv-wrap { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; background: #000; }
+.sv-video { flex: 1; min-height: 0; width: 100%; object-fit: contain; background: #000; cursor: pointer; }
+.sv-video::cue { background: rgba(0,0,0,.72); color: #fff; font: 600 1.15em/1.35 var(--ui); }
+.sv-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; background: #15171b; color: #e8e6e1; }
+.sv-bar .tb-btn { color: #e8e6e1; background: transparent; border-color: transparent; }
+.sv-time { font: 12px var(--mono); font-variant-numeric: tabular-nums; min-width: 44px; text-align: center; }
+.sv-seek { flex: 1; accent-color: var(--accent); }
+.sv-sel { background: #22252a; color: #e8e6e1; border: 1px solid #383c42; border-radius: 6px; font: 12px var(--ui); padding: 4px 6px; max-width: 190px; }

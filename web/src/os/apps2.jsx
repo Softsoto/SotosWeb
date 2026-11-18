@@ -5,6 +5,7 @@
 import React from "react";
 import { Ic, SideItem, Toolbar, EmptyState, ContextMenu, toast } from "./ui.jsx";
 import * as vfs from "./vfs.js";
+import { api } from "./api.js";
 import { useVfs, fmtSize, fmtDate } from "./vfs.js";
 import { NodeGlyph, dropTarget, useObjectUrl } from "./files-ui.jsx";
 import { PdfViewer } from "./pdf-viewer.jsx";
@@ -180,13 +181,56 @@ function MusicApp({ fileId }) {
 }
 
 /* -------------------- Vídeo -------------------- */
+/* reproducción preparada por el servidor (ffmpeg): audio que el navegador no entiende (AC3, DTS…) y subtítulos incrustados */
+const LANGS = { spa: "Español", es: "Español", eng: "Inglés", en: "Inglés", por: "Portugués", fra: "Francés", fre: "Francés", ita: "Italiano", deu: "Alemán", ger: "Alemán", jpn: "Japonés", kor: "Coreano", chi: "Chino", zho: "Chino", rus: "Ruso", lat: "Latino" };
+const trackName = (x, i, kind) => [x.title, x.lang ? (LANGS[x.lang] || x.lang) : null].filter(Boolean).join(" · ") || `${kind} ${i + 1}`;
+const hms = (s) => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
+function ServerVideo({ node, info }) {
+  const pick = (list) => Math.max(0, list.findIndex(x => /^(spa|es)$/.test(x.lang || "")));
+  const [audio, setAudio] = useS2(() => info.audio.length ? pick(info.audio) : 0);
+  const [sub, setSub] = useS2(() => { const i = info.subs.findIndex(x => x.text && /^(spa|es)$/.test(x.lang || "")); return i; });
+  const [start, setStart] = useS2(0), [now, setNow] = useS2(0), [playing, setPlaying] = useS2(true);
+  const v = useR2(null);
+  const q = `?a=${audio}&t=${start.toFixed(1)}&v=${node.mtime || 0}`;
+  const src = `/api/media/${node.id}/stream${q}`;
+  const seekTo = (t) => { setStart(Math.max(0, Math.min(t, (info.duration || 1) - 2))); setNow(t); };
+  const pos = start + now;
+  return (
+    <div className="sv-wrap">
+      <video ref={v} key={src} src={src} autoPlay className="sv-video" onTimeUpdate={e => setNow(e.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
+        onClick={e => e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause()}
+        onError={() => toast(`No se pudo reproducir “${node.name}”`, { error: true })}>
+        {sub >= 0 && <track key={sub + ":" + start} kind="subtitles" default src={`/api/media/${node.id}/subs/${sub}?t=${start.toFixed(1)}&v=${node.mtime || 0}`} srcLang={info.subs[sub]?.lang || "es"} label={trackName(info.subs[sub], sub, "Subtítulos")} />}
+      </video>
+      <div className="sv-bar">
+        <button className="tb-btn icon" onClick={() => v.current && (v.current.paused ? v.current.play() : v.current.pause())}><Ic name={playing ? "pause" : "play_arrow"} /></button>
+        <span className="sv-time">{hms(pos)}</span>
+        <input type="range" className="sv-seek" min="0" max={info.duration || 0} step="1" value={Math.min(pos, info.duration || 0)} onChange={e => seekTo(Number(e.target.value))} />
+        <span className="sv-time">{hms(info.duration)}</span>
+        {info.audio.length > 1 && <select className="sv-sel" title="Pista de audio" value={audio} onChange={e => { setAudio(Number(e.target.value)); setStart(pos); setNow(0); }}>
+          {info.audio.map((x, i) => <option key={i} value={i}>🔊 {trackName(x, i, "Audio")}{x.channels > 2 ? ` (${x.channels} canales)` : ""}</option>)}</select>}
+        {info.subs.length > 0 && <select className="sv-sel" title="Subtítulos" value={sub} onChange={e => setSub(Number(e.target.value))}>
+          <option value={-1}>Sin subtítulos</option>
+          {info.subs.map((x, i) => <option key={i} value={i} disabled={!x.text}>💬 {trackName(x, i, "Subtítulos")}{x.forced ? " (forzados)" : ""}{x.text ? "" : " — imagen, no disponible"}</option>)}</select>}
+        <button className="tb-btn icon" title="Pantalla completa" onClick={() => v.current?.parentElement?.requestFullscreen?.()}><Ic name="fullscreen" /></button>
+      </div>
+    </div>
+  );
+}
+
 function VideoApp({ fileId }) {
   useVfs(s => s.rev);
   const vids = vfs.allOfType(["video"]);
   const [curId, setCurId] = useS2(fileId || null);
   useE2(() => { if (fileId) setCurId(fileId); }, [fileId]);
   const cur = curId ? vfs.node(curId) : vids[0];
-  const src = useObjectUrl(cur?.id, cur?.mtime);
+  // ¿necesita que el servidor lo prepare? (MKV, AVI, audio AC3/DTS, subtítulos incrustados…)
+  const mode = useVfs(s => s.mode);
+  const [info, setInfo] = useS2(null);
+  useE2(() => { setInfo(null); if (!cur || mode !== "cloud" || !(cur.size > 0)) { setInfo({ native: true }); return; }
+    api("GET", `media/${cur.id}/info`).then(i => setInfo(i.ffmpeg ? i : { native: true, noFfmpeg: true })).catch(() => setInfo({ native: true })); }, [cur?.id, cur?.mtime, mode]);
+  const viaServer = info && info.ffmpeg && !info.native && info.video;
+  const src = useObjectUrl(info && !viaServer ? cur?.id : null, cur?.mtime);
   const ref = useR2(null), up = useR2(null);
   const folder = vfs.resolve("/Vídeos") || vfs.getState().root;
   return (
@@ -208,7 +252,8 @@ function VideoApp({ fileId }) {
         {!vids.length && <div className="faint" style={{ fontSize: 12, padding: 10 }}>Arrastra vídeos aquí</div>}
       </div>
       <div className="app-main" style={{ background: "#0a0c10" }}>
-        {cur && src ? <video ref={ref} key={src} src={src} controls autoPlay style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000" }}
+        {cur && viaServer ? <ServerVideo key={cur.id + ":" + cur.mtime} node={cur} info={info} />
+          : cur && src ? <video ref={ref} key={src} src={src} controls autoPlay style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000" }}
           onError={() => toast(`Este navegador no puede reproducir “${cur.name}”`, { error: true })} />
           : <EmptyState icon="movie" text={cur ? "Cargando…" : "No hay vídeos"} />}
       </div>
