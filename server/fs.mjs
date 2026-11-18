@@ -12,6 +12,9 @@ import { applyOp, folderSize, findNode, ROOT, DESKTOP } from "../web/src/os/tree
 
 const SAFE_ID = /^[a-z0-9]{6,40}$/i;
 const MAX_FILE = Number(process.env.SOTOS_MAX_FILE_MB || 512) * 1024 * 1024;
+const MEDIA_TYPES = { mp4: "video/mp4", m4v: "video/mp4", webm: "video/webm", mkv: "video/x-matroska", mov: "video/quicktime", ogv: "video/ogg",
+  mp3: "audio/mpeg", m4a: "audio/mp4", aac: "audio/aac", ogg: "audio/ogg", opus: "audio/ogg", wav: "audio/wav", flac: "audio/flac",
+  png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", avif: "image/avif" };
 
 const emptyState = () => ({ root: { id: ROOT, name: "Sotos Drive", type: "folder", children: [{ id: DESKTOP, name: "Escritorio", type: "folder", children: [], ctime: Date.now(), mtime: Date.now() }], ctime: Date.now(), mtime: Date.now() }, trash: [] });
 export function loadState(userId) {
@@ -125,9 +128,22 @@ export async function handleFs(req, res, parts) {
     const p = blobPath(user.id, id);
     if (req.method === "GET") {
       if (!fs.existsSync(p)) fail(404, "Contenido no encontrado");
-      const st = fs.statSync(p);
-      res.writeHead(200, { "content-type": "application/octet-stream", "content-length": st.size, "cache-control": "private, max-age=31536000, immutable" });
-      return pipeline(fs.createReadStream(p), res);
+      const st = fs.statSync(p); const name = userNode(user.id, id)?.name || "archivo";
+      // tipo real solo para medios (para reproducir por partes); lo demás sigue como binario, así nada se interpreta como página
+      const ext = (name.split(".").pop() || "").toLowerCase();
+      const type = MEDIA_TYPES[ext] || "application/octet-stream";
+      const url = new URL(req.url, "http://x");
+      const base = { "content-type": type, "accept-ranges": "bytes", "x-content-type-options": "nosniff", "cache-control": "private, max-age=31536000, immutable",
+        ...(url.searchParams.has("dl") ? { "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(name)}` } : {}) };
+      const m = /^bytes=(\d*)-(\d*)$/.exec(req.headers.range || "");
+      if (m && (m[1] || m[2])) { // descarga por partes: el video empieza sin bajarse entero y se puede adelantar
+        let start = m[1] ? Number(m[1]) : Math.max(0, st.size - Number(m[2])), end = m[1] && m[2] ? Math.min(Number(m[2]), st.size - 1) : st.size - 1;
+        if (start >= st.size || start > end) { res.writeHead(416, { "content-range": `bytes */${st.size}` }); return res.end(); }
+        res.writeHead(206, { ...base, "content-range": `bytes ${start}-${end}/${st.size}`, "content-length": end - start + 1 });
+        return pipeline(fs.createReadStream(p, { start, end }), res).catch(() => {});
+      }
+      res.writeHead(200, { ...base, "content-length": st.size });
+      return pipeline(fs.createReadStream(p), res).catch(() => {});
     }
     if (req.method === "PUT") {
       const len = Number(req.headers["content-length"] || 0);

@@ -134,6 +134,7 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout,
         {DEMO && <a className="demo-chip" href={SHOWCASE_URL} target="_blank" rel="noopener" title="Esto es un demo: los archivos se guardan solo en este navegador. Clic para conocer el proyecto.">DEMO</a>}
         <div className="ti" title="Buscar" onClick={onSearch}><Ic name="search" /></div>
         <NotificationBell onOpenLink={onOpenLink} />
+        <TransfersIndicator />
         <SyncIndicator />
         <BatteryIndicator />
         <div className="ti" title="Cerrar sesión" onClick={onLogout}><Ic name="power_settings_new" /></div>
@@ -143,6 +144,37 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout,
         </div>
         {cal && <CalendarPopover now={now} month={calMonth} setMonth={setCalMonth} clock24={settings.clock24} />}
       </div>
+    </div>
+  );
+}
+
+/* -------------------- gestor de transferencias (subidas y descargas) -------------------- */
+function TransfersIndicator() {
+  const [list, setList] = useSh([]), [open, setOpen] = useSh(false), [, tick] = useSh(0);
+  useEh(() => vfs.subscribeTransfers(setList), []);
+  const active = list.filter(t => t.status === "active");
+  useEh(() => { if (!active.length) return; const i = setInterval(() => tick(x => x + 1), 1000); return () => clearInterval(i); }, [active.length]);
+  if (!list.length) return null;
+  const pct = (t) => t.total ? Math.min(100, Math.round(t.loaded / t.total * 100)) : 0;
+  const total = active.reduce((a, t) => a + t.total, 0), done = active.reduce((a, t) => a + t.loaded, 0);
+  const speed = (t) => { const s = (Date.now() - t.started) / 1000; return s > 1 ? t.loaded / s : 0; };
+  const eta = (t) => { const v = speed(t); if (!v) return ""; const r = (t.total - t.loaded) / v; return r < 60 ? `${Math.ceil(r)} s` : r < 3600 ? `${Math.ceil(r / 60)} min` : `${(r / 3600).toFixed(1)} h`; };
+  const label = { done: "Listo", error: "Error", cancelled: "Cancelada" };
+  return (
+    <div className="ti tr-wrap" onMouseDown={e => e.stopPropagation()}>
+      <div className={"tr-btn" + (active.length ? " busy" : "")} title={active.length ? `Transfiriendo ${active.length} archivo(s) · ${total ? Math.round(done / total * 100) : 0}%` : "Transferencias recientes"} onClick={() => setOpen(o => !o)}>
+        <Ic name={active.length ? "swap_vert" : "download_done"} />{active.length > 0 && <span className="tr-pct">{total ? Math.round(done / total * 100) : 0}%</span>}
+      </div>
+      {open && <div className="tr-panel">
+        <div className="tr-head"><b>Transferencias</b><div style={{ flex: 1 }} />{list.some(t => t.status !== "active") && <button className="tb-btn" onClick={() => vfs.clearTransfers()}>Limpiar</button>}</div>
+        {[...list].reverse().map(t => <div key={t.key} className={"tr-row " + t.status}>
+          <Ic name={t.dir === "up" ? "upload" : "download"} size={18} />
+          <div className="tr-main"><div className="tr-name" title={t.name}>{t.name}</div>
+            <div className="tr-bar"><i style={{ width: (t.status === "done" ? 100 : pct(t)) + "%" }} /></div>
+            <div className="tr-meta">{t.status === "active" ? `${vfs.fmtSize(t.loaded)} de ${vfs.fmtSize(t.total)} · ${vfs.fmtSize(speed(t))}/s${eta(t) ? " · quedan " + eta(t) : ""}` : (label[t.status] || "") + (t.error ? ": " + t.error : "") + (t.note ? " · " + t.note : t.status === "done" ? " · " + vfs.fmtSize(t.total) : "")}</div></div>
+          {t.status === "active" && t.dir === "up" && <button className="tb-btn icon" title="Cancelar" onClick={() => vfs.cancelTransfer(t.key)}><Ic name="close" /></button>}
+        </div>)}
+      </div>}
     </div>
   );
 }

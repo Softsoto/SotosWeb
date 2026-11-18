@@ -119,6 +119,30 @@ export function search(q, limit = 30) { const out = []; const ql = q.toLowerCase
 export const allOfType = (types) => { const out = []; walk(n => { if (types.includes(n.type)) out.push(n); }); return out; };
 export const usedBytes = () => state.root ? fSize(state.root) + state.trash.reduce((s, t) => s + fSize(t.node), 0) : 0;
 
+/* ---------------- transferencias (gestor de subidas y descargas) ---------------- */
+const transfers = new Map(); const tSubs = new Set();
+const tEmit = () => { const list = [...transfers.values()]; tSubs.forEach(f => f(list)); };
+export const subscribeTransfers = (fn) => { tSubs.add(fn); fn([...transfers.values()]); return () => tSubs.delete(fn); };
+export const clearTransfers = () => { for (const [k, t] of transfers) if (t.status !== "active") transfers.delete(k); tEmit(); };
+function tSet(key, patch) { const t = { ...(transfers.get(key) || { key, started: Date.now() }), ...patch }; transfers.set(key, t); tEmit(); return t; }
+let currentXhr = null;
+export const cancelTransfer = (key) => { const t = transfers.get(key); if (t?.status === "active" && t.dir === "up" && currentXhr) currentXhr.abort(); };
+/** subida con progreso (XMLHttpRequest informa el avance; fetch no) */
+function putBlob(id, blob) {
+  const n = findAny(id), key = "up:" + id;
+  tSet(key, { dir: "up", name: n?.name || "archivo", total: blob.size, loaded: 0, status: "active" });
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest(); currentXhr = x;
+    x.open("PUT", "/api/fs/blob/" + id); x.setRequestHeader("x-sotos", "1"); x.setRequestHeader("content-type", "application/octet-stream");
+    let last = 0; x.upload.onprogress = (e) => { if (Date.now() - last > 250 || e.loaded === e.total) { last = Date.now(); tSet(key, { loaded: e.loaded }); } };
+    x.onload = () => { currentXhr = null; if (x.status >= 200 && x.status < 300) { tSet(key, { loaded: blob.size, status: "done", ended: Date.now() }); resolve(); }
+      else { let msg = "Error " + x.status; try { msg = JSON.parse(x.responseText).error || msg; } catch {} tSet(key, { status: "error", error: msg, ended: Date.now() }); reject(new ApiError(x.status, msg)); } };
+    x.onerror = () => { currentXhr = null; tSet(key, { status: "error", error: "Sin conexión, se reintentará", ended: Date.now() }); reject(new ApiError(0, "Sin conexión")); };
+    x.onabort = () => { currentXhr = null; tSet(key, { status: "cancelled", ended: Date.now() }); reject(Object.assign(new ApiError(499, "Cancelada"), { cancelled: true })); };
+    x.send(blob);
+  });
+}
+
 /* ---------------- cola de sincronización ---------------- */
 let queue = [];          // [{ k: "blob", id } | { k: "op", op }]
 let version = 0;
@@ -133,7 +157,12 @@ async function pump() {
       const item = queue[0];
       if (item.k === "blob") {
         const b = await idb.get("blobs", item.id);
-        if (b) await api("PUT", "fs/blob/" + item.id, b);
+        if (b) {
+          try { await putBlob(item.id, b); }
+          catch (e) { if (e.cancelled) { queue.shift(); saveQueue(); continue; } throw e; }
+          // los archivos grandes no se quedan duplicados en el navegador: ya están en el servidor
+          if (b.size > 100 * 1024 * 1024) idb.del("blobs", item.id).catch(() => {});
+        }
         queue.shift();
       } else {
         // agrupar operaciones seguidas en una sola petición
@@ -218,6 +247,8 @@ export const readText = async (id) => (await read(id)).text();
 export const cachedBlob = (id) => idb.get("blobs", id).catch(() => null);
 export async function objectUrl(id) {
   const n = node(id);
+  if (n && state.mode === "cloud" && (n.type === "video" || n.type === "audio") && n.size > 20 * 1024 * 1024 && !(await idb.get("blobs", id).catch(() => null)))
+    return `/api/fs/blob/${id}?v=${n.mtime || 0}`; // el navegador lo pide por partes: empieza a sonar sin bajarse entero
   if (n && n.url && !(n.size > 0) && !(await idb.get("blobs", id))) return liveUrl(n.url);
   const cached = urlCache.get(id); if (cached && cached.rev === n?.mtime) return cached.url;
   const b = await read(id); const url = URL.createObjectURL(b);
@@ -334,6 +365,11 @@ export async function compress(ids, parentId, name) {
 }
 export async function download(id) {
   const n = node(id); if (!n) return;
+  if (n.type !== "folder" && state.mode === "cloud" && n.size > 0 && !queue.some(q => q.k === "blob" && q.id === id)) {
+    const a = document.createElement("a"); a.href = `/api/fs/blob/${id}?dl=1&v=${n.mtime || 0}`; a.download = n.name; document.body.appendChild(a); a.click(); a.remove();
+    tSet("down:" + id + ":" + Date.now(), { dir: "down", name: n.name, total: n.size, loaded: n.size, status: "done", ended: Date.now(), note: "El navegador muestra el avance de la descarga" });
+    return;
+  }
   let blob, name = n.name;
   if (n.type === "folder") { blob = await zipFolder(id); name += ".zip"; }
   else blob = await read(id);
