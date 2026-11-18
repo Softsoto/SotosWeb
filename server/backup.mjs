@@ -20,7 +20,7 @@ export const BACKUP_DIR = path.resolve(process.env.SOTOS_BACKUP_DIR || path.join
 const KEEP = Math.max(1, Number(process.env.SOTOS_BACKUP_KEEP || 7));
 const HOUR = process.env.SOTOS_BACKUP_HOUR === "off" ? null : Number(process.env.SOTOS_BACKUP_HOUR ?? 3);
 // lo que no se copia: las propias copias, cachés que se regeneran y los archivos de la base (van por VACUUM INTO)
-const SKIP = new Set(["copias", "media-cache", "sotos.db", "sotos.db-wal", "sotos.db-shm"]);
+const SKIP = new Set(["copias", "media-cache", "biblioteca", "servicios", "sotos.db", "sotos.db-wal", "sotos.db-shm"]); // biblioteca y servicios se regeneran
 const LINKABLE = new Set(["blobs", "vault"]); // contenido inmutable: se enlaza
 
 let running = null, lastError = null;

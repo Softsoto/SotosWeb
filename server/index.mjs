@@ -38,6 +38,7 @@ import { handleMedia } from "./media.mjs";
 import { handleVault } from "./vault.mjs";
 import { handleDav, handleDavKeys } from "./dav.mjs";
 import { handlePush } from "./push.mjs";
+import { handleJellyfin, proxyJellyfin, upgradeJellyfin } from "./jellyfin.mjs";
 import "./backup.mjs";      // copias de seguridad diarias
 import "./maintenance.mjs"; // papelera automática y avisos de espacio
 import { handleWorlds } from "./worlds.mjs";
@@ -120,6 +121,7 @@ async function handleApi(req, res) {
     case "vault": return handleVault(req, res, rest);
     case "dav-keys": return handleDavKeys(req, res, rest);
     case "push": return handlePush(req, res, rest);
+    case "jellyfin": return handleJellyfin(req, res, rest);
   }
   return json(res, 404, { error: "No encontrado" });
 }
@@ -129,6 +131,7 @@ const server = http.createServer(async (req, res) => {
     const host = String(req.headers.host || "").split(":")[0].toLowerCase();
     if (PROD && PX_HOST && host === PX_HOST) return await handleProxy(req, res);
     if (req.url === "/dav" || req.url.startsWith("/dav/")) return await handleDav(req, res); // unidad de red (WebDAV)
+    if (req.url === "/jellyfin" || req.url.startsWith("/jellyfin/")) return proxyJellyfin(req, res); // Cine
     if (req.url.startsWith("/api/")) return await handleApi(req, res);
     if (PROD) return serveStatic(req, res);
     if (req.url === "/favicon.ico" && !(req.headers.referer || "").includes("/px/")) { res.writeHead(204); return res.end(); }
@@ -141,6 +144,7 @@ const server = http.createServer(async (req, res) => {
   }
 });
 server.requestTimeout = 0; // subidas grandes
+server.on("upgrade", (req, socket, head) => { if (req.url.startsWith("/jellyfin/")) return upgradeJellyfin(req, socket, head); socket.destroy(); });
 server.listen(PORT, HOST, () => {
   console.log(`[sotos] escritorio en http://localhost:${PORT}${PROD ? " (producción)" : ""}`);
   if (process.env.SOTOS_SHOW_LAN === "1") lanAddresses().forEach(ip => console.log(`[sotos] desde otros equipos: http://${ip}:${PORT}`));

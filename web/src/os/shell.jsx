@@ -52,6 +52,7 @@ import { loadInstalled, subscribeInstalled } from "./installed.js";
 // registro de componentes de app (antes se resolvían con window[app.comp])
 // las apps se descargan al abrirlas (carga inicial más liviana); con el escritorio listo se precargan en segundo plano
 const APP_LOADERS = {
+  media: () => import("./media-apps.jsx"),
   creative: () => import("./creative.jsx"),
   apps1: () => import("./apps1.jsx"),
   apps2: () => import("./apps2.jsx"),
@@ -64,7 +65,7 @@ const APP_LOADERS = {
   calendar: () => import("./calendar.jsx"),
   tasks: () => import("./tasks.jsx"),
 };
-const COMP_MODULE = { CodeApp: "creative", DiagramsApp: "creative", PaintApp: "creative", WhiteboardApp: "creative", EditorApp: "apps1", FilesApp: "apps1", GalleryApp: "apps1", SaveBadge: "apps1", SheetsApp: "apps1", MusicApp: "apps2", PdfApp: "apps2", VideoApp: "apps2", BrowserApp: "apps3", ChatApp: "apps3", MailApp: "apps3", WhatsAppApp: "apps3", SettingsApp: "apps4", StoreApp: "apps4", WebApp: "apps4", DocsApp: "apps5", LaunchpadApp: "apps5", SlidesApp: "apps5", TrashApp: "apps5", WebViewApp: "apps5", GamesApp: "games", TerminalApp: "terminal", AdminApp: "admin", CalendarApp: "calendar", TasksApp: "tasks" };
+const COMP_MODULE = { CineApp: "media", FotosApp: "media", CodeApp: "creative", DiagramsApp: "creative", PaintApp: "creative", WhiteboardApp: "creative", EditorApp: "apps1", FilesApp: "apps1", GalleryApp: "apps1", SaveBadge: "apps1", SheetsApp: "apps1", MusicApp: "apps2", PdfApp: "apps2", VideoApp: "apps2", BrowserApp: "apps3", ChatApp: "apps3", MailApp: "apps3", WhatsAppApp: "apps3", SettingsApp: "apps4", StoreApp: "apps4", WebApp: "apps4", DocsApp: "apps5", LaunchpadApp: "apps5", SlidesApp: "apps5", TrashApp: "apps5", WebViewApp: "apps5", GamesApp: "games", TerminalApp: "terminal", AdminApp: "admin", CalendarApp: "calendar", TasksApp: "tasks" };
 const lazyCache = {};
 const lazyComp = (name) => lazyCache[name] || (lazyCache[name] = React.lazy(() => APP_LOADERS[COMP_MODULE[name]]().then(m => ({ default: m[name] }))));
 const APP_COMPONENTS = { ...Vault, ...Worlds, ...Contacts, ...Object.fromEntries(Object.keys(COMP_MODULE).map(k => [k, lazyComp(k)])) };

@@ -25,6 +25,16 @@ export const GLYPHS = {
     <path d="M12 3.2c-5 0-9 3.6-9 8 0 2.1.9 4 2.4 5.4l-.9 3.8 4-1.9c1.1.4 2.3.6 3.5.6 5 0 9-3.6 9-8s-4-7.9-9-7.9Z" fill="currentColor" />
     <path d="M7.4 11.6l2 2 3.4-3.6M11.6 13.6l.4.4 3.6-3.8" stroke={ink} strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
   </>,
+  cine: <>
+    <rect x="2.6" y="5" width="18.8" height="12.6" rx="2" fill="currentColor" />
+    <path d="M10 8.4v6l5-3Z" fill={ink} />
+    <path d="M8 20.6h8" {...line} strokeWidth="1.6" />
+  </>,
+  fotos: <>
+    <rect x="3" y="4" width="18" height="16" rx="2.4" fill="currentColor" />
+    <circle cx="9" cy="9.4" r="1.9" fill={ink} />
+    <path d="M3.6 17.4l5-4.6 3.2 2.8 3.8-4.2 4.8 5.2" fill="none" stroke={ink} strokeWidth="1.6" strokeLinejoin="round" />
+  </>,
   paint: <>
     <path d="M12 3.2c-5 0-9 3.7-9 8.3 0 4.2 3.4 7.3 7.4 7.3 1.4 0 1.9-.9 1.6-1.9-.4-1.2.4-2.3 1.7-2.3h2.1c2.4 0 4.2-1.8 4.2-4.2 0-4-3.6-7.2-8-7.2Z" fill="currentColor" />
     <circle cx="7.6" cy="11" r="1.4" fill={ink} /><circle cx="10.4" cy="7.4" r="1.4" fill={ink} /><circle cx="14.8" cy="7.2" r="1.4" fill={ink} /><circle cx="17.6" cy="10.6" r="1.3" fill={ink} />

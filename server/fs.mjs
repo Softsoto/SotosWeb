@@ -74,6 +74,8 @@ function events(req, res, user) {
 }
 
 /* ---------------- aplicar operaciones (también lo usa ONLYOFFICE) ---------------- */
+const fsChange = new Set(); // otros módulos que reaccionan a cambios (biblioteca multimedia)
+export const onFsChange = (fn) => fsChange.add(fn);
 export function applyOps(userId, ops, origin) {
   let { version, state } = loadState(userId);
   for (const op of ops) {
@@ -85,6 +87,7 @@ export function applyOps(userId, ops, origin) {
   version++;
   saveState(userId, version, state);
   notify(userId, "fs", { version, origin });
+  for (const fn of fsChange) try { fn(userId, ops); } catch {}
   return version;
 }
 
