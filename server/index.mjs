@@ -35,6 +35,7 @@ import { handleMail } from "./mail.mjs";
 import { handleNeko } from "./neko.mjs";
 import { handleWa } from "./wa.mjs";
 import { handleMedia } from "./media.mjs";
+import { handleVault } from "./vault.mjs";
 import { handleWorlds } from "./worlds.mjs";
 
 const PORT = Number(process.env.PORT || 8787);
@@ -112,6 +113,7 @@ async function handleApi(req, res) {
     case "neko": return handleNeko(req, res, rest);
     case "wa": return handleWa(req, res, rest);
     case "media": return handleMedia(req, res, rest);
+    case "vault": return handleVault(req, res, rest);
   }
   return json(res, 404, { error: "No encontrado" });
 }

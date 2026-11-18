@@ -14,7 +14,7 @@ import { PersonAvatar } from "./contacts.jsx";
 const { useState, useEffect } = React;
 
 const dur = (s) => s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} días`;
-const MANAGEABLE = () => APPS.filter(a => !["launchpad", "web", "settings", "files", "admin", "trash"].includes(a.id));
+const MANAGEABLE = () => APPS.filter(a => !a.hidden && !["launchpad", "web", "settings", "files", "admin", "trash"].includes(a.id));
 
 export function AdminApp() {
   const user = useVfs(s => s.user);

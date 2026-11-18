@@ -23,6 +23,7 @@ const APPS = [
   { id: "browser", name: "Navegador", icon: "language",          color: "#2a7f8f", comp: "BrowserApp",   size: { w: 880, h: 580 } },
   { id: "whatsapp", name: "WhatsApp", icon: "chat",              color: "#4f7a3a", comp: "WhatsAppApp",  size: { w: 1280, h: 800 } },
   { id: "terminal",name: "Terminal",  icon: "terminal",          color: "#26231f", comp: "TerminalApp",  size: { w: 660, h: 440 } },
+  { id: "vault",    name: "Bóveda",    icon: "lock",              color: "#3b4046", comp: "VaultApp",     size: { w: 980, h: 680 }, hidden: true }, // secreta: 5 pulsaciones al logo de Aplicaciones
   { id: "paint",    name: "Paint",     icon: "palette",           color: "#7a3e6b", comp: "PaintApp",     size: { w: 1180, h: 800 } },
   { id: "diagrams", name: "Diagramas", icon: "account_tree",      color: "#3b6e8f", comp: "DiagramsApp",  size: { w: 1280, h: 820 } },
   { id: "whiteboard", name: "Pizarra", icon: "draw",              color: "#5a5689", comp: "WhiteboardApp", size: { w: 1240, h: 800 } },

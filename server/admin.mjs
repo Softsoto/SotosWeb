@@ -12,6 +12,7 @@ import { fail, json, readJson } from "./http.mjs";
 import { requireUser, hashPassword, registration, defaultQuota, verifyPassword, AVATARS } from "./auth.mjs";
 import { loadState, applyOps, blobPath } from "./fs.mjs";
 import { addNotification } from "./social.mjs";
+import { vaultCount, VAULT_DIR } from "./vault.mjs";
 
 // registro de lo que hace cada administrador (transparencia: quién vio, borró o cambió qué)
 db.exec(`CREATE TABLE IF NOT EXISTS admin_log (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id TEXT, user_id TEXT, action TEXT NOT NULL, detail TEXT, created INTEGER NOT NULL)`);
@@ -107,7 +108,7 @@ export async function handleAdmin(req, res, parts) {
     }
     if (sub === "files") {
       const nodeId = parts[3];
-      if (!nodeId && req.method === "GET") { audit(me, u.id, "ver archivos"); return json(res, 200, { items: filesOf(u.id).sort((x, y) => y.size - x.size) }); }
+      if (!nodeId && req.method === "GET") { audit(me, u.id, "ver archivos"); const vc = vaultCount(u.id); return json(res, 200, { items: filesOf(u.id).sort((x, y) => y.size - x.size), vault: { files: vc.n, size: vc.s } }); }
       const f = filesOf(u.id).find(x => x.id === nodeId); if (!f) fail(404, "Archivo no encontrado");
       if (req.method === "GET") {
         const p = blobPath(u.id, f.id); if (!fs.existsSync(p)) fail(404, "Contenido no encontrado");
@@ -132,7 +133,7 @@ export async function handleAdmin(req, res, parts) {
       if (u.id === me.id) fail(409, "No puedes eliminar tu propia cuenta desde aquí");
       if (u.role === "admin" && admins() <= 1) fail(409, "Debe quedar al menos un administrador");
       db.prepare("DELETE FROM users WHERE id = ?").run(u.id); // las tablas relacionadas se borran en cascada
-      try { fs.rmSync(path.join(BLOB_DIR, u.id), { recursive: true, force: true }); } catch {}
+      try { fs.rmSync(path.join(BLOB_DIR, u.id), { recursive: true, force: true }); fs.rmSync(path.join(VAULT_DIR, u.id), { recursive: true, force: true }); } catch {}
       return json(res, 200, { ok: true });
     }
   }

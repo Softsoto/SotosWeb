@@ -67,7 +67,7 @@ function TerminalApp({ openApp, openItem, profile }) {
         case "whoami": push(user); break;
         case "date": push(new Date().toLocaleString("es-ES", { dateStyle: "full", timeStyle: "medium" })); break;
         case "history": hist.forEach((h, i) => push(String(i + 1).padStart(4) + "  " + h)); break;
-        case "apps": push(APPS.filter(a => a.id !== "web").map(a => a.id.padEnd(11) + a.name).join("\n")); break;
+        case "apps": push(APPS.filter(a => a.id !== "web" && !a.hidden).map(a => a.id.padEnd(11) + a.name).join("\n")); break;
         case "cd": {
           const n = pos[0] ? need(pos[0], "cd") : vfs.getState().root;
           if (n && n.type !== "folder") err(`cd: ${pos[0]}: no es una carpeta`); else if (n) newCwd = n.id;

@@ -344,7 +344,7 @@ function LaunchpadApp({ openApp, shortcuts = [], scApi }) {
   const [q, setQ] = useS5("");
   const [adding, setAdding] = useS5(false);
   const [nm, setNm] = useS5(""); const [url, setUrl] = useS5("");
-  const launchable = APPS.filter(a => a.id !== "launchpad" && a.id !== "web" && appAllowed(a.id, vfs.getState().user) && a.name.toLowerCase().includes(q.toLowerCase()));
+  const launchable = APPS.filter(a => a.id !== "launchpad" && a.id !== "web" && !a.hidden && appAllowed(a.id, vfs.getState().user) && a.name.toLowerCase().includes(q.toLowerCase()));
   const services = WEB_SERVICES.filter(s => s.name.toLowerCase().includes(q.toLowerCase()));
   const scs = shortcuts.filter(s => s.name.toLowerCase().includes(q.toLowerCase()));
   const COLORS = ["#2f6fed", "#34c759", "#8e5cf6", "#ff375f", "#ff8a00", "#0aa5b5"];

@@ -6,6 +6,7 @@ import React from "react";
 import { APPS, APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, DEFAULT_SHORTCUTS, appAllowed } from "./data.jsx";
 import { SotosLogo, SotosMark, BrandMark, setBrandLogo } from "./logo.jsx";
 import * as Creative from "./creative.jsx";
+import * as Vault from "./vault.jsx";
 import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, animateWinOut, animateWinGeometry } from "./ui.jsx";
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
@@ -60,7 +61,7 @@ import { setRegion, tz as regionTz } from "./region.js";
 import { loadInstalled, subscribeInstalled } from "./installed.js";
 
 // registro de componentes de app (antes se resolvían con window[app.comp])
-const APP_COMPONENTS = { ...Creative, ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts, ...Admin, ...Cal, ...Tasks };
+const APP_COMPONENTS = { ...Creative, ...Vault, ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts, ...Admin, ...Cal, ...Tasks };
 const DEFAULT_PROFILE = { name: "Invitado", avatar: null };
 const { useState: useSh, useEffect: useEh, useRef: useRh, useCallback: useCh } = React;
 
@@ -446,7 +447,7 @@ function Spotlight({ onOpen, onApp, onClose }) {
   const [hi, setHi] = useSh(0);
   const ql = q.trim().toLowerCase();
   const results = ql ? [
-    ...APPS.filter(a => a.id !== "web" && appAllowed(a.id, vfs.getState().user) && a.name.toLowerCase().includes(ql)).slice(0, 5).map(a => ({ kind: "app", app: a })),
+    ...APPS.filter(a => a.id !== "web" && !a.hidden && appAllowed(a.id, vfs.getState().user) && a.name.toLowerCase().includes(ql)).slice(0, 5).map(a => ({ kind: "app", app: a })),
     ...vfs.search(ql, 12).map(n => ({ kind: "file", node: n })),
   ] : [];
   const go = (r) => { if (!r) return; r.kind === "app" ? onApp(r.app.id) : onOpen(r.node); onClose(); };
@@ -613,6 +614,7 @@ function OS() {
   }, []);
 
   // abrir un nodo del sistema de archivos con la app adecuada
+  Vault.useVaultGesture(openApp); // 5 pulsaciones al logo de Aplicaciones abren la bóveda secreta
   const openItem = useCh((n) => {
     if (!n) return;
     if (n.type === "folder") return openApp("files", { folderId: n.id });
