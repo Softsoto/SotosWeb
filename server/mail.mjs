@@ -30,8 +30,10 @@ if (!db.prepare("PRAGMA table_info(mail_accounts)").all().some(c => c.name === "
   DROP TABLE mail_accounts; ALTER TABLE mail_accounts_v2 RENAME TO mail_accounts;
   CREATE INDEX IF NOT EXISTS mail_accounts_user ON mail_accounts(user_id);
   COMMIT;`);
+for (const [col, type] of [["default_from", "TEXT"], ["signature", "TEXT"]]) // remitente principal y firma (HTML) de cada cuenta
+  if (!db.prepare("PRAGMA table_info(mail_accounts)").all().some(c => c.name === col)) db.exec(`ALTER TABLE mail_accounts ADD COLUMN ${col} ${type}`);
 const MAX_ACCOUNTS = 10;
-const PUBLIC_COLS = "id, email, name, imap_host, imap_port, smtp_host, smtp_port, smtp_tls, username, aliases";
+const PUBLIC_COLS = "id, email, name, imap_host, imap_port, smtp_host, smtp_port, smtp_tls, username, aliases, default_from, signature";
 const pub = (a) => a && ({ ...a, aliases: aliasesOf(a) });
 
 export const PRESETS = {
@@ -166,7 +168,11 @@ export function parseMessage(raw) {
 }
 
 /* ---------------- SMTP ---------------- */
-async function smtpSend(acc, { from, to, raw }) {
+// proveedores que solo aceptan envío por 587 con STARTTLS (por 465 ni responden)
+const SMTP_FIX = { "smtp.mail.me.com": [587, "starttls"], "smtp-mail.outlook.com": [587, "starttls"], "smtp.office365.com": [587, "starttls"] };
+const fixSmtp = (acc) => { const f = SMTP_FIX[String(acc.smtp_host || "").toLowerCase()]; return f ? { ...acc, smtp_port: f[0], smtp_tls: f[1] } : acc; };
+async function smtpSend(acc0, { from, to, raw }) {
+  const acc = fixSmtp(acc0);
   const implicit = acc.smtp_tls ? acc.smtp_tls === "ssl" : acc.smtp_port === 465;
   let sock = await connect(acc.smtp_host, acc.smtp_port, { secure: implicit });
   let buf = "";
@@ -239,6 +245,7 @@ export async function handleMail(req, res, parts) {
       const acc = { email: String(b.email || "").trim(), name: String(b.name || u.name).slice(0, 80), imap_host: String(b.imapHost || p?.imap[0] || "").trim(), imap_port: Number(b.imapPort || p?.imap[1] || 993),
         smtp_host: String(b.smtpHost || p?.smtp[0] || "").trim(), smtp_port: Number(b.smtpPort || p?.smtp[1] || 465), smtp_tls: ["ssl", "starttls"].includes(b.smtpTls) ? b.smtpTls : null, username: String(b.username || b.email || "").trim(), pass: String(b.password || "") || prev?.pass || "" }; // sin contraseña nueva se conserva la guardada
       if (!/^[^\s@]+@[^\s@]+$/.test(acc.email) || !acc.imap_host || !acc.smtp_host || !acc.pass) fail(400, "Completa correo, servidores y contraseña");
+      Object.assign(acc, fixSmtp(acc)); // iCloud/Outlook: siempre 587 + STARTTLS
       const im = await imapOpen(acc).catch(e => fail(400, e.message)); const boxes = await listBoxes(im).catch(() => []); im.close();
       const id = prev?.id || crypto.randomBytes(9).toString("hex");
       if (prev) db.prepare("UPDATE mail_accounts SET email=?, name=?, imap_host=?, imap_port=?, smtp_host=?, smtp_port=?, smtp_tls=?, username=?, pass_enc=? WHERE id = ? AND user_id = ?")
@@ -255,6 +262,16 @@ export async function handleMail(req, res, parts) {
     const uniq = [...new Map(list.map(x => [x.email, x])).values()];
     db.prepare("UPDATE mail_accounts SET aliases = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(uniq), target.id, u.id);
     return json(res, 200, { ok: true, aliases: uniq });
+  }
+  if (a === "prefs" && req.method === "PUT") { // remitente principal (la cuenta o uno de sus alias) y firma
+    const target = needAcc(u.id, accId); const b = await readJson(req, 65536);
+    if (b.defaultFrom !== undefined) {
+      const ids = [target.email, ...aliasesOf(target).map(x => x.email)].map(x => x.toLowerCase());
+      const v = String(b.defaultFrom || "").trim().toLowerCase(); if (v && !ids.includes(v)) fail(400, "Esa dirección no es de esta cuenta");
+      db.prepare("UPDATE mail_accounts SET default_from = ? WHERE id = ? AND user_id = ?").run(v || null, target.id, u.id);
+    }
+    if (b.signature !== undefined) db.prepare("UPDATE mail_accounts SET signature = ? WHERE id = ? AND user_id = ?").run(String(b.signature || "").slice(0, 20000) || null, target.id, u.id);
+    return json(res, 200, { ok: true });
   }
   if (a === "boxes" && req.method === "GET") { const acc = needAcc(u.id, accId); const im = await imapOpen(acc); try { return json(res, 200, { boxes: await listBoxes(im) }); } finally { im.close(); } }
 
@@ -320,7 +337,9 @@ export async function handleMail(req, res, parts) {
     const mine = db.prepare("SELECT id, email, name, aliases FROM mail_accounts WHERE user_id = ? ORDER BY created").all(u.id)
       .flatMap(r => [{ acc: r.id, email: r.email, name: r.name }, ...aliasesOf(r).map(x => ({ acc: r.id, email: x.email, name: x.name || r.name }))]);
     const wanted = String(b.from || "").trim().toLowerCase();
-    const me = wanted ? mine.find(x => x.email.toLowerCase() === wanted && (!b.account || x.acc === b.account)) : mine.find(x => x.acc === (b.account || accId)) || mine[0];
+    const accRow = db.prepare("SELECT default_from FROM mail_accounts WHERE user_id = ? AND id = ?").get(u.id, String(b.account || accId || "")) || db.prepare("SELECT default_from FROM mail_accounts WHERE user_id = ? ORDER BY created LIMIT 1").get(u.id);
+    const me = wanted ? mine.find(x => x.email.toLowerCase() === wanted && (!b.account || x.acc === b.account))
+      : mine.find(x => x.acc === (b.account || accId) && accRow?.default_from && x.email.toLowerCase() === accRow.default_from) || mine.find(x => x.acc === (b.account || accId)) || mine[0];
     if (!me) fail(400, "Esa dirección no es tuya ni uno de tus alias");
     const acc = account(u.id, me.acc);
     const list = (v) => String(v || "").split(/[,;]/).map(s => s.trim()).filter(Boolean).map(s => (s.match(/<([^>]+)>/)?.[1] || s));

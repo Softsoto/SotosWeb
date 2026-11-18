@@ -14,6 +14,7 @@ fs.mkdirSync(BLOB_DIR, { recursive: true });
 
 export const db = new DatabaseSync(path.join(DATA_DIR, "sotos.db"));
 db.exec(`
+PRAGMA busy_timeout = 8000;
 PRAGMA journal_mode = WAL;
 PRAGMA foreign_keys = ON;
 CREATE TABLE IF NOT EXISTS users (

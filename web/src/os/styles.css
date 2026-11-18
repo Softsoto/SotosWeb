@@ -2121,3 +2121,30 @@ select.wg-input { padding: 0 4px; }
 .admin-file.log { grid-template-columns: 130px 1fr 160px; }
 .admin-file-name { display: flex; flex-direction: column; min-width: 0; } .admin-file-name b, .admin-file-name .faint { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-file a.tb-btn { text-decoration: none; }
+
+/* correo: panel de cuentas y editor HTML */
+.mail-accounts { margin-top: auto; padding-top: 10px; border-top: 1px solid var(--border); display: grid; gap: 4px; }
+.mail-acc { display: flex; align-items: center; gap: 8px; padding: 6px; border-radius: 8px; cursor: pointer; font-size: 12px; }
+.mail-acc:hover { background: var(--hover); }
+.mail-acc.on { background: color-mix(in srgb, var(--accent) 12%, transparent); cursor: default; }
+.mail-acc-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.mail-acc-main b, .mail-acc-main span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mail-acc-main span { color: var(--text-faint); font-size: 11px; }
+.mail-acc .tb-btn.icon { width: 26px; height: 26px; }
+.mail-acc-add { justify-content: center; }
+.alias-main { display: flex; align-items: center; gap: 4px; font-size: 11.5px; color: var(--text-dim); white-space: nowrap; width: 78px; }
+.re { border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); display: flex; flex-direction: column; }
+.re-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 4px 6px; border-bottom: 1px solid var(--border); background: var(--surface); border-radius: 8px 8px 0 0; }
+.re-btn { width: 30px; height: 28px; border: 0; background: none; color: var(--text); border-radius: 5px; display: inline-grid; place-items: center; cursor: pointer; position: relative; }
+.re-btn:hover { background: var(--hover); }
+.re-color input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.re-sel { height: 28px; border: 1px solid var(--border); border-radius: 5px; background: var(--surface-2); color: var(--text); font: 12px var(--ui); padding: 0 4px; }
+.re-sep { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+.re-area { padding: 12px 14px; outline: none; overflow-y: auto; max-height: 46vh; font: 14px/1.6 Arial, Helvetica, sans-serif; color: var(--text); background: #fff; color: #222; border-radius: 0 0 8px 8px; }
+.re-area:empty::before { content: attr(data-placeholder); color: #999; }
+.re-area blockquote { margin: 0 0 0 8px; padding-left: 12px; border-left: 3px solid #ccc; color: #555; }
+.re-area img { max-width: 100%; height: auto; }
+.re-pop { display: flex; gap: 6px; padding: 6px; border-bottom: 1px solid var(--border); }
+.re-pop input { flex: 1; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; background: var(--surface); color: var(--text); font: 13px var(--ui); }
+.re-imgs { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; max-height: 120px; overflow-y: auto; border-bottom: 1px solid var(--border); font-size: 12px; }
+.re-imgs button { display: flex; align-items: center; gap: 4px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 6px; padding: 3px 8px; font: 12px var(--ui); cursor: pointer; }

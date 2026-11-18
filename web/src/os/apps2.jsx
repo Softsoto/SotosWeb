@@ -6,6 +6,7 @@ import React from "react";
 import { Ic, SideItem, Toolbar, EmptyState, ContextMenu, toast } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { api } from "./api.js";
+import { showMenu } from "./context-menu.jsx";
 import { useVfs, fmtSize, fmtDate } from "./vfs.js";
 import { NodeGlyph, dropTarget, useObjectUrl } from "./files-ui.jsx";
 import { PdfViewer } from "./pdf-viewer.jsx";
@@ -185,10 +186,54 @@ function MusicApp({ fileId }) {
 const LANGS = { spa: "Español", es: "Español", eng: "Inglés", en: "Inglés", por: "Portugués", fra: "Francés", fre: "Francés", ita: "Italiano", deu: "Alemán", ger: "Alemán", jpn: "Japonés", kor: "Coreano", chi: "Chino", zho: "Chino", rus: "Ruso", lat: "Latino" };
 const trackName = (x, i, kind) => [x.title, x.lang ? (LANGS[x.lang] || x.lang) : null].filter(Boolean).join(" · ") || `${kind} ${i + 1}`;
 const hms = (s) => { s = Math.max(0, Math.floor(s || 0)); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return (h ? h + ":" + String(m).padStart(2, "0") : m) + ":" + String(x).padStart(2, "0"); };
+/** subtítulos externos: archivos .srt o .vtt de la misma carpeta cuyo nombre empieza igual que el video */
+function useExternalSubs(node) {
+  const [subs, setSubs] = useS2([]);
+  useE2(() => {
+    let alive = true, urls = []; setSubs([]); if (!node) return;
+    const base = node.name.replace(/\.[^.]+$/, "").toLowerCase(); const parent = vfs.parentOf(node.id);
+    const files = (parent?.children || []).filter(x => /\.(srt|vtt)$/i.test(x.name) && x.name.toLowerCase().startsWith(base));
+    Promise.all(files.map(async f => { let t = await vfs.readText(f.id); if (/\.srt$/i.test(f.name)) t = "WEBVTT\n\n" + t.replace(/\r/g, "").replace(/(\d\d:\d\d:\d\d),(\d\d\d)/g, "$1.$2");
+      const url = URL.createObjectURL(new Blob([t], { type: "text/vtt" })); urls.push(url); const tag = f.name.slice(base.length).replace(/\.(srt|vtt)$/i, "").replace(/^[._ -]+/, "");
+      return { url, label: tag || "Externo", lang: /^(es|spa)/i.test(tag) ? "es" : /^(en|eng)/i.test(tag) ? "en" : "es" }; }))
+      .then(x => alive && setSubs(x)).catch(() => {});
+    return () => { alive = false; urls.forEach(u => URL.revokeObjectURL(u)); };
+  }, [node?.id]);
+  return subs;
+}
+/** menú contextual del reproductor (clic derecho sobre el video) */
+function videoMenu(e, v, { audio, setAudio, info, sub, setSub, ext, node }) {
+  e.preventDefault(); e.stopPropagation(); if (!v) return;
+  const items = [{ label: v.paused ? "Reproducir" : "Pausar", icon: v.paused ? "play_arrow" : "pause", run: () => v.paused ? v.play() : v.pause() },
+    { label: v.muted ? "Activar sonido" : "Silenciar", icon: v.muted ? "volume_up" : "volume_off", run: () => { v.muted = !v.muted; } },
+    { label: "Pantalla completa", icon: "fullscreen", run: () => (v.parentElement || v).requestFullscreen?.() },
+    { label: "Imagen en imagen", icon: "picture_in_picture_alt", run: () => v.requestPictureInPicture?.().catch(() => {}) }];
+  if (info?.audio?.length > 1) { items.push({ sep: true }); info.audio.forEach((x, i) => items.push({ label: (i === audio ? "✓ " : "   ") + "Audio: " + trackName(x, i, "Audio"), icon: "graphic_eq", run: () => setAudio(i) })); }
+  const all = [...(info?.subs || []).map((x, i) => ({ id: "s" + i, label: trackName(x, i, "Subtítulos") + (x.forced ? " (forzados)" : ""), ok: x.text })), ...ext.map((x, i) => ({ id: "e" + i, label: x.label + " (archivo)", ok: true }))];
+  if (all.length) { items.push({ sep: true }, { label: (sub === "" ? "✓ " : "   ") + "Sin subtítulos", icon: "subtitles_off", run: () => setSub("") });
+    all.filter(x => x.ok).forEach(x => items.push({ label: (sub === x.id ? "✓ " : "   ") + "Subtítulos: " + x.label, icon: "subtitles", run: () => setSub(x.id) })); }
+  items.push({ sep: true }, { label: "Descargar el video", icon: "download", run: () => vfs.download(node.id) });
+  showMenu(e.clientX, e.clientY, items);
+}
+
+function ShiftedTrack({ url, shift, video }) {
+  // el video preparado empieza en "shift" segundos: se agregan los subtítulos del archivo con los tiempos corridos
+  useE2(() => { const el = video.current; if (!el) return; let tr; fetch(url).then(r => r.text()).then(t => {
+    tr = el.addTextTrack("subtitles", "Externo", "es"); tr.mode = "showing";
+    const re = /(\d\d:)?(\d\d):(\d\d)\.(\d\d\d) --> (\d\d:)?(\d\d):(\d\d)\.(\d\d\d)[^\n]*\n([\s\S]*?)(?=\n\n|$)/g; const sec = (h, m, s2, ms) => (+(h || "0:").slice(0, -1)) * 3600 + +m * 60 + +s2 + +ms / 1000;
+    for (const m of t.replace(/\r/g, "").matchAll(re)) { const a = sec(m[1], m[2], m[3], m[4]) - shift, b = sec(m[5], m[6], m[7], m[8]) - shift; if (b > 0) tr.addCue(new VTTCue(Math.max(0, a), b, m[9].trim())); }
+  }).catch(() => {}); return () => { if (tr) { tr.mode = "disabled"; [...(tr.cues || [])].forEach(c => tr.removeCue(c)); } }; }, [url, shift]);
+  return null;
+}
+
 function ServerVideo({ node, info }) {
+  const ext = useExternalSubs(node);
   const pick = (list) => Math.max(0, list.findIndex(x => /^(spa|es)$/.test(x.lang || "")));
   const [audio, setAudio] = useS2(() => info.audio.length ? pick(info.audio) : 0);
-  const [sub, setSub] = useS2(() => { const i = info.subs.findIndex(x => x.text && /^(spa|es)$/.test(x.lang || "")); return i; });
+  // primero los subtítulos completos en español (los "forzados" solo traducen carteles)
+  const [sub, setSub] = useS2(() => { const sp = info.subs.map((x, i) => ({ x, i })).filter(({ x }) => x.text && /^(spa|es)$/.test(x.lang || ""));
+    const full = sp.find(({ x }) => !x.forced) || sp[0]; return full ? "s" + full.i : ""; });
+  useE2(() => { if (sub === "" && ext.length && !info.subs.some(x => x.text)) setSub("e0"); }, [ext.length]);
   const [start, setStart] = useS2(0), [now, setNow] = useS2(0), [playing, setPlaying] = useS2(true);
   const v = useR2(null);
   const q = `?a=${audio}&t=${start.toFixed(1)}&v=${node.mtime || 0}`;
@@ -199,8 +244,10 @@ function ServerVideo({ node, info }) {
     <div className="sv-wrap">
       <video ref={v} key={src} src={src} autoPlay className="sv-video" onTimeUpdate={e => setNow(e.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
         onClick={e => e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause()}
+        onContextMenu={e => videoMenu(e, v.current, { audio, setAudio: (i) => { setAudio(i); setStart(pos); setNow(0); }, info, sub, setSub, ext, node })}
         onError={() => toast(`No se pudo reproducir “${node.name}”`, { error: true })}>
-        {sub >= 0 && <track key={sub + ":" + start} kind="subtitles" default src={`/api/media/${node.id}/subs/${sub}?t=${start.toFixed(1)}&v=${node.mtime || 0}`} srcLang={info.subs[sub]?.lang || "es"} label={trackName(info.subs[sub], sub, "Subtítulos")} />}
+        {sub.startsWith("s") && <track key={sub + ":" + start} kind="subtitles" default src={`/api/media/${node.id}/subs/${sub.slice(1)}?t=${start.toFixed(1)}&v=${node.mtime || 0}`} srcLang={info.subs[+sub.slice(1)]?.lang || "es"} label={trackName(info.subs[+sub.slice(1)], +sub.slice(1), "Subtítulos")} />}
+        {sub.startsWith("e") && ext[+sub.slice(1)] && <ShiftedTrack key={sub + ":" + start} url={ext[+sub.slice(1)].url} shift={start} video={v} />}
       </video>
       <div className="sv-bar">
         <button className="tb-btn icon" onClick={() => v.current && (v.current.paused ? v.current.play() : v.current.pause())}><Ic name={playing ? "pause" : "play_arrow"} /></button>
@@ -209,15 +256,17 @@ function ServerVideo({ node, info }) {
         <span className="sv-time">{hms(info.duration)}</span>
         {info.audio.length > 1 && <select className="sv-sel" title="Pista de audio" value={audio} onChange={e => { setAudio(Number(e.target.value)); setStart(pos); setNow(0); }}>
           {info.audio.map((x, i) => <option key={i} value={i}>🔊 {trackName(x, i, "Audio")}{x.channels > 2 ? ` (${x.channels} canales)` : ""}</option>)}</select>}
-        {info.subs.length > 0 && <select className="sv-sel" title="Subtítulos" value={sub} onChange={e => setSub(Number(e.target.value))}>
-          <option value={-1}>Sin subtítulos</option>
-          {info.subs.map((x, i) => <option key={i} value={i} disabled={!x.text}>💬 {trackName(x, i, "Subtítulos")}{x.forced ? " (forzados)" : ""}{x.text ? "" : " — imagen, no disponible"}</option>)}</select>}
+        {(info.subs.length > 0 || ext.length > 0) && <select className="sv-sel" title="Subtítulos" value={sub} onChange={e => setSub(e.target.value)}>
+          <option value="">Sin subtítulos</option>
+          {info.subs.map((x, i) => <option key={"s" + i} value={"s" + i} disabled={!x.text}>💬 {trackName(x, i, "Subtítulos")}{x.forced ? " (forzados)" : ""}{x.text ? "" : " — imagen, no disponible"}</option>)}
+          {ext.map((x, i) => <option key={"e" + i} value={"e" + i}>💬 {x.label} (archivo)</option>)}</select>}
         <button className="tb-btn icon" title="Pantalla completa" onClick={() => v.current?.parentElement?.requestFullscreen?.()}><Ic name="fullscreen" /></button>
       </div>
     </div>
   );
 }
 
+const viaServerOf = (info) => !!(info && info.ffmpeg && !info.native && info.video);
 function VideoApp({ fileId }) {
   useVfs(s => s.rev);
   const vids = vfs.allOfType(["video"]);
@@ -226,10 +275,13 @@ function VideoApp({ fileId }) {
   const cur = curId ? vfs.node(curId) : vids[0];
   // ¿necesita que el servidor lo prepare? (MKV, AVI, audio AC3/DTS, subtítulos incrustados…)
   const mode = useVfs(s => s.mode);
-  const [info, setInfo] = useS2(null);
+  const [info, setInfo] = useS2(null), [retry, setRetry] = useS2(0);
   useE2(() => { setInfo(null); if (!cur || mode !== "cloud" || !(cur.size > 0)) { setInfo({ native: true }); return; }
-    api("GET", `media/${cur.id}/info`).then(i => setInfo(i.ffmpeg ? i : { native: true, noFfmpeg: true })).catch(() => setInfo({ native: true })); }, [cur?.id, cur?.mtime, mode]);
-  const viaServer = info && info.ffmpeg && !info.native && info.video;
+    api("GET", `media/${cur.id}/info`).then(i => setInfo(i.ffmpeg ? i : { native: true, noFfmpeg: true }))
+      .catch(e => setInfo({ native: true, failed: e.status === 404 ? "El video aún se está subiendo: cuando termine tendrá audio y subtítulos." : "No se pudo preparar el video (" + (e.message || "sin conexión") + ")." })); }, [cur?.id, cur?.mtime, mode, retry]);
+  const ext = useExternalSubs(info && !viaServerOf(info) ? cur : null);
+  const needsServer = cur && /\.(mkv|avi|wmv|flv|ts|m2ts)$/i.test(cur.name);
+  const viaServer = viaServerOf(info);
   const src = useObjectUrl(info && !viaServer ? cur?.id : null, cur?.mtime);
   const ref = useR2(null), up = useR2(null);
   const folder = vfs.resolve("/Vídeos") || vfs.getState().root;
@@ -253,8 +305,13 @@ function VideoApp({ fileId }) {
       </div>
       <div className="app-main" style={{ background: "#0a0c10" }}>
         {cur && viaServer ? <ServerVideo key={cur.id + ":" + cur.mtime} node={cur} info={info} />
-          : cur && src ? <video ref={ref} key={src} src={src} controls autoPlay style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000" }}
-          onError={() => toast(`Este navegador no puede reproducir “${cur.name}”`, { error: true })} />
+          : cur && src ? <div className="sv-wrap">
+          {needsServer && (mode !== "cloud" || info?.failed || info?.noFfmpeg) && <div className="sv-note"><Ic name="info" size={16} /> {mode !== "cloud" ? "Este video está solo en tu navegador: el navegador no reproduce su audio (AC3/DTS) ni sus subtítulos incrustados. Ábrelo con tu cuenta de Sotos para que el servidor lo prepare." : info?.noFfmpeg ? "Este servidor no tiene ffmpeg: el audio AC3/DTS y los subtítulos incrustados no se pueden preparar." : info.failed}
+            {info?.failed && <button className="tb-btn" onClick={() => setRetry(r => r + 1)}>Reintentar</button>}</div>}
+          <video ref={ref} key={src} src={src} controls autoPlay style={{ width: "100%", height: "100%", objectFit: "contain", background: "#000" }}
+          onContextMenu={e => videoMenu(e, ref.current, { audio: 0, setAudio: () => {}, info: null, sub: "", setSub: () => {}, ext: [], node: cur })}
+          onError={() => toast(`Este navegador no puede reproducir “${cur.name}”`, { error: true })}>
+          {ext.map((x, i) => <track key={x.url} kind="subtitles" src={x.url} srcLang={x.lang} label={x.label} default={i === 0} />)}</video></div>
           : <EmptyState icon="movie" text={cur ? "Cargando…" : "No hay vídeos"} />}
       </div>
     </div>

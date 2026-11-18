@@ -53,20 +53,79 @@ function Setup({ onDone, onCancel, current }) {
   );
 }
 
+/* ---------- correo en HTML: editor con formato, saneado y plantilla ---------- */
+const OK_TAGS = new Set(["P", "DIV", "BR", "SPAN", "B", "STRONG", "I", "EM", "U", "S", "STRIKE", "FONT", "A", "UL", "OL", "LI", "BLOCKQUOTE", "H1", "H2", "H3", "HR", "IMG", "TABLE", "TBODY", "THEAD", "TR", "TD", "TH", "SMALL", "SUB", "SUP", "CODE", "PRE"]);
+const OK_ATTR = new Set(["href", "src", "alt", "title", "style", "color", "size", "face", "align", "width", "height", "colspan", "rowspan", "target"]);
+/** deja solo etiquetas y atributos de formato; quita scripts, eventos y enlaces javascript: */
+export function cleanHtml(html) {
+  const doc = new DOMParser().parseFromString(`<div>${html || ""}</div>`, "text/html");
+  const walk = (el) => { for (const c of [...el.children]) {
+    if (!OK_TAGS.has(c.tagName)) { if (["SCRIPT", "STYLE", "IFRAME", "OBJECT", "EMBED", "LINK", "META"].includes(c.tagName)) c.remove(); else { walk(c); c.replaceWith(...c.childNodes); } continue; }
+    for (const at of [...c.attributes]) { const v = at.value.trim().toLowerCase(); if (!OK_ATTR.has(at.name) || /^(javascript|vbscript|data:text)/.test(v) || (at.name === "style" && /expression|url\(\s*["']?\s*javascript/.test(v))) c.removeAttribute(at.name); }
+    if (c.tagName === "A") { c.setAttribute("target", "_blank"); c.setAttribute("rel", "noopener"); }
+    walk(c); } };
+  walk(doc.body.firstChild); return doc.body.firstChild.innerHTML;
+}
+const wrapHtml = (body) => `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#222222">${body}</div>`;
+const esc = (t) => String(t || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const textToHtml = (t) => esc(t).replace(/\n/g, "<br>");
+function RichEditor({ html, onChange, placeholder, minHeight = 220 }) {
+  const ref = useRef(null), [link, setLink] = useState(null), [img, setImg] = useState(false);
+  useEffect(() => { if (ref.current && ref.current.innerHTML !== html) ref.current.innerHTML = html || ""; }, []);
+  const cmd = (c, v = null) => { ref.current.focus(); document.execCommand(c, false, v); onChange(ref.current.innerHTML); };
+  const B = ({ c, v, icon, title }) => <button type="button" className="re-btn" title={title} onMouseDown={e => { e.preventDefault(); cmd(c, v); }}><Ic name={icon} size={18} /></button>;
+  const images = []; if (img) vfs.walk(n => { if (n.type === "img" && n.size > 0 && n.size < 2e6) images.push(n); });
+  return (
+    <div className="re">
+      <div className="re-bar">
+        <select className="re-sel" title="Estilo" onChange={e => { cmd("formatBlock", e.target.value); e.target.value = ""; }} defaultValue=""><option value="" disabled>Estilo</option><option value="P">Normal</option><option value="H1">Título</option><option value="H2">Subtítulo</option><option value="H3">Encabezado</option><option value="BLOCKQUOTE">Cita</option><option value="PRE">Código</option></select>
+        <select className="re-sel" title="Tamaño" onChange={e => { cmd("fontSize", e.target.value); e.target.value = ""; }} defaultValue=""><option value="" disabled>Tamaño</option><option value="2">Pequeño</option><option value="3">Normal</option><option value="4">Grande</option><option value="6">Muy grande</option></select>
+        <select className="re-sel" title="Letra" onChange={e => { cmd("fontName", e.target.value); e.target.value = ""; }} defaultValue=""><option value="" disabled>Letra</option><option value="Arial">Arial</option><option value="Georgia">Georgia</option><option value="Verdana">Verdana</option><option value="Trebuchet MS">Trebuchet</option><option value="Courier New">Courier</option></select>
+        <span className="re-sep" />
+        <B c="bold" icon="format_bold" title="Negrita" /><B c="italic" icon="format_italic" title="Cursiva" /><B c="underline" icon="format_underlined" title="Subrayado" /><B c="strikeThrough" icon="strikethrough_s" title="Tachado" />
+        <label className="re-btn re-color" title="Color del texto"><Ic name="format_color_text" size={18} /><input type="color" onChange={e => cmd("foreColor", e.target.value)} /></label>
+        <label className="re-btn re-color" title="Resaltar"><Ic name="ink_highlighter" size={18} /><input type="color" defaultValue="#fff59d" onChange={e => cmd("hiliteColor", e.target.value)} /></label>
+        <span className="re-sep" />
+        <B c="justifyLeft" icon="format_align_left" title="Izquierda" /><B c="justifyCenter" icon="format_align_center" title="Centrar" /><B c="justifyRight" icon="format_align_right" title="Derecha" />
+        <B c="insertUnorderedList" icon="format_list_bulleted" title="Viñetas" /><B c="insertOrderedList" icon="format_list_numbered" title="Numerada" />
+        <span className="re-sep" />
+        <button type="button" className="re-btn" title="Enlace" onMouseDown={e => { e.preventDefault(); const sel = window.getSelection(); setLink({ url: "https://", range: sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null }); }}><Ic name="link" size={18} /></button>
+        <button type="button" className="re-btn" title="Imagen de tus archivos" onMouseDown={e => { e.preventDefault(); setImg(v => !v); }}><Ic name="image" size={18} /></button>
+        <B c="insertHorizontalRule" icon="horizontal_rule" title="Línea" /><B c="removeFormat" icon="format_clear" title="Quitar formato" />
+      </div>
+      {link && <div className="re-pop"><input autoFocus value={link.url} onChange={e => setLink({ ...link, url: e.target.value })} onKeyDown={e => e.key === "Enter" && e.currentTarget.nextSibling.click()} />
+        <button className="tb-btn primary" onClick={() => { if (link.range) { const s = window.getSelection(); s.removeAllRanges(); s.addRange(link.range); } if (/^(https?:|mailto:)/i.test(link.url)) cmd(link.range && !link.range.collapsed ? "createLink" : "insertHTML", link.range && !link.range.collapsed ? link.url : `<a href="${esc(link.url)}">${esc(link.url)}</a>`); setLink(null); }}>Insertar</button>
+        <button className="tb-btn" onClick={() => setLink(null)}>Cancelar</button></div>}
+      {img && <div className="re-imgs">{images.slice(0, 60).map(n => <button key={n.id} title={n.name} onClick={async () => { const b = await vfs.read(n.id); const url = await new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(b); }); setImg(false); cmd("insertHTML", `<img src="${url}" alt="${esc(n.name)}" style="max-width:100%;height:auto">`); }}><Ic name="image" size={16} /> {n.name}</button>)}{!images.length && <span className="faint">No hay imágenes de menos de 2 MB en tus archivos.</span>}</div>}
+      <div ref={ref} className="re-area" contentEditable suppressContentEditableWarning data-placeholder={placeholder} style={{ minHeight }}
+        onInput={e => onChange(e.currentTarget.innerHTML)}
+        onPaste={e => { const h = e.clipboardData.getData("text/html"); if (h) { e.preventDefault(); document.execCommand("insertHTML", false, cleanHtml(h)); onChange(e.currentTarget.innerHTML); } }} />
+    </div>
+  );
+}
+
 function Aliases({ account, onClose, onSaved }) {
   const [list, setList] = useState(account.aliases || []), [busy, setBusy] = useState(false);
+  const [main, setMain] = useState(account.default_from || account.email.toLowerCase()), [sig, setSig] = useState(account.signature || "");
   const set = (i, k, v) => setList(l => l.map((x, j) => j === i ? { ...x, [k]: v } : x));
-  const save = async () => { setBusy(true); try { await api("PUT", `mail/aliases?acc=${account.id}`, { aliases: list.filter(x => x.email.trim()) }); toast("Alias guardados", { icon: "alternate_email" }); onSaved(); } catch (e) { toast(e.message, { error: true }); setBusy(false); } };
+  const save = async () => { setBusy(true); try {
+    const clean = list.filter(x => x.email.trim()); await api("PUT", `mail/aliases?acc=${account.id}`, { aliases: clean });
+    const valid = [account.email.toLowerCase(), ...clean.map(x => x.email.trim().toLowerCase())]; await api("PUT", `mail/prefs?acc=${account.id}`, { defaultFrom: valid.includes(main) ? (main === account.email.toLowerCase() ? "" : main) : "", signature: cleanHtml(sig) });
+    toast("Alias, remitente y firma guardados", { icon: "alternate_email" }); onSaved(); } catch (e) { toast(e.message, { error: true }); setBusy(false); } };
+  const Main = ({ email }) => <label className="alias-main" title="Remitente principal"><input type="radio" name="alias-main" checked={main === email.trim().toLowerCase()} onChange={() => setMain(email.trim().toLowerCase())} /> Principal</label>;
   return (
-    <Modal title="Alias de correo" icon="alternate_email" onClose={onClose} width={560}
+    <Modal title={`Alias, remitente y firma · ${account.email}`} icon="alternate_email" onClose={onClose} width={680}
       actions={<><button className="tb-btn" onClick={() => setList(l => [...l, { email: "", name: "" }])}><Ic name="add" /> Añadir alias</button><div style={{ flex: 1 }} /><button className="tb-btn" onClick={onClose}>Cancelar</button><button className="tb-btn primary" disabled={busy} onClick={save}>Guardar</button></>}>
       <div className="muted" style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 10 }}>Otras direcciones desde las que envías con esta misma cuenta: tu dominio propio en iCloud+, los alias de Outlook o las direcciones «Enviar como» de Gmail. El proveedor debe tenerlas autorizadas; si no, rechazará el envío. Al redactar eliges desde cuál sale el correo.</div>
       <div style={{ display: "grid", gap: 8 }}>
-        <div className="alias-row"><input value={account.email} disabled /><input value={account.name} disabled /><span className="faint" style={{ width: 32, fontSize: 11 }}>principal</span></div>
+        <div className="alias-row"><input value={account.email} disabled /><input value={account.name} disabled /><Main email={account.email} /><span style={{ width: 32 }} /></div>
         {list.map((x, i) => <div key={i} className="alias-row"><input type="email" placeholder="alias@tudominio.com" value={x.email} onChange={e => set(i, "email", e.target.value)} /><input placeholder={`Nombre (${account.name})`} value={x.name} onChange={e => set(i, "name", e.target.value)} />
-          <button className="tb-btn icon" title="Quitar" onClick={() => setList(l => l.filter((_, j) => j !== i))}><Ic name="delete" /></button></div>)}
+          {x.email.trim() ? <Main email={x.email} /> : <span style={{ width: 78 }} />}<button className="tb-btn icon" title="Quitar" onClick={() => setList(l => l.filter((_, j) => j !== i))}><Ic name="delete" /></button></div>)}
         {!list.length && <div className="faint" style={{ fontSize: 13 }}>Aún no tienes alias.</div>}
       </div>
+      <div className="faint" style={{ fontSize: 12, marginTop: 8 }}>El <b>principal</b> es el remitente que sale por defecto al redactar con esta cuenta.</div>
+      <div className="admin-sub" style={{ marginTop: 14 }}>Firma (se añade al final de tus correos)</div>
+      <RichEditor html={sig} onChange={setSig} placeholder="Tu nombre, cargo, teléfono, sitio web…" minHeight={90} />
     </Modal>
   );
 }
@@ -74,22 +133,28 @@ function Aliases({ account, onClose, onSaved }) {
 function Compose({ init, onClose, onSent, account, accounts }) {
   const idents = accounts.flatMap(a => [{ acc: a.id, email: a.email, name: a.name }, ...(a.aliases || []).map(x => ({ acc: a.id, email: x.email, name: x.name || a.name }))]);
   const key = (x) => x.acc + "|" + x.email;
-  const [f, setF] = useState({ to: "", cc: "", subject: "", text: "", ...init }), [att, setAtt] = useState([]), [busy, setBusy] = useState(false), [pick, setPick] = useState(false);
-  const send = async () => { setBusy(true); try { await vfs.flush?.().catch(() => {}); const who = idents.find(x => key(x) === f.ident) || idents.find(x => x.acc === account.id && x.email === (f.from || account.email)) || idents[0];
-    await api("POST", "mail/send", { ...f, ident: undefined, from: who.email, account: who.acc, attachments: att.map(n => n.id) }); toast("Correo enviado", { icon: "send" }); onSent(); } catch (e) { toast(e.message, { error: true }); setBusy(false); } };
+  // remitente por defecto: el principal de la cuenta (o el alias al que llegó el correo que respondes)
+  const first = idents.find(x => x.acc === account.id && x.email.toLowerCase() === String(init?.from || account.default_from || account.email).toLowerCase()) || idents.find(x => x.acc === account.id) || idents[0];
+  const sigOf = (acc) => accounts.find(a => a.id === acc)?.signature || "";
+  const [f, setF] = useState({ to: "", cc: "", subject: "", ...init, ident: key(first) }), [att, setAtt] = useState([]), [busy, setBusy] = useState(false), [pick, setPick] = useState(false);
+  const [body, setBody] = useState(() => (init?.html || (init?.text ? textToHtml(init.text) : "<p><br></p>")) + (sigOf(first.acc) ? `<p><br></p><div class="sotos-firma">${sigOf(first.acc)}</div>` : ""));
+  const send = async () => { setBusy(true); try { await vfs.flush?.().catch(() => {}); const who = idents.find(x => key(x) === f.ident) || first;
+    const html = cleanHtml(body); const tmp = document.createElement("div"); tmp.innerHTML = html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|li|h[1-3]|blockquote)>/gi, "\n");
+    const text = (tmp.textContent || "").replace(/\n{3,}/g, "\n\n").trim();
+    await api("POST", "mail/send", { to: f.to, cc: f.cc, subject: f.subject, inReplyTo: f.inReplyTo, text, html: wrapHtml(html), from: who.email, account: who.acc, attachments: att.map(n => n.id) }); toast("Correo enviado", { icon: "send" }); onSent(); } catch (e) { toast(e.message, { error: true }); setBusy(false); } };
   const files = []; vfs.walk(n => { if (!n.children && n.size > 0 && n.size < 20e6) files.push(n); });
   return (
-    <Modal title={init?.subject ? f.subject : "Correo nuevo"} icon="edit" onClose={onClose} width={620}
+    <Modal title={init?.subject ? f.subject : "Correo nuevo"} icon="edit" onClose={onClose} width={820}
       actions={<><button className="tb-btn" onClick={() => setPick(p => !p)}><Ic name="attach_file" /> Adjuntar de Archivos</button><div style={{ flex: 1 }} /><button className="tb-btn" onClick={onClose}>Descartar</button>
         <button className="tb-btn primary" disabled={busy || !f.to.trim()} onClick={send}><Ic name="send" /> {busy ? "Enviando…" : "Enviar"}</button></>}>
       <div className="mail-compose">
-        {idents.length > 1 ? <label className="compose-row"><span>De</span><select className="compose-from" value={f.ident || key(idents.find(x => x.acc === account.id && x.email === (f.from || account.email)) || idents[0])} onChange={e => setF({ ...f, ident: e.target.value })}>
+        {idents.length > 1 ? <label className="compose-row"><span>De</span><select className="compose-from" value={f.ident} onChange={e => setF({ ...f, ident: e.target.value })}>
           {idents.map(x => <option key={key(x)} value={key(x)}>{x.name} &lt;{x.email}&gt;</option>)}</select></label>
           : <div className="faint" style={{ fontSize: 12 }}>De: {account.name} &lt;{account.email}&gt;</div>}
         <label className="compose-row"><span>Para</span><input autoFocus value={f.to} onChange={e => setF({ ...f, to: e.target.value })} placeholder="correo@ejemplo.com, otro@ejemplo.com" /></label>
         <label className="compose-row"><span>Cc</span><input value={f.cc} onChange={e => setF({ ...f, cc: e.target.value })} /></label>
         <label className="compose-row"><span>Asunto</span><input value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} /></label>
-        <textarea rows={12} value={f.text} onChange={e => setF({ ...f, text: e.target.value })} placeholder="Escribe tu mensaje…" />
+        <RichEditor html={body} onChange={setBody} placeholder="Escribe tu mensaje…" minHeight={260} />
         {att.length > 0 && <div className="compose-atts">{att.map(n => <span key={n.id} className="chip on" style={{ "--chip": "#5a5689" }}><Ic name="attach_file" size={14} /> {n.name} · {fmtSize(n.size)} <Ic name="close" size={14} style={{ cursor: "pointer" }} onClick={() => setAtt(a => a.filter(x => x.id !== n.id))} /></span>)}</div>}
         {pick && <div className="compose-pick">{files.slice(0, 200).map(n => <button key={n.id} onClick={() => { setAtt(a => a.some(x => x.id === n.id) ? a : [...a, n]); setPick(false); }}><Ic name="description" size={16} /> {n.name} <span className="faint">{fmtSize(n.size)}</span></button>)}</div>}
       </div>
@@ -144,13 +209,22 @@ export function RealMail() {
     onDone={(id) => { setSetup(false); loadAcc(id === null ? null : id); }} /></div>;
   const cur = list?.find(x => x.uid === sel);
   const quote = (m) => `\n\n—— El ${m.date ? new Date(m.date).toLocaleString("es-CO") : ""}, ${m.from} escribió:\n` + (m.text || "").split("\n").map(l => "> " + l).join("\n");
+  const quoteHtml = (m, head) => `<p><br></p><p style="color:#666">${esc(head)}</p><blockquote style="margin:0 0 0 8px;padding-left:12px;border-left:3px solid #ccc;color:#555">${m.html ? cleanHtml(m.html) : textToHtml(m.text || "")}</blockquote>`;
   return (
     <div className="app mail-app">
       <div className="app-side">
-        {accounts.length > 1 && <select className="sc-input mail-acc-pick" title="Cuenta" value={account.id} onChange={e => choose(e.target.value)}>{accounts.map(a => <option key={a.id} value={a.id}>{a.email}</option>)}</select>}
         <button className="tb-btn primary" style={{ width: "100%", justifyContent: "center", marginBottom: 10 }} onClick={() => setCompose({})}><Ic name="edit" /> Redactar</button>
         {boxes.map(b => <div key={b.id} className={"side-item" + (box === b.id ? " active" : "")} onClick={() => setBox(b.id)}><Ic name={BOX_ICON[b.role] || "folder"} /><span>{b.role === "inbox" ? "Recibidos" : b.role === "sent" ? "Enviados" : b.role === "trash" ? "Papelera" : b.role === "junk" ? "Spam" : b.role === "drafts" ? "Borradores" : b.name}</span></div>)}
-        <div style={{ marginTop: "auto", fontSize: 12 }} className="faint">{account.email}<br /><a style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setSetup("edit")}>Configurar</a> · <a style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setAliasDlg(true)}>Alias{account.aliases?.length ? ` (${account.aliases.length})` : ""}</a> · <a style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setSetup("nueva")}>+ Cuenta</a></div>
+        <div className="mail-accounts">
+          <div className="side-label">Cuentas</div>
+          {accounts.map(a => <div key={a.id} className={"mail-acc" + (a.id === account.id ? " on" : "")} onClick={() => a.id !== account.id && choose(a.id)} title={a.id === account.id ? "Cuenta abierta" : "Cambiar a esta cuenta"}>
+            <PersonAvatar name={a.name || a.email} size={26} />
+            <div className="mail-acc-main"><b>{a.name || a.email.split("@")[0]}</b><span>{a.default_from || a.email}</span></div>
+            {a.id === account.id && <><button className="tb-btn icon" title="Alias, remitente principal y firma" onClick={e => { e.stopPropagation(); setAliasDlg(true); }}><Ic name="alternate_email" size={17} /></button>
+              <button className="tb-btn icon" title="Configurar cuenta" onClick={e => { e.stopPropagation(); setSetup("edit"); }}><Ic name="settings" size={17} /></button></>}
+          </div>)}
+          <button className="tb-btn mail-acc-add" onClick={() => setSetup("nueva")}><Ic name="add" /> Añadir cuenta</button>
+        </div>
       </div>
       <div className="mail-list">
         <div className="mail-list-bar"><div className="search-box" style={{ flex: 1 }}><Ic name="search" size={16} /><input placeholder="Buscar en el correo" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === "Enter" && loadList(box, q)} /></div>
@@ -166,8 +240,8 @@ export function RealMail() {
       </div>
       <div className="app-main">
         {msg ? <MessageView m={msg} acc={account.id} flagged={cur?.flagged}
-          onReply={() => setCompose({ from: (account.aliases || []).find(x => (msg.to + " " + (msg.cc || "")).toLowerCase().includes(x.email))?.email, to: msg.replyTo || emailOf(msg.from), subject: /^re:/i.test(msg.subject) ? msg.subject : "Re: " + msg.subject, text: quote(msg), inReplyTo: msg.messageId })}
-          onForward={() => setCompose({ subject: "Rv: " + msg.subject, text: `\n\n—— Mensaje reenviado ——\nDe: ${msg.from}\nAsunto: ${msg.subject}\n\n${msg.text || ""}` })}
+          onReply={() => setCompose({ from: (account.aliases || []).find(x => (msg.to + " " + (msg.cc || "")).toLowerCase().includes(x.email))?.email, to: msg.replyTo || emailOf(msg.from), subject: /^re:/i.test(msg.subject) ? msg.subject : "Re: " + msg.subject, html: quoteHtml(msg, `El ${msg.date ? new Date(msg.date).toLocaleString("es-CO") : ""}, ${msg.from} escribió:`), inReplyTo: msg.messageId })}
+          onForward={() => setCompose({ subject: "Rv: " + msg.subject, html: quoteHtml(msg, `Mensaje reenviado · De: ${msg.from} · Asunto: ${msg.subject}`) })}
           onFlag={async () => { await api("POST", `mail/messages/${msg.uid}/flags?${A}&box=${encodeURIComponent(box)}`, { flagged: !cur?.flagged }); setList(l => l.map(x => x.uid === msg.uid ? { ...x, flagged: !x.flagged } : x)); }}
           onDelete={async () => { try { const r = await api("DELETE", `mail/messages/${msg.uid}?${A}&box=${encodeURIComponent(box)}`); toast(r.to ? `Movido a ${r.to}` : "Mensaje eliminado", { icon: "delete" }); setMsg(null); setSel(null); loadList(); } catch (e) { toast(e.message, { error: true }); } }} />
           : <EmptyState icon="mail" text={sel ? "Abriendo…" : "Elige un mensaje"} />}

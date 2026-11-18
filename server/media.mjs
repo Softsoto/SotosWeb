@@ -37,7 +37,7 @@ function describe(pr, ext) {
   const audio = s.filter(x => x.codec_type === "audio").map((x, n) => ({ n, codec: x.codec_name, channels: x.channels || null, ...tag(x) }));
   const subs = s.filter(x => x.codec_type === "subtitle").map((x, n) => ({ n, codec: x.codec_name, text: TEXT_SUBS.has(x.codec_name), forced: !!x.disposition?.forced, ...tag(x) }));
   // ¿lo reproduce el navegador sin ayuda? (contenedor, video y la primera pista de audio)
-  const native = ["mp4", "m4v", "webm", "mov"].includes(ext) && v && ["h264", "vp8", "vp9", "av1"].includes(v.codec_name) && (!audio.length || BROWSER_AUDIO.has(audio[0].codec)) && !subs.length;
+  const native = ["mp4", "m4v", "webm", "mov"].includes(ext) && v && ["h264", "vp8", "vp9", "av1"].includes(v.codec_name) && (!audio.length || BROWSER_AUDIO.has(audio[0].codec)) && audio.length <= 1 && !subs.length; // varias pistas: el servidor permite elegir
   return { duration: Number(pr.format?.duration) || null, video: v ? { codec: v.codec_name, width: v.width, height: v.height } : null, audio, subs, native };
 }
 
