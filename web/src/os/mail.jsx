@@ -17,24 +17,24 @@ const nameOf = (s) => (s || "").replace(/<[^>]+>/, "").replace(/"/g, "").trim() 
 const emailOf = (s) => (s || "").match(/<([^>]+)>/)?.[1] || (s || "").trim();
 const when = (t) => { if (!t) return ""; const d = new Date(t), n = new Date(); return d.toDateString() === n.toDateString() ? d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString("es-CO", { day: "numeric", month: "short", year: d.getFullYear() === n.getFullYear() ? undefined : "numeric" }); };
 
-function Setup({ onDone, current }) {
+function Setup({ onDone, onCancel, current }) {
   const [presets, setPresets] = useState({}), [p, setP] = useState(current ? "otro" : "gmail");
-  const [f, setF] = useState({ email: current?.email || "", name: current?.name || "", password: "", imapHost: current?.imap_host || "", imapPort: current?.imap_port || 993, smtpHost: current?.smtp_host || "", smtpPort: current?.smtp_port || 465, smtpTls: current?.smtp_tls || "", username: current?.username || "" });
+  const [f, setF] = useState({ id: current?.id, email: current?.email || "", name: current?.name || "", password: "", imapHost: current?.imap_host || "", imapPort: current?.imap_port || 993, smtpHost: current?.smtp_host || "", smtpPort: current?.smtp_port || 465, smtpTls: current?.smtp_tls || "", username: current?.username || "" });
   const [busy, setBusy] = useState(false);
   useEffect(() => { api("GET", "mail/presets").then(r => setPresets(r.presets)).catch(() => {}); }, []);
-  const save = async () => { setBusy(true); try { const r = await api("PUT", "mail/account", { ...f, preset: p === "otro" ? undefined : p, username: f.username || f.email }); toast(`Cuenta conectada · ${r.boxes} carpetas`, { icon: "mark_email_read" }); onDone(); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
+  const save = async () => { setBusy(true); try { const r = await api("PUT", "mail/account", { ...f, preset: p === "otro" ? undefined : p, username: f.username || f.email }); toast(`${r.created ? "Cuenta conectada" : "Cuenta actualizada"} · ${r.boxes} carpetas`, { icon: "mark_email_read" }); onDone(r.id); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
   return (
     <div className="mail-setup">
       <div className="mail-setup-card">
         <Ic name="alternate_email" size={40} style={{ color: "var(--accent)" }} />
-        <h2>Conecta tu correo</h2>
+        <h2>{current ? "Editar cuenta de correo" : onCancel ? "Añadir otra cuenta" : "Conecta tu correo"}</h2>
         <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.5 }}>Sotos lee y envía tu correo directamente con tu proveedor (IMAP y SMTP). La contraseña se guarda cifrada en tu servidor de Sotos y nunca vuelve al navegador.</div>
         <div className="mail-presets">{[...Object.entries(presets), ["otro", { label: "Otro" }]].map(([k, v]) => <button key={k} className={"chip" + (p === k ? " on" : "")} onClick={() => setP(k)}>{v.label}</button>)}</div>
         {presets[p]?.help && <div className="mail-help"><Ic name="info" size={16} /> {presets[p].help}</div>}
         <div style={{ display: "grid", gap: 10, width: "100%" }}>
           <label className="field">Tu nombre<input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Como te verán al recibir tus correos" /></label>
           <label className="field">Correo<input type="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} placeholder="tu@correo.com" /></label>
-          <label className="field">Contraseña {p !== "otro" ? "de aplicación" : ""}<input type="password" autoComplete="new-password" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} /></label>
+          <label className="field">Contraseña {p !== "otro" ? "de aplicación" : ""}<input type="password" autoComplete="new-password" value={f.password} placeholder={current ? "Déjala vacía para conservar la guardada" : ""} onChange={e => setF({ ...f, password: e.target.value })} /></label>
           {p !== "otro" && <label className="field">Usuario para iniciar sesión<input value={f.username} onChange={e => setF({ ...f, username: e.target.value })} placeholder={presets[p]?.userHint ? `Si es distinto del correo: ${presets[p].userHint}` : "Déjalo vacío para usar tu correo"} /></label>}
           {p === "otro" && <div className="mail-server-grid">
             <label className="field">Servidor IMAP<input value={f.imapHost} onChange={e => setF({ ...f, imapHost: e.target.value })} placeholder="imap.ejemplo.com" /></label>
@@ -45,7 +45,9 @@ function Setup({ onDone, current }) {
             <label className="field">Usuario<input value={f.username} onChange={e => setF({ ...f, username: e.target.value })} placeholder="Normalmente tu correo" /></label>
           </div>}
         </div>
-        <button className="tb-btn primary" style={{ width: "100%", justifyContent: "center" }} disabled={busy || !f.email || !f.password} onClick={save}>{busy ? "Comprobando…" : <><Ic name="link" /> Conectar</>}</button>
+        <button className="tb-btn primary" style={{ width: "100%", justifyContent: "center" }} disabled={busy || !f.email || (!f.password && !current)} onClick={save}>{busy ? "Comprobando…" : <><Ic name="link" /> {current ? "Guardar" : "Conectar"}</>}</button>
+        {onCancel && <button className="tb-btn" style={{ width: "100%", justifyContent: "center" }} onClick={onCancel}>Cancelar</button>}
+        {current && <button className="tb-btn" style={{ width: "100%", justifyContent: "center", color: "var(--danger, #b3261e)" }} onClick={async () => { try { await api("DELETE", `mail/account?acc=${current.id}`); toast(`Se desvinculó ${current.email}`, { icon: "link_off" }); onDone(null); } catch (e) { toast(e.message, { error: true }); } }}><Ic name="link_off" /> Desvincular esta cuenta</button>}
       </div>
     </div>
   );
@@ -54,7 +56,7 @@ function Setup({ onDone, current }) {
 function Aliases({ account, onClose, onSaved }) {
   const [list, setList] = useState(account.aliases || []), [busy, setBusy] = useState(false);
   const set = (i, k, v) => setList(l => l.map((x, j) => j === i ? { ...x, [k]: v } : x));
-  const save = async () => { setBusy(true); try { await api("PUT", "mail/aliases", { aliases: list.filter(x => x.email.trim()) }); toast("Alias guardados", { icon: "alternate_email" }); onSaved(); } catch (e) { toast(e.message, { error: true }); setBusy(false); } };
+  const save = async () => { setBusy(true); try { await api("PUT", `mail/aliases?acc=${account.id}`, { aliases: list.filter(x => x.email.trim()) }); toast("Alias guardados", { icon: "alternate_email" }); onSaved(); } catch (e) { toast(e.message, { error: true }); setBusy(false); } };
   return (
     <Modal title="Alias de correo" icon="alternate_email" onClose={onClose} width={560}
       actions={<><button className="tb-btn" onClick={() => setList(l => [...l, { email: "", name: "" }])}><Ic name="add" /> Añadir alias</button><div style={{ flex: 1 }} /><button className="tb-btn" onClick={onClose}>Cancelar</button><button className="tb-btn primary" disabled={busy} onClick={save}>Guardar</button></>}>
@@ -69,17 +71,20 @@ function Aliases({ account, onClose, onSaved }) {
   );
 }
 
-function Compose({ init, onClose, onSent, account }) {
+function Compose({ init, onClose, onSent, account, accounts }) {
+  const idents = accounts.flatMap(a => [{ acc: a.id, email: a.email, name: a.name }, ...(a.aliases || []).map(x => ({ acc: a.id, email: x.email, name: x.name || a.name }))]);
+  const key = (x) => x.acc + "|" + x.email;
   const [f, setF] = useState({ to: "", cc: "", subject: "", text: "", ...init }), [att, setAtt] = useState([]), [busy, setBusy] = useState(false), [pick, setPick] = useState(false);
-  const send = async () => { setBusy(true); try { await vfs.flush?.().catch(() => {}); await api("POST", "mail/send", { ...f, attachments: att.map(n => n.id) }); toast("Correo enviado", { icon: "send" }); onSent(); } catch (e) { toast(e.message, { error: true }); setBusy(false); } };
+  const send = async () => { setBusy(true); try { await vfs.flush?.().catch(() => {}); const who = idents.find(x => key(x) === f.ident) || idents.find(x => x.acc === account.id && x.email === (f.from || account.email)) || idents[0];
+    await api("POST", "mail/send", { ...f, ident: undefined, from: who.email, account: who.acc, attachments: att.map(n => n.id) }); toast("Correo enviado", { icon: "send" }); onSent(); } catch (e) { toast(e.message, { error: true }); setBusy(false); } };
   const files = []; vfs.walk(n => { if (!n.children && n.size > 0 && n.size < 20e6) files.push(n); });
   return (
     <Modal title={init?.subject ? f.subject : "Correo nuevo"} icon="edit" onClose={onClose} width={620}
       actions={<><button className="tb-btn" onClick={() => setPick(p => !p)}><Ic name="attach_file" /> Adjuntar de Archivos</button><div style={{ flex: 1 }} /><button className="tb-btn" onClick={onClose}>Descartar</button>
         <button className="tb-btn primary" disabled={busy || !f.to.trim()} onClick={send}><Ic name="send" /> {busy ? "Enviando…" : "Enviar"}</button></>}>
       <div className="mail-compose">
-        {account.aliases?.length ? <label className="compose-row"><span>De</span><select className="compose-from" value={f.from || account.email} onChange={e => setF({ ...f, from: e.target.value })}>
-          {[{ email: account.email, name: account.name }, ...account.aliases].map(x => <option key={x.email} value={x.email}>{(x.name || account.name)} &lt;{x.email}&gt;</option>)}</select></label>
+        {idents.length > 1 ? <label className="compose-row"><span>De</span><select className="compose-from" value={f.ident || key(idents.find(x => x.acc === account.id && x.email === (f.from || account.email)) || idents[0])} onChange={e => setF({ ...f, ident: e.target.value })}>
+          {idents.map(x => <option key={key(x)} value={key(x)}>{x.name} &lt;{x.email}&gt;</option>)}</select></label>
           : <div className="faint" style={{ fontSize: 12 }}>De: {account.name} &lt;{account.email}&gt;</div>}
         <label className="compose-row"><span>Para</span><input autoFocus value={f.to} onChange={e => setF({ ...f, to: e.target.value })} placeholder="correo@ejemplo.com, otro@ejemplo.com" /></label>
         <label className="compose-row"><span>Cc</span><input value={f.cc} onChange={e => setF({ ...f, cc: e.target.value })} /></label>
@@ -92,7 +97,7 @@ function Compose({ init, onClose, onSent, account }) {
   );
 }
 
-function MessageView({ m, onReply, onForward, onDelete, onFlag, flagged }) {
+function MessageView({ m, acc, onReply, onForward, onDelete, onFlag, flagged }) {
   const [remote, setRemote] = useState(false);
   const frame = useRef(null);
   const html = m.html ? `<!doctype html><meta charset="utf-8"><base target="_blank"><style>body{font:14px/1.55 system-ui,sans-serif;color:#222;margin:14px;word-break:break-word}img{max-width:100%;height:auto}</style>${remote ? m.html : m.html.replace(/(<img\b[^>]*?\s)src=(["'])https?:[^"']*\2/gi, "$1data-blocked=$2$2 src=\"data:image/gif;base64,R0lGODlhAQABAAAAACw=\"")}` : null;
@@ -115,31 +120,37 @@ function MessageView({ m, onReply, onForward, onDelete, onFlag, flagged }) {
         : <pre className="mail-text">{m.text || "(mensaje vacío)"}</pre>}
       {m.attachments?.length > 0 && <div className="mail-atts">{m.attachments.map(a => (
         <div key={a.part} className="mail-att"><Ic name="attach_file" /><span><b>{a.name}</b><span className="faint">{fmtSize(a.size)}</span></span>
-          <a className="tb-btn icon" title="Descargar" href={`/api/mail/messages/${m.uid}/attachment?box=${encodeURIComponent(m.box)}&part=${a.part}`} download={a.name}><Ic name="download" /></a>
-          <button className="tb-btn icon" title="Guardar en mis archivos" onClick={async () => { try { const r = await fetch(`/api/mail/messages/${m.uid}/attachment?box=${encodeURIComponent(m.box)}&part=${a.part}`); const b = await r.blob(); const d = vfs.resolve("/Descargas") || vfs.getState().root; await vfs.create(d.id, vfs.uniqueName(d, a.name), b); toast(`“${a.name}” guardado en Descargas`, { icon: "download_done" }); } catch (e) { toast(e.message, { error: true }); } }}><Ic name="drive_folder_upload" /></button></div>))}</div>}
+          <a className="tb-btn icon" title="Descargar" href={`/api/mail/messages/${m.uid}/attachment?acc=${acc}&box=${encodeURIComponent(m.box)}&part=${a.part}`} download={a.name}><Ic name="download" /></a>
+          <button className="tb-btn icon" title="Guardar en mis archivos" onClick={async () => { try { const r = await fetch(`/api/mail/messages/${m.uid}/attachment?acc=${acc}&box=${encodeURIComponent(m.box)}&part=${a.part}`); const b = await r.blob(); const d = vfs.resolve("/Descargas") || vfs.getState().root; await vfs.create(d.id, vfs.uniqueName(d, a.name), b); toast(`“${a.name}” guardado en Descargas`, { icon: "download_done" }); } catch (e) { toast(e.message, { error: true }); } }}><Ic name="drive_folder_upload" /></button></div>))}</div>}
     </div>
   );
 }
 
+const LS_ACC = "sotos_mail_acc";
 export function RealMail() {
-  const [account, setAccount] = useState(undefined), [boxes, setBoxes] = useState([]), [box, setBox] = useState("INBOX");
+  const [accounts, setAccounts] = useState(undefined), [accId, setAccId] = useState(() => { try { return localStorage.getItem(LS_ACC); } catch { return null; } }), [boxes, setBoxes] = useState([]), [box, setBox] = useState("INBOX");
   const [list, setList] = useState(null), [total, setTotal] = useState(0), [page, setPage] = useState(0), [q, setQ] = useState(""), [sel, setSel] = useState(null), [msg, setMsg] = useState(null), [compose, setCompose] = useState(null), [setup, setSetup] = useState(false), [aliasDlg, setAliasDlg] = useState(false), [loading, setLoading] = useState(false);
-  const loadAcc = () => api("GET", "mail/account").then(r => setAccount(r.account)).catch(() => setAccount(null));
+  const account = accounts?.find(a => a.id === accId) || accounts?.[0] || null;
+  const A = account ? `acc=${account.id}` : "";
+  const loadAcc = (pick) => api("GET", "mail/accounts").then(r => { setAccounts(r.accounts); if (pick !== undefined) choose(pick); }).catch(() => setAccounts([]));
+  const choose = (id) => { setAccId(id); setBox("INBOX"); try { id ? localStorage.setItem(LS_ACC, id) : localStorage.removeItem(LS_ACC); } catch {} };
   useEffect(() => { loadAcc(); }, []);
-  useEffect(() => { if (account) api("GET", "mail/boxes").then(r => setBoxes(r.boxes)).catch(e => toast(e.message, { error: true })); }, [account?.email]);
-  const loadList = (b = box, query = q, pg = 0) => { setLoading(true); return api("GET", `mail/messages?box=${encodeURIComponent(b)}&page=${pg}${query ? "&q=" + encodeURIComponent(query) : ""}`).then(r => { setPage(pg); setTotal(r.total || 0); setList(l => pg && l ? [...l, ...r.items.filter(x => !l.some(y => y.uid === x.uid))] : r.items); }).catch(e => { toast(e.message, { error: true }); setList([]); }).finally(() => setLoading(false)); };
-  useEffect(() => { if (account) { setList(null); setSel(null); setMsg(null); loadList(box, ""); setQ(""); } }, [account?.email, box]);
-  const open = async (it) => { setSel(it.uid); setMsg(null); try { const m = await api("GET", `mail/messages/${it.uid}?box=${encodeURIComponent(box)}`); setMsg({ ...m, box }); setList(l => l.map(x => x.uid === it.uid ? { ...x, seen: true } : x)); } catch (e) { toast(e.message, { error: true }); } };
-  if (account === undefined) return <div className="app"><EmptyState icon="hourglass_empty" text="Cargando correo…" /></div>;
-  if (!account || setup) return <div className="app"><Setup current={account} onDone={() => { setSetup(false); loadAcc(); }} /></div>;
+  useEffect(() => { setBoxes([]); if (account) api("GET", `mail/boxes?${A}`).then(r => setBoxes(r.boxes)).catch(e => toast(e.message, { error: true })); }, [account?.id]);
+  const loadList = (b = box, query = q, pg = 0) => { setLoading(true); return api("GET", `mail/messages?${A}&box=${encodeURIComponent(b)}&page=${pg}${query ? "&q=" + encodeURIComponent(query) : ""}`).then(r => { setPage(pg); setTotal(r.total || 0); setList(l => pg && l ? [...l, ...r.items.filter(x => !l.some(y => y.uid === x.uid))] : r.items); }).catch(e => { toast(e.message, { error: true }); setList([]); }).finally(() => setLoading(false)); };
+  useEffect(() => { if (account) { setList(null); setSel(null); setMsg(null); loadList(box, ""); setQ(""); } }, [account?.id, box]);
+  const open = async (it) => { setSel(it.uid); setMsg(null); try { const m = await api("GET", `mail/messages/${it.uid}?${A}&box=${encodeURIComponent(box)}`); setMsg({ ...m, box }); setList(l => l.map(x => x.uid === it.uid ? { ...x, seen: true } : x)); } catch (e) { toast(e.message, { error: true }); } };
+  if (accounts === undefined) return <div className="app"><EmptyState icon="hourglass_empty" text="Cargando correo…" /></div>;
+  if (!account || setup) return <div className="app"><Setup key={setup === "edit" ? account?.id : "nueva"} current={setup === "edit" ? account : null} onCancel={account ? () => setSetup(false) : null}
+    onDone={(id) => { setSetup(false); loadAcc(id === null ? null : id); }} /></div>;
   const cur = list?.find(x => x.uid === sel);
   const quote = (m) => `\n\n—— El ${m.date ? new Date(m.date).toLocaleString("es-CO") : ""}, ${m.from} escribió:\n` + (m.text || "").split("\n").map(l => "> " + l).join("\n");
   return (
     <div className="app mail-app">
       <div className="app-side">
+        {accounts.length > 1 && <select className="sc-input mail-acc-pick" title="Cuenta" value={account.id} onChange={e => choose(e.target.value)}>{accounts.map(a => <option key={a.id} value={a.id}>{a.email}</option>)}</select>}
         <button className="tb-btn primary" style={{ width: "100%", justifyContent: "center", marginBottom: 10 }} onClick={() => setCompose({})}><Ic name="edit" /> Redactar</button>
         {boxes.map(b => <div key={b.id} className={"side-item" + (box === b.id ? " active" : "")} onClick={() => setBox(b.id)}><Ic name={BOX_ICON[b.role] || "folder"} /><span>{b.role === "inbox" ? "Recibidos" : b.role === "sent" ? "Enviados" : b.role === "trash" ? "Papelera" : b.role === "junk" ? "Spam" : b.role === "drafts" ? "Borradores" : b.name}</span></div>)}
-        <div style={{ marginTop: "auto", fontSize: 12 }} className="faint">{account.email}<br /><a style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setSetup(true)}>Configurar cuenta</a> · <a style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setAliasDlg(true)}>Alias{account.aliases?.length ? ` (${account.aliases.length})` : ""}</a></div>
+        <div style={{ marginTop: "auto", fontSize: 12 }} className="faint">{account.email}<br /><a style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setSetup("edit")}>Configurar</a> · <a style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setAliasDlg(true)}>Alias{account.aliases?.length ? ` (${account.aliases.length})` : ""}</a> · <a style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setSetup("nueva")}>+ Cuenta</a></div>
       </div>
       <div className="mail-list">
         <div className="mail-list-bar"><div className="search-box" style={{ flex: 1 }}><Ic name="search" size={16} /><input placeholder="Buscar en el correo" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === "Enter" && loadList(box, q)} /></div>
@@ -154,15 +165,15 @@ export function RealMail() {
         </div>
       </div>
       <div className="app-main">
-        {msg ? <MessageView m={msg} flagged={cur?.flagged}
+        {msg ? <MessageView m={msg} acc={account.id} flagged={cur?.flagged}
           onReply={() => setCompose({ from: (account.aliases || []).find(x => (msg.to + " " + (msg.cc || "")).toLowerCase().includes(x.email))?.email, to: msg.replyTo || emailOf(msg.from), subject: /^re:/i.test(msg.subject) ? msg.subject : "Re: " + msg.subject, text: quote(msg), inReplyTo: msg.messageId })}
           onForward={() => setCompose({ subject: "Rv: " + msg.subject, text: `\n\n—— Mensaje reenviado ——\nDe: ${msg.from}\nAsunto: ${msg.subject}\n\n${msg.text || ""}` })}
-          onFlag={async () => { await api("POST", `mail/messages/${msg.uid}/flags?box=${encodeURIComponent(box)}`, { flagged: !cur?.flagged }); setList(l => l.map(x => x.uid === msg.uid ? { ...x, flagged: !x.flagged } : x)); }}
-          onDelete={async () => { try { const r = await api("DELETE", `mail/messages/${msg.uid}?box=${encodeURIComponent(box)}`); toast(r.to ? `Movido a ${r.to}` : "Mensaje eliminado", { icon: "delete" }); setMsg(null); setSel(null); loadList(); } catch (e) { toast(e.message, { error: true }); } }} />
+          onFlag={async () => { await api("POST", `mail/messages/${msg.uid}/flags?${A}&box=${encodeURIComponent(box)}`, { flagged: !cur?.flagged }); setList(l => l.map(x => x.uid === msg.uid ? { ...x, flagged: !x.flagged } : x)); }}
+          onDelete={async () => { try { const r = await api("DELETE", `mail/messages/${msg.uid}?${A}&box=${encodeURIComponent(box)}`); toast(r.to ? `Movido a ${r.to}` : "Mensaje eliminado", { icon: "delete" }); setMsg(null); setSel(null); loadList(); } catch (e) { toast(e.message, { error: true }); } }} />
           : <EmptyState icon="mail" text={sel ? "Abriendo…" : "Elige un mensaje"} />}
       </div>
       {aliasDlg && <Aliases account={account} onClose={() => setAliasDlg(false)} onSaved={() => { setAliasDlg(false); loadAcc(); }} />}
-      {compose && <Compose init={compose} account={account} onClose={() => setCompose(null)} onSent={() => { setCompose(null); if (boxes.find(b => b.id === box)?.role === "sent") loadList(); }} />}
+      {compose && <Compose init={compose} account={account} accounts={accounts} onClose={() => setCompose(null)} onSent={() => { setCompose(null); if (boxes.find(b => b.id === box)?.role === "sent") loadList(); }} />}
     </div>
   );
 }

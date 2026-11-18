@@ -99,7 +99,7 @@ function RecentWidget({ onOpen }) {
 }
 
 /* Reloj mundial */
-const ZONES = [["Bogotá", "America/Bogota"], ["Ciudad de México", "America/Mexico_City"], ["Nueva York", "America/New_York"], ["Madrid", "Europe/Madrid"], ["Buenos Aires", "America/Argentina/Buenos_Aires"], ["Tokio", "Asia/Tokyo"]];
+const ZONES = [["Bogotá", "America/Bogota"], ["CDMX", "America/Mexico_City"], ["Nueva York", "America/New_York"], ["Madrid", "Europe/Madrid"], ["Buenos Aires", "America/Argentina/Buenos_Aires"], ["Tokio", "Asia/Tokyo"]];
 function WorldWidget() {
   const [now, setNow] = useSw(new Date());
   useEw(() => { const t = setInterval(() => setNow(new Date()), 15000); return () => clearInterval(t); }, []);
@@ -127,8 +127,8 @@ function FxWidget() {
     <div className="wg-body" style={{ gap: 6 }}>
       <div className="wg-fx"><span>1 USD</span><b>{cop(perCop.USD)}</b></div>
       <div className="wg-fx"><span>1 EUR</span><b>{cop(perCop.EUR)}</b></div>
-      <div className="wg-row" style={{ marginTop: 4 }}><input className="wg-input" style={{ width: 70 }} value={amt} onChange={e => setAmt(e.target.value)} inputMode="decimal" />
-        <select className="wg-input" style={{ width: 66 }} value={cur} onChange={e => setCur(e.target.value)}>{Object.keys(perCop).map(k => <option key={k}>{k}</option>)}</select></div>
+      <div className="wg-fx-conv"><input className="wg-input" value={amt} onChange={e => setAmt(e.target.value)} inputMode="decimal" />
+        <select className="wg-input" value={cur} onChange={e => setCur(e.target.value)}>{Object.keys(perCop).map(k => <option key={k}>{k}</option>)}</select></div>
       <div className="wg-fx total"><span>= COP</span><b>{cop(n * perCop[cur])}</b></div>
       <div className="faint" style={{ fontSize: 10.5 }}>Tasa de referencia · {new Date(rates.upd || rates.at).toLocaleDateString("es-CO", { day: "numeric", month: "short" })}</div>
     </div>
@@ -146,13 +146,13 @@ function SystemWidget() {
   }, []);
   const c = navigator.connection, mem = performance.memory;
   const rows = [
-    bat && ["battery_" + (bat.charging ? "charging_full" : bat.level > .6 ? "full" : bat.level > .2 ? "4_bar" : "1_bar"), "Batería", Math.round(bat.level * 100) + "%" + (bat.charging ? " · cargando" : "")],
+    bat && ["battery_" + (bat.charging ? "charging_full" : bat.level > .6 ? "full" : bat.level > .2 ? "4_bar" : "1_bar"), "Batería", Math.round(bat.level * 100) + "%" + (bat.charging ? " ⚡" : "")],
     [online ? "wifi" : "wifi_off", "Conexión", online ? (c?.effectiveType ? c.effectiveType.toUpperCase() + (c.downlink ? ` · ${c.downlink} Mb/s` : "") : "En línea") : "Sin conexión"],
     ["developer_board", "Núcleos", String(navigator.hardwareConcurrency || "—")],
     navigator.deviceMemory && ["memory", "Memoria", "≈ " + navigator.deviceMemory + " GB"],
     mem && ["data_usage", "Sotos usa", fmtSize(mem.usedJSHeapSize)],
   ].filter(Boolean);
-  return <div className="wg-body" style={{ gap: 2, padding: "6px 12px 8px" }}>{rows.map(([i, k, v]) => <div key={k} className="wg-zone"><Ic name={i} size={15} /><span>{k}</span><b style={{ fontSize: 12.5 }}>{v}</b></div>)}</div>;
+  return <div className="wg-body" style={{ gap: 2, padding: "6px 12px 8px" }}>{rows.map(([i, k, v]) => <div key={k} className="wg-zone"><Ic name={i} size={15} /><span>{k}</span><b className="wg-long" title={v}>{v}</b></div>)}</div>;
 }
 
 function ClockWidget() {
@@ -275,7 +275,7 @@ function Widget({ w, shifted, onMove, onClose, note, onNote, onOpen }) {
   };
   const meta = WIDGET_TYPES.find(t => t.id === w.type) || {};
   return (
-    <div className="widget" style={{ left: w.x, top: w.y }} onMouseDown={start}>
+    <div className="widget" data-type={w.type} style={{ left: w.x, top: w.y }} onMouseDown={start}>
       <div className="wg-head"><Ic name={meta.icon} size={14} /><span>{meta.name}</span>
         <span className="wg-x" onClick={() => onClose(w.id)}><Ic name="close" size={14} /></span></div>
       {w.type === "clock" && <ClockWidget />}

@@ -1974,3 +1974,23 @@ select.wg-input { padding: 0 4px; }
 .alias-row input:disabled { opacity: .7; }
 .compose-from { flex: 1; border: 0; background: none; color: var(--text); font: 14px var(--ui); padding: 4px 0; outline: none; }
 
+
+.mail-acc-pick { width: 100%; margin: 0 0 8px; font-size: 12.5px; }
+
+
+/* widgets con filas (monedas, reloj mundial, sistema, recientes): se ajustan al ancho real de la tarjeta, nada se corta */
+.wg-zone, .wg-fx, .wg-file { min-width: 0; width: 100%; box-sizing: border-box; text-align: left; }
+.wg-zone span, .wg-fx span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wg-zone b, .wg-fx b { flex-shrink: 0; white-space: nowrap; font-size: 12px; }
+.wg-zone b.wg-long { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; font: 600 11.5px var(--ui); }
+.wg-fx { gap: 8px; }
+.wg-row .wg-input { min-width: 0; }
+.wg-fx-conv { display: flex; gap: 6px; width: 100%; margin-top: 4px; }
+.wg-fx-conv input { flex: 1; width: auto !important; }
+.wg-fx-conv select { flex: 0 0 64px; }
+.widget[data-type="fx"], .widget[data-type="world"], .widget[data-type="system"], .widget[data-type="recent"] { width: 212px; }
+.wg-zone span, .wg-fx span, .wg-file span { text-align: left !important; }
+.wg-fx-conv input.wg-input { flex: 1 1 0; min-width: 0; width: 0 !important; }
+.wg-fx-conv select.wg-input { flex: 0 0 66px; width: 66px; }
+.wg-zone > .material-symbols-rounded, .wg-fx > .material-symbols-rounded, .wg-file > .material-symbols-rounded { flex: 0 0 auto !important; overflow: visible !important; width: auto; }
+

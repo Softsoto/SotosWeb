@@ -21,6 +21,18 @@ db.exec(`CREATE TABLE IF NOT EXISTS mail_accounts (
 if (!db.prepare("PRAGMA table_info(mail_accounts)").all().some(c => c.name === "smtp_tls")) db.exec("ALTER TABLE mail_accounts ADD COLUMN smtp_tls TEXT"); // "ssl" | "starttls"
 if (!db.prepare("PRAGMA table_info(mail_accounts)").all().some(c => c.name === "aliases")) db.exec("ALTER TABLE mail_accounts ADD COLUMN aliases TEXT"); // JSON [{ email, name }]
 const aliasesOf = (a) => { try { return JSON.parse(a?.aliases || "[]"); } catch { return []; } };
+// varias cuentas por usuario: la tabla original tenía una sola (clave = usuario); se migra conservando las existentes
+if (!db.prepare("PRAGMA table_info(mail_accounts)").all().some(c => c.name === "id")) db.exec(`BEGIN;
+  CREATE TABLE mail_accounts_v2 (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, email TEXT NOT NULL, name TEXT,
+    imap_host TEXT NOT NULL, imap_port INTEGER NOT NULL, smtp_host TEXT NOT NULL, smtp_port INTEGER NOT NULL, smtp_tls TEXT,
+    username TEXT NOT NULL, pass_enc TEXT NOT NULL, aliases TEXT, created INTEGER NOT NULL);
+  INSERT INTO mail_accounts_v2 SELECT lower(hex(randomblob(9))), user_id, email, name, imap_host, imap_port, smtp_host, smtp_port, smtp_tls, username, pass_enc, aliases, created FROM mail_accounts;
+  DROP TABLE mail_accounts; ALTER TABLE mail_accounts_v2 RENAME TO mail_accounts;
+  CREATE INDEX IF NOT EXISTS mail_accounts_user ON mail_accounts(user_id);
+  COMMIT;`);
+const MAX_ACCOUNTS = 10;
+const PUBLIC_COLS = "id, email, name, imap_host, imap_port, smtp_host, smtp_port, smtp_tls, username, aliases";
+const pub = (a) => a && ({ ...a, aliases: aliasesOf(a) });
 
 export const PRESETS = {
   gmail:   { label: "Gmail", imap: ["imap.gmail.com", 993], smtp: ["smtp.gmail.com", 465], help: "Necesitas una «contraseña de aplicación» de Google (Cuenta → Seguridad → Verificación en 2 pasos → Contraseñas de aplicaciones)." },
@@ -195,8 +207,9 @@ function buildMessage({ from, name, to, cc, subject, text, html, attachments, in
 }
 
 /* ---------------- API ---------------- */
-const account = (uid) => { const a = db.prepare("SELECT * FROM mail_accounts WHERE user_id = ?").get(uid); if (!a) return null; return { ...a, pass: dec(a.pass_enc) }; };
-const needAcc = (uid) => account(uid) || fail(409, "Configura tu cuenta de correo primero");
+// la cuenta elegida (?acc=) o, si no se indica, la primera que se vinculó
+const account = (uid, id) => { const a = id ? db.prepare("SELECT * FROM mail_accounts WHERE user_id = ? AND id = ?").get(uid, String(id)) : db.prepare("SELECT * FROM mail_accounts WHERE user_id = ? ORDER BY created LIMIT 1").get(uid); if (!a) return null; return { ...a, pass: dec(a.pass_enc) }; };
+const needAcc = (uid, id) => account(uid, id) || fail(id ? 404 : 409, id ? "Esa cuenta de correo no existe" : "Configura tu cuenta de correo primero");
 const BOX_ROLE = (name, flags) => /\\Inbox/i.test(flags) || /^inbox$/i.test(name) ? "inbox" : /\\Sent/i.test(flags) ? "sent" : /\\Drafts/i.test(flags) ? "drafts" : /\\Trash/i.test(flags) ? "trash" : /\\Junk/i.test(flags) ? "junk" : /\\Archive|\\All/i.test(flags) ? "archive" : null;
 async function listBoxes(im) {
   const lines = await im.cmd('LIST "" "*"'); const out = [];
@@ -210,35 +223,43 @@ const fetchVal = (list, key) => { for (let i = 0; i < list.length - 1; i++) if (
 export async function handleMail(req, res, parts) {
   const u = requireUser(req);
   const [a, id, sub] = parts;
-  const url = new URL(req.url, "http://x");
+  const url = new URL(req.url, "http://x"); const accId = url.searchParams.get("acc");
+  if (a === "accounts" && req.method === "GET") return json(res, 200, { accounts: db.prepare(`SELECT ${PUBLIC_COLS} FROM mail_accounts WHERE user_id = ? ORDER BY created`).all(u.id).map(pub) });
   if (a === "presets" && req.method === "GET") return json(res, 200, { presets: Object.fromEntries(Object.entries(PRESETS).map(([k, v]) => [k, { label: v.label, help: v.help, userHint: v.userHint || null, imap: v.imap, smtp: v.smtp }])) });
   if (a === "account") {
-    if (req.method === "GET") { const acc = db.prepare("SELECT email, name, imap_host, imap_port, smtp_host, smtp_port, smtp_tls, username, aliases FROM mail_accounts WHERE user_id = ?").get(u.id); return json(res, 200, { account: acc ? { ...acc, aliases: aliasesOf(acc) } : null }); }
-    if (req.method === "DELETE") { db.prepare("DELETE FROM mail_accounts WHERE user_id = ?").run(u.id); return json(res, 200, { ok: true }); }
+    if (req.method === "GET") { const all = db.prepare(`SELECT ${PUBLIC_COLS} FROM mail_accounts WHERE user_id = ? ORDER BY created`).all(u.id).map(pub); return json(res, 200, { account: (accId ? all.find(x => x.id === accId) : all[0]) || null, accounts: all }); }
+    if (req.method === "DELETE") { const r = db.prepare("DELETE FROM mail_accounts WHERE user_id = ? AND id = ?").run(u.id, String(accId || "")); if (!r.changes) fail(404, "Esa cuenta de correo no existe"); return json(res, 200, { ok: true }); }
     if (req.method === "PUT") {
       rateLimit("mailcfg:" + u.id, 12, 600_000);
       const b = await readJson(req, 8192); const p = PRESETS[b.preset] || null;
+      // editar una cuenta (id) o la que ya tenga ese correo; si no, es una cuenta nueva
+      const same = db.prepare("SELECT id FROM mail_accounts WHERE user_id = ? AND lower(email) = lower(?)").get(u.id, String(b.email || "").trim());
+      const prev = b.id ? needAcc(u.id, b.id) : same ? account(u.id, same.id) : null;
+      if (!prev && db.prepare("SELECT COUNT(*) n FROM mail_accounts WHERE user_id = ?").get(u.id).n >= MAX_ACCOUNTS) fail(400, `Puedes vincular hasta ${MAX_ACCOUNTS} cuentas de correo`);
       const acc = { email: String(b.email || "").trim(), name: String(b.name || u.name).slice(0, 80), imap_host: String(b.imapHost || p?.imap[0] || "").trim(), imap_port: Number(b.imapPort || p?.imap[1] || 993),
-        smtp_host: String(b.smtpHost || p?.smtp[0] || "").trim(), smtp_port: Number(b.smtpPort || p?.smtp[1] || 465), smtp_tls: ["ssl", "starttls"].includes(b.smtpTls) ? b.smtpTls : null, username: String(b.username || b.email || "").trim(), pass: String(b.password || "") };
+        smtp_host: String(b.smtpHost || p?.smtp[0] || "").trim(), smtp_port: Number(b.smtpPort || p?.smtp[1] || 465), smtp_tls: ["ssl", "starttls"].includes(b.smtpTls) ? b.smtpTls : null, username: String(b.username || b.email || "").trim(), pass: String(b.password || "") || prev?.pass || "" }; // sin contraseña nueva se conserva la guardada
       if (!/^[^\s@]+@[^\s@]+$/.test(acc.email) || !acc.imap_host || !acc.smtp_host || !acc.pass) fail(400, "Completa correo, servidores y contraseña");
       const im = await imapOpen(acc).catch(e => fail(400, e.message)); const boxes = await listBoxes(im).catch(() => []); im.close();
-      db.prepare("INSERT INTO mail_accounts(user_id,email,name,imap_host,imap_port,smtp_host,smtp_port,smtp_tls,username,pass_enc,created) VALUES(?,?,?,?,?,?,?,?,?,?,?) ON CONFLICT(user_id) DO UPDATE SET email=excluded.email, name=excluded.name, imap_host=excluded.imap_host, imap_port=excluded.imap_port, smtp_host=excluded.smtp_host, smtp_port=excluded.smtp_port, smtp_tls=excluded.smtp_tls, username=excluded.username, pass_enc=excluded.pass_enc")
-        .run(u.id, acc.email, acc.name, acc.imap_host, acc.imap_port, acc.smtp_host, acc.smtp_port, acc.smtp_tls, acc.username, enc(acc.pass), now());
-      return json(res, 200, { ok: true, boxes: boxes.length });
+      const id = prev?.id || crypto.randomBytes(9).toString("hex");
+      if (prev) db.prepare("UPDATE mail_accounts SET email=?, name=?, imap_host=?, imap_port=?, smtp_host=?, smtp_port=?, smtp_tls=?, username=?, pass_enc=? WHERE id = ? AND user_id = ?")
+        .run(acc.email, acc.name, acc.imap_host, acc.imap_port, acc.smtp_host, acc.smtp_port, acc.smtp_tls, acc.username, enc(acc.pass), id, u.id);
+      else db.prepare("INSERT INTO mail_accounts(id,user_id,email,name,imap_host,imap_port,smtp_host,smtp_port,smtp_tls,username,pass_enc,aliases,created) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)")
+        .run(id, u.id, acc.email, acc.name, acc.imap_host, acc.imap_port, acc.smtp_host, acc.smtp_port, acc.smtp_tls, acc.username, enc(acc.pass), null, now());
+      return json(res, 200, { ok: true, id, created: !prev, boxes: boxes.length });
     }
   }
   if (a === "aliases" && req.method === "PUT") {
-    needAcc(u.id); const b = await readJson(req, 16384);
+    const target = needAcc(u.id, accId); const b = await readJson(req, 16384);
     const list = (Array.isArray(b.aliases) ? b.aliases : []).slice(0, 20).map(x => ({ email: String(x?.email || "").trim().toLowerCase(), name: String(x?.name || "").trim().slice(0, 80) }));
     if (list.some(x => !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(x.email))) fail(400, "Hay un alias que no es una dirección válida");
     const uniq = [...new Map(list.map(x => [x.email, x])).values()];
-    db.prepare("UPDATE mail_accounts SET aliases = ? WHERE user_id = ?").run(JSON.stringify(uniq), u.id);
+    db.prepare("UPDATE mail_accounts SET aliases = ? WHERE id = ? AND user_id = ?").run(JSON.stringify(uniq), target.id, u.id);
     return json(res, 200, { ok: true, aliases: uniq });
   }
-  if (a === "boxes" && req.method === "GET") { const acc = needAcc(u.id); const im = await imapOpen(acc); try { return json(res, 200, { boxes: await listBoxes(im) }); } finally { im.close(); } }
+  if (a === "boxes" && req.method === "GET") { const acc = needAcc(u.id, accId); const im = await imapOpen(acc); try { return json(res, 200, { boxes: await listBoxes(im) }); } finally { im.close(); } }
 
   if (a === "messages") {
-    const acc = needAcc(u.id); const box = url.searchParams.get("box") || "INBOX";
+    const acc = needAcc(u.id, accId); const box = url.searchParams.get("box") || "INBOX";
     const im = await imapOpen(acc);
     try {
       const sel = await im.cmd(`SELECT ${q(box)}`);
@@ -294,7 +315,14 @@ export async function handleMail(req, res, parts) {
 
   if (a === "send" && req.method === "POST") {
     rateLimit("mailsend:" + u.id, 60, 3600_000);
-    const acc = needAcc(u.id); const b = await readJson(req, 4 * 1024 * 1024);
+    needAcc(u.id); const b = await readJson(req, 4 * 1024 * 1024);
+    // remitente: dirección principal o alias de cualquiera de tus cuentas; sale por la cuenta dueña de esa dirección
+    const mine = db.prepare("SELECT id, email, name, aliases FROM mail_accounts WHERE user_id = ? ORDER BY created").all(u.id)
+      .flatMap(r => [{ acc: r.id, email: r.email, name: r.name }, ...aliasesOf(r).map(x => ({ acc: r.id, email: x.email, name: x.name || r.name }))]);
+    const wanted = String(b.from || "").trim().toLowerCase();
+    const me = wanted ? mine.find(x => x.email.toLowerCase() === wanted && (!b.account || x.acc === b.account)) : mine.find(x => x.acc === (b.account || accId)) || mine[0];
+    if (!me) fail(400, "Esa dirección no es tuya ni uno de tus alias");
+    const acc = account(u.id, me.acc);
     const list = (v) => String(v || "").split(/[,;]/).map(s => s.trim()).filter(Boolean).map(s => (s.match(/<([^>]+)>/)?.[1] || s));
     const to = list(b.to), cc = list(b.cc), bcc = list(b.bcc);
     if (!to.length) fail(400, "Escribe al menos un destinatario");
@@ -302,10 +330,6 @@ export async function handleMail(req, res, parts) {
     const attachments = [];
     for (const nid of (b.attachments || []).slice(0, 20)) { const n = userNode(u.id, String(nid)); if (!n || n.children) continue; const p = blobPath(u.id, n.id); if (!fs.existsSync(p)) continue;
       const data = fs.readFileSync(p); if (attachments.reduce((s, x) => s + x.data.length, 0) + data.length > 20 * 1024 * 1024) fail(413, "Los adjuntos superan 20 MB"); attachments.push({ name: n.name, type: "application/octet-stream", data }); }
-    // remitente: la dirección principal o uno de sus alias (el proveedor debe permitir enviar como ese alias)
-    const ids = [{ email: acc.email, name: acc.name }, ...aliasesOf(acc).map(x => ({ email: x.email, name: x.name || acc.name }))];
-    const me = b.from ? ids.find(x => x.email.toLowerCase() === String(b.from).trim().toLowerCase()) : ids[0];
-    if (!me) fail(400, "Esa dirección no es tuya ni uno de tus alias");
     const raw = buildMessage({ from: me.email, name: me.name, to, cc, subject: String(b.subject || "").slice(0, 300), text: String(b.text || ""), html: b.html ? String(b.html) : null, attachments, inReplyTo: b.inReplyTo || null });
     await smtpSend(acc, { from: me.email, to: [...to, ...cc, ...bcc], raw }).catch(e => fail(502, e.message));
     return json(res, 200, { ok: true });
