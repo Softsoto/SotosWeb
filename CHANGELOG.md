@@ -3,6 +3,26 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.2 — 18 de noviembre de 2026
+
+### Nuevo
+- **Cine (Jellyfin)**: tus videos y tu música como en un servicio de streaming, con portadas, «continuar viendo» y subtítulos. Cada persona tiene su propia cuenta de Jellyfin, creada por Sotos, que solo ve sus archivos; entra sin otra contraseña.
+- **Fotos (Immich)**: tus fotos y videos por fecha y lugar, con reconocimiento de caras, búsqueda inteligente y recuerdos. Immich lee tus fotos de Sotos en modo de solo lectura: nunca las copia ni las modifica.
+- **Conectar Sotos como unidad (WebDAV)**: tus archivos como una carpeta más en Windows, Mac, Linux o el celular. Cada dispositivo usa su propia clave, que se puede revocar; lo que se borra va a la Papelera.
+- **Videollamadas en los mundos**: video, audio y compartir pantalla directo entre los navegadores; los demás miembros reciben un aviso.
+- **Avisos aunque Sotos esté cerrado**, como los de una app del celular (Web Push cifrado de extremo a extremo con el servicio de avisos).
+- **Sotos instalable** en el celular o el computador, y **diseño para celular**: cada app a pantalla completa, Dock abajo que se desliza, un toque abre y mantener presionado muestra el menú.
+- **Interfaz en inglés**, elegible en Ajustes → Región o en la pantalla de inicio; fechas y números también cambian. Nada de lo que escribe la gente se traduce.
+- **Carpetas en el Dock**: arrástralas o usa el clic derecho.
+
+### Seguridad y datos
+- **Verificación en dos pasos** con Google Authenticator, Microsoft Authenticator o Authy, con 10 códigos de recuperación. El administrador puede quitarla si alguien pierde el celular.
+- **Copias de seguridad automáticas** cada día a las 3:00, con las últimas 7. Los archivos que no cambian no ocupan espacio de nuevo. Pestaña «Copias» en Administración.
+- **Papelera que se vacía sola** a los 30 días, con aviso 3 días antes, y **aviso de espacio** al pasar el 80 % y el 95 %.
+
+### Más rápido
+- La fuente de íconos pasó de 5,2 MB a 51 KB y cada app se descarga al abrirla: el arranque descarga mucho menos.
+
 ## 3.1 — 18 de noviembre de 2026
 
 ### Nuevo

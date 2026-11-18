@@ -10,7 +10,7 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 3.1 |
+| **Versión** | 3.2 |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
 | **Licencia** | [MIT](LICENSE) |
@@ -36,7 +36,15 @@ Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde 
 
 ## Novedades
 
-**Versión 3.1** ([historial completo](CHANGELOG.md)):
+**Versión 3.2** ([historial completo](CHANGELOG.md)):
+
+- **Cine (Jellyfin)** y **Fotos (Immich)** integrados: cada persona con su propia cuenta y solo sus archivos, sin otra contraseña.
+- **Sotos como unidad** en Windows, Mac, Linux o el celular (WebDAV), con una clave por dispositivo.
+- **Videollamadas** en los mundos, **avisos con Sotos cerrado**, **app instalable** y **diseño para celular**.
+- **Verificación en dos pasos**, **copias de seguridad diarias** y **papelera que se vacía sola**.
+- **Interfaz en inglés** y un arranque mucho más liviano.
+
+**Versión 3.1**:
 
 - **Coedición en vivo** de Word, Excel y PowerPoint entre los miembros de un mundo.
 - **Buscador general**: apps, archivos, contactos, eventos, tareas, ajustes e internet en un solo lugar.
@@ -287,6 +295,9 @@ Varias cuentas, alias para enviar desde otras direcciones y la elección de remi
 - **Creatividad**: Paint, Diagramas (draw.io), Pizarra (Excalidraw) y Código (Monaco).
 - **Privacidad**: bóveda secreta cifrada con tu propia clave.
 - **Extras**: Terminal, Juegos, Tienda, WhatsApp, widgets, avatares y panel de administración con registro de acciones.
+- **Multimedia de servidor**: Cine (Jellyfin) y Fotos (Immich), cada persona con su propia cuenta.
+- **En cualquier dispositivo**: app instalable, diseño para celular, avisos con Sotos cerrado y unidad de red (WebDAV).
+- **Idiomas**: español e inglés.
 
 ## Instalación
 
@@ -331,6 +342,8 @@ Cada servicio se activa solo si su variable está en `server/.env`; si no está,
 | Navegador virtual (Neko) | `scripts/neko-dev.ps1` | 8098 | `NEKO_URL` | Páginas que no se dejan incrustar |
 | draw.io propio | `scripts/drawio-dev.ps1` | 8097 | `DRAWIO_URL` | Diagramas sin depender del sitio público |
 | WhatsApp | `scripts/whatsapp-dev.ps1` | 8790 | `WA_URL` | WhatsApp nativo, una sesión por cuenta |
+| Jellyfin (Cine) | `scripts/jellyfin-dev.ps1` | 8096 (solo local, publicado en `/jellyfin`) | `JELLYFIN_URL` | Videos y música tipo streaming |
+| Immich (Fotos) | `scripts/immich-dev.ps1` | 2283 (solo local) | `IMMICH_URL` | Fotos con caras, búsqueda y recuerdos |
 | ffmpeg | instalado en el sistema | — | `FFMPEG_PATH`, `FFPROBE_PATH` | Películas MKV, audio AC3/DTS y subtítulos |
 
 ### Variables de entorno principales
@@ -344,6 +357,11 @@ Cada servicio se activa solo si su variable está en `server/.env`; si no está,
 | `SOTOS_ADMIN_EMAIL` | — | Cuenta administradora (si no, la primera) |
 | `SOTOS_MEDIA_CACHE_GB` | `30` | Espacio para videos preparados |
 | `SOTOS_VAULT_ADMIN` | `0` | `1` permite que el administrador revise las bóvedas (el instalador lo pregunta) |
+| `SOTOS_BACKUP_DIR` · `SOTOS_BACKUP_KEEP` · `SOTOS_BACKUP_HOUR` | `datos/copias` · `7` · `3` | Copias diarias (mejor en otro disco; `off` las desactiva) |
+| `SOTOS_TRASH_DAYS` | `30` | Días en la papelera antes de borrarse (0 = nunca) |
+| `SOTOS_ICE` | STUN público | Servidores STUN/TURN para videollamadas (JSON) |
+| `SOTOS_PUSH_CONTACT` | — | Contacto del servidor para los servicios de avisos (mailto: o https:) |
+| `JELLYFIN_URL` · `IMMICH_URL` | — | Activan Cine y Fotos (los escriben `scripts/jellyfin-dev.ps1` e `immich-dev.ps1`) |
 | `PX_PORT` · `PX_HOST` · `PX_PUBLIC` | — | Proxy del navegador en otro puerto o dominio |
 
 La lista completa está en la [guía técnica](docs/README.en.md#3-environment-variables).
@@ -481,7 +499,9 @@ Papel y tinta: superficies de color crema, bordes de tinta y sombras desplazadas
 - Entrando por IP sin HTTPS, el navegador no deja a Sotos leer el portapapeles para la opción de pegar del menú; `Ctrl + V` sigue funcionando.
 - El servidor de documentos necesita Docker y unos 4 GB de RAM.
 - El navegador virtual (y con él WhatsApp) es uno por servidor: lo comparte quien tenga acceso a él.
-- La interfaz está solo en español por ahora.
+- La interfaz en inglés traduce lo que se ve con un diccionario: algún texto poco común puede quedar en español.
+- Windows solo acepta la unidad WebDAV por HTTPS; por HTTP hay que usar una app como RaiDrive o Cyberduck.
+- Immich no funciona bajo una subruta: se abre en su propio puerto (o subdominio) del mismo servidor.
 
 **Créditos:** React, Vite, mammoth, docx, ExcelJS, PptxGenJS, JSZip, pdf.js, libarchive.js, Material Symbols, fuentes Onest, Hanken Grotesk, Space Grotesk, Lato y JetBrains Mono, Caddy, ONLYOFFICE Docs, Euro-Office, Neko, el servicio de clima Open-Meteo y las tasas de ExchangeRate-API. Fondos fotográficos de dominio público (CC0). Gracias a Basted y Lyanna.
 

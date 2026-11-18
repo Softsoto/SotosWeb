@@ -2,6 +2,11 @@
 
 © 2026 Sebastian Sotomontes · MIT License. The Spanish [CHANGELOG](../CHANGELOG.md) is the reference.
 
+## 3.2 — 2026-11-18
+- Cinema (Jellyfin) and Photos (Immich): media library mirrored with hard links, automatic service setup, one service account per Sotos user limited to their own media, sign-in without another password (Jellyfin served same-origin at /jellyfin; Immich via its session cookies).
+- WebDAV drive at /dav/ with per-device app passwords; daily backups (VACUUM INTO + hard links, rotation, admin tab); trash auto-empty and quota warnings; two-step verification (TOTP + recovery codes).
+- Web Push (VAPID + RFC 8291, no dependencies), installable PWA, phone layout, video calls in worlds (WebRTC mesh), English UI (on-screen dictionary), icon font subset (5.2 MB -> 51 KB) and on-demand app loading.
+
 ## 3.1 — 2026-11-18
 - Live co-editing of world documents (one Document Server session per file, members only); general search (apps, files, contacts, events, tasks, settings, web); Dock drag to add/remove, pin running apps; spring-loaded folders and Move to…; Gallery "Open file location"; drag from Files into the vault; password required to change profile photo/name; install-time `SOTOS_VAULT_ADMIN` (vault key escrow for admins, audited).
 
