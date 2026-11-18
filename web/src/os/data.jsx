@@ -21,6 +21,7 @@ const APPS = [
   { id: "contacts",name: "Contactos", icon: "contacts",          color: "#2f5d8a", comp: "ContactsApp",  size: { w: 860, h: 560 } },
   { id: "chat",    name: "Mensajes",  icon: "chat_bubble",       color: "#1f7a78", comp: "ChatApp",      size: { w: 780, h: 540 } },
   { id: "browser", name: "Navegador", icon: "language",          color: "#2a7f8f", comp: "BrowserApp",   size: { w: 880, h: 580 } },
+  { id: "whatsapp", name: "WhatsApp", icon: "chat",              color: "#25a35a", comp: "WhatsAppApp",  size: { w: 1280, h: 800 } },
   { id: "terminal",name: "Terminal",  icon: "terminal",          color: "#26231f", comp: "TerminalApp",  size: { w: 660, h: 440 } },
   // apps de la Tienda (proyectos HTML propios en web/public/apps; se ven al instalarlas)
   { id: "pdfmeta",     name: "Metadatos PDF",     icon: "plagiarism",      color: "#b8402f", comp: "WebApp", url: "apps/pdfmeta/index.html",     size: { w: 1100, h: 760 }, store: true, cat: "Herramientas",  desc: "Extrae metadatos, XMP, estructura y permisos de cualquier PDF. Todo en tu navegador." },

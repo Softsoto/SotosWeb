@@ -438,4 +438,26 @@ function BrowserApp({ shortcuts = [], url, scName }) {
   );
 }
 
-export { MailApp, ChatApp, BrowserApp };
+// WhatsApp Web no se deja incrustar: se abre en el navegador virtual (Neko) si el servidor lo tiene; si no, en una pestaña
+function WhatsAppApp() {
+  const neko = useNeko(); const mode = useVfs(s => s.mode);
+  const [waited, setWaited] = useS3(false);
+  useE3(() => { const t = setTimeout(() => setWaited(true), 2500); return () => clearTimeout(t); }, []);
+  const open = () => window.open("https://web.whatsapp.com", "_blank", "noopener");
+  if (neko) return (<div className="app" style={{ flexDirection: "column" }}>
+    <div className="proxy-bar"><Ic name="info" size={14} /> Escanea el código QR con tu celular (WhatsApp → Dispositivos vinculados). El navegador virtual es del servidor: lo comparte quien tenga acceso a él, así que en un servidor con varias personas cierra la sesión al terminar.</div>
+    <NekoFrame addr="https://web.whatsapp.com" neko={neko} /></div>);
+  if (!waited && mode === "cloud" && !DEMO) return <div className="app"><EmptyState icon="hourglass_empty" text="Preparando WhatsApp…" /></div>;
+  return (
+    <div className="app webview-launch" style={{ flex: 1 }}>
+      <div className="wl-card">
+        <div className="lp-svc" style={{ background: "#25a35a", width: 72, height: 72, borderRadius: 20 }}><Ic name="chat" size={38} /></div>
+        <div className="wl-title">WhatsApp</div>
+        <div className="wl-sub">WhatsApp Web no permite abrirse dentro de otra página, así que se abre en una pestaña aparte. {DEMO ? "Con Sotos instalado y el navegador virtual activado, se usa aquí dentro." : "Si el administrador activa el navegador virtual en el servidor, se usará aquí dentro."}</div>
+        <div className="wl-btns"><button className="tb-btn primary" onClick={open}><Ic name="open_in_new" /> Abrir WhatsApp Web</button></div>
+      </div>
+    </div>
+  );
+}
+
+export { MailApp, ChatApp, BrowserApp, WhatsAppApp };

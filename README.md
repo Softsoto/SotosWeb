@@ -2,13 +2,17 @@
 
 # Sotos — your computer in the cloud
 
-A complete desktop that runs in the browser: windows, dock, real cloud files, Word/Excel/PowerPoint editing on genuine Office files, a web browser with an isolated proxy, a terminal, link sharing, and its own visual identity.
+A complete desktop that runs in the browser: windows, dock, real cloud files, Word/Excel/PowerPoint editing on genuine Office files (built-in editors, or ONLYOFFICE / Euro-Office), real e-mail over IMAP/SMTP with several accounts and aliases, calendar, tasks, file versions, an app store, a web browser with an isolated proxy and a virtual browser, a terminal, link sharing, and its own visual identity.
 
-© 2026 Sebastian Sotomontes. Released under the [MIT License](LICENSE). This source repository is currently private; the public showcase lives at [`Softsoto/SotosWeb`](https://github.com/Softsoto/SotosWeb) and the live demo at <https://softsoto.github.io/SotosWeb-demo/>.
+© 2026 Sebastian Sotomontes. Released under the [MIT License](LICENSE). The public showcase (in Spanish) lives at [`Softsoto/SotosWeb`](https://github.com/Softsoto/SotosWeb) and the live demo at <https://softsoto.github.io/SotosWeb-demo/>.
+
+### A tribute to inevio
+
+Sotos is also a tribute to **inevio**, the web desktop that showed, years ago, that a whole operating system could live in a browser tab. The Grafito skin, the window motion and many of the features added in versions 2.2 and 2.3 (mail, calendar, tasks, inbox, file versions, contact groups, presence, store) pay homage to what inevio made possible. Sotos does not use inevio's code, artwork or assets: everything here is written from scratch. inevio is a trademark of its respective owners; Sotos is not affiliated with it.
 
 | | |
 |---|---|
-| Version | 2.1 |
+| Version | 2.3 |
 | Desktop | React 18 + Vite 6 (`web/`) |
 | Server | Node.js ≥ 22, zero npm dependencies (`server/`) |
 | Data | SQLite built into Node (`node:sqlite`) + one file per blob; IndexedDB in the browser |
@@ -105,7 +109,13 @@ The installer messages are in Spanish, like the rest of the product.
 | `OO_URL` | — | Public Document Server URL (enables the integration) |
 | `OO_INTERNAL` | `OO_URL` | URL the server uses to download saved versions |
 | `SOTOS_INTERNAL` | `http://host.docker.internal:8787` | URL the Document Server uses to reach Sotos |
-| `SOTOS_OO_JWT` | `data/secrets.json` | JWT secret shared with ONLYOFFICE |
+| `SOTOS_OO_JWT` | `data/secrets.json` | JWT secret shared with the Document Server |
+| `OO_ENGINE` | — | Informational: `onlyoffice` or `eurooffice` (written by `scripts/onlyoffice-dev.ps1`) |
+| `NEKO_URL` | — | Public URL of the Neko virtual browser (enables it) |
+| `NEKO_CONTAINER` | — | Docker container name, used to open a given address in the virtual browser |
+| `SOTOS_NEKO_PASS` | `data/secrets.json` | Neko room password |
+| `SOTOS_ADMIN_EMAIL` | — | Account promoted to administrator (otherwise the first account) |
+| `SOTOS_MAIL_INSECURE` | — | `1` disables TLS certificate checks for mail (local tests only) |
 
 ## 4. Repository layout
 
@@ -115,7 +125,9 @@ Dockerfile · docker-compose*.yml    image and deployments (domain+HTTPS / IP)
 Caddyfile · .env.example            reverse proxy with automatic certificates
 scripts/
   capturas.mjs                      automated screenshots (headless Edge + CDP)
-  onlyoffice-dev.ps1                local Document Server for development
+  onlyoffice-dev.ps1                local Document Server (-Motor onlyoffice|eurooffice, -Puerto 8099)
+  neko-dev.ps1                      local Neko virtual browser (port 8098)
+  sync-apps.ps1                     copies the Store apps into web/public/apps
 server/
   index.mjs                         routing, static files, injected proxy origin
   http.mjs                          HTTP helpers, rate limiting, HS256 JWT
@@ -125,7 +137,13 @@ server/
   shares.mjs                        public links and "shared with me"
   social.mjs                        notifications and contacts
   worlds.mjs                        worlds: members, wall, chat, shared folder
-  oo.mjs                            ONLYOFFICE Docs integration
+  inbox.mjs                         "Send to…": files sent between accounts, accept/decline
+  agenda.mjs                        calendars, events with reminders, task lists, comments
+  store.mjs                         Store: per-account installs and star reviews
+  admin.mjs                         admin panel: stats, registration, quotas, users
+  mail.mjs                          IMAP/SMTP client and MIME parser (no dependencies), accounts, aliases
+  neko.mjs                          virtual browser session and "open this address"
+  oo.mjs                            ONLYOFFICE / Euro-Office integration
   px.mjs                            browser proxy (rewriting + injected client)
 web/src/
   main.jsx                          bootstrap, public route /#/s/<token>
@@ -211,7 +229,15 @@ Every write requires the `X-Sotos: 1` header.
 | `GET /api/worlds/:id/fs/state` · `POST …/fs/ops` · `GET\|PUT …/fs/blob/:id` | Shared folder: same pure operations as personal files, own quota |
 | `GET /api/shares/with-me` | Shared with me |
 | `GET /api/s/:token[/blob/:id[?dl]]` | Public: metadata and content inside the shared item |
-| `GET /api/oo/status` · `POST /api/oo/config` | ONLYOFFICE integration |
+| `GET /api/inbox` · `POST /api/inbox/send` · `POST …/:id/accept\|refuse` | Send files to another account |
+| `GET\|POST /api/calendar…` · `GET\|POST /api/tasks…` | Calendars, events, task lists, tasks and comments |
+| `GET /api/fs/versions/:id` · `POST …/:id/:at/restore` | File version history |
+| `GET /api/store` · `POST /api/store/:app/install\|uninstall` · `GET\|POST …/reviews` | Store |
+| `GET\|PUT /api/admin/…` | Admin panel (administrators only) |
+| `GET /api/mail/accounts` · `PUT\|DELETE /api/mail/account[?acc=]` · `PUT /api/mail/aliases?acc=` | Mail accounts and aliases |
+| `GET /api/mail/boxes\|messages[/:uid[/attachment]]?acc=` · `POST …/flags\|move` · `DELETE …/:uid` · `POST /api/mail/send` | Mailboxes, messages, sending |
+| `GET /api/neko` · `POST /api/neko/session\|open` | Virtual browser |
+| `GET /api/oo/status` · `POST /api/oo/config` | Document Server integration |
 | `GET /api/oo/file?t=` · `POST /api/oo/callback?t=` | Used by the Document Server, JWT-signed |
 
 ## 8. Browser proxy
@@ -246,7 +272,15 @@ Every write requires the `X-Sotos: 1` header.
 2. The browser loads `OO_URL/web-apps/apps/api/documents/api.js` and creates the editor in its own iframe.
 3. Callback with status 2 or 6: the URL JWT and the body or header JWT are verified, the download host must be the Document Server, the file is written atomically and a `write` operation is applied (other devices receive it through SSE).
 
-Local development: `scripts/onlyoffice-dev.ps1` (requires Docker), then restart the server's `npm run dev`. **Status: implemented, end-to-end test with Docker pending.**
+Local development: `scripts/onlyoffice-dev.ps1 -Motor onlyoffice` or `-Motor eurooffice` (requires Docker; container `sotos-docs` on port 8099), then restart the server. Both engines share the same API and JWT. **Tested end to end** with `onlyoffice/documentserver:9.1.0` and `ghcr.io/euro-office/documentserver:v9.3.1`: the editor loads inside the Sotos window, typed text comes back inside the saved `.docx`, and the previous content is kept in the version history.
+
+### Mail
+
+`mail.mjs` is a small IMAP and SMTP client written for Sotos: literal-aware response parser, modified UTF-7 mailbox names, MIME parser (multipart, base64, quoted-printable, RFC 2047, charsets, `cid:` images inlined), SMTP over implicit TLS or STARTTLS with AUTH PLAIN/LOGIN and timeouts. Each user can link up to 10 accounts; passwords are encrypted with AES-256-GCM and never sent back to the browser. Every account can have aliases (send-as identities); the From selector lists all accounts and aliases and the message goes out through the account that owns the address. Presets for Gmail, Outlook, iCloud and Yahoo (iCloud requires the primary @icloud.com address as the login and an app-specific password; a custom domain goes in as an alias). HTML mail is shown in a sandboxed iframe without scripts, and remote images are blocked until the reader asks for them.
+
+### Virtual browser (Neko)
+
+Some sites refuse to be shown inside another page (sign-ins, banks, WhatsApp Web). With `scripts/neko-dev.ps1`, a real Firefox runs in a container (`ghcr.io/m1k1o/neko/firefox:3.0.8`) and is streamed over WebRTC into the Browser (button **Virtual**) and into the **WhatsApp** app. The room is shared by everyone who can reach it, so on a multi-user server the WhatsApp session should be closed after use.
 
 ## 11. Visual identity and wallpapers
 
@@ -293,6 +327,7 @@ VITE_DEMO=1 npm run build:demo     # → ../demo-dist
 - Social layer (notifications, contacts, worlds, permissions, quotas, SSE fan-out): 26/26 API checks.
 - Two-browser end-to-end run (two accounts in separate headless Edge instances): contacts, vCard round-trip, world creation and invitation, live notification badge, wall posts and comments, chat, shared-folder upload seen live by the other member, PDF render/text layer/search, ID3 title/artist/album/cover: 18/18.
 - Public demo: tested live on GitHub Pages (apps open, `.docx`/`.xlsx` load through lazy chunks, no console or network errors).
+- Version 2.3 suites (headless Edge + CDP, two browsers where it applies): presence/inbox/groups/blocking 16/16, calendar and tasks 15/15, versions and backup 11/11, admin and region 17/17, window motion 13/13, context menus 52/52, archives 10/10, Store and Mail UI 12/12, multiple mail accounts 11/11, aliases and iCloud setup 4/4, mail API against a local IMAP/SMTP test server 29/29, ONLYOFFICE and Euro-Office 5/5 each, virtual browser 5/5.
 
 Automated screenshots (server and `web` running):
 
@@ -316,13 +351,19 @@ Launches headless Edge at 1600×1000 (device scale 1.5), uses a local screenshot
 | ![Notifications](docs/capturas/notificaciones.jpg) | ![Contacts](docs/capturas/contactos.jpg) |
 | ![PDF viewer](docs/capturas/visor-pdf.jpg) | ![Music covers](docs/capturas/musica-caratulas.jpg) |
 | ![Grafito light](docs/capturas/tema-grafito-light.jpg) | ![Grafito dark](docs/capturas/tema-grafito-dark.jpg) |
+| ![Mail](docs/capturas/correo.jpg) | ![Mail accounts and aliases](docs/capturas/correo-alias.jpg) |
+| ![Calendar](docs/capturas/calendario.jpg) | ![Tasks](docs/capturas/tareas.jpg) |
+| ![Versions](docs/capturas/versiones.jpg) | ![Store](docs/capturas/tienda.jpg) |
+| ![Euro-Office](docs/capturas/euro-office.jpg) | ![Virtual browser](docs/capturas/navegador-virtual.jpg) |
+| ![Games](docs/capturas/juegos.jpg) | ![Widgets](docs/capturas/widgets.jpg) |
 
 ## 17. Roadmap
 
-- End-to-end ONLYOFFICE test with Docker and a pinned `OO_VERSION`.
 - Syntax check of `instalar.sh` on real Linux.
 - Window controls: user's choice between Sotos, Mac and Windows styles.
 - Touch screens and a phone layout.
-- New apps (calculator, calendar, tasks, camera, maps, code editor), working Store; world roles and post attachments.
-- File version history, admin panel, automatic server backups, two-factor sign-in.
+- Interface languages besides Spanish.
+- A "lite" build without the virtual browser.
+- New apps (camera, maps, code editor); world roles and post attachments.
+- Automatic server backups, two-factor sign-in, per-user virtual browser rooms.
 - Performance (lazy-loaded apps, icon font subset), strict CSP, per-account proxy limits.
