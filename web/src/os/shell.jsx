@@ -5,7 +5,6 @@
 import React from "react";
 import { APPS, APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, DEFAULT_SHORTCUTS, appAllowed } from "./data.jsx";
 import { SotosLogo, SotosMark, BrandMark, setBrandLogo } from "./logo.jsx";
-import * as Creative from "./creative.jsx";
 import * as Vault from "./vault.jsx";
 import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, animateWinOut, animateWinGeometry } from "./ui.jsx";
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
@@ -43,25 +42,35 @@ function DemoWelcome({ onClose, onApp }) {
   );
 }
 import { api, hasServer } from "./api.js";
-import * as Apps1 from "./apps1.jsx";
-import * as Apps2 from "./apps2.jsx";
-import * as Apps3 from "./apps3.jsx";
-import * as Apps4 from "./apps4.jsx";
-import * as Apps5 from "./apps5.jsx";
-import * as Games from "./games.jsx";
-import * as Term from "./terminal.jsx";
 import * as Worlds from "./worlds.jsx";
 import * as Contacts from "./contacts.jsx";
-import * as Admin from "./admin.jsx";
-import * as Cal from "./calendar.jsx";
-import * as Tasks from "./tasks.jsx";
 import { NotificationBell } from "./notifications.jsx";
 import { SendToDialog, useInboxCount } from "./inbox.jsx";
 import { setRegion, tz as regionTz } from "./region.js";
 import { loadInstalled, subscribeInstalled } from "./installed.js";
 
 // registro de componentes de app (antes se resolvían con window[app.comp])
-const APP_COMPONENTS = { ...Creative, ...Vault, ...Apps1, ...Apps2, ...Apps3, ...Apps4, ...Apps5, ...Games, ...Term, ...Worlds, ...Contacts, ...Admin, ...Cal, ...Tasks };
+// las apps se descargan al abrirlas (carga inicial más liviana); con el escritorio listo se precargan en segundo plano
+const APP_LOADERS = {
+  creative: () => import("./creative.jsx"),
+  apps1: () => import("./apps1.jsx"),
+  apps2: () => import("./apps2.jsx"),
+  apps3: () => import("./apps3.jsx"),
+  apps4: () => import("./apps4.jsx"),
+  apps5: () => import("./apps5.jsx"),
+  games: () => import("./games.jsx"),
+  terminal: () => import("./terminal.jsx"),
+  admin: () => import("./admin.jsx"),
+  calendar: () => import("./calendar.jsx"),
+  tasks: () => import("./tasks.jsx"),
+};
+const COMP_MODULE = { CodeApp: "creative", DiagramsApp: "creative", PaintApp: "creative", WhiteboardApp: "creative", EditorApp: "apps1", FilesApp: "apps1", GalleryApp: "apps1", SaveBadge: "apps1", SheetsApp: "apps1", MusicApp: "apps2", PdfApp: "apps2", VideoApp: "apps2", BrowserApp: "apps3", ChatApp: "apps3", MailApp: "apps3", WhatsAppApp: "apps3", SettingsApp: "apps4", StoreApp: "apps4", WebApp: "apps4", DocsApp: "apps5", LaunchpadApp: "apps5", SlidesApp: "apps5", TrashApp: "apps5", WebViewApp: "apps5", GamesApp: "games", TerminalApp: "terminal", AdminApp: "admin", CalendarApp: "calendar", TasksApp: "tasks" };
+const lazyCache = {};
+const lazyComp = (name) => lazyCache[name] || (lazyCache[name] = React.lazy(() => APP_LOADERS[COMP_MODULE[name]]().then(m => ({ default: m[name] }))));
+const APP_COMPONENTS = { ...Vault, ...Worlds, ...Contacts, ...Object.fromEntries(Object.keys(COMP_MODULE).map(k => [k, lazyComp(k)])) };
+const whenIdle = (fn, ms) => window.requestIdleCallback ? window.requestIdleCallback(() => fn(), { timeout: ms + 3000 }) : setTimeout(fn, ms);
+let prefetched = false;
+export const prefetchApps = () => { if (prefetched) return; prefetched = true; const ids = Object.keys(APP_LOADERS); const next = () => { const id = ids.shift(); if (!id) return; APP_LOADERS[id]().catch(() => {}).finally(() => whenIdle(next, 300)); }; setTimeout(() => whenIdle(next, 0), 1500); };
 const DEFAULT_PROFILE = { name: "Invitado", avatar: null };
 const { useState: useSh, useEffect: useEh, useRef: useRh, useCallback: useCh } = React;
 const TOUCH = () => window.matchMedia?.("(pointer: coarse)").matches;
@@ -741,6 +750,7 @@ function OS() {
   useEh(() => {
     if (stage !== "desktop") return;
     if (!wins.length) openApp("files");
+    prefetchApps();
     const k = (e) => { if ((e.ctrlKey || e.metaKey) && (e.key === " " || e.key.toLowerCase() === "k")) { e.preventDefault(); setSpot(s => !s); } };
     const o = (e) => openItem(vfs.node(e.detail));
     const sh = (e) => setShareId(e.detail);
@@ -819,7 +829,7 @@ function OS() {
           <Win key={win.id} win={{ ...win, title }} app={app} focused={top && top.id === win.id}
             onFocus={() => focus(win.id)} onClose={() => close(win.id)} onMin={() => min(win.id)} onMax={() => max(win.id)}
             onMove={(x, y) => setRect(win.id, { x, y })} onResize={(w, h) => setRect(win.id, { w, h })}>
-            {Comp ? <Comp {...extra} /> : <EmptyState icon="error" text={"App no encontrada: " + app.comp} />}
+            {Comp ? <React.Suspense fallback={<div className="app app-loading"><Ic name="progress_activity" size={26} /></div>}><Comp {...extra} /></React.Suspense> : <EmptyState icon="error" text={"App no encontrada: " + app.comp} />}
           </Win>
         );
       })}

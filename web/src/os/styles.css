@@ -2347,3 +2347,8 @@ select.wg-input { padding: 0 4px; }
 .call-btn.hang { background: #c4532f; width: 58px; border-radius: 23px; }
 .call-live { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: #2fa36b; margin-left: 6px; vertical-align: 1px; }
 @media (max-width: 760px) { .call-grid.n2, .call-grid.n3, .call-grid.n4 { grid-template-columns: 1fr; } }
+
+.app-loading { display: grid !important; place-items: center; color: var(--text-faint); }
+.app-loading .material-symbols-rounded { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+

@@ -14,7 +14,7 @@ import "@fontsource/lato/400.css";
 import "@fontsource/lato/700.css";
 import "@fontsource/jetbrains-mono/400.css";
 import "@fontsource/jetbrains-mono/600.css";
-import "material-symbols/rounded.css";
+import "./os/fonts/simbolos.css"; // íconos: solo los que usa Sotos (node scripts/iconos.mjs)
 import "./os/styles.css";
 import React from "react";
 import { createRoot } from "react-dom/client";

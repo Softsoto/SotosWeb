@@ -18,7 +18,11 @@ function Tile({ icon, color, size = 46, style, app }) {
 }
 
 // Material symbol shorthand
+// en desarrollo avisa si se usa un ícono que no está en el subconjunto de la fuente (node scripts/iconos.mjs)
+let ICONOS = null; const avisados = new Set();
+if (import.meta.env?.DEV) import("./fonts/iconos.json").then(m => { ICONOS = new Set(m.default); }).catch(() => {});
 function Ic({ name, size, style, className }) {
+  if (ICONOS && name && !ICONOS.has(name) && !avisados.has(name)) { avisados.add(name); console.warn(`[íconos] «${name}» no está en la fuente: ejecuta node scripts/iconos.mjs`); }
   return <span className={"material-symbols-rounded " + (className||"")} style={{ fontSize: size, ...style }}>{name}</span>;
 }
 
