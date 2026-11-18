@@ -3,6 +3,7 @@
    ============================================================ */
 import React from "react";
 import { RealMail } from "./mail.jsx";
+import { NativeWhatsApp, useNativeWa } from "./whatsapp.jsx";
 import { useVfs } from "./vfs.js";
 import { APPS, APP_BY_ID, WEB_SERVICES, MAIL, CHATS } from "./data.jsx";
 import { Ic, SideItem, Toolbar, EmptyState } from "./ui.jsx";
@@ -441,6 +442,9 @@ function BrowserApp({ shortcuts = [], url, scName }) {
 // WhatsApp Web no se deja incrustar: se abre en el navegador virtual (Neko) si el servidor lo tiene; si no, en una pestaña
 function WhatsAppApp() {
   const neko = useNeko(); const mode = useVfs(s => s.mode);
+  const native = useNativeWa(mode === "cloud" && !DEMO);
+  if (native === null) return <div className="app"><EmptyState icon="hourglass_empty" text="Preparando WhatsApp…" /></div>;
+  if (native.enabled) return <NativeWhatsApp />;
   const [waited, setWaited] = useS3(false);
   useE3(() => { const t = setTimeout(() => setWaited(true), 2500); return () => clearTimeout(t); }, []);
   const open = () => window.open("https://web.whatsapp.com", "_blank", "noopener");

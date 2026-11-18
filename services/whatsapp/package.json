@@ -1,0 +1,16 @@
+{
+  "name": "sotos-whatsapp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Servicio opcional de Sotos: WhatsApp de cada cuenta (cliente no oficial, Baileys). © 2026 Sebastian Sotomontes",
+  "type": "module",
+  "main": "index.mjs",
+  "engines": { "node": ">=22.5" },
+  "scripts": { "start": "node index.mjs" },
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "7.0.0-rc14",
+    "pino": "10.4.0",
+    "qrcode": "1.5.4"
+  }
+}

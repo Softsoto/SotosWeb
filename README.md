@@ -4,7 +4,7 @@
 
 A complete desktop that runs in the browser: windows, dock, real cloud files, Word/Excel/PowerPoint editing on genuine Office files (built-in editors, or ONLYOFFICE / Euro-Office), real e-mail over IMAP/SMTP with several accounts and aliases, calendar, tasks, file versions, an app store, a web browser with an isolated proxy and a virtual browser, a terminal, link sharing, and its own visual identity.
 
-© 2026 Sebastian Sotomontes. Released under the [MIT License](LICENSE). The public showcase (in Spanish) lives at [`Softsoto/SotosWeb`](https://github.com/Softsoto/SotosWeb) and the live demo at <https://softsoto.github.io/SotosWeb-demo/>.
+© 2026 Sebastian Sotomontes. Released under the [MIT License](LICENSE). The public showcase (in Spanish) lives at [`Softsoto/SotosWeb`](https://github.com/Softsoto/SotosWeb).
 
 ### A tribute to inevio
 
@@ -38,7 +38,7 @@ Sotos is also a tribute to **inevio**, the web desktop that showed, years ago, t
 11. [Visual identity and wallpapers](#11-visual-identity-and-wallpapers)
 12. [Global context menu](#12-global-context-menu)
 13. [Security](#13-security)
-14. [Public demo](#14-public-demo)
+14. [Static demo build](#14-static-demo-build)
 15. [Tests and screenshots](#15-tests-and-screenshots)
 16. [Screenshots](#16-screenshots)
 17. [Roadmap](#17-roadmap)
@@ -307,16 +307,9 @@ A second full skin selected in Settings → Appearance (`settings.skin = "grafit
 - `sanitizeHtml` with an allow-list of tags and attributes for documents, pasting and printing (iframe without `allow-scripts`).
 - Desktop headers: `X-Frame-Options: DENY`, `nosniff`, `Referrer-Policy`, `Permissions-Policy`.
 
-## 14. Public demo
+## 14. Static demo build
 
-Static build, guest mode only, no proxy:
-
-```bash
-cd web
-VITE_DEMO=1 npm run build:demo     # → ../demo-dist
-```
-
-`demo-dist/` is its own git repository (ignored here) published as [`Softsoto/SotosWeb-demo`](https://github.com/Softsoto/SotosWeb-demo) with GitHub Pages: <https://softsoto.github.io/SotosWeb-demo/>. In this mode `config.js#DEMO` skips sign-in, never calls the API, hides the proxy toggle and shows a welcome dialog and a DEMO badge. To update it: rebuild, then commit and push inside `demo-dist/`.
+A static, guest-only build without a server (`VITE_DEMO=1 npm run build:demo` → `../demo-dist`): `config.js#DEMO` skips sign-in, never calls the API, hides the proxy and shows a welcome dialog and a DEMO badge. The public online demo was retired; the build is kept for local presentations.
 
 ## 15. Tests and screenshots
 
@@ -326,7 +319,7 @@ VITE_DEMO=1 npm run build:demo     # → ../demo-dist
 - Sync: new account → local cache wiped → everything comes back from the server, content included.
 - Social layer (notifications, contacts, worlds, permissions, quotas, SSE fan-out): 26/26 API checks.
 - Two-browser end-to-end run (two accounts in separate headless Edge instances): contacts, vCard round-trip, world creation and invitation, live notification badge, wall posts and comments, chat, shared-folder upload seen live by the other member, PDF render/text layer/search, ID3 title/artist/album/cover: 18/18.
-- Public demo: tested live on GitHub Pages (apps open, `.docx`/`.xlsx` load through lazy chunks, no console or network errors).
+- Static demo build: apps open, `.docx`/`.xlsx` load through lazy chunks, no console or network errors.
 - Version 2.3 suites (headless Edge + CDP, two browsers where it applies): presence/inbox/groups/blocking 16/16, calendar and tasks 15/15, versions and backup 11/11, admin and region 17/17, window motion 13/13, context menus 52/52, archives 10/10, Store and Mail UI 12/12, multiple mail accounts 11/11, aliases and iCloud setup 4/4, mail API against a local IMAP/SMTP test server 29/29, ONLYOFFICE and Euro-Office 5/5 each, virtual browser 5/5.
 
 Automated screenshots (server and `web` running):

@@ -260,6 +260,7 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
     ...(clipboard ? [{ id: "paste", label: `Pegar (${clipboard.ids.length})`, icon: "content_paste" }] : []),
     { sep: true },
     { id: "widget", label: "Añadir widget", icon: "widgets" },
+    ...(settings.iconPos && Object.keys(settings.iconPos).length ? [{ id: "arrange", label: "Ordenar iconos", icon: "grid_view" }] : []),
     { id: "wall", label: "Cambiar fondo", icon: "wallpaper" },
     { id: "theme", label: settings.theme === "dark" ? "Modo claro" : "Modo oscuro", icon: settings.theme === "dark" ? "light_mode" : "dark_mode" },
     { sep: true },
@@ -273,11 +274,44 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
     else if (id === "newtxt") startRename(await vfs.create(DESKTOP, "Nuevo documento.txt", ""));
     else if (id === "paste") { const n = await vfs.paste(DESKTOP); if (n) toast(`${n} elemento(s) pegado(s) en el escritorio`); }
     else if (id === "widget") setWmenu({ x, y });
+    else if (id === "arrange") update("iconPos", {});
     else if (id === "wall") openApp("settings");
     else if (id === "theme") update("theme", settings.theme === "dark" ? "light" : "dark");
     else if (id === "emptytrash") vfs.emptyTrash();
   };
   const helpers = { openItem, update, startRename, showProps: setProps, parentId: DESKTOP };
+
+  // ---- iconos con posición libre: se arrastran a cualquier celda de una cuadrícula y se recuerdan en Ajustes ----
+  const GRID = { w: 100, h: 96 }, DESK_MIME = "application/x-sotos-desk";
+  const iconsRef = useRh(null);
+  const [vh, setVh] = useSh(window.innerHeight);
+  useEh(() => { const r = () => setVh(window.innerHeight); window.addEventListener("resize", r); return () => window.removeEventListener("resize", r); }, []);
+  const rows = Math.max(1, Math.floor((vh - 150) / GRID.h));
+  const keys = [...apps.map(a => "app:" + a.id), ...items.map(it => it.id), "trash"];
+  const saved = settings.iconPos || {};
+  const cells = (() => { // posición de cada icono: la guardada o la siguiente celda libre (por columnas)
+    const out = {}, used = new Set(); const k = (c, r) => c + ":" + r;
+    for (const key of keys) { const p = saved[key]; if (p && Number.isInteger(p.c) && Number.isInteger(p.r) && !used.has(k(p.c, p.r))) { out[key] = p; used.add(k(p.c, p.r)); } }
+    let i = 0; for (const key of keys) { if (out[key]) continue; let c, r; do { c = Math.floor(i / rows); r = i % rows; i++; } while (used.has(k(c, r))); out[key] = { c, r }; used.add(k(c, r)); }
+    return out;
+  })();
+  const at = (key) => ({ position: "absolute", left: cells[key].c * GRID.w, top: cells[key].r * GRID.h });
+  const startDeskDrag = (e, key) => { const r = e.currentTarget.getBoundingClientRect(); e.dataTransfer.setData(DESK_MIME, JSON.stringify({ key, dx: e.clientX - r.left, dy: e.clientY - r.top })); e.dataTransfer.effectAllowed = "copyMove"; };
+  const isDesk = (e) => [...e.dataTransfer.types].includes(DESK_MIME);
+  const dropOnDesk = (e) => {
+    let d; try { d = JSON.parse(e.dataTransfer.getData(DESK_MIME)); } catch { return; }
+    const box = iconsRef.current.getBoundingClientRect();
+    let c = Math.max(0, Math.round((e.clientX - d.dx - box.left) / GRID.w)), r = Math.min(rows - 1, Math.max(0, Math.round((e.clientY - d.dy - box.top) / GRID.h)));
+    const taken = (c2, r2) => keys.some(k => k !== d.key && cells[k].c === c2 && cells[k].r === r2);
+    if (taken(c, r)) { // la celda está ocupada: la libre más cercana
+      let best = null; for (let cc = 0; cc < c + 3; cc++) for (let rr = 0; rr < rows; rr++) if (!taken(cc, rr)) { const dist = Math.hypot(cc - c, rr - r); if (!best || dist < best.dist) best = { c: cc, r: rr, dist }; }
+      if (best) ({ c, r } = best);
+    }
+    // fijar también los demás donde están ahora, para que no se reacomoden
+    const next = {}; for (const k of keys) next[k] = { c: cells[k].c, r: cells[k].r }; next[d.key] = { c, r };
+    update("iconPos", next);
+  };
+  const deskDrop = dropTarget(DESKTOP);
 
   // teclado sobre el icono seleccionado
   const deskActive = useRh(false);
@@ -299,19 +333,21 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
   }, [sel, renaming]);
 
   return (
-    <div className="desk-layer" {...dropTarget(DESKTOP)}
+    <div className="desk-layer" {...deskDrop}
+      onDragOver={e => { if (isDesk(e)) { e.preventDefault(); e.dataTransfer.dropEffect = "move"; return; } deskDrop.onDragOver(e); }}
+      onDrop={e => { if (isDesk(e)) { e.preventDefault(); dropOnDesk(e); return; } deskDrop.onDrop(e); }}
       onMouseDown={e => { if (e.target === e.currentTarget || e.target.classList.contains("desk-icons")) setSel(null); }}
       onContextMenu={e => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, item: null }); }}>
-      <div className="desk-icons" style={{ left: shifted ? 92 : 14 }}>
+      <div className="desk-icons free" ref={iconsRef} style={{ left: shifted ? 92 : 14 }}>
         {apps.map(ic => (
-          <div key={ic.label} className="desk-icon" onDoubleClick={() => openApp(ic.id)}>
+          <div key={ic.label} className="desk-icon" style={at("app:" + ic.id)} draggable onDragStart={e => startDeskDrag(e, "app:" + ic.id)} onDoubleClick={() => openApp(ic.id)}>
             <Tile icon={ic.icon} color={ic.color} app={ic.id} /><span className="lbl">{ic.label}</span>
           </div>
         ))}
         {items.map(it => (
           <div key={it.id} className={"desk-icon" + (sel === it.id ? " sel" : "") + (clipboard?.mode === "cut" && clipboard.ids.includes(it.id) ? " cut" : "")}
-            draggable={renaming !== it.id}
-            onDragStart={e => dragIds(e, [it.id])}
+            style={at(it.id)} draggable={renaming !== it.id}
+            onDragStart={e => { dragIds(e, [it.id]); startDeskDrag(e, it.id); }}
             {...(it.type === "folder" ? dropTarget(it.id) : {})}
             onMouseDown={() => setSel(it.id)}
             onDoubleClick={() => openItem(it)}
@@ -325,7 +361,7 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
               : <span className="lbl">{it.name}</span>}
           </div>
         ))}
-        <div className={"desk-icon desk-trash" + (trashHot ? " sel" : "")} onDoubleClick={() => openApp("trash")}
+        <div className={"desk-icon desk-trash" + (trashHot ? " sel" : "")} style={at("trash")} draggable onDragStart={e => startDeskDrag(e, "trash")} onDoubleClick={() => openApp("trash")}
           onDragOver={e => { if ([...e.dataTransfer.types].includes("application/x-sotos-ids")) { e.preventDefault(); setTrashHot(true); } }}
           onDragLeave={() => setTrashHot(false)}
           onDrop={e => { e.preventDefault(); e.stopPropagation(); setTrashHot(false); try { const ids = JSON.parse(e.dataTransfer.getData("application/x-sotos-ids")); runItemAction("trash", ids.map(vfs.node).filter(Boolean), helpers); } catch {} }}
