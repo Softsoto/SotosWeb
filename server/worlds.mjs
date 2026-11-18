@@ -78,6 +78,35 @@ export function worldDoc(wid, userId, nodeId) {
 }
 export const worldDocSaved = (wid, nodeId, size, actorId) => applyWorldOps(String(wid), [{ t: "write", id: nodeId, size, mtime: Date.now() }], actorId, "onlyoffice");
 
+/* ---------------- videollamadas: WebRTC entre los navegadores; el servidor solo pasa los mensajes de conexión ----------------
+   SOTOS_ICE: servidores STUN/TURN en JSON (por defecto el STUN público de Google, que solo ve la IP para ayudar a conectar;
+   con TURN propio las llamadas funcionan también tras redes muy cerradas). */
+const calls = new Map(); // mundo → Map(userId → { name, joined, last })
+const ICE = (() => { try { return JSON.parse(process.env.SOTOS_ICE || ""); } catch { return [{ urls: "stun:stun.l.google.com:19302" }]; } })();
+const inCall = (wid) => { const m = calls.get(wid); if (!m) return []; for (const [id, p] of m) if (Date.now() - p.last > 45_000) m.delete(id); return [...m].map(([id, p]) => ({ id, name: p.name, joined: p.joined })); };
+async function handleCall(req, res, w, wid, u, sub) {
+  if (!sub && req.method === "GET") return json(res, 200, { participants: inCall(wid), iceServers: ICE });
+  if (sub === "join" && req.method === "POST") {
+    let m = calls.get(wid); if (!m) calls.set(wid, m = new Map());
+    const was = inCall(wid); const fresh = !m.has(u.id); m.set(u.id, { name: u.name, joined: m.get(u.id)?.joined || Date.now(), last: Date.now() });
+    if (fresh) toMembers(wid, "call", { world: wid, kind: "join", from: u.id, name: u.name, participants: inCall(wid) }, u.id);
+    if (!was.length && fresh) for (const mb of members(wid)) if (mb.id !== u.id) addNotification(mb.id, { kind: "world-call", title: `${u.name} inició una videollamada en “${w.name}”`, body: "Toca para unirte", link: { world: wid, tab: "call" }, actor: u.id });
+    return json(res, 200, { participants: inCall(wid).filter(p => p.id !== u.id), iceServers: ICE });
+  }
+  if (sub === "ping" && req.method === "POST") { const p = calls.get(wid)?.get(u.id); if (p) p.last = Date.now(); return json(res, 200, { participants: inCall(wid) }); }
+  if (sub === "leave" && req.method === "POST") {
+    calls.get(wid)?.delete(u.id); toMembers(wid, "call", { world: wid, kind: "leave", from: u.id, participants: inCall(wid) }, u.id);
+    return json(res, 200, { ok: true });
+  }
+  if (sub === "signal" && req.method === "POST") { // oferta, respuesta o candidato ICE para otro participante
+    const { to, data } = await readJson(req, 64 * 1024);
+    if (!calls.get(wid)?.has(u.id) || !calls.get(wid)?.has(String(to))) fail(409, "Esa persona ya no está en la llamada");
+    notify(String(to), "call", { world: wid, kind: "signal", from: u.id, name: u.name, data });
+    return json(res, 200, { ok: true });
+  }
+  fail(404, "No encontrado");
+}
+
 /* ---------------- rutas ---------------- */
 export async function handleWorlds(req, res, parts) {
   const u = requireUser(req);
@@ -125,6 +154,7 @@ export async function handleWorlds(req, res, parts) {
     }
   }
 
+  if (area === "call") return handleCall(req, res, w, wid, u, sub); // videollamada del mundo
   if (area === "members") {
     if (req.method === "POST") {
       const { email } = await readJson(req, 4096);

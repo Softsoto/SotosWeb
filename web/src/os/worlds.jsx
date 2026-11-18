@@ -14,6 +14,7 @@ import { PresenceDot } from "./presence.jsx";
 import { DEMO, SHOWCASE_URL } from "./config.js";
 import { ROUTE } from "./data.jsx";
 import { useOnlyOffice } from "./onlyoffice.jsx";
+import { WorldCall } from "./call.jsx";
 const { useState, useEffect, useRef, useCallback } = React;
 
 const ICONS = ["diversity_3", "groups", "family_restroom", "school", "work", "sports_soccer", "music_note", "travel_explore", "pets", "rocket_launch", "palette", "restaurant"];
@@ -107,13 +108,14 @@ function WorldForm({ w, onClose, onSaved }) {
 /* ---------------- un mundo ---------------- */
 function WorldView({ w, initialTab, onChanged, onGone, openItem }) {
   const [tab, setTab] = useState(initialTab || "wall");
-  const [info, setInfo] = useState(null);
+  const [info, setInfo] = useState(null), [inCall, setInCall] = useState(false), [callers, setCallers] = useState(0);
   const loadInfo = () => api("GET", "worlds/" + w.id).then(setInfo).catch(() => {});
+  useEffect(() => { api("GET", `worlds/${w.id}/call`).then(r => setCallers(r.participants.length)).catch(() => {}); return onServer("call", (d) => { if (d.world === w.id && d.participants) setCallers(d.participants.length); }); }, [w.id]);
   useEffect(() => { loadInfo(); }, [w.id]);
   useEffect(() => onServer("world", (d) => { if (d.world === w.id && (d.kind === "members" || d.kind === "meta")) loadInfo(); }), [w.id]);
   useEffect(() => { if (initialTab) setTab(initialTab); }, [initialTab]);
   const owner = w.role === "owner";
-  const tabs = [["wall", "Muro", "forum"], ["files", "Archivos", "folder_shared"], ["chat", "Chat", "chat"], ["members", "Miembros", "group"], ...(owner ? [["settings", "Ajustes", "tune"]] : [])];
+  const tabs = [["wall", "Muro", "forum"], ["files", "Archivos", "folder_shared"], ["chat", "Chat", "chat"], ["call", "Llamada", "video_call"], ["members", "Miembros", "group"], ...(owner ? [["settings", "Ajustes", "tune"]] : [])];
   return (
     <div className="world-view">
       <div className="world-head" style={{ "--world": w.color }}>
@@ -125,8 +127,9 @@ function WorldView({ w, initialTab, onChanged, onGone, openItem }) {
         <div className="world-faces">{(info?.members || []).slice(0, 6).map(m => <span key={m.id} title={m.name}><PersonAvatar name={m.name} size={28} /></span>)}
           {(info?.members?.length || 0) > 6 && <span className="faint" style={{ fontSize: 12 }}>+{info.members.length - 6}</span>}</div>
       </div>
-      <div className="world-tabs">{tabs.map(([id, label, icon]) => <button key={id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}><Ic name={icon} size={17} /> {label}{id === "chat" && w.unread > 0 && tab !== "chat" && <span className="world-unread sm">{w.unread}</span>}</button>)}</div>
+      <div className="world-tabs">{tabs.map(([id, label, icon]) => <button key={id} className={tab === id ? "on" : ""} onClick={() => setTab(id)}><Ic name={icon} size={17} /> {label}{id === "chat" && w.unread > 0 && tab !== "chat" && <span className="world-unread sm">{w.unread}</span>}{id === "call" && (inCall || callers > 0) && <span className="call-live" title={inCall ? "Estás en la llamada" : "Hay una llamada en curso"} />}</button>)}</div>
       <div className="world-body">
+        <WorldCall w={w} visible={tab === "call"} onActive={setInCall} />
         {tab === "wall" && <WorldWall w={w} owner={owner} />}
         {tab === "files" && <WorldFiles w={w} openItem={openItem} />}
         {tab === "chat" && <WorldChat w={w} onRead={onChanged} />}
