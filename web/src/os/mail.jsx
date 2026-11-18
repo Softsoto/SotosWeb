@@ -102,11 +102,11 @@ function MessageView({ m, onReply, onForward, onDelete, onFlag, flagged }) {
 
 export function RealMail() {
   const [account, setAccount] = useState(undefined), [boxes, setBoxes] = useState([]), [box, setBox] = useState("INBOX");
-  const [list, setList] = useState(null), [q, setQ] = useState(""), [sel, setSel] = useState(null), [msg, setMsg] = useState(null), [compose, setCompose] = useState(null), [setup, setSetup] = useState(false), [loading, setLoading] = useState(false);
+  const [list, setList] = useState(null), [total, setTotal] = useState(0), [page, setPage] = useState(0), [q, setQ] = useState(""), [sel, setSel] = useState(null), [msg, setMsg] = useState(null), [compose, setCompose] = useState(null), [setup, setSetup] = useState(false), [loading, setLoading] = useState(false);
   const loadAcc = () => api("GET", "mail/account").then(r => setAccount(r.account)).catch(() => setAccount(null));
   useEffect(() => { loadAcc(); }, []);
   useEffect(() => { if (account) api("GET", "mail/boxes").then(r => setBoxes(r.boxes)).catch(e => toast(e.message, { error: true })); }, [account?.email]);
-  const loadList = (b = box, query = q) => { setLoading(true); return api("GET", `mail/messages?box=${encodeURIComponent(b)}${query ? "&q=" + encodeURIComponent(query) : ""}`).then(r => setList(r.items)).catch(e => { toast(e.message, { error: true }); setList([]); }).finally(() => setLoading(false)); };
+  const loadList = (b = box, query = q, pg = 0) => { setLoading(true); return api("GET", `mail/messages?box=${encodeURIComponent(b)}&page=${pg}${query ? "&q=" + encodeURIComponent(query) : ""}`).then(r => { setPage(pg); setTotal(r.total || 0); setList(l => pg && l ? [...l, ...r.items.filter(x => !l.some(y => y.uid === x.uid))] : r.items); }).catch(e => { toast(e.message, { error: true }); setList([]); }).finally(() => setLoading(false)); };
   useEffect(() => { if (account) { setList(null); setSel(null); setMsg(null); loadList(box, ""); setQ(""); } }, [account?.email, box]);
   const open = async (it) => { setSel(it.uid); setMsg(null); try { const m = await api("GET", `mail/messages/${it.uid}?box=${encodeURIComponent(box)}`); setMsg({ ...m, box }); setList(l => l.map(x => x.uid === it.uid ? { ...x, seen: true } : x)); } catch (e) { toast(e.message, { error: true }); } };
   if (account === undefined) return <div className="app"><EmptyState icon="hourglass_empty" text="Cargando correo…" /></div>;
@@ -127,6 +127,7 @@ export function RealMail() {
           {list?.map(it => <div key={it.uid} className={"mail-row" + (it.seen ? "" : " unread") + (sel === it.uid ? " sel" : "")} onClick={() => open(it)}>
             <div className="mail-row-top"><b>{nameOf(box === boxes.find(b => b.role === "sent")?.id ? it.to : it.from)}</b><span className="faint">{when(it.date)}</span></div>
             <div className="mail-row-sub">{it.flagged && <Ic name="star" size={13} style={{ color: "#e8a33d", fontVariationSettings: "'FILL' 1" }} />}{it.attach && <Ic name="attach_file" size={13} />}{it.subject}</div></div>)}
+          {list && list.length > 0 && !q && list.length < total && <button className="tb-btn" style={{ margin: 10, width: "calc(100% - 20px)", justifyContent: "center" }} disabled={loading} onClick={() => loadList(box, "", page + 1)}><Ic name="expand_more" /> {loading ? "Cargando…" : `Cargar más (${list.length} de ${total.toLocaleString("es-CO")})`}</button>}
           {list && !list.length && <EmptyState icon="inbox" text={q ? "Sin resultados" : "No hay mensajes"} />}
           {!list && <div className="faint" style={{ padding: 16 }}>Cargando…</div>}
         </div>

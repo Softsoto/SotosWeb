@@ -15,6 +15,12 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleProxy } from "./px.mjs";
+
+// si algo se escapa, queda escrito en data/errores.log y el servidor sigue en pie
+const errLog = (kind, e) => { const line = `[${new Date().toISOString()}] ${kind}: ${e?.stack || e}\n`; console.error(line); try { fs.mkdirSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "data"), { recursive: true }); fs.appendFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "data", "errores.log"), line); } catch {} };
+process.on("uncaughtException", e => errLog("uncaughtException", e));
+process.on("unhandledRejection", e => errLog("unhandledRejection", e));
+process.on("exit", c => { if (c) errLog("exit", "código " + c); });
 import { HttpError, json } from "./http.mjs";
 import { handleAuth } from "./auth.mjs";
 import { handleFs } from "./fs.mjs";

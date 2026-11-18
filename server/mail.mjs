@@ -199,7 +199,7 @@ const BOX_ROLE = (name, flags) => /\\Inbox/i.test(flags) || /^inbox$/i.test(name
 async function listBoxes(im) {
   const lines = await im.cmd('LIST "" "*"'); const out = [];
   for (const l of lines) { const t = tokenize(l); if (t[1] !== "LIST") continue; const flags = (t[2] || []).join(" "), name = Buffer.isBuffer(t[4]) ? t[4].toString() : t[4];
-    if (/\\Noselect/i.test(flags) || name == null) continue; out.push({ id: name, name: decUtf7(name), role: BOX_ROLE(name, flags) }); }
+    if (/\\Noselect/i.test(flags) || name == null) continue; out.push({ id: name, name: decUtf7(name).replace(/^\[(Gmail|Google Mail)\]\//i, ""), role: BOX_ROLE(name, flags) }); }
   const order = ["inbox", "sent", "drafts", "archive", "junk", "trash"];
   return out.sort((a, b) => (order.indexOf(a.role) + 1 || 99) - (order.indexOf(b.role) + 1 || 99) || a.name.localeCompare(b.name));
 }
