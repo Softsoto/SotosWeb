@@ -236,17 +236,20 @@ function ServerVideo({ node, info }) {
   useE2(() => { if (sub === "" && ext.length && !info.subs.some(x => x.text)) setSub("e0"); }, [ext.length]);
   const [start, setStart] = useS2(0), [now, setNow] = useS2(0), [playing, setPlaying] = useS2(true);
   const v = useR2(null);
-  const q = `?a=${audio}&t=${start.toFixed(1)}&v=${node.mtime || 0}`;
+  const q = `?a=${audio}&t=${start.toFixed(3)}&v=${node.mtime || 0}`;
   const src = `/api/media/${node.id}/stream${q}`;
-  const seekTo = (t) => { setStart(Math.max(0, Math.min(t, (info.duration || 1) - 2))); setNow(t); };
+  // reiniciar en el fotograma clave anterior (lo dice el servidor) para que audio, video y subtítulos vayan juntos
+  const restartAt = async (t) => { t = Math.max(0, Math.min(t, (info.duration || 1) - 2)); let k = t;
+    try { k = (await api("GET", `media/${node.id}/seek?t=${t.toFixed(2)}`)).k; } catch {} setStart(k); setNow(0); };
+  const seekTo = (t) => restartAt(t);
   const pos = start + now;
   return (
     <div className="sv-wrap">
       <video ref={v} key={src} src={src} autoPlay className="sv-video" onTimeUpdate={e => setNow(e.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
         onClick={e => e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause()}
-        onContextMenu={e => videoMenu(e, v.current, { audio, setAudio: (i) => { setAudio(i); setStart(pos); setNow(0); }, info, sub, setSub, ext, node })}
+        onContextMenu={e => videoMenu(e, v.current, { audio, setAudio: (i) => { setAudio(i); restartAt(pos); }, info, sub, setSub, ext, node })}
         onError={() => toast(`No se pudo reproducir “${node.name}”`, { error: true })}>
-        {sub.startsWith("s") && <track key={sub + ":" + start} kind="subtitles" default src={`/api/media/${node.id}/subs/${sub.slice(1)}?t=${start.toFixed(1)}&v=${node.mtime || 0}`} srcLang={info.subs[+sub.slice(1)]?.lang || "es"} label={trackName(info.subs[+sub.slice(1)], +sub.slice(1), "Subtítulos")} />}
+        {sub.startsWith("s") && <track key={sub + ":" + start} kind="subtitles" default src={`/api/media/${node.id}/subs/${sub.slice(1)}?t=${start.toFixed(3)}&v=${node.mtime || 0}`} srcLang={info.subs[+sub.slice(1)]?.lang || "es"} label={trackName(info.subs[+sub.slice(1)], +sub.slice(1), "Subtítulos")} />}
         {sub.startsWith("e") && ext[+sub.slice(1)] && <ShiftedTrack key={sub + ":" + start} url={ext[+sub.slice(1)].url} shift={start} video={v} />}
       </video>
       <div className="sv-bar">
@@ -254,7 +257,7 @@ function ServerVideo({ node, info }) {
         <span className="sv-time">{hms(pos)}</span>
         <input type="range" className="sv-seek" min="0" max={info.duration || 0} step="1" value={Math.min(pos, info.duration || 0)} onChange={e => seekTo(Number(e.target.value))} />
         <span className="sv-time">{hms(info.duration)}</span>
-        {info.audio.length > 1 && <select className="sv-sel" title="Pista de audio" value={audio} onChange={e => { setAudio(Number(e.target.value)); setStart(pos); setNow(0); }}>
+        {info.audio.length > 1 && <select className="sv-sel" title="Pista de audio" value={audio} onChange={e => { setAudio(Number(e.target.value)); restartAt(pos); }}>
           {info.audio.map((x, i) => <option key={i} value={i}>🔊 {trackName(x, i, "Audio")}{x.channels > 2 ? ` (${x.channels} canales)` : ""}</option>)}</select>}
         {(info.subs.length > 0 || ext.length > 0) && <select className="sv-sel" title="Subtítulos" value={sub} onChange={e => setSub(e.target.value)}>
           <option value="">Sin subtítulos</option>

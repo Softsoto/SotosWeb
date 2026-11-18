@@ -1928,7 +1928,7 @@ select.wg-input { padding: 0 4px; }
 [data-skin="grafito"] .store-card { border-radius: 4px; }
 
 /* correo */
-.mail-app .app-side { width: 210px; flex-basis: 210px; display: flex; flex-direction: column; }
+.mail-app .app-side { width: 244px; flex-basis: 244px; display: flex; flex-direction: column; }
 .mail-list { width: 320px; flex: 0 0 320px; border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--surface); min-width: 0; }
 .mail-list-bar { display: flex; gap: 6px; padding: 8px; border-bottom: 1px solid var(--border); }
 .mail-row { padding: 9px 12px; border-bottom: 1px solid var(--border); cursor: pointer; font-size: 13px; }

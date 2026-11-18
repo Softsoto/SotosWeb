@@ -54,15 +54,28 @@ export async function handleMedia(req, res, parts) {
 
   const url = new URL(req.url, "http://x");
   const t = Math.max(0, Math.min(Number(url.searchParams.get("t") || 0), (info.duration || 1e9) - 1));
-  const seek = t > 0 ? ["-ss", t.toFixed(2)] : [];
+  if (action === "seek" && req.method === "GET") {
+    // el video se copia sin recomprimir y solo puede empezar en un fotograma clave: se busca el anterior a "t"
+    // para que video, audio y subtítulos arranquen en el mismo instante (si no, el audio queda corrido)
+    if (t < 0.5) return json(res, 200, { k: 0 });
+    const k = await new Promise((ok) => {
+      const p = spawn(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-skip_frame", "nokey", "-show_entries", "frame=pts_time,best_effort_timestamp_time", "-of", "csv=p=0",
+        "-read_intervals", `${Math.max(0, t - 15).toFixed(2)}%${(t + 0.05).toFixed(2)}`, file], { windowsHide: true });
+      let out = ""; p.stdout.on("data", d => out += d); const tm = setTimeout(() => { p.kill(); ok(t); }, 15000);
+      p.on("close", () => { clearTimeout(tm); const ks = out.split(/\r?\n/).map(l => parseFloat(l.split(",").find(x => x && x !== "N/A"))).filter(x => isFinite(x) && x <= t + 0.01); ok(ks.length ? Math.max(...ks) : t); });
+      p.on("error", () => ok(t));
+    });
+    return json(res, 200, { k: Math.max(0, Math.round(k * 1000) / 1000) });
+  }
+  const seek = t > 0 ? ["-ss", t.toFixed(3)] : [];
   if (action === "stream" && req.method === "GET") {
     if (!info.video) fail(415, "No es un video");
     const a = Math.max(0, Math.min(Number(url.searchParams.get("a") || 0), Math.max(0, info.audio.length - 1)));
     const copy = COPY_VIDEO.has(info.video.codec);
     const args = ["-hide_banner", "-loglevel", "error", ...seek, "-i", file, "-map", "0:v:0", ...(info.audio.length ? ["-map", `0:a:${a}`] : []),
       ...(copy ? ["-c:v", "copy", ...(info.video.codec === "hevc" ? ["-tag:v", "hvc1"] : [])] : ["-c:v", "libx264", "-preset", "veryfast", "-crf", "22", "-pix_fmt", "yuv420p"]),
-      ...(info.audio.length ? ["-c:a", "aac", "-ac", "2", "-b:a", "192k"] : []), "-sn",
-      "-movflags", "frag_keyframe+empty_moov+default_base_moof", "-f", "mp4", "pipe:1"];
+      ...(info.audio.length ? ["-c:a", "aac", "-ac", "2", "-b:a", "192k"] : []), "-sn", "-avoid_negative_ts", "make_zero",
+      "-movflags", "frag_keyframe+empty_moov+default_base_moof", "-frag_duration", "2000000", "-f", "mp4", "pipe:1"]; // fragmentos de 2 s: arranca y salta más rápido
     const p = spawn(FFMPEG, args, { windowsHide: true });
     res.writeHead(200, { "content-type": "video/mp4", "cache-control": "no-store", "x-content-type-options": "nosniff" });
     p.stdout.pipe(res); let err = ""; p.stderr.on("data", d => { if (err.length < 2000) err += d; });

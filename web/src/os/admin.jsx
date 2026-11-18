@@ -21,8 +21,11 @@ export function AdminApp() {
   const [tab, setTab] = useState("resumen");
   const [stats, setStats] = useState(null), [users, setUsers] = useState(null);
   const [q, setQ] = useState(""), [edit, setEdit] = useState(null), [files, setFiles] = useState(null), [creating, setCreating] = useState(false), [confirm, setConfirm] = useState(null);
-  const loadStats = () => api("GET", "admin/stats").then(setStats).catch(e => toast(e.message, { error: true }));
-  const loadUsers = () => api("GET", "admin/users").then(r => setUsers(r.items)).catch(e => toast(e.message, { error: true }));
+  // si el servidor se está reiniciando, se reintenta solo unas veces antes de mostrar el error
+  const retry = (fn, n = 5) => fn().catch(e => n > 0 && (e.status === 0 || e.status >= 500 || !e.status) ? new Promise(r => setTimeout(r, 1500)).then(() => retry(fn, n - 1)) : Promise.reject(e));
+  const [loadErr, setLoadErr] = useState(null);
+  const loadStats = () => retry(() => api("GET", "admin/stats")).then(setStats).catch(e => setLoadErr(e.message));
+  const loadUsers = () => retry(() => api("GET", "admin/users")).then(r => { setUsers(r.items); setLoadErr(null); }).catch(e => setLoadErr(e.message));
   useEffect(() => { if (user?.role === "admin") { loadStats(); loadUsers(); } }, [user?.role]);
   if (user?.role !== "admin") return <div className="app"><EmptyState icon="admin_panel_settings" text="Solo las cuentas administradoras pueden abrir este panel" /></div>;
 
@@ -36,6 +39,8 @@ export function AdminApp() {
           <div key={id} className={"side-item" + (tab === id ? " active" : "")} onClick={() => setTab(id)}><Ic name={icon} /><span>{label}</span></div>)}
       </div>
       <div className="app-main scroll" style={{ padding: "18px 22px" }}>
+        {loadErr && <div className="admin-warn soft" style={{ marginBottom: 12 }}><Ic name="cloud_off" /><div>No se pudo cargar el panel: {loadErr}. <button className="tb-btn" onClick={() => { setLoadErr(null); loadStats(); loadUsers(); }}>Reintentar</button></div></div>}
+        {!users && !loadErr && tab === "usuarios" && <div className="faint" style={{ padding: 10 }}>Cargando cuentas…</div>}
         {tab === "resumen" && stats && <>
           <h2 className="admin-h">Resumen del servidor</h2>
           <div className="admin-cards">
