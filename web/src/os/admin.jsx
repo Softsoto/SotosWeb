@@ -20,7 +20,7 @@ export function AdminApp() {
   const user = useVfs(s => s.user);
   const [tab, setTab] = useState("resumen");
   const [stats, setStats] = useState(null), [users, setUsers] = useState(null);
-  const [q, setQ] = useState(""), [edit, setEdit] = useState(null), [creating, setCreating] = useState(false), [confirm, setConfirm] = useState(null);
+  const [q, setQ] = useState(""), [edit, setEdit] = useState(null), [files, setFiles] = useState(null), [creating, setCreating] = useState(false), [confirm, setConfirm] = useState(null);
   const loadStats = () => api("GET", "admin/stats").then(setStats).catch(e => toast(e.message, { error: true }));
   const loadUsers = () => api("GET", "admin/users").then(r => setUsers(r.items)).catch(e => toast(e.message, { error: true }));
   useEffect(() => { if (user?.role === "admin") { loadStats(); loadUsers(); } }, [user?.role]);
@@ -32,7 +32,7 @@ export function AdminApp() {
     <div className="app admin-app">
       <div className="app-side">
         <div className="side-label">Administración</div>
-        {[["resumen", "monitoring", "Resumen"], ["usuarios", "group", "Usuarios"], ["servidor", "dns", "Servidor"]].map(([id, icon, label]) =>
+        {[["resumen", "monitoring", "Resumen"], ["usuarios", "group", "Usuarios"], ["registro", "history", "Registro"], ["servidor", "dns", "Servidor"]].map(([id, icon, label]) =>
           <div key={id} className={"side-item" + (tab === id ? " active" : "")} onClick={() => setTab(id)}><Ic name={icon} /><span>{label}</span></div>)}
       </div>
       <div className="app-main scroll" style={{ padding: "18px 22px" }}>
@@ -66,9 +66,11 @@ export function AdminApp() {
         </>}
 
         {tab === "servidor" && stats && <ServerSettings stats={stats} onSaved={loadStats} />}
+        {tab === "registro" && <AuditLog />}
       </div>
 
-      {edit && <UserEditor u={edit} me={user} onClose={() => setEdit(null)} patch={(b, m) => patch(edit, b, m).then(() => setEdit(x => x && { ...x, ...b }))}
+      {files && <UserFiles u={files} onClose={() => setFiles(null)} onChanged={() => { loadUsers(); loadStats(); }} />}
+      {edit && <UserEditor u={edit} me={user} onFiles={() => setFiles(edit)} onClose={() => setEdit(null)} patch={(b, m) => patch(edit, b, m).then(() => setEdit(x => x && { ...x, ...b }))}
         onPassword={async (pw) => { try { await api("POST", `admin/users/${edit.id}/password`, { password: pw }); toast("Contraseña cambiada; sus sesiones se cerraron", { icon: "key" }); } catch (e) { toast(e.message, { error: true }); } }}
         onLogout={async () => { await api("POST", `admin/users/${edit.id}/logout`, {}); toast("Sesiones cerradas", { icon: "logout" }); loadUsers(); }}
         onDelete={() => setConfirm(edit)} />}
@@ -80,8 +82,8 @@ export function AdminApp() {
   );
 }
 
-function UserEditor({ u, me, onClose, patch, onPassword, onLogout, onDelete }) {
-  const [quota, setQuota] = useState(Math.round(u.quota / 1048576)), [pw, setPw] = useState("");
+function UserEditor({ u, me, onClose, onFiles, patch, onPassword, onLogout, onDelete }) {
+  const [quota, setQuota] = useState(Math.round(u.quota / 1048576)), [pw, setPw] = useState(""), [demote, setDemote] = useState(null);
   const hidden = new Set(u.hiddenApps || []);
   const self = u.id === me.id;
   return (
@@ -91,11 +93,16 @@ function UserEditor({ u, me, onClose, patch, onPassword, onLogout, onDelete }) {
         <div className="admin-line"><span>Cuota de espacio</span><input className="sc-input" type="number" min={10} value={quota} onChange={e => setQuota(e.target.value)} style={{ width: 110, margin: 0 }} /><span className="faint">MB</span>
           <button className="tb-btn" onClick={() => patch({ quotaMb: +quota }, "Cuota actualizada")}>Guardar</button></div>
         <div className="admin-line"><span>Rol</span>
-          <button className={"chip" + (u.role === "user" ? " on" : "")} onClick={() => patch({ role: "user" }, "Ahora es usuario")}>Usuario</button>
+          <button className={"chip" + (u.role === "user" ? " on" : "")} onClick={() => self && u.role === "admin" ? setDemote("") : patch({ role: "user" }, "Ahora es usuario")}>Usuario</button>
           <button className={"chip" + (u.role === "admin" ? " on" : "")} onClick={() => patch({ role: "admin" }, "Ahora es administrador")}>Administrador</button></div>
         {!self && <div className="admin-line"><span>Cuenta</span>
           <button className={"chip" + (!u.disabled ? " on" : "")} onClick={() => patch({ disabled: false }, "Cuenta activada")}>Activa</button>
           <button className={"chip" + (u.disabled ? " on" : "")} style={{ "--chip": "#d9452f" }} onClick={() => patch({ disabled: true }, "Cuenta desactivada y sesiones cerradas")}>Desactivada</button></div>}
+        <div className="admin-line"><span>Archivos</span><button className="tb-btn" onClick={onFiles}><Ic name="folder_open" /> Ver sus archivos</button><span className="faint">{fmtSize(u.used)} usados</span></div>
+        {demote !== null && <div className="admin-warn"><Ic name="warning" /><div><b>Vas a dejar de ser administrador.</b> Perderás este panel y no podrás devolverte el rol: solo otro administrador podría hacerlo.
+          <div className="admin-line" style={{ marginTop: 8 }}><input className="sc-input" type="password" autoComplete="current-password" placeholder="Tu contraseña" value={demote} onChange={e => setDemote(e.target.value)} style={{ flex: 1, margin: 0 }} />
+            <button className="tb-btn" onClick={() => setDemote(null)}>Cancelar</button>
+            <button className="tb-btn danger" disabled={!demote} onClick={async () => { await patch({ role: "user", password: demote }, "Ya no eres administrador"); setDemote(null); }}>Confirmar</button></div></div></div>}
         <div className="admin-sub">Apps de su escritorio</div>
         <div className="faint" style={{ fontSize: 12, marginTop: -4 }}>Como en un lugar de trabajo: elige qué apps ve esta persona.</div>
         <div className="admin-apps">
@@ -113,6 +120,47 @@ function UserEditor({ u, me, onClose, patch, onPassword, onLogout, onDelete }) {
       </div>
     </Modal>
   );
+}
+
+/* archivos de una persona: para revisar contenido que infrinja derechos de autor o las normas del servidor */
+function UserFiles({ u, onClose, onChanged }) {
+  const [items, setItems] = useState(null), [q, setQ] = useState(""), [del, setDel] = useState(null);
+  const load = () => api("GET", `admin/users/${u.id}/files`).then(r => setItems(r.items)).catch(e => toast(e.message, { error: true }));
+  useEffect(() => { load(); }, []);
+  const list = (items || []).filter(f => f.path.toLowerCase().includes(q.toLowerCase()));
+  return (
+    <Modal title={`Archivos de ${u.name}`} icon="folder_open" onClose={onClose} width={820} actions={<button className="tb-btn" onClick={onClose}>Cerrar</button>}>
+      <div className="admin-warn soft"><Ic name="policy" /><div>Úsalo solo para revisar contenido que infrinja derechos de autor o las normas de este servidor. Cada vez que abres o eliminas un archivo queda en el <b>Registro</b>, y la persona recibe un aviso con el motivo cuando eliminas algo.</div></div>
+      <div className="search-box" style={{ margin: "10px 0" }}><Ic name="search" size={16} /><input placeholder="Buscar por nombre o carpeta" value={q} onChange={e => setQ(e.target.value)} /></div>
+      <div className="admin-files">
+        {!items && <div className="faint" style={{ padding: 12 }}>Cargando…</div>}
+        {items && !list.length && <EmptyState icon="folder_off" text="No hay archivos" />}
+        {list.slice(0, 500).map(f => <div key={f.id} className="admin-file">
+          <span className="admin-file-name" title={f.path}><b>{f.name}</b><span className="faint">{f.path.replace(/\/[^/]*$/, "") || "/"}{f.trashed ? " · en la papelera" : ""}</span></span>
+          <span className="faint">{fmtSize(f.size)}</span><span className="faint">{fmtDate(f.mtime)}</span>
+          <a className="tb-btn icon" title="Abrir o descargar" href={`/api/admin/users/${u.id}/files/${f.id}`} target="_blank" rel="noopener"><Ic name="open_in_new" /></a>
+          <button className="tb-btn icon danger" title="Eliminar" onClick={() => setDel({ f, reason: "Posible infracción de derechos de autor" })}><Ic name="delete" /></button>
+        </div>)}
+      </div>
+      {del && <Modal title={`¿Eliminar «${del.f.name}»?`} icon="delete" onClose={() => setDel(null)} width={460}
+        actions={<><button className="tb-btn" onClick={() => setDel(null)}>Cancelar</button><button className="tb-btn danger" disabled={!del.reason.trim()} onClick={async () => { try { await api("DELETE", `admin/users/${u.id}/files/${del.f.id}`, { reason: del.reason }); toast("Archivo eliminado; la persona recibió el aviso", { icon: "delete" }); setDel(null); load(); onChanged(); } catch (e) { toast(e.message, { error: true }); } }}>Eliminar para siempre</button></>}>
+        <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.5, marginBottom: 8 }}>Se borra de su cuenta sin pasar por la papelera. <b>No se puede deshacer.</b> Este motivo le llegará como notificación:</div>
+        <textarea className="sc-input" rows={3} style={{ width: "100%", margin: 0 }} value={del.reason} onChange={e => setDel({ ...del, reason: e.target.value })} />
+      </Modal>}
+    </Modal>
+  );
+}
+
+function AuditLog() {
+  const [items, setItems] = useState(null);
+  useEffect(() => { api("GET", "admin/log").then(r => setItems(r.items)).catch(e => toast(e.message, { error: true })); }, []);
+  return <>
+    <h2 className="admin-h">Registro de administración</h2>
+    <div className="faint" style={{ fontSize: 13, marginBottom: 10 }}>Quién vio, abrió o eliminó archivos y quién cambió roles o cuotas. No se puede borrar desde aquí.</div>
+    <div className="admin-files">{(items || []).map(r => <div key={r.id} className="admin-file log">
+      <span className="faint">{fmtDate(r.created)}</span><span><b>{r.admin}</b> · {r.action}{r.detail ? ": " + r.detail : ""}</span><span className="faint">{r.user}</span></div>)}
+      {items && !items.length && <EmptyState icon="history" text="Aún no hay acciones registradas" />}</div>
+  </>;
 }
 
 function UserCreator({ onClose, onDone }) {

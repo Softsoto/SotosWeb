@@ -21,6 +21,8 @@ export const registration = () => getSetting("registration", ENV_REGISTRATION);
 
 const scrypt = (pw, salt) => new Promise((res, rej) => crypto.scrypt(pw, salt, 64, { N: 32768, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }, (e, k) => e ? rej(e) : res(k)));
 export async function hashPassword(pw) { const salt = crypto.randomBytes(16); return `s1$${salt.toString("base64")}$${(await scrypt(pw, salt)).toString("base64")}`; }
+/** comprueba la contraseña de una cuenta (para confirmar acciones delicadas) */
+export async function verifyPassword(userId, pw) { const r = db.prepare("SELECT pass FROM users WHERE id = ?").get(userId); return !!r && checkPassword(String(pw || ""), r.pass); }
 async function checkPassword(pw, stored) {
   const [v, s, h] = String(stored).split("$"); if (v !== "s1") return false;
   const k = await scrypt(pw, Buffer.from(s, "base64")); const want = Buffer.from(h, "base64");
