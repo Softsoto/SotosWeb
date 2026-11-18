@@ -2,7 +2,7 @@
 
 <p align="center">Un ordenador completo dentro del navegador: archivos en la nube, Word, Excel y PowerPoint, correo real, calendario, tareas, navegador propio, terminal y una identidad visual propia. También es un homenaje a inevio.</p>
 
-<p align="center"><a href="https://sotomontes.com/#sotos-web">Ver en sotomontes.com</a> · <a href="#recorrido">Recorrido</a> · <a href="#instalación">Instalación</a> · <a href="#cómo-funciona-por-dentro">Cómo funciona</a> · <a href="#novedades">Novedades</a> · <a href="#un-homenaje-a-inevio">Homenaje a inevio</a></p>
+<p align="center"><a href="https://sotomontes.com/#sotos-web">Ver en sotomontes.com</a> · <a href="#recorrido">Recorrido</a> · <a href="#instalación">Instalación</a> · <a href="#cómo-funciona-por-dentro">Cómo funciona</a> · <a href="#novedades">Novedades</a> · <a href="CHANGELOG.md">Historial de cambios</a> · <a href="#un-homenaje-a-inevio">Homenaje a inevio</a></p>
 
 | Ficha técnica | |
 |---|---|
@@ -10,7 +10,7 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 2.3 |
+| **Versión** | 3.0 · lanzamiento oficial |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
 | **Licencia** | [MIT](LICENSE) |
@@ -32,6 +32,15 @@ Sotos también es un homenaje a **inevio**, aquel escritorio en la nube que demo
 Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde cero. inevio es una marca de sus respectivos dueños y Sotos no tiene relación con ella.
 
 ## Novedades
+
+**Versión 3.0, lanzamiento oficial** ([historial completo](CHANGELOG.md)):
+
+- **WhatsApp dentro de Sotos**: cada cuenta vincula su WhatsApp con un código QR y lo usa con la interfaz de Sotos: chats, fotos, videos, audios, documentos y archivos de tu nube.
+- **Bóveda secreta**: un espacio oculto y cifrado con tu propia clave; ni el servidor ni un administrador pueden ver lo que guardas.
+- **Paint**, **Diagramas** (draw.io), **Pizarra** (Excalidraw) y **Código** (el editor de VS Code), todos guardando en tus archivos.
+- **Correo profesional**: varias cuentas, alias con remitente principal, firma y editor en HTML.
+- **Películas MKV con audio y subtítulos**: el servidor las prepara una vez sin perder calidad de imagen; luego se ven como un video normal, eligiendo audio y subtítulos.
+- **Gestor de transferencias**, **avatares**, **iconos arrastrables**, logo clásico a elegir y un panel de administración para revisar archivos carpeta por carpeta con registro de cada acción.
 
 **Versión 2.3**, Sotos se vuelve tu oficina completa:
 
@@ -192,6 +201,22 @@ Varias cuentas, alias para enviar desde otras direcciones y la elección de remi
 
 <p align="center"><img src="images/tienda.jpg" alt="Tienda de aplicaciones" width="100%"></p>
 
+### WhatsApp, correo y video
+
+<p align="center"><img src="images/whatsapp.jpg" alt="Vincular WhatsApp en Sotos con aviso del riesgo" width="100%"></p>
+
+<p align="center"><img src="images/correo-html.jpg" alt="Redactar un correo en HTML con firma y remitente principal" width="100%"></p>
+
+<p align="center"><img src="images/video-mkv.jpg" alt="Video MKV con subtítulos y selector de audio" width="100%"></p>
+
+### Paint, Diagramas y avatares
+
+<p align="center"><img src="images/paint.jpg" alt="Paint de Sotos" width="100%"></p>
+
+<p align="center"><img src="images/diagramas.jpg" alt="Diagramas con draw.io alojado en el propio servidor" width="100%"></p>
+
+<p align="center"><img src="images/avatares.jpg" alt="Elegir avatar en Ajustes" width="100%"></p>
+
 ### Euro-Office dentro de Sotos
 
 <p align="center"><img src="images/euro-office.jpg" alt="Documento abierto en Euro-Office dentro de una ventana de Sotos" width="100%"></p>
@@ -248,7 +273,9 @@ Varias cuentas, alias para enviar desde otras direcciones y la elección de remi
 - **Personalización**: ocho fondos ilustrados o una foto propia, tema claro u oscuro, seis colores de acento, cuatro tipografías y tres estilos de ventana.
 - **Correo**: varias cuentas IMAP/SMTP con alias, contraseñas cifradas en el servidor.
 - **Organización**: Calendario con recordatorios e `.ics`, Tareas con comentarios, versiones de archivos y copias de seguridad.
-- **Extras**: Terminal, Juegos, Tienda, WhatsApp (con el navegador virtual), widgets y panel de administración.
+- **Creatividad**: Paint, Diagramas (draw.io), Pizarra (Excalidraw) y Código (Monaco).
+- **Privacidad**: bóveda secreta cifrada con tu propia clave.
+- **Extras**: Terminal, Juegos, Tienda, WhatsApp, widgets, avatares y panel de administración con registro de acciones.
 
 ## Instalación
 
