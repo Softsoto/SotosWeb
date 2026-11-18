@@ -35,6 +35,7 @@ function Setup({ onDone, current }) {
           <label className="field">Tu nombre<input value={f.name} onChange={e => setF({ ...f, name: e.target.value })} placeholder="Como te verán al recibir tus correos" /></label>
           <label className="field">Correo<input type="email" value={f.email} onChange={e => setF({ ...f, email: e.target.value })} placeholder="tu@correo.com" /></label>
           <label className="field">Contraseña {p !== "otro" ? "de aplicación" : ""}<input type="password" autoComplete="new-password" value={f.password} onChange={e => setF({ ...f, password: e.target.value })} /></label>
+          {p !== "otro" && <label className="field">Usuario para iniciar sesión<input value={f.username} onChange={e => setF({ ...f, username: e.target.value })} placeholder={presets[p]?.userHint ? `Si es distinto del correo: ${presets[p].userHint}` : "Déjalo vacío para usar tu correo"} /></label>}
           {p === "otro" && <div className="mail-server-grid">
             <label className="field">Servidor IMAP<input value={f.imapHost} onChange={e => setF({ ...f, imapHost: e.target.value })} placeholder="imap.ejemplo.com" /></label>
             <label className="field">Puerto<input type="number" value={f.imapPort} onChange={e => setF({ ...f, imapPort: e.target.value })} /></label>
@@ -50,6 +51,24 @@ function Setup({ onDone, current }) {
   );
 }
 
+function Aliases({ account, onClose, onSaved }) {
+  const [list, setList] = useState(account.aliases || []), [busy, setBusy] = useState(false);
+  const set = (i, k, v) => setList(l => l.map((x, j) => j === i ? { ...x, [k]: v } : x));
+  const save = async () => { setBusy(true); try { await api("PUT", "mail/aliases", { aliases: list.filter(x => x.email.trim()) }); toast("Alias guardados", { icon: "alternate_email" }); onSaved(); } catch (e) { toast(e.message, { error: true }); setBusy(false); } };
+  return (
+    <Modal title="Alias de correo" icon="alternate_email" onClose={onClose} width={560}
+      actions={<><button className="tb-btn" onClick={() => setList(l => [...l, { email: "", name: "" }])}><Ic name="add" /> Añadir alias</button><div style={{ flex: 1 }} /><button className="tb-btn" onClick={onClose}>Cancelar</button><button className="tb-btn primary" disabled={busy} onClick={save}>Guardar</button></>}>
+      <div className="muted" style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 10 }}>Otras direcciones desde las que envías con esta misma cuenta: tu dominio propio en iCloud+, los alias de Outlook o las direcciones «Enviar como» de Gmail. El proveedor debe tenerlas autorizadas; si no, rechazará el envío. Al redactar eliges desde cuál sale el correo.</div>
+      <div style={{ display: "grid", gap: 8 }}>
+        <div className="alias-row"><input value={account.email} disabled /><input value={account.name} disabled /><span className="faint" style={{ width: 32, fontSize: 11 }}>principal</span></div>
+        {list.map((x, i) => <div key={i} className="alias-row"><input type="email" placeholder="alias@tudominio.com" value={x.email} onChange={e => set(i, "email", e.target.value)} /><input placeholder={`Nombre (${account.name})`} value={x.name} onChange={e => set(i, "name", e.target.value)} />
+          <button className="tb-btn icon" title="Quitar" onClick={() => setList(l => l.filter((_, j) => j !== i))}><Ic name="delete" /></button></div>)}
+        {!list.length && <div className="faint" style={{ fontSize: 13 }}>Aún no tienes alias.</div>}
+      </div>
+    </Modal>
+  );
+}
+
 function Compose({ init, onClose, onSent, account }) {
   const [f, setF] = useState({ to: "", cc: "", subject: "", text: "", ...init }), [att, setAtt] = useState([]), [busy, setBusy] = useState(false), [pick, setPick] = useState(false);
   const send = async () => { setBusy(true); try { await vfs.flush?.().catch(() => {}); await api("POST", "mail/send", { ...f, attachments: att.map(n => n.id) }); toast("Correo enviado", { icon: "send" }); onSent(); } catch (e) { toast(e.message, { error: true }); setBusy(false); } };
@@ -58,8 +77,10 @@ function Compose({ init, onClose, onSent, account }) {
     <Modal title={init?.subject ? f.subject : "Correo nuevo"} icon="edit" onClose={onClose} width={620}
       actions={<><button className="tb-btn" onClick={() => setPick(p => !p)}><Ic name="attach_file" /> Adjuntar de Archivos</button><div style={{ flex: 1 }} /><button className="tb-btn" onClick={onClose}>Descartar</button>
         <button className="tb-btn primary" disabled={busy || !f.to.trim()} onClick={send}><Ic name="send" /> {busy ? "Enviando…" : "Enviar"}</button></>}>
-      <div className="compose">
-        <div className="faint" style={{ fontSize: 12 }}>De: {account.name} &lt;{account.email}&gt;</div>
+      <div className="mail-compose">
+        {account.aliases?.length ? <label className="compose-row"><span>De</span><select className="compose-from" value={f.from || account.email} onChange={e => setF({ ...f, from: e.target.value })}>
+          {[{ email: account.email, name: account.name }, ...account.aliases].map(x => <option key={x.email} value={x.email}>{(x.name || account.name)} &lt;{x.email}&gt;</option>)}</select></label>
+          : <div className="faint" style={{ fontSize: 12 }}>De: {account.name} &lt;{account.email}&gt;</div>}
         <label className="compose-row"><span>Para</span><input autoFocus value={f.to} onChange={e => setF({ ...f, to: e.target.value })} placeholder="correo@ejemplo.com, otro@ejemplo.com" /></label>
         <label className="compose-row"><span>Cc</span><input value={f.cc} onChange={e => setF({ ...f, cc: e.target.value })} /></label>
         <label className="compose-row"><span>Asunto</span><input value={f.subject} onChange={e => setF({ ...f, subject: e.target.value })} /></label>
@@ -102,7 +123,7 @@ function MessageView({ m, onReply, onForward, onDelete, onFlag, flagged }) {
 
 export function RealMail() {
   const [account, setAccount] = useState(undefined), [boxes, setBoxes] = useState([]), [box, setBox] = useState("INBOX");
-  const [list, setList] = useState(null), [total, setTotal] = useState(0), [page, setPage] = useState(0), [q, setQ] = useState(""), [sel, setSel] = useState(null), [msg, setMsg] = useState(null), [compose, setCompose] = useState(null), [setup, setSetup] = useState(false), [loading, setLoading] = useState(false);
+  const [list, setList] = useState(null), [total, setTotal] = useState(0), [page, setPage] = useState(0), [q, setQ] = useState(""), [sel, setSel] = useState(null), [msg, setMsg] = useState(null), [compose, setCompose] = useState(null), [setup, setSetup] = useState(false), [aliasDlg, setAliasDlg] = useState(false), [loading, setLoading] = useState(false);
   const loadAcc = () => api("GET", "mail/account").then(r => setAccount(r.account)).catch(() => setAccount(null));
   useEffect(() => { loadAcc(); }, []);
   useEffect(() => { if (account) api("GET", "mail/boxes").then(r => setBoxes(r.boxes)).catch(e => toast(e.message, { error: true })); }, [account?.email]);
@@ -118,7 +139,7 @@ export function RealMail() {
       <div className="app-side">
         <button className="tb-btn primary" style={{ width: "100%", justifyContent: "center", marginBottom: 10 }} onClick={() => setCompose({})}><Ic name="edit" /> Redactar</button>
         {boxes.map(b => <div key={b.id} className={"side-item" + (box === b.id ? " active" : "")} onClick={() => setBox(b.id)}><Ic name={BOX_ICON[b.role] || "folder"} /><span>{b.role === "inbox" ? "Recibidos" : b.role === "sent" ? "Enviados" : b.role === "trash" ? "Papelera" : b.role === "junk" ? "Spam" : b.role === "drafts" ? "Borradores" : b.name}</span></div>)}
-        <div style={{ marginTop: "auto", fontSize: 12 }} className="faint">{account.email}<br /><a style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setSetup(true)}>Configurar cuenta</a></div>
+        <div style={{ marginTop: "auto", fontSize: 12 }} className="faint">{account.email}<br /><a style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setSetup(true)}>Configurar cuenta</a> · <a style={{ cursor: "pointer", color: "var(--accent)" }} onClick={() => setAliasDlg(true)}>Alias{account.aliases?.length ? ` (${account.aliases.length})` : ""}</a></div>
       </div>
       <div className="mail-list">
         <div className="mail-list-bar"><div className="search-box" style={{ flex: 1 }}><Ic name="search" size={16} /><input placeholder="Buscar en el correo" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => e.key === "Enter" && loadList(box, q)} /></div>
@@ -134,12 +155,13 @@ export function RealMail() {
       </div>
       <div className="app-main">
         {msg ? <MessageView m={msg} flagged={cur?.flagged}
-          onReply={() => setCompose({ to: msg.replyTo || emailOf(msg.from), subject: /^re:/i.test(msg.subject) ? msg.subject : "Re: " + msg.subject, text: quote(msg), inReplyTo: msg.messageId })}
+          onReply={() => setCompose({ from: (account.aliases || []).find(x => (msg.to + " " + (msg.cc || "")).toLowerCase().includes(x.email))?.email, to: msg.replyTo || emailOf(msg.from), subject: /^re:/i.test(msg.subject) ? msg.subject : "Re: " + msg.subject, text: quote(msg), inReplyTo: msg.messageId })}
           onForward={() => setCompose({ subject: "Rv: " + msg.subject, text: `\n\n—— Mensaje reenviado ——\nDe: ${msg.from}\nAsunto: ${msg.subject}\n\n${msg.text || ""}` })}
           onFlag={async () => { await api("POST", `mail/messages/${msg.uid}/flags?box=${encodeURIComponent(box)}`, { flagged: !cur?.flagged }); setList(l => l.map(x => x.uid === msg.uid ? { ...x, flagged: !x.flagged } : x)); }}
           onDelete={async () => { try { const r = await api("DELETE", `mail/messages/${msg.uid}?box=${encodeURIComponent(box)}`); toast(r.to ? `Movido a ${r.to}` : "Mensaje eliminado", { icon: "delete" }); setMsg(null); setSel(null); loadList(); } catch (e) { toast(e.message, { error: true }); } }} />
           : <EmptyState icon="mail" text={sel ? "Abriendo…" : "Elige un mensaje"} />}
       </div>
+      {aliasDlg && <Aliases account={account} onClose={() => setAliasDlg(false)} onSaved={() => { setAliasDlg(false); loadAcc(); }} />}
       {compose && <Compose init={compose} account={account} onClose={() => setCompose(null)} onSent={() => { setCompose(null); if (boxes.find(b => b.id === box)?.role === "sent") loadList(); }} />}
     </div>
   );

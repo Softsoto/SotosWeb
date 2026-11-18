@@ -1951,11 +1951,11 @@ select.wg-input { padding: 0 4px; }
 .mail-presets { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
 .mail-setup-card .field { text-align: left; }
 .mail-server-grid { display: grid; grid-template-columns: 1fr 90px; gap: 8px; }
-.compose { display: grid; gap: 8px; }
+.mail-compose { display: grid; gap: 8px; }
 .compose-row { display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); padding-bottom: 4px; }
 .compose-row span { width: 54px; font-size: 12.5px; color: var(--text-faint); }
 .compose-row input { flex: 1; border: 0; background: none; color: var(--text); font: 14px var(--ui); outline: none; padding: 4px 0; }
-.compose textarea { border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text); font: 14px/1.5 var(--ui); padding: 10px; resize: vertical; outline: none; }
+.mail-compose textarea { border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2); color: var(--text); font: 14px/1.5 var(--ui); padding: 10px; resize: vertical; outline: none; }
 .compose-atts { display: flex; flex-wrap: wrap; gap: 6px; }
 .compose-pick { max-height: 180px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
 .compose-pick button { display: flex; align-items: center; gap: 6px; width: 100%; border: 0; background: none; color: var(--text); font: 12.5px var(--ui); padding: 6px 10px; cursor: pointer; text-align: left; }
@@ -1967,4 +1967,10 @@ select.wg-input { padding: 0 4px; }
 
 
 .neko-frame { flex: 1; width: 100%; border: 0; background: #111; }
+
+
+.alias-row { display: flex; gap: 8px; align-items: center; }
+.alias-row input { flex: 1; min-width: 0; padding: 7px 9px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--text); font: 13px var(--ui); }
+.alias-row input:disabled { opacity: .7; }
+.compose-from { flex: 1; border: 0; background: none; color: var(--text); font: 14px var(--ui); padding: 4px 0; outline: none; }
 

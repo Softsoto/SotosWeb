@@ -19,11 +19,13 @@ db.exec(`CREATE TABLE IF NOT EXISTS mail_accounts (
   imap_host TEXT NOT NULL, imap_port INTEGER NOT NULL, smtp_host TEXT NOT NULL, smtp_port INTEGER NOT NULL,
   username TEXT NOT NULL, pass_enc TEXT NOT NULL, created INTEGER NOT NULL)`);
 if (!db.prepare("PRAGMA table_info(mail_accounts)").all().some(c => c.name === "smtp_tls")) db.exec("ALTER TABLE mail_accounts ADD COLUMN smtp_tls TEXT"); // "ssl" | "starttls"
+if (!db.prepare("PRAGMA table_info(mail_accounts)").all().some(c => c.name === "aliases")) db.exec("ALTER TABLE mail_accounts ADD COLUMN aliases TEXT"); // JSON [{ email, name }]
+const aliasesOf = (a) => { try { return JSON.parse(a?.aliases || "[]"); } catch { return []; } };
 
 export const PRESETS = {
   gmail:   { label: "Gmail", imap: ["imap.gmail.com", 993], smtp: ["smtp.gmail.com", 465], help: "Necesitas una «contraseña de aplicación» de Google (Cuenta → Seguridad → Verificación en 2 pasos → Contraseñas de aplicaciones)." },
   outlook: { label: "Outlook / Hotmail", imap: ["outlook.office365.com", 993], smtp: ["smtp-mail.outlook.com", 587], help: "Si tu cuenta tiene verificación en 2 pasos, usa una contraseña de aplicación de Microsoft." },
-  icloud:  { label: "iCloud", imap: ["imap.mail.me.com", 993], smtp: ["smtp.mail.me.com", 587], help: "Crea una «contraseña específica para apps» en appleid.apple.com." },
+  icloud:  { label: "iCloud", imap: ["imap.mail.me.com", 993], smtp: ["smtp.mail.me.com", 587], help: "Crea una «contraseña específica para apps» en account.apple.com. El usuario es tu dirección principal @icloud.com (o @me.com), aunque uses un dominio propio: ese agrégalo luego como alias.", userHint: "tu dirección @icloud.com principal" },
   yahoo:   { label: "Yahoo", imap: ["imap.mail.yahoo.com", 993], smtp: ["smtp.mail.yahoo.com", 465], help: "Genera una contraseña de aplicación en la seguridad de tu cuenta Yahoo." },
 };
 
@@ -95,7 +97,7 @@ const q = (s) => '"' + String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"') + '
 async function imapOpen(acc) {
   const sock = await connect(acc.imap_host, acc.imap_port, { secure: true });
   const im = new Imap(sock); await im.greeting();
-  try { await im.cmd(`LOGIN ${q(acc.username)} ${q(acc.pass)}`); } catch (e) { im.close(); throw new Error("Usuario o contraseña de correo incorrectos" + (e.message ? ` (${e.message.slice(0, 120)})` : "")); }
+  try { await im.cmd(`LOGIN ${q(acc.username)} ${q(acc.pass)}`); } catch (e) { im.close(); throw new Error("Usuario o contraseña de correo incorrectos" + (e.message ? ` (${e.message.slice(0, 120)})` : "") + (/mail\.me\.com$/i.test(acc.imap_host) ? ". En iCloud el usuario es tu dirección @icloud.com principal (no la de un dominio propio) y la contraseña debe ser una «específica para apps»." : /gmail\.com$/i.test(acc.imap_host) ? ". En Gmail usa una «contraseña de aplicación» (requiere verificación en dos pasos)." : "")); }
   return im;
 }
 // nombres de bandeja en UTF-7 modificado (RFC 3501)
@@ -209,9 +211,9 @@ export async function handleMail(req, res, parts) {
   const u = requireUser(req);
   const [a, id, sub] = parts;
   const url = new URL(req.url, "http://x");
-  if (a === "presets" && req.method === "GET") return json(res, 200, { presets: Object.fromEntries(Object.entries(PRESETS).map(([k, v]) => [k, { label: v.label, help: v.help, imap: v.imap, smtp: v.smtp }])) });
+  if (a === "presets" && req.method === "GET") return json(res, 200, { presets: Object.fromEntries(Object.entries(PRESETS).map(([k, v]) => [k, { label: v.label, help: v.help, userHint: v.userHint || null, imap: v.imap, smtp: v.smtp }])) });
   if (a === "account") {
-    if (req.method === "GET") { const acc = db.prepare("SELECT email, name, imap_host, imap_port, smtp_host, smtp_port, smtp_tls, username FROM mail_accounts WHERE user_id = ?").get(u.id); return json(res, 200, { account: acc || null }); }
+    if (req.method === "GET") { const acc = db.prepare("SELECT email, name, imap_host, imap_port, smtp_host, smtp_port, smtp_tls, username, aliases FROM mail_accounts WHERE user_id = ?").get(u.id); return json(res, 200, { account: acc ? { ...acc, aliases: aliasesOf(acc) } : null }); }
     if (req.method === "DELETE") { db.prepare("DELETE FROM mail_accounts WHERE user_id = ?").run(u.id); return json(res, 200, { ok: true }); }
     if (req.method === "PUT") {
       rateLimit("mailcfg:" + u.id, 12, 600_000);
@@ -224,6 +226,14 @@ export async function handleMail(req, res, parts) {
         .run(u.id, acc.email, acc.name, acc.imap_host, acc.imap_port, acc.smtp_host, acc.smtp_port, acc.smtp_tls, acc.username, enc(acc.pass), now());
       return json(res, 200, { ok: true, boxes: boxes.length });
     }
+  }
+  if (a === "aliases" && req.method === "PUT") {
+    needAcc(u.id); const b = await readJson(req, 16384);
+    const list = (Array.isArray(b.aliases) ? b.aliases : []).slice(0, 20).map(x => ({ email: String(x?.email || "").trim().toLowerCase(), name: String(x?.name || "").trim().slice(0, 80) }));
+    if (list.some(x => !/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(x.email))) fail(400, "Hay un alias que no es una dirección válida");
+    const uniq = [...new Map(list.map(x => [x.email, x])).values()];
+    db.prepare("UPDATE mail_accounts SET aliases = ? WHERE user_id = ?").run(JSON.stringify(uniq), u.id);
+    return json(res, 200, { ok: true, aliases: uniq });
   }
   if (a === "boxes" && req.method === "GET") { const acc = needAcc(u.id); const im = await imapOpen(acc); try { return json(res, 200, { boxes: await listBoxes(im) }); } finally { im.close(); } }
 
@@ -292,8 +302,12 @@ export async function handleMail(req, res, parts) {
     const attachments = [];
     for (const nid of (b.attachments || []).slice(0, 20)) { const n = userNode(u.id, String(nid)); if (!n || n.children) continue; const p = blobPath(u.id, n.id); if (!fs.existsSync(p)) continue;
       const data = fs.readFileSync(p); if (attachments.reduce((s, x) => s + x.data.length, 0) + data.length > 20 * 1024 * 1024) fail(413, "Los adjuntos superan 20 MB"); attachments.push({ name: n.name, type: "application/octet-stream", data }); }
-    const raw = buildMessage({ from: acc.email, name: acc.name, to, cc, subject: String(b.subject || "").slice(0, 300), text: String(b.text || ""), html: b.html ? String(b.html) : null, attachments, inReplyTo: b.inReplyTo || null });
-    await smtpSend(acc, { from: acc.email, to: [...to, ...cc, ...bcc], raw }).catch(e => fail(502, e.message));
+    // remitente: la dirección principal o uno de sus alias (el proveedor debe permitir enviar como ese alias)
+    const ids = [{ email: acc.email, name: acc.name }, ...aliasesOf(acc).map(x => ({ email: x.email, name: x.name || acc.name }))];
+    const me = b.from ? ids.find(x => x.email.toLowerCase() === String(b.from).trim().toLowerCase()) : ids[0];
+    if (!me) fail(400, "Esa dirección no es tuya ni uno de tus alias");
+    const raw = buildMessage({ from: me.email, name: me.name, to, cc, subject: String(b.subject || "").slice(0, 300), text: String(b.text || ""), html: b.html ? String(b.html) : null, attachments, inReplyTo: b.inReplyTo || null });
+    await smtpSend(acc, { from: me.email, to: [...to, ...cc, ...bcc], raw }).catch(e => fail(502, e.message));
     return json(res, 200, { ok: true });
   }
   fail(404, "No encontrado");
