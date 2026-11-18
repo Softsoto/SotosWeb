@@ -12,6 +12,8 @@ import { PersonAvatar } from "./contacts.jsx";
 import { timeAgo } from "./notifications.jsx";
 import { PresenceDot } from "./presence.jsx";
 import { DEMO, SHOWCASE_URL } from "./config.js";
+import { ROUTE } from "./data.jsx";
+import { useOnlyOffice } from "./onlyoffice.jsx";
 const { useState, useEffect, useRef, useCallback } = React;
 
 const ICONS = ["diversity_3", "groups", "family_restroom", "school", "work", "sports_soccer", "music_note", "travel_explore", "pets", "rocket_launch", "palette", "restaurant"];
@@ -206,6 +208,7 @@ function WorldChat({ w, onRead }) {
 
 /* ---------------- carpeta del mundo ---------------- */
 function WorldFiles({ w, openItem }) {
+  const oo = useOnlyOffice();
   const [st, setSt] = useState(null);
   const [path, setPath] = useState([]); // ids de carpeta
   const [busy, setBusy] = useState(0);
@@ -252,6 +255,8 @@ function WorldFiles({ w, openItem }) {
   };
   const open = async (n) => {
     if (n.type === "folder") return setPath(p => [...p, n.id]);
+    // Word, Excel y PowerPoint del mundo: se editan EN el mundo y a la vez con los demás miembros
+    if (oo?.enabled && ["docx", "xlsx", "pptx"].includes(n.type)) return window.dispatchEvent(new CustomEvent("sotos-open-with", { detail: { app: ROUTE[n.type], payload: { world: w.id, sharedNode: n } } }));
     if (["img", "pdf", "video", "audio", "txt", "code"].includes(n.type)) { const b = await getBlob(n); setPreview({ n, url: URL.createObjectURL(b), text: ["txt", "code"].includes(n.type) ? await b.text() : null }); }
     else saveMine(n, true);
   };

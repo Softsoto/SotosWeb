@@ -19,6 +19,7 @@ services:
       SOTOS_INTERNAL: http://sotos:8787
       SOTOS_OO_JWT: ${OO_JWT_SECRET}
       SOTOS_REGISTRATION: ${SOTOS_REGISTRATION:-open}
+      SOTOS_VAULT_ADMIN: ${SOTOS_VAULT_ADMIN:-0}
       SOTOS_QUOTA_MB: ${SOTOS_QUOTA_MB:-2048}
     volumes:
       - sotos_data:/data

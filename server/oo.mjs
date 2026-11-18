@@ -16,6 +16,7 @@ import { fail, json, readJson, jwtSign, jwtVerify } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
 import { loadState, blobPath, applyOps, userNode, snapshotVersion } from "./fs.mjs";
 import { resolveShare } from "./shares.mjs";
+import { worldDoc, worldDocSaved } from "./worlds.mjs";
 import { index } from "../web/src/os/tree-ops.js";
 
 const OO_URL = (process.env.OO_URL || "").replace(/\/$/, "");
@@ -25,6 +26,9 @@ const KEY = () => secret("oo_jwt");
 const DOC_TYPE = { docx: "word", doc: "word", odt: "word", rtf: "word", txt: "word", xlsx: "cell", xls: "cell", ods: "cell", csv: "cell", pptx: "slide", ppt: "slide", odp: "slide" };
 const extOf = (n) => (/\.([^.]+)$/.exec(n) || [])[1]?.toLowerCase() || "";
 export const ooEnabled = () => !!OO_URL;
+// mientras alguien edita, todos los que abren el mismo archivo reciben la MISMA clave: así entran a la misma
+// sesión y editan juntos en tiempo real (si no, un guardado intermedio cambiaría la clave y abriría otra sesión)
+const live = new Map(); // "owner:node" → { key, at }
 
 export async function handleOO(req, res, parts) {
   const [a] = parts;
@@ -34,9 +38,10 @@ export async function handleOO(req, res, parts) {
   // configuración firmada para abrir un documento (propio o compartido con permiso)
   if (a === "config" && req.method === "POST") {
     const user = requireUser(req);
-    const { nodeId, share } = await readJson(req, 4096);
+    const { nodeId, share, world } = await readJson(req, 4096);
     let owner = user.id, canEdit = true, node;
-    if (share) {
+    if (world) ({ owner, node } = worldDoc(world, user.id, String(nodeId)));
+    else if (share) {
       const r = resolveShare(String(share), req);
       node = index(r.node).get(nodeId)?.node; owner = r.s.user_id; canEdit = r.s.perm === "edit";
     } else node = userNode(user.id, nodeId);
@@ -44,12 +49,14 @@ export async function handleOO(req, res, parts) {
     const ext = extOf(node.name); const documentType = DOC_TYPE[ext];
     if (!documentType) fail(415, "ONLYOFFICE no abre este tipo de archivo");
     const fileTok = jwtSign({ u: owner, n: node.id }, KEY(), 3600 * 12);
-    const cbTok = jwtSign({ u: owner, n: node.id, by: user.id }, KEY(), 3600 * 48);
+    const cbTok = jwtSign({ u: owner, n: node.id, by: user.id, ...(world ? { w: String(world) } : {}) }, KEY(), 3600 * 48);
+    const lk = owner + ":" + node.id; let cur = live.get(lk);
+    if (!cur || Date.now() - cur.at > 24 * 3600_000) live.set(lk, cur = { key: `${node.id}-${(node.mtime || 0).toString(36)}-${(node.size || 0).toString(36)}`, at: Date.now() });
     const config = {
       documentType,
       document: {
         fileType: ext, title: node.name,
-        key: `${node.id}-${(node.mtime || 0).toString(36)}-${(node.size || 0).toString(36)}`,
+        key: cur.key,
         url: `${SOTOS_INTERNAL}/api/oo/file?t=${fileTok}`,
         permissions: { edit: canEdit, download: true, print: true, comment: canEdit, review: canEdit },
       },
@@ -81,6 +88,8 @@ export async function handleOO(req, res, parts) {
     if (body.token) body = jwtVerify(body.token, KEY());            // JWT en el cuerpo
     else if (bearer) body = jwtVerify(bearer, KEY()).payload || body; // o en la cabecera
     else fail(401, "Falta la firma de ONLYOFFICE");
+    if (body.status === 2 || body.status === 4 || body.status === 3 || body.status === 7) live.delete(t.u + ":" + t.n); // la sesión terminó: la próxima apertura usa una clave nueva
+    if (body.status === 1) { const c = live.get(t.u + ":" + t.n); if (c) c.at = Date.now(); }
     if ((body.status === 2 || body.status === 6) && body.url) {
       const src = new URL(body.url);
       const allowed = [OO_URL, OO_INTERNAL].filter(Boolean).map(u => new URL(u).host);
@@ -93,7 +102,8 @@ export async function handleOO(req, res, parts) {
       await pipeline(r.body, fs.createWriteStream(tmp));
       try { snapshotVersion(t.u, t.n); } catch {} // la versión anterior queda en el historial
       fs.renameSync(tmp, p);
-      if (userNode(t.u, t.n)) applyOps(t.u, [{ t: "write", id: t.n, size: fs.statSync(p).size, mtime: Date.now() }], "onlyoffice");
+      if (t.w) worldDocSaved(t.w, t.n, fs.statSync(p).size, t.by);
+      else if (userNode(t.u, t.n)) applyOps(t.u, [{ t: "write", id: t.n, size: fs.statSync(p).size, mtime: Date.now() }], "onlyoffice");
     }
     return json(res, 200, { error: 0 });
   }

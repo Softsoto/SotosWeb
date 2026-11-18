@@ -47,15 +47,17 @@ const SIDEBAR = [
 ];
 const TYPE_NAME = { folder: "Carpeta", docx: "Word", xlsx: "Excel", csv: "CSV", pptx: "PowerPoint", pdf: "PDF", img: "Imagen", audio: "Audio", video: "Vídeo", txt: "Texto", code: "Código", zip: "Comprimido", file: "Archivo" };
 
-function FilesApp({ openApp, openItem, update, folderId, place }) {
+function FilesApp({ openApp, openItem, update, folderId, select, place }) {
   useVfs(s => s.rev);
   const inboxCount = useInboxCount();
   const clipboard = useVfs(s => s.clipboard);
   const trashCount = useVfs(s => s.trash.length);
   const [cur, setCur] = useS1(folderId && vfs.node(folderId) ? folderId : ROOT);
   const [hist, setHist] = useS1({ back: [], fwd: [] });
-  const [sel, setSel] = useS1([]);
+  const [sel, setSel] = useS1(select ? [select] : []);
   const anchor = useR1(null);
+  // "Abrir ubicación del archivo": si la ventana ya estaba abierta, va a la carpeta y marca el archivo
+  useE1(() => { if (folderId && vfs.node(folderId)) { setCur(folderId); setSpecial?.(null); if (select) setSel([select]); } }, [folderId, select]);
   const [q, setQ] = useS1("");
   const [ctx, setCtx] = useS1(null);
   const [renaming, setRenaming] = useS1(null);
@@ -152,7 +154,7 @@ function FilesApp({ openApp, openItem, update, folderId, place }) {
     onDoubleClick: () => open(n),
     onContextMenu: (e) => { e.preventDefault(); e.stopPropagation(); const s = sel.includes(n.id) ? sel : [n.id]; setSel(s); setCtx({ x: e.clientX, y: e.clientY, nodes: s.map(vfs.node).filter(Boolean) }); },
     onDragStart: (e) => dragIds(e, sel.includes(n.id) ? sel : [n.id]),
-    ...(n.type === "folder" ? dropTarget(n.id, { onHot: (h) => setHot(h ? n.id : null) }) : {}),
+    ...(n.type === "folder" ? dropTarget(n.id, { onHot: (h) => setHot(h ? n.id : null), onSpring: go }) : {}),
   });
   const sortBy = (k) => setSort(s => ({ k, d: s.k === k ? -s.d : 1 }));
   const arrow = (k) => sort.k === k ? <Ic name={sort.d > 0 ? "arrow_upward" : "arrow_downward"} size={13} /> : null;
@@ -172,9 +174,9 @@ function FilesApp({ openApp, openItem, update, folderId, place }) {
       <div className="app-side">
         <div className="side-group">
           <div className="side-label">Favoritos</div>
-          <div {...dropTarget(ROOT)}><SideItem icon="cloud" label="Sotos Drive" color="#2f6fed" active={cur === ROOT && !q} onClick={() => go(ROOT)} /></div>
+          <div {...dropTarget(ROOT, { onSpring: go })}><SideItem icon="cloud" label="Sotos Drive" color="#2f6fed" active={cur === ROOT && !q} onClick={() => go(ROOT)} /></div>
           {SIDEBAR.map(f => { const n = vfs.resolve(f.path); if (!n) return null; return (
-            <div key={f.path} {...dropTarget(n.id)}><SideItem icon={f.icon} label={n.name} color={f.color} active={cur === n.id && !q} onClick={() => go(n.id)} /></div>); })}
+            <div key={f.path} {...dropTarget(n.id, { onSpring: go })}><SideItem icon={f.icon} label={n.name} color={f.color} active={cur === n.id && !q} onClick={() => go(n.id)} /></div>); })}
         </div>
         <div className="side-group">
           <div className="side-label">Ubicaciones</div>
@@ -198,10 +200,10 @@ function FilesApp({ openApp, openItem, update, folderId, place }) {
           <button className="tb-btn icon" title="Adelante" disabled={!hist.fwd.length} style={{ opacity: hist.fwd.length ? 1 : .4 }} onClick={fwd}><Ic name="arrow_forward" /></button>
           <button className="tb-btn icon" title="Subir un nivel" disabled={cur === ROOT} style={{ opacity: cur !== ROOT ? 1 : .4 }} onClick={up}><Ic name="arrow_upward" /></button>
           <div className="breadcrumb">
-            <span className="crumb" {...dropTarget(ROOT)} style={{ cursor: "pointer" }} onClick={() => go(ROOT)}>Sotos Drive</span>
+            <span className="crumb" {...dropTarget(ROOT, { onSpring: go })} style={{ cursor: "pointer" }} onClick={() => go(ROOT)}>Sotos Drive</span>
             {crumbs.map(c => (
               <React.Fragment key={c.id}><Ic name="chevron_right" size={16} className="sep" />
-                <span className="crumb" {...dropTarget(c.id)} style={{ cursor: "pointer" }} onClick={() => go(c.id)}>{c.name}</span></React.Fragment>
+                <span className="crumb" {...dropTarget(c.id, { onSpring: go })} style={{ cursor: "pointer" }} onClick={() => go(c.id)}>{c.name}</span></React.Fragment>
             ))}
           </div>
           <div className="tb-spacer" />
@@ -611,7 +613,19 @@ function Thumb({ node, onClick, active }) {
     </div>
   );
 }
-function GalleryApp({ fileId, update }) {
+function GalleryApp({ fileId, update, openApp }) {
+  const [gctx, setGctx] = useS1(null);
+  const galleryAction = (id, n) => {
+    if (id === "open") setViewId(n.id);
+    if (id === "locate") openApp("files", { folderId: vfs.pathOf(n.id).slice(-2, -1)[0]?.id || ROOT, select: n.id });
+    if (id === "wallpaper") { update("wallpaper", "file:" + n.id); toast("Fondo de escritorio cambiado", { icon: "wallpaper" }); }
+    if (id === "paint") window.dispatchEvent(new CustomEvent("sotos-open-with", { detail: { app: "paint", fileId: n.id } }));
+    if (id === "download") vfs.download(n.id);
+    if (id === "share") window.dispatchEvent(new CustomEvent("sotos-share", { detail: n.id }));
+    if (id === "props") setProps(n.id);
+    if (id === "trash") { if (viewId === n.id) setViewId(null); vfs.trash([n.id]); toast("Imagen en la papelera", { icon: "delete", action: { label: "Deshacer", run: () => vfs.restore([n.id]) } }); }
+  };
+  const galleryMenu = (e, n) => { e.preventDefault(); e.stopPropagation(); setGctx({ x: e.clientX, y: e.clientY, n }); };
   useVfs(s => s.rev);
   const photos = vfs.allOfType(["img"]).sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
   const [viewId, setViewId] = useS1(fileId || null);
@@ -644,7 +658,7 @@ function GalleryApp({ fileId, update }) {
         <button className="tb-btn" disabled={!photos.length} onClick={() => { if (photos.length) { setViewId(photos[0].id); setPlay(true); } }}><Ic name="slideshow" /> Presentación</button>
       </Toolbar>
       <div className="scroll" style={{ flex: 1, padding: 14, background: "var(--surface-2)" }}>
-        <div className="gal-grid">{photos.map(p => <Thumb key={p.id} node={p} onClick={() => setViewId(p.id)} />)}</div>
+        <div className="gal-grid">{photos.map(p => <div key={p.id} onContextMenu={e => galleryMenu(e, p)}><Thumb node={p} onClick={() => setViewId(p.id)} /></div>)}</div>
         {!photos.length && <EmptyState icon="photo_library" text="No hay imágenes · arrastra fotos aquí" />}
       </div>
       {cur && (
@@ -661,7 +675,7 @@ function GalleryApp({ fileId, update }) {
             <button title="Cerrar (Esc)" onClick={() => { setViewId(null); setPlay(false); }}><Ic name="close" /></button>
           </div>
           <div className={"gal-stage" + (zoom ? " zoom" : "")} onClick={e => e.stopPropagation()}>
-            {url ? <img src={url} alt={cur.name} /> : <Ic name="hourglass_empty" size={40} />}
+            {url ? <img src={url} alt={cur.name} onContextMenu={e => galleryMenu(e, cur)} /> : <Ic name="hourglass_empty" size={40} />}
           </div>
           {photos.length > 1 && <>
             <button className="gal-nav l" onClick={e => { e.stopPropagation(); step(-1); }}><Ic name="chevron_left" size={34} /></button>
@@ -670,6 +684,11 @@ function GalleryApp({ fileId, update }) {
         </div>
       )}
       {props && <PropertiesModal id={props} onClose={() => setProps(null)} />}
+      {gctx && <ContextMenu x={gctx.x} y={gctx.y} onClose={() => setGctx(null)} onSelect={(id) => { const n = gctx.n; setGctx(null); galleryAction(id, n); }}
+        items={[{ id: "open", label: "Abrir", icon: "open_in_new" }, { id: "locate", label: "Abrir ubicación del archivo", icon: "folder_open" }, { sep: true },
+          { id: "wallpaper", label: "Usar como fondo", icon: "wallpaper" }, { id: "paint", label: "Editar con Paint", icon: "palette" }, { id: "download", label: "Descargar", icon: "download" },
+          ...(vfs.getState().mode === "cloud" ? [{ id: "share", label: "Compartir…", icon: "group_add" }] : []), { sep: true },
+          { id: "props", label: "Propiedades", icon: "info" }, { id: "trash", label: "Mover a la papelera", icon: "delete", danger: true }]} />}
     </div>
   );
 }

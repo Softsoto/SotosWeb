@@ -12,7 +12,7 @@ import { fail, json, readJson } from "./http.mjs";
 import { requireUser, hashPassword, registration, defaultQuota, verifyPassword, AVATARS } from "./auth.mjs";
 import { loadState, applyOps, blobPath } from "./fs.mjs";
 import { addNotification } from "./social.mjs";
-import { vaultCount, VAULT_DIR } from "./vault.mjs";
+import { VAULT_DIR, vaultForAdmin, vaultAdminFile } from "./vault.mjs";
 
 // registro de lo que hace cada administrador (transparencia: quién vio, borró o cambió qué)
 db.exec(`CREATE TABLE IF NOT EXISTS admin_log (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id TEXT, user_id TEXT, action TEXT NOT NULL, detail TEXT, created INTEGER NOT NULL)`);
@@ -106,9 +106,12 @@ export async function handleAdmin(req, res, parts) {
       if (u.id !== me.id) db.prepare("DELETE FROM sessions WHERE user_id = ?").run(u.id);
       return json(res, 200, { ok: true });
     }
+    if (sub === "vault" && parts[3] && req.method === "GET") { // solo si al instalar se permitió que el administrador vea las bóvedas
+      audit(me, u.id, "abrir archivo de su bóveda"); return vaultAdminFile(res, u.id, parts[3], new URL(req.url, "http://x").searchParams.has("dl"));
+    }
     if (sub === "files") {
       const nodeId = parts[3];
-      if (!nodeId && req.method === "GET") { audit(me, u.id, "ver archivos"); const vc = vaultCount(u.id); return json(res, 200, { items: filesOf(u.id).sort((x, y) => y.size - x.size), vault: { files: vc.n, size: vc.s } }); }
+      if (!nodeId && req.method === "GET") { audit(me, u.id, "ver archivos"); return json(res, 200, { items: filesOf(u.id).sort((x, y) => y.size - x.size), vault: vaultForAdmin(u.id) }); }
       const f = filesOf(u.id).find(x => x.id === nodeId); if (!f) fail(404, "Archivo no encontrado");
       if (req.method === "GET") {
         const p = blobPath(u.id, f.id); if (!fs.existsSync(p)) fail(404, "Contenido no encontrado");

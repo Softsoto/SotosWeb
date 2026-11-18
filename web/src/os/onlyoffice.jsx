@@ -34,17 +34,17 @@ export function useOnlyOffice() {
 let seq = 0;
 // nombre del motor que corre en el servidor (ONLYOFFICE o Euro-Office), para los textos
 let engineName = "el servidor de documentos";
-export function OnlyOfficeEditor({ fileId, share, sharedNode, onFallback }) {
+export function OnlyOfficeEditor({ fileId, share, world, sharedNode, onFallback }) {
   const holder = useRef(null);
   const [err, setErr] = useState(null);
   const [loading, setLoading] = useState(true);
-  const nodeId = share ? sharedNode?.id : fileId;
+  const nodeId = share || world ? sharedNode?.id : fileId;
   useEffect(() => {
     let editor = null, live = true; const domId = "oo-editor-" + (++seq);
     (async () => {
       try {
-        if (!share) await vfs.flush(); // el servidor necesita la última versión antes de abrir
-        const { config, url } = await api("POST", "oo/config", { nodeId, share });
+        if (!share && !world) await vfs.flush(); // el servidor necesita la última versión antes de abrir
+        const { config, url } = await api("POST", "oo/config", { nodeId, share, world });
         await loadScript(url + "/web-apps/apps/api/documents/api.js");
         if (!live || !holder.current) return;
         const div = document.createElement("div"); div.id = domId; holder.current.appendChild(div);
@@ -59,11 +59,11 @@ export function OnlyOfficeEditor({ fileId, share, sharedNode, onFallback }) {
       } catch (e) { if (live) { setErr(e.message); setLoading(false); } }
     })();
     return () => { live = false; try { editor?.destroyEditor(); } catch {} if (holder.current) holder.current.innerHTML = ""; };
-  }, [nodeId, share]);
+  }, [nodeId, share, world]);
   if (err) return (
     <div className="app" style={{ flexDirection: "column" }}>
       <EmptyState icon="cloud_off" text={engineName + " no está disponible: " + err} />
-      {onFallback && !share && <div style={{ display: "flex", justifyContent: "center", paddingBottom: 40 }}><button className="tb-btn" onClick={onFallback}><Ic name="edit_document" /> Usar el editor sencillo</button></div>}
+      {onFallback && !share && !world && <div style={{ display: "flex", justifyContent: "center", paddingBottom: 40 }}><button className="tb-btn" onClick={onFallback}><Ic name="edit_document" /> Usar el editor sencillo</button></div>}
     </div>
   );
   return (
@@ -80,9 +80,9 @@ export function withOnlyOffice(Builtin) {
     const oo = useOnlyOffice();
     const [fallback, setFallback] = useState(false);
     if (!oo.ready) return <EmptyState icon="hourglass_empty" text="Abriendo…" />;
-    const can = oo.enabled && !fallback && (props.share || (props.fileId && vfs.node(props.fileId)));
-    if (can) return <OnlyOfficeEditor fileId={props.fileId} share={props.share} sharedNode={props.sharedNode} onFallback={() => setFallback(true)} />;
-    if (props.share) return <EmptyState icon="cloud_off" text={`Este documento compartido solo se puede abrir con ${engineName} en el servidor`} />;
+    const can = oo.enabled && !fallback && (props.share || props.world || (props.fileId && vfs.node(props.fileId)));
+    if (can) return <OnlyOfficeEditor fileId={props.fileId} share={props.share} world={props.world} sharedNode={props.sharedNode} onFallback={() => setFallback(true)} />;
+    if (props.share || props.world) return <EmptyState icon="cloud_off" text={`Este documento compartido solo se puede abrir con ${engineName} en el servidor`} />;
     return <Builtin {...props} />;
   };
 }

@@ -6,7 +6,9 @@
 import React from "react";
 import { Ic, EmptyState, Modal, toast } from "./ui.jsx";
 import { api } from "./api.js";
+import * as vfs from "./vfs.js";
 import { fmtSize, fmtDate, useVfs } from "./vfs.js";
+import { DRAG_MIME } from "./files-ui.jsx";
 const { useState, useEffect, useRef } = React;
 
 let token = null; // clave de la sesión abierta (solo en memoria: al recargar, la bóveda vuelve a cerrarse)
@@ -32,9 +34,10 @@ export function VaultApp() {
   const mode = useVfs(s => s.mode);
   const [st, setSt] = useState(token ? "open" : "loading"), [pw, setPw] = useState(""), [pw2, setPw2] = useState(""), [busy, setBusy] = useState(false);
   const [items, setItems] = useState(null), [view, setView] = useState(null), [up, setUp] = useState(null), [q, setQ] = useState("");
+  const [adminSees, setAdminSees] = useState(false); // regla del servidor elegida al instalar
   const input = useRef(null);
   const load = () => vapi("GET", "files").then(r => setItems(r.items)).catch(e => { if (e.locked) setSt("locked"); else toast(e.message, { error: true }); });
-  useEffect(() => { if (mode !== "cloud") { setSt("guest"); return; } if (token) { setSt("open"); load(); return; } api("GET", "vault").then(r => setSt(r.exists ? "locked" : "new")).catch(() => setSt("error")); }, [mode]);
+  useEffect(() => { if (mode !== "cloud") { setSt("guest"); return; } if (token) { setSt("open"); load(); api("GET", "vault").then(r => setAdminSees(!!r.adminCanSee)).catch(() => {}); return; } api("GET", "vault").then(r => { setAdminSees(!!r.adminCanSee); setSt(r.exists ? "locked" : "new"); }).catch(() => setSt("error")); }, [mode]);
   useEffect(() => () => { if (token) { vapi("POST", "lock").catch(() => {}); token = null; } }, []); // al cerrar la ventana, se cierra la bóveda
   const enter = async (path) => { setBusy(true); try { const r = await vapi("POST", path, { password: pw }); token = r.token; setPw(""); setPw2(""); setSt("open"); load(); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
   const upload = async (files) => {
@@ -45,6 +48,20 @@ export function VaultApp() {
     }
     setUp(null); load();
   };
+  const [hot, setHot] = useState(false);
+  const fromSotos = async (ids) => {
+    const files = []; const walk = (n, prefix) => { if (!n) return; if (n.type === "folder") (n.children || []).forEach(c => walk(c, prefix + n.name + " - ")); else files.push({ n, name: prefix + n.name }); };
+    ids.forEach(id => walk(vfs.node(id), ""));
+    if (!files.length) return toast("Esa carpeta está vacía", { icon: "folder_off" });
+    const list = []; for (const f of files) { try { list.push(new File([await vfs.read(f.n.id)], f.name)); } catch { toast("No se pudo leer «" + f.name + "»", { error: true }); } }
+    await upload(list);
+    toast(`${list.length} archivo(s) guardado(s) en la bóveda`, { icon: "enhanced_encryption", action: { label: "Quitar de Archivos", run: () => { vfs.trash(ids); toast("Originales enviados a la papelera", { icon: "delete" }); } } });
+  };
+  const onDrop = (e) => { e.preventDefault(); setHot(false); if (st !== "open") return toast("Abre la bóveda para guardar archivos", { icon: "lock" });
+    const types = [...e.dataTransfer.types];
+    if (types.includes(DRAG_MIME)) { let ids = []; try { ids = JSON.parse(e.dataTransfer.getData(DRAG_MIME)); } catch {} if (ids.length) fromSotos(ids); }
+    else if (e.dataTransfer.files.length) upload([...e.dataTransfer.files]); };
+  const onOver = (e) => { const t = [...e.dataTransfer.types]; if (t.includes(DRAG_MIME) || t.includes("Files")) { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "copy"; if (!hot) setHot(true); } };
   const url = (it, dl) => `/api/vault/files/${it.id}?k=${encodeURIComponent(token || "")}${dl ? "&dl=1" : ""}`;
 
   if (st === "loading") return <div className="app vault"><EmptyState icon="hourglass_empty" text="…" /></div>;
@@ -54,7 +71,8 @@ export function VaultApp() {
     <div className="app vault"><div className="vault-gate">
       <div className="vault-lock"><Ic name={st === "new" ? "enhanced_encryption" : "lock"} size={44} /></div>
       <h2>{st === "new" ? "Crea tu bóveda" : "Bóveda"}</h2>
-      {st === "new" && <div className="vault-note">Todo lo que guardes aquí queda <b>cifrado con esta clave</b>. Ni el servidor ni un administrador pueden verlo, y <b>si olvidas la clave no hay forma de recuperarlo</b>. No aparece en Archivos, en la búsqueda ni en ninguna lista.</div>}
+      {st === "new" && <div className="vault-note">Todo lo que guardes aquí queda <b>cifrado con esta clave</b> y <b>si la olvidas no hay forma de recuperarlo</b>. No aparece en Archivos, en la búsqueda ni en ninguna lista.</div>}
+      {!adminSees && <div className="vault-policy"><Ic name="verified_user" size={16} /> Nadie más que tú puede abrir tu bóveda, ni siquiera el administrador.</div>}
       <input type="password" autoFocus placeholder={st === "new" ? "Clave de la bóveda (mínimo 6)" : "Clave"} value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && st === "locked" && pw && enter("unlock")} />
       {st === "new" && <input type="password" placeholder="Repite la clave" value={pw2} onChange={e => setPw2(e.target.value)} />}
       <button className="tb-btn primary" disabled={busy || pw.length < (st === "new" ? 6 : 1) || (st === "new" && pw !== pw2)} onClick={() => enter(st === "new" ? "setup" : "unlock")}>{busy ? "…" : st === "new" ? "Crear bóveda" : "Abrir"}</button>
@@ -62,7 +80,7 @@ export function VaultApp() {
   );
   const list = (items || []).filter(x => x.name.toLowerCase().includes(q.toLowerCase()));
   return (
-    <div className="app vault" style={{ flexDirection: "column" }} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (e.dataTransfer.files.length) upload([...e.dataTransfer.files]); }}>
+    <div className={"app vault" + (hot ? " hot" : "")} style={{ flexDirection: "column" }} onDragOver={onOver} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setHot(false); }} onDrop={e => { e.stopPropagation(); onDrop(e); }}>
       <input ref={input} type="file" multiple style={{ display: "none" }} onChange={e => { const f = [...e.target.files]; e.target.value = ""; if (f.length) upload(f); }} />
       <div className="vault-bar">
         <Ic name="lock_open" /><b>Bóveda</b><span className="faint">{items ? `${items.length} archivo(s) · ${fmtSize(items.reduce((s, x) => s + x.size, 0))}` : ""}</span>

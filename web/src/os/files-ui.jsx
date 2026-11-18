@@ -75,12 +75,15 @@ export function dragIds(e, ids) {
 const hasIds = (e) => [...e.dataTransfer.types].includes(DRAG_MIME);
 const hasFiles = (e) => [...e.dataTransfer.types].includes("Files");
 /** handlers para soltar sobre una carpeta: mueve (Ctrl = copia) o importa archivos del PC */
-export function dropTarget(destId, { onHot } = {}) {
+let springT = null, springId = null; // carpeta que se abre sola al mantener el arrastre encima
+const springStop = () => { clearTimeout(springT); springT = null; springId = null; };
+export function dropTarget(destId, { onHot, onSpring } = {}) {
   return {
-    onDragOver: (e) => { if (hasIds(e) || hasFiles(e)) { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = hasFiles(e) || e.ctrlKey ? "copy" : "move"; onHot && onHot(true); } },
-    onDragLeave: () => onHot && onHot(false),
+    onDragOver: (e) => { if (hasIds(e) || hasFiles(e)) { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = hasFiles(e) || e.ctrlKey ? "copy" : "move"; onHot && onHot(true);
+      if (onSpring && springId !== destId) { springStop(); springId = destId; springT = setTimeout(() => { springStop(); onSpring(destId); }, 750); } } },
+    onDragLeave: (e) => { onHot && onHot(false); if (springId === destId && !e.currentTarget.contains(e.relatedTarget)) springStop(); },
     onDrop: async (e) => {
-      onHot && onHot(false);
+      onHot && onHot(false); springStop();
       if (hasIds(e)) {
         e.preventDefault(); e.stopPropagation();
         let ids = []; try { ids = JSON.parse(e.dataTransfer.getData(DRAG_MIME)); } catch {}
@@ -104,6 +107,7 @@ export function itemMenu(nodes, { canPaste } = {}) {
   if (one) items.push({ id: "open", label: "Abrir", icon: "open_in_new" });
   if (one && one.type === "folder" && canPaste) items.push({ id: "pasteInto", label: "Pegar aquí dentro", icon: "content_paste" });
   items.push({ sep: true },
+    { id: "moveto", label: "Mover a…", icon: "drive_file_move" },
     { id: "copy", label: "Copiar", icon: "content_copy" },
     { id: "cut", label: "Cortar", icon: "content_cut" },
     { id: "download", label: one && one.type === "folder" ? "Descargar como .zip" : "Descargar", icon: "download" });
@@ -144,6 +148,7 @@ export async function runItemAction(id, nodes, { openItem, update, startRename, 
     case "rename": startRename && startRename(one.id); return true;
     case "props": showProps && showProps(one.id); return true;
     case "share": showShare ? showShare(one.id) : window.dispatchEvent(new CustomEvent("sotos-share", { detail: one.id })); return true;
+    case "moveto": window.dispatchEvent(new CustomEvent("sotos-moveto", { detail: ids })); return true;
     case "sendto": window.dispatchEvent(new CustomEvent("sotos-sendto", { detail: ids })); return true;
     case "versions": window.dispatchEvent(new CustomEvent("sotos-versions", { detail: one.id })); return true;
     case "trash": {
@@ -180,6 +185,29 @@ function useMediaInfo(n) {
   }, [n?.id, n?.mtime]);
   return info;
 }
+/** "Mover a…": árbol de carpetas para elegir el destino */
+export function MoveToDialog({ ids, onClose }) {
+  const [open, setOpen] = React.useState(() => new Set([vfs.ROOT])), [dest, setDest] = React.useState(null);
+  const moving = new Set(ids); const root = vfs.getState().root;
+  const row = (n, depth) => {
+    if (n.type !== "folder" || moving.has(n.id)) return null; // no se puede mover una carpeta dentro de sí misma
+    const kids = (n.children || []).filter(c => c.type === "folder" && !moving.has(c.id)).sort((a, b) => a.name.localeCompare(b.name));
+    const isOpen = open.has(n.id);
+    return <React.Fragment key={n.id}>
+      <div className={"moveto-row" + (dest === n.id ? " sel" : "")} style={{ paddingLeft: 8 + depth * 18 }} onClick={() => setDest(n.id)} onDoubleClick={() => { setDest(n.id); go(n.id); }}>
+        <span className="moveto-tw" onClick={e => { e.stopPropagation(); setOpen(s => { const x = new Set(s); x.has(n.id) ? x.delete(n.id) : x.add(n.id); return x; }); }}>{kids.length ? <Ic name={isOpen ? "expand_more" : "chevron_right"} size={18} /> : null}</span>
+        <Ic name={n.id === vfs.ROOT ? "cloud" : "folder"} size={18} style={{ color: n.id === vfs.ROOT ? "#2f6fed" : "#c9902a" }} /> {n.id === vfs.ROOT ? "Sotos Drive" : n.name}
+      </div>
+      {isOpen && kids.map(k => row(k, depth + 1))}
+    </React.Fragment>;
+  };
+  const go = (to) => { const n = vfs.move(ids, to); if (n) toast(`${n} elemento(s) movido(s) a ${to === vfs.ROOT ? "Sotos Drive" : vfs.node(to)?.name}`, { icon: "drive_file_move" }); onClose(); };
+  return <Modal title={ids.length === 1 ? `Mover “${vfs.node(ids[0])?.name}”` : `Mover ${ids.length} elementos`} icon="drive_file_move" onClose={onClose} width={460}
+    actions={<><button className="tb-btn" onClick={onClose}>Cancelar</button><button className="tb-btn primary" disabled={!dest} onClick={() => go(dest)}>Mover aquí</button></>}>
+    <div className="moveto-tree">{row(root, 0)}</div>
+  </Modal>;
+}
+
 export function PropertiesModal({ id, onClose, openItem }) {
   const n = vfs.useVfs(() => vfs.node(id));
   const media = useMediaInfo(n);

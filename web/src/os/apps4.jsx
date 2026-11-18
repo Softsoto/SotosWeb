@@ -10,7 +10,7 @@ import * as vfs from "./vfs.js";
 import { useVfs, fmtSize } from "./vfs.js";
 import { api } from "./api.js";
 import { WALLS, PHOTO_WALLS, wallUrl } from "./wallpapers.js";
-const { useState: useS4, useRef: useR4 } = React;
+const { useState: useS4, useRef: useR4, useEffect: useE4 } = React;
 
 function Row({ label, desc, children }) {
   return (
@@ -153,8 +153,9 @@ function RegionPanel({ settings, update }) {
   </>;
 }
 
-function SettingsApp({ settings, update, profile, setProfile, user, env, onLogout }) {
-  const [tab, setTab] = useS4("perfil");
+function SettingsApp({ settings, update, profile, setProfile, user, env, onLogout, tab: openTab }) {
+  const [tab, setTab] = useS4(openTab || "perfil");
+  useE4(() => { if (openTab) setTab(openTab); }, [openTab]);
   const avatarInput = useR4(null);
   const tabs = [
     { id: "perfil", icon: "account_circle", label: "Perfil" },
@@ -166,7 +167,15 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
     { id: "acerca", icon: "info", label: "Acerca de" },
   ];
   // la foto se guarda en la cuenta (si hay) y en este navegador; las subidas se reducen a 256×256
-  const saveAvatar = async (av) => { setProfile({ avatar: av }); if (user) { try { await api("PUT", "auth/avatar", { avatar: av }); toast("Foto de perfil actualizada", { icon: "account_circle" }); } catch (e) { toast(e.message, { error: true }); } } };
+  // cambiar la foto o el nombre de una cuenta pide su contraseña (el servidor la verifica)
+  const [pwAsk, setPwAsk] = useS4(null), [pwVal, setPwVal] = useS4(""), [pwBusy, setPwBusy] = useS4(false);
+  const [nameDraft, setNameDraft] = useS4(null);
+  const withPassword = (title, run) => user ? (setPwVal(""), setPwAsk({ title, run })) : run(null);
+  const saveAvatar = (av) => withPassword("Cambiar la foto de perfil", async (password) => {
+    if (user) await api("PUT", "auth/avatar", { avatar: av, password }); setProfile({ avatar: av }); toast("Foto de perfil actualizada", { icon: "account_circle" }); });
+  const saveName = () => { const nm = (nameDraft || "").trim(); if (!nm || nm === profile.name) return setNameDraft(null);
+    withPassword("Cambiar tu nombre", async (password) => { if (user) await api("PUT", "auth/name", { name: nm, password }); setProfile({ name: nm }); setNameDraft(null); toast("Nombre actualizado", { icon: "badge" }); }); };
+  const confirmPw = async () => { setPwBusy(true); try { await pwAsk.run(pwVal); setPwAsk(null); } catch (e) { toast(e.message, { error: true }); } setPwBusy(false); };
   const onAvatar = (e) => { const f = e.target.files[0]; e.target.value = ""; if (!f) return; const url = URL.createObjectURL(f); const im = new Image();
     im.onload = () => { const c = document.createElement("canvas"); c.width = c.height = 256; const s = Math.min(im.naturalWidth, im.naturalHeight);
       c.getContext("2d").drawImage(im, (im.naturalWidth - s) / 2, (im.naturalHeight - s) / 2, s, s, 0, 0, 256, 256); URL.revokeObjectURL(url); saveAvatar(c.toDataURL("image/jpeg", 0.86)); };
@@ -207,9 +216,15 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
               </div>
             </div>
             <Row label="Nombre" desc="Aparece en el login y la barra superior">
-              <input className="sc-input" style={{ margin: 0, width: 220 }} value={profile.name} onChange={e => setProfile({ name: e.target.value })} />
+              <div style={{ display: "flex", gap: 6 }}><input className="sc-input" style={{ margin: 0, width: 220 }} value={nameDraft ?? profile.name} onChange={e => setNameDraft(e.target.value)} onKeyDown={e => e.key === "Enter" && saveName()} />
+                {nameDraft != null && nameDraft !== profile.name && <button className="tb-btn primary" onClick={saveName}>Guardar</button>}</div>
             </Row>
           </>}
+          {pwAsk && <Modal title={pwAsk.title} icon="lock" onClose={() => setPwAsk(null)} width={400}
+            actions={<><button className="tb-btn" onClick={() => setPwAsk(null)}>Cancelar</button><button className="tb-btn primary" disabled={!pwVal || pwBusy} onClick={confirmPw}>{pwBusy ? "…" : "Confirmar"}</button></>}>
+            <div style={{ fontSize: 13, marginBottom: 10 }}>Para cambiar tu perfil, confirma que eres tú con la contraseña de tu cuenta.</div>
+            <input type="password" className="sc-input" style={{ margin: 0, width: "100%", boxSizing: "border-box" }} autoFocus placeholder="Contraseña" value={pwVal} onChange={e => setPwVal(e.target.value)} onKeyDown={e => e.key === "Enter" && pwVal && confirmPw()} />
+          </Modal>}
           {tab === "cuenta" && <AccountPanel user={user} env={env} onLogout={onLogout} />}
           {tab === "fondo" && <>
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>Fondo de escritorio</h2>

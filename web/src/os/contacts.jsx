@@ -67,13 +67,14 @@ export function fromVcf(text) {
 
 /* ---------------- app ---------------- */
 const empty = { name: "", email: "", phone: "", company: "", notes: "" };
-export function ContactsApp() {
+export function ContactsApp({ contactId }) {
   const mode = useVfs(s => s.mode);
   const cloud = mode === "cloud";
   const store = useMemo(() => makeStore(cloud), [cloud]);
   const [items, setItems] = useState(null);
   const [q, setQ] = useState("");
-  const [sel, setSel] = useState(null);
+  const [sel, setSel] = useState(contactId || null);
+  useEffect(() => { if (contactId) setSel(contactId); }, [contactId]);
   const [edit, setEdit] = useState(null);   // borrador (nuevo o edición)
   const [confirm, setConfirm] = useState(null);
   const [worldMenu, setWorldMenu] = useState(null);

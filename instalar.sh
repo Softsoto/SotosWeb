@@ -67,6 +67,15 @@ mostrar_ips() {
   case "${op:-1}" in 2) MODO=servidor;; 3) MODO=docker;; *) MODO=equipo;; esac
 }
 
+BOVEDA_ADMIN=0
+if [[ "$MODO" != "actualizar" && "$MODO" != "desinstalar" ]]; then
+  titulo "Bóvedas secretas de los usuarios"
+  echo "    Cada cuenta tiene una bóveda cifrada con su propia clave."
+  echo "    Puedes permitir que el administrador también la revise (por ejemplo, para moderar contenido)."
+  echo "    Cada usuario verá en su bóveda cuál de las dos reglas tiene este servidor."
+  pregunta "¿El administrador podrá ver las bóvedas de los usuarios? (s/n)" n && BOVEDA_ADMIN=1
+fi
+
 case "$MODO" in
 # ---------------------------------------------------------------------
 equipo)
@@ -82,6 +91,7 @@ PX_PORT=$((PUERTO+1))
 SOTOS_DATA=$DATOS
 SOTOS_SHOW_LAN=1
 SOTOS_REGISTRATION=open
+SOTOS_VAULT_ADMIN=$BOVEDA_ADMIN
 SOTOS_QUOTA_MB=10240
 EOF
   cat > iniciar-sotos.sh <<'EOF'
@@ -131,14 +141,16 @@ PX_HOST=$PXD
 PX_PUBLIC=https://$PXD
 TRUST_PROXY=1
 SOTOS_DATA=/var/lib/sotos-os
-SOTOS_REGISTRATION=open"
+SOTOS_REGISTRATION=open
+SOTOS_VAULT_ADMIN=$BOVEDA_ADMIN"
   else
     ENVTXT="NODE_ENV=production
 HOST=0.0.0.0
 PORT=$PUERTO
 PX_PORT=$((PUERTO+1))
 SOTOS_DATA=/var/lib/sotos-os
-SOTOS_REGISTRATION=open"
+SOTOS_REGISTRATION=open
+SOTOS_VAULT_ADMIN=$BOVEDA_ADMIN"
   fi
   echo "$ENVTXT" | sudo_ tee /etc/sotos-os.env >/dev/null; sudo_ chmod 600 /etc/sotos-os.env
   sudo_ tee /etc/systemd/system/sotos-os.service >/dev/null <<EOF
@@ -197,11 +209,11 @@ docker)
     S="$(secreto)"
     if [[ -n "$DOMINIO" ]]; then
       BASE="${DOMINIO#*.}"
-      printf 'SOTOS_DOMAIN=%s\nPX_DOMAIN=px.%s\nOFFICE_DOMAIN=office.%s\nOO_JWT_SECRET=%s\nSOTOS_REGISTRATION=open\nSOTOS_QUOTA_MB=2048\nOO_VERSION=latest\n' "$DOMINIO" "$BASE" "$BASE" "$S" > .env
+      printf 'SOTOS_DOMAIN=%s\nPX_DOMAIN=px.%s\nOFFICE_DOMAIN=office.%s\nOO_JWT_SECRET=%s\nSOTOS_REGISTRATION=open\nSOTOS_VAULT_ADMIN=%s\nSOTOS_QUOTA_MB=2048\nOO_VERSION=latest\n' "$DOMINIO" "$BASE" "$BASE" "$S" "$BOVEDA_ADMIN" > .env
       aviso "Registros DNS A: $DOMINIO, px.$BASE y office.$BASE → $(ip_publica)"
     else
       IP="$(ip_publica)"; [[ -z "$IP" ]] && IP="$(ips | head -n1)"
-      printf 'COMPOSE_FILE=docker-compose.ip.yml\nSOTOS_IP=%s\nOO_JWT_SECRET=%s\nSOTOS_REGISTRATION=open\nSOTOS_QUOTA_MB=2048\nOO_VERSION=latest\n' "$IP" "$S" > .env
+      printf 'COMPOSE_FILE=docker-compose.ip.yml\nSOTOS_IP=%s\nOO_JWT_SECRET=%s\nSOTOS_REGISTRATION=open\nSOTOS_VAULT_ADMIN=%s\nSOTOS_QUOTA_MB=2048\nOO_VERSION=latest\n' "$IP" "$S" "$BOVEDA_ADMIN" > .env
     fi
     chmod 600 .env; ok "Configuración en .env (secreto generado)"
   fi

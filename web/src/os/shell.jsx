@@ -11,7 +11,7 @@ import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toast
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, DESKTOP } from "./vfs.js";
-import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl, ShareDialog, VersionsDialog } from "./files-ui.jsx";
+import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl, ShareDialog, VersionsDialog, MoveToDialog } from "./files-ui.jsx";
 import { LoginScreen } from "./auth-ui.jsx";
 import { wallUrl, isWall } from "./wallpapers.js";
 import { GlobalContextMenu } from "./context-menu.jsx";
@@ -133,7 +133,7 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout,
       <div className="spacer" />
       <div className="tray">
         {DEMO && <a className="demo-chip" href={SHOWCASE_URL} target="_blank" rel="noopener" title="Esto es un demo: los archivos se guardan solo en este navegador. Clic para conocer el proyecto.">DEMO</a>}
-        <div className="ti" title="Buscar" onClick={onSearch}><Ic name="search" /></div>
+        <div className="ti menubar-search" title="Buscar en todo Sotos (Ctrl + K)" onClick={onSearch}><Ic name="search" /><span>Buscar</span></div>
         <NotificationBell onOpenLink={onOpenLink} />
         <TransfersIndicator />
         <SyncIndicator />
@@ -235,42 +235,58 @@ function CalendarPopover({ now, month, setMonth, clock24 }) {
 }
 
 /* -------------------- Dock -------------------- */
+export const APP_MIME = "application/x-sotos-app"; // arrastrar una app (desde Aplicaciones o el escritorio) hasta el Dock
 function Dock({ position, order, running, minimized, badges, onApp, dockApi }) {
-  const [ctx, setCtx] = useSh(null);
-  const drag = useRh(null);
-  const onDrop = (i) => {
-    const from = drag.current; if (from == null || from === i) return;
-    const arr = [...order]; const [m] = arr.splice(from, 1); arr.splice(i, 0, m); dockApi.reorder(arr);
-    drag.current = null;
+  const [ctx, setCtx] = useSh(null), [hotAt, setHotAt] = useSh(null);
+  const drag = useRh(null), self = useRh(null);
+  const hasApp = (e) => [...e.dataTransfer.types].includes(APP_MIME);
+  const onDrop = (i, e) => {
+    setHotAt(null);
+    const from = drag.current; drag.current = null;
+    if (from != null) { if (from === i) return; const arr = [...order]; const [m] = arr.splice(from, 1); arr.splice(from < i ? i - 1 : i, 0, m); dockApi.reorder(arr); return; }
+    const id = e.dataTransfer.getData(APP_MIME); if (id && APP_BY_ID[id]) { dockApi.insert(id, i); toast(`${APP_BY_ID[id].name} agregada al Dock`, { icon: "add_circle" }); }
+  };
+  const over = (i) => (e) => { if (drag.current != null || hasApp(e)) { e.preventDefault(); e.stopPropagation(); e.dataTransfer.dropEffect = "move"; if (hotAt !== i) setHotAt(i); } };
+  // soltar un ícono fuera del Dock lo quita (con deshacer)
+  const dragEnd = (id) => (e) => {
+    const from = drag.current; drag.current = null; setHotAt(null); if (from == null) return;
+    const r = self.current?.getBoundingClientRect(); const out = r && (e.clientX < r.left - 40 || e.clientX > r.right + 40 || e.clientY < r.top - 40 || e.clientY > r.bottom + 40);
+    if (out && e.dataTransfer.dropEffect === "none") { const before = [...order]; dockApi.remove(id); toast(`${APP_BY_ID[id]?.name} quitada del Dock`, { icon: "remove_circle", action: { label: "Deshacer", run: () => dockApi.reorder(before) } }); }
+  };
+  // apps abiertas que no están fijadas: se muestran al final, como en cualquier escritorio
+  const extra = [...running].filter(id => !order.includes(id) && APP_BY_ID[id] && !APP_BY_ID[id].hidden && id !== "launchpad");
+  const item = (id, i, pinned) => {
+    if (id === "launchpad" && position.includes("rail")) return null; // en el riel, la marca abre Aplicaciones
+    if (!appAllowed(id, vfs.getState().user)) return null;
+    const app = APP_BY_ID[id]; if (!app) return null;
+    return (
+      <button key={(pinned ? "" : "x:") + id} className={"dock-item" + (hotAt === i && pinned ? " drop-before" : "")} data-app={id} draggable={pinned}
+        onClick={() => onApp(id)}
+        onContextMenu={e => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id, pinned }); }}
+        onDragStart={e => { drag.current = i; e.dataTransfer.setData(APP_MIME, id); e.dataTransfer.effectAllowed = "move"; }}
+        onDragEnd={dragEnd(id)}
+        onDragOver={pinned ? over(i) : undefined} onDrop={pinned ? (e) => { e.preventDefault(); onDrop(i, e); } : undefined}>
+        <Tile icon={app.icon} color={app.color} app={id} />
+        <span className="dock-tip">{app.name}</span>
+        {running.has(id) && <span className={"run-dot" + (minimized?.has(id) ? " min" : "")} />}
+        {badges?.[id] > 0 && <span className="dock-badge" key={badges[id]}>{badges[id] > 99 ? "99+" : badges[id]}</span>}
+      </button>
+    );
   };
   return (
-    <div className={"dock " + position}>
+    <div ref={self} className={"dock " + position + (hotAt === order.length ? " drop-end" : "")}
+      onDragOver={over(order.length)} onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setHotAt(null); }} onDrop={e => { e.preventDefault(); onDrop(order.length, e); }}>
       {position.includes("rail") && <button className="rail-logo" title="Aplicaciones" onClick={() => onApp("launchpad")}><BrandMark size={32} /></button>}
-      {order.map((id, i) => {
-        if (id === "__div__") return <div key={"d" + i} className="divider" />;
-        if (id === "launchpad" && position.includes("rail")) return null; // en el riel, la marca abre Aplicaciones
-        if (!appAllowed(id, vfs.getState().user)) return null;
-        const app = APP_BY_ID[id]; if (!app) return null;
-        return (
-          <button key={id} className="dock-item" data-app={id} draggable
-            onClick={() => onApp(id)}
-            onContextMenu={e => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, id }); }}
-            onDragStart={() => { drag.current = i; }}
-            onDragOver={e => e.preventDefault()} onDrop={() => onDrop(i)}>
-            <Tile icon={app.icon} color={app.color} app={id} />
-            <span className="dock-tip">{app.name}</span>
-            {running.has(id) && <span className={"run-dot" + (minimized?.has(id) ? " min" : "")} />}
-            {badges?.[id] > 0 && <span className="dock-badge" key={badges[id]}>{badges[id] > 99 ? "99+" : badges[id]}</span>}
-          </button>
-        );
-      })}
+      {order.map((id, i) => id === "__div__" ? <div key={"d" + i} className="divider" onDragOver={over(i)} onDrop={e => { e.preventDefault(); onDrop(i, e); }} /> : item(id, i, true))}
+      {!!extra.length && <div className="divider" />}
+      {extra.map((id, i) => item(id, order.length + i, false))}
       {ctx && <ContextMenu x={ctx.x} y={ctx.y}
-        items={[{ id: "remove", label: "Quitar del Dock", icon: "remove_circle", danger: true }]}
-        onSelect={() => dockApi.remove(ctx.id)} onClose={() => setCtx(null)} />}
+        items={[{ id: "open", label: running.has(ctx.id) ? "Mostrar" : "Abrir", icon: "open_in_new" }, { sep: true },
+          ctx.pinned ? { id: "remove", label: "Quitar del Dock", icon: "remove_circle", danger: true } : { id: "keep", label: "Mantener en el Dock", icon: "keep" }]}
+        onSelect={(a) => { if (a === "open") onApp(ctx.id); if (a === "remove") dockApi.remove(ctx.id); if (a === "keep") { dockApi.add(ctx.id); toast(`${APP_BY_ID[ctx.id].name} se queda en el Dock`, { icon: "keep" }); } }} onClose={() => setCtx(null)} />}
     </div>
   );
 }
-
 /* -------------------- Desktop (icons + drop + context menu) -------------------- */
 function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
   const desk = useVfs(() => vfs.node(DESKTOP));
@@ -374,7 +390,7 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
       onContextMenu={e => { e.preventDefault(); setCtx({ x: e.clientX, y: e.clientY, item: null }); }}>
       <div className="desk-icons free" ref={iconsRef} style={{ left: shifted ? 92 : 14 }}>
         {apps.map(ic => (
-          <div key={ic.label} className="desk-icon" style={at("app:" + ic.id)} draggable onDragStart={e => startDeskDrag(e, "app:" + ic.id)} onDoubleClick={() => openApp(ic.id)}>
+          <div key={ic.label} className="desk-icon" style={at("app:" + ic.id)} draggable onDragStart={e => { e.dataTransfer.setData(APP_MIME, ic.id); startDeskDrag(e, "app:" + ic.id); }} onDoubleClick={() => openApp(ic.id)}>
             <Tile icon={ic.icon} color={ic.color} app={ic.id} /><span className="lbl">{ic.label}</span>
           </div>
         ))}
@@ -442,38 +458,74 @@ function BootScreen({ onDone, quick, task }) {
 
 
 /* -------------------- Spotlight search -------------------- */
+// atajos de Ajustes que el buscador también encuentra
+const SETTINGS_HITS = [
+  { tab: "perfil", label: "Foto y nombre de perfil", k: "perfil foto avatar nombre imagen" },
+  { tab: "cuenta", label: "Cuenta, contraseña y copia de seguridad", k: "cuenta contraseña clave sesión copia seguridad exportar importar cerrar" },
+  { tab: "fondo", label: "Fondo de pantalla", k: "fondo pantalla wallpaper imagen" },
+  { tab: "apariencia", label: "Apariencia: tema, colores, logo y Grafito", k: "apariencia tema oscuro claro color acento logo grafito tipografía letra ventanas" },
+  { tab: "escritorio", label: "Escritorio, Dock e iconos", k: "escritorio dock iconos widgets barra" },
+  { tab: "region", label: "Región, idioma y hora", k: "región idioma hora zona fecha moneda" },
+  { tab: "acerca", label: "Acerca de Sotos", k: "acerca versión créditos" },
+];
+const norm = (t) => String(t || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 function Spotlight({ onOpen, onApp, onClose }) {
   const [q, setQ] = useSh("");
   const [hi, setHi] = useSh(0);
-  const ql = q.trim().toLowerCase();
-  const results = ql ? [
-    ...APPS.filter(a => a.id !== "web" && !a.hidden && appAllowed(a.id, vfs.getState().user) && a.name.toLowerCase().includes(ql)).slice(0, 5).map(a => ({ kind: "app", app: a })),
-    ...vfs.search(ql, 12).map(n => ({ kind: "file", node: n })),
-  ] : [];
-  const go = (r) => { if (!r) return; r.kind === "app" ? onApp(r.app.id) : onOpen(r.node); onClose(); };
+  const [data, setData] = useSh({ contacts: [], events: [], tasks: [] });
+  // contactos, eventos y tareas se cargan una vez al abrir el buscador (solo con cuenta)
+  useEh(() => { if (vfs.getState().mode !== "cloud") return; const y = 365 * 864e5;
+    Promise.all([api("GET", "contacts").catch(() => ({})), api("GET", `calendar?from=${Date.now() - y}&to=${Date.now() + y}`).catch(() => ({})), api("GET", "tasks").catch(() => ({}))])
+      .then(([c, e, t]) => setData({ contacts: c.items || [], events: e.events || [], tasks: t.tasks || [] })); }, []);
+  const ql = norm(q.trim());
+  const has = (...v) => v.some(x => norm(x).includes(ql));
+  const fmtWhen = (ms) => new Date(ms).toLocaleString("es", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  const groups = !ql ? [] : [
+    ["Aplicaciones", APPS.filter(a => a.id !== "web" && !a.hidden && appAllowed(a.id, vfs.getState().user) && has(a.name)).slice(0, 5).map(a => ({ kind: "app", app: a }))],
+    ["Archivos y carpetas", vfs.search(q.trim(), 10).map(n => ({ kind: "file", node: n }))],
+    ["Contactos", data.contacts.filter(c => has(c.name, c.email, c.phone, c.company)).slice(0, 5).map(c => ({ kind: "contact", c }))],
+    ["Calendario", data.events.filter(e => has(e.title, e.location, e.notes)).sort((a, b) => Math.abs(a.start - Date.now()) - Math.abs(b.start - Date.now())).slice(0, 5).map(e => ({ kind: "event", e }))],
+    ["Tareas", data.tasks.filter(t => has(t.title, t.notes)).slice(0, 5).map(t => ({ kind: "task", t }))],
+    ["Ajustes", SETTINGS_HITS.filter(s => has(s.label, s.k)).slice(0, 3).map(s => ({ kind: "setting", s }))],
+    ["Internet", [{ kind: "web", q: q.trim() }]],
+  ].filter(g => g[1].length);
+  const results = groups.flatMap(g => g[1]);
+  const go = (r) => { if (!r) return;
+    if (r.kind === "app") onApp(r.app.id); else if (r.kind === "file") onOpen(r.node);
+    else if (r.kind === "contact") onApp("contacts", { contactId: r.c.id }); else if (r.kind === "event") onApp("calendar", { date: r.e.start });
+    else if (r.kind === "task") onApp("tasks", { taskId: r.t.id }); else if (r.kind === "setting") onApp("settings", { tab: r.s.tab });
+    else if (r.kind === "web") onApp("browser", { url: "https://duckduckgo.com/?q=" + encodeURIComponent(r.q), scName: "Buscar: " + r.q });
+    onClose(); };
   useEh(() => { const esc = e => e.key === "Escape" && onClose(); document.addEventListener("keydown", esc); return () => document.removeEventListener("keydown", esc); }, []);
   useEh(() => setHi(0), [q]);
+  const row = (r) => r.kind === "app" ? [<Tile icon={r.app.icon} color={r.app.color} size={28} app={r.app.id} />, r.app.name, "Aplicación"]
+    : r.kind === "file" ? [<NodeGlyph node={r.node} size={26} />, r.node.name, ["Sotos Drive", ...vfs.pathOf(r.node.id).slice(0, -1).map(p => p.name)].join(" › ")]
+    : r.kind === "contact" ? [<Avatar profile={{ name: r.c.name, avatar: r.c.sotos?.avatar }} size={28} />, r.c.name, [r.c.email, r.c.phone].filter(Boolean).join(" · ") || "Contacto"]
+    : r.kind === "event" ? [<span className="spot-ic"><Ic name="event" size={18} /></span>, r.e.title, fmtWhen(r.e.start) + (r.e.location ? " · " + r.e.location : "")]
+    : r.kind === "task" ? [<span className="spot-ic"><Ic name={r.t.done ? "task_alt" : "radio_button_unchecked"} size={18} /></span>, r.t.title, r.t.due ? "Vence " + fmtWhen(r.t.due) : "Tarea"]
+    : r.kind === "setting" ? [<span className="spot-ic"><Ic name="settings" size={18} /></span>, r.s.label, "Ajustes"]
+    : [<span className="spot-ic"><Ic name="travel_explore" size={18} /></span>, `Buscar “${r.q}” en internet`, "Abre el Navegador"];
+  let n = -1;
   return (
     <div className="spot-overlay" onMouseDown={onClose}>
       <div className="spot" onMouseDown={e => e.stopPropagation()}>
         <div className="spot-input"><Ic name="search" size={22} />
-          <input autoFocus placeholder="Buscar apps, archivos y carpetas…" value={q} onChange={e => setQ(e.target.value)}
+          <input autoFocus placeholder="Buscar en todo Sotos: apps, archivos, contactos, eventos, tareas, ajustes…" value={q} onChange={e => setQ(e.target.value)}
             onKeyDown={e => { if (e.key === "ArrowDown") { e.preventDefault(); setHi(h => Math.min(h + 1, results.length - 1)); } if (e.key === "ArrowUp") { e.preventDefault(); setHi(h => Math.max(h - 1, 0)); } if (e.key === "Enter") go(results[hi]); }} /></div>
         {!!results.length && <div className="spot-results">
-          {results.map((r, i) => (
-            <div key={i} className={"spot-row" + (i === hi ? " hi" : "")} onMouseEnter={() => setHi(i)} onClick={() => go(r)}>
-              {r.kind === "app" ? <Tile icon={r.app.icon} color={r.app.color} size={28} app={r.app.id} /> : <NodeGlyph node={r.node} size={26} />}
-              <div><div className="spot-name">{r.kind === "app" ? r.app.name : r.node.name}</div>
-                <div className="spot-path">{r.kind === "app" ? "Aplicación" : ["Sotos Drive", ...vfs.pathOf(r.node.id).slice(0, -1).map(p => p.name)].join(" › ")}</div></div>
-            </div>
-          ))}
+          {groups.map(([title, rs]) => <React.Fragment key={title}>
+            <div className="spot-group">{title}</div>
+            {rs.map((r) => { const i = ++n; const [ic, name, sub] = row(r); return (
+              <div key={i} className={"spot-row" + (i === hi ? " hi" : "")} onMouseEnter={() => setHi(i)} onClick={() => go(r)}>
+                {ic}<div><div className="spot-name">{name}</div><div className="spot-path">{sub}</div></div>
+              </div>); })}
+          </React.Fragment>)}
         </div>}
-        {q.trim() && !results.length && <div className="spot-empty">Sin resultados para “{q}”</div>}
+        {!q.trim() && <div className="spot-empty">Escribe para buscar · <kbd>Ctrl</kbd> + <kbd>K</kbd> lo abre desde cualquier parte</div>}
       </div>
     </div>
   );
 }
-
 /* ============================================================ */
 function OS() {
   const [settings, setSettings] = useSh(() => {
@@ -529,6 +581,8 @@ function OS() {
   const [shareId, setShareId] = useSh(null);
   const [sendId, setSendId] = useSh(null), [versionsId, setVersionsId] = useSh(null);
   useEh(() => { const f = (e) => setVersionsId(e.detail); window.addEventListener("sotos-versions", f); return () => window.removeEventListener("sotos-versions", f); }, []);
+  const [moveIds, setMoveIds] = useSh(null);
+  useEh(() => { const f = (e) => setMoveIds(e.detail); window.addEventListener("sotos-moveto", f); return () => window.removeEventListener("sotos-moveto", f); }, []);
   useEh(() => { const f = (e) => setSendId(e.detail); window.addEventListener("sotos-sendto", f); return () => window.removeEventListener("sotos-sendto", f); }, []);
   const [demoWelcome, setDemoWelcome] = useSh(() => { try { return !localStorage.getItem("sotos_demo_seen"); } catch { return true; } });
   const zTop = useRh(10);
@@ -537,6 +591,7 @@ function OS() {
   const update = useCh((k, v) => setSettings(s => { const n = { ...s, [k]: v }; save("sotos", n); return n; }), []);
   const setProfile = useCh((p) => setProfileR(prev => { const n = { ...prev, ...p }; save("sotos_profile", n); return n; }), []);
   useEh(() => save("sotos_dock", dockCfg), [dockCfg]);
+  const dockCfgRef = useRh(dockCfg); dockCfgRef.current = dockCfg;
   useEh(() => save("sotos_sc", shortcuts), [shortcuts]);
   useEh(() => save("sotos_widgets", widgets), [widgets]);
   useEh(() => save("sotos_notes", notes), [notes]);
@@ -573,6 +628,8 @@ function OS() {
   const dockApi = {
     remove: (id) => setDockCfg(d => d.filter(x => x !== id)),
     add: (id) => setDockCfg(d => d.includes(id) ? d : [...d, id]),
+    insert: (id, i) => setDockCfg(d => { const x = d.filter(v => v !== id); x.splice(Math.min(i, x.length), 0, id); return x; }),
+    has: (id) => dockCfgRef.current.includes(id),
     reorder: (arr) => setDockCfg(arr),
   };
   const scApi = {
@@ -585,7 +642,7 @@ function OS() {
     if (!APP_BY_ID[appId]) return;
     if (!appAllowed(appId, vfs.getState().user)) { toast(APP_BY_ID[appId].adminOnly ? "Solo para administradores" : "El administrador ocultó esta app para tu cuenta", { error: true }); return; }
     setWins(ws => {
-      const key = appId + (payload && payload.fileId ? ":" + payload.fileId : "") + (payload && payload.url ? ":" + payload.url : "");
+      const key = appId + (payload && payload.fileId ? ":" + payload.fileId : "") + (payload && payload.url ? ":" + payload.url : "") + (payload && payload.sharedNode ? ":s" + payload.sharedNode.id : "");
       const existing = ws.find(w => w.key === key);
       if (existing) return ws.map(w => w.id === existing.id ? { ...w, z: ++zTop.current, minimized: false, payload: payload || w.payload } : w);
       const app = APP_BY_ID[appId]; const n = ws.length;
@@ -652,7 +709,7 @@ function OS() {
     const o = (e) => openItem(vfs.node(e.detail));
     const sh = (e) => setShareId(e.detail);
     const sp = () => setSpot(true);
-    const ow = (e) => e.detail?.app && openApp(e.detail.app, { fileId: e.detail.fileId }); // "abrir con" desde el menú contextual
+    const ow = (e) => e.detail?.app && openApp(e.detail.app, e.detail.payload || { fileId: e.detail.fileId }); // "abrir con" desde el menú contextual
     window.addEventListener("sotos-open-with", ow);
     document.addEventListener("keydown", k); window.addEventListener("sotos-open", o); window.addEventListener("sotos-share", sh); window.addEventListener("sotos-spotlight", sp);
     return () => { document.removeEventListener("keydown", k); window.removeEventListener("sotos-open", o); window.removeEventListener("sotos-open-with", ow); window.removeEventListener("sotos-share", sh); window.removeEventListener("sotos-spotlight", sp); };
@@ -735,6 +792,7 @@ function OS() {
       {spot && <Spotlight onOpen={openItem} onApp={openApp} onClose={() => setSpot(false)} />}
       {shareId && <ShareDialog id={shareId} onClose={() => setShareId(null)} />}
       {sendId && <SendToDialog nodeId={sendId} onClose={() => setSendId(null)} />}
+      {moveIds && <MoveToDialog ids={moveIds} onClose={() => setMoveIds(null)} />}
       {versionsId && <VersionsDialog id={versionsId} onClose={() => setVersionsId(null)} />}
       <GlobalContextMenu openApp={openApp} winAction={winAction} />
       {DEMO && demoWelcome && <DemoWelcome onApp={openApp} onClose={() => { setDemoWelcome(false); try { localStorage.setItem("sotos_demo_seen", "1"); } catch {} }} />}

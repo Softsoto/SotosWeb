@@ -146,7 +146,12 @@ function UserFiles({ u, onClose, onChanged }) {
       <div className="search-box" style={{ margin: "10px 0" }}><Ic name="search" size={16} /><input placeholder="Buscar en todas sus carpetas" value={q} onChange={e => setQ(e.target.value)} /></div>
       {!q && <div className="admin-crumbs"><button onClick={() => setDir("")}><Ic name="home" size={16} /> Inicio</button>
         {crumbs.map((c, i) => <React.Fragment key={i}><Ic name="chevron_right" size={14} /><button onClick={() => setDir("/" + crumbs.slice(0, i + 1).join("/"))}>{c}</button></React.Fragment>)}</div>}
-      {vault && vault.files > 0 && <div className="faint" style={{ fontSize: 12, margin: "0 0 8px" }}><Ic name="lock" size={14} /> Además tiene {vault.files} archivo(s) en su bóveda privada ({fmtSize(vault.size)}): están cifrados con su clave y nadie más puede verlos.</div>}
+      {vault && vault.files > 0 && !vault.items && <div className="faint" style={{ fontSize: 12, margin: "0 0 8px" }}><Ic name="lock" size={14} /> Además tiene {vault.files} archivo(s) en su bóveda privada ({fmtSize(vault.size)}). {vault.policy ? "Su llave se agregará la próxima vez que abra la bóveda." : "Están cifrados con su clave: en este servidor nadie más puede verlos."}</div>}
+      {vault?.items?.length > 0 && !q && !dir && <details className="admin-vault"><summary><Ic name="lock_open" size={15} /> Bóveda secreta · {vault.items.length} archivo(s) · {fmtSize(vault.size)} <span className="faint">(este servidor permite que el administrador la revise)</span></summary>
+        {vault.items.map(it => <div key={it.id} className="admin-file"><span className="admin-file-name"><b>{it.name}</b><span className="faint">Bóveda</span></span><span className="faint">{fmtSize(it.size)}</span>
+          <a className="tb-btn icon" title="Abrir" target="_blank" rel="noreferrer" href={`/api/admin/users/${u.id}/vault/${it.id}`}><Ic name="open_in_new" size={16} /></a>
+          <a className="tb-btn icon" title="Descargar" href={`/api/admin/users/${u.id}/vault/${it.id}?dl=1`}><Ic name="download" size={16} /></a><span /></div>)}
+      </details>}
       <div className="admin-files">
         {!q && dir && <div className="admin-file folder" onClick={() => setDir(dir.replace(/\/[^/]*$/, ""))}><span className="admin-file-name"><b><Ic name="arrow_upward" size={16} /> ..</b></span></div>}
         {!q && subdirs.map(p => <div key={p} className="admin-file folder" onClick={() => setDir(p)}>

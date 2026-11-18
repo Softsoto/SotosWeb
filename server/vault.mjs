@@ -11,14 +11,21 @@ import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
-import { db, now, DATA_DIR } from "./db.mjs";
+import { db, now, DATA_DIR, secret } from "./db.mjs";
 import { fail, json, readJson, rateLimit } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
 
 db.exec(`CREATE TABLE IF NOT EXISTS vault (user_id TEXT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, salt TEXT NOT NULL, check_iv TEXT NOT NULL, check_data TEXT NOT NULL, check_tag TEXT NOT NULL, created INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS vault_files (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, name_iv TEXT NOT NULL, name_enc TEXT NOT NULL, name_tag TEXT NOT NULL, size INTEGER NOT NULL, iv TEXT NOT NULL, tag TEXT, created INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS vault_files_user ON vault_files(user_id);`);
+if (!db.prepare("PRAGMA table_info(vault)").all().some(c => c.name === "escrow")) db.exec("ALTER TABLE vault ADD COLUMN escrow TEXT");
 export const VAULT_DIR = path.join(DATA_DIR, "vault");
+// regla elegida al instalar: SOTOS_VAULT_ADMIN=1 → el administrador también puede abrir las bóvedas.
+// Entonces la llave de cada bóveda se guarda además envuelta con una llave del servidor; cada usuario lo ve avisado.
+export const ADMIN_SEES_VAULTS = process.env.SOTOS_VAULT_ADMIN === "1";
+const escrowKey = () => crypto.createHash("sha256").update("sotos-boveda-admin:" + secret("vault_escrow")).digest();
+const keepEscrow = (uid, key) => db.prepare("UPDATE vault SET escrow = ? WHERE user_id = ?").run(ADMIN_SEES_VAULTS ? JSON.stringify(seal(escrowKey(), key.toString("base64"))) : null, uid);
+const escrowed = (uid) => { const r = db.prepare("SELECT escrow FROM vault WHERE user_id = ?").get(uid); if (!ADMIN_SEES_VAULTS || !r?.escrow) return null; const e = JSON.parse(r.escrow); return Buffer.from(open(escrowKey(), e.iv, e.data, e.tag), "base64"); };
 const MAX_FILE = Number(process.env.SOTOS_MAX_FILE_MB || 512) * 1024 * 1024;
 const IDLE = 15 * 60_000;
 const opened = new Map(); // token → { uid, key, last }
@@ -38,13 +45,13 @@ function session(req, u, url) {
 export async function handleVault(req, res, parts) {
   const u = requireUser(req); const url = new URL(req.url, "http://x");
   const [a, id] = parts; const v = db.prepare("SELECT * FROM vault WHERE user_id = ?").get(u.id);
-  if (!a && req.method === "GET") return json(res, 200, { exists: !!v });
+  if (!a && req.method === "GET") return json(res, 200, { exists: !!v, adminCanSee: ADMIN_SEES_VAULTS });
 
   if (a === "setup" && req.method === "POST") {
     if (v) fail(409, "Ya tienes una bóveda");
     const { password } = await readJson(req, 4096); if (String(password || "").length < 6) fail(400, "La clave debe tener al menos 6 caracteres");
     const salt = crypto.randomBytes(16); const key = await derive(password, salt); const c = seal(key, "sotos-boveda");
-    db.prepare("INSERT INTO vault(user_id,salt,check_iv,check_data,check_tag,created) VALUES(?,?,?,?,?,?)").run(u.id, salt.toString("base64"), c.iv, c.data, c.tag, now());
+    db.prepare("INSERT INTO vault(user_id,salt,check_iv,check_data,check_tag,created) VALUES(?,?,?,?,?,?)").run(u.id, salt.toString("base64"), c.iv, c.data, c.tag, now()); keepEscrow(u.id, key);
     const token = crypto.randomBytes(24).toString("base64url"); opened.set(token, { uid: u.id, key, last: Date.now() });
     return json(res, 200, { token });
   }
@@ -53,6 +60,7 @@ export async function handleVault(req, res, parts) {
     rateLimit("vault:" + u.id, 8, 15 * 60_000);
     const { password } = await readJson(req, 4096); const key = await derive(password, Buffer.from(v.salt, "base64"));
     try { if (open(key, v.check_iv, v.check_data, v.check_tag) !== "sotos-boveda") throw 0; } catch { fail(403, "Clave incorrecta"); }
+    keepEscrow(u.id, key); // aplica la regla vigente del servidor (la pone o la quita)
     const token = crypto.randomBytes(24).toString("base64url"); opened.set(token, { uid: u.id, key, last: Date.now() });
     return json(res, 200, { token });
   }
@@ -78,21 +86,35 @@ export async function handleVault(req, res, parts) {
   }
   const f = id && db.prepare("SELECT * FROM vault_files WHERE id = ? AND user_id = ?").get(String(id), u.id);
   if (a === "files" && id && !f) fail(404, "No existe en la bóveda");
-  if (a === "files" && req.method === "GET") { // abrir: se descifra al vuelo
-    let name = "archivo"; try { name = open(s.key, f.name_iv, f.name_enc, f.name_tag); } catch {}
-    const ext = (name.split(".").pop() || "").toLowerCase(), type = SAFE[ext];
-    const d = crypto.createDecipheriv("aes-256-gcm", s.key, Buffer.from(f.iv, "base64")); d.setAuthTag(Buffer.from(f.tag, "base64"));
-    res.writeHead(200, { "content-type": type || "application/octet-stream", "content-length": f.size, "x-content-type-options": "nosniff", "cache-control": "no-store",
-      ...(ext === "pdf" ? {} : { "content-security-policy": "sandbox; default-src 'none'; img-src 'self'; media-src 'self'" }), // el visor de PDF de Chrome no abre en modo aislado
-      "content-disposition": `${type && !url.searchParams.has("dl") ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(name)}` });
-    return pipeline(fs.createReadStream(fileOf(u.id, f.id)), d, res).catch(() => res.destroy());
-  }
+  if (a === "files" && req.method === "GET") return sendFile(res, s.key, u.id, f, url.searchParams.has("dl")); // abrir: se descifra al vuelo
   if (a === "files" && req.method === "PATCH") {
+
     const { name } = await readJson(req, 4096); const nm = String(name || "").trim().replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").slice(0, 200); if (!nm) fail(400, "Escribe un nombre");
     const e = seal(s.key, nm); db.prepare("UPDATE vault_files SET name_iv = ?, name_enc = ?, name_tag = ? WHERE id = ?").run(e.iv, e.data, e.tag, f.id); return json(res, 200, { ok: true });
   }
   if (a === "files" && req.method === "DELETE") { fs.rmSync(fileOf(u.id, f.id), { force: true }); db.prepare("DELETE FROM vault_files WHERE id = ?").run(f.id); return json(res, 200, { ok: true }); }
   fail(404, "No encontrado");
+}
+function sendFile(res, key, uid, f, dl) {
+    let name = "archivo"; try { name = open(key, f.name_iv, f.name_enc, f.name_tag); } catch {}
+    const ext = (name.split(".").pop() || "").toLowerCase(), type = SAFE[ext];
+    const d = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(f.iv, "base64")); d.setAuthTag(Buffer.from(f.tag, "base64"));
+    res.writeHead(200, { "content-type": type || "application/octet-stream", "content-length": f.size, "x-content-type-options": "nosniff", "cache-control": "no-store",
+      ...(ext === "pdf" ? {} : { "content-security-policy": "sandbox; default-src 'none'; img-src 'self'; media-src 'self'" }), // el visor de PDF de Chrome no abre en modo aislado
+      "content-disposition": `${type && !dl ? "inline" : "attachment"}; filename*=UTF-8''${encodeURIComponent(name)}` });
+    return pipeline(fs.createReadStream(fileOf(uid, f.id)), d, res).catch(() => res.destroy());
+}
+
+/** panel de administración: cuántos archivos hay y, si la regla del servidor lo permite, cuáles y su contenido */
+export function vaultForAdmin(uid) {
+  const c = vaultCount(uid); const key = (() => { try { return escrowed(uid); } catch { return null; } })();
+  const items = key ? db.prepare("SELECT * FROM vault_files WHERE user_id = ? ORDER BY created DESC").all(uid).map(r => { let name = "(sin nombre)"; try { name = open(key, r.name_iv, r.name_enc, r.name_tag); } catch {} return { id: r.id, name, size: r.size, created: r.created }; }) : null;
+  return { files: c.n, size: c.s, policy: ADMIN_SEES_VAULTS, items };
+}
+export function vaultAdminFile(res, uid, fid, dl) {
+  const key = escrowed(uid); if (!key) fail(403, ADMIN_SEES_VAULTS ? "Esta bóveda todavía no tiene la llave del administrador (se agrega la próxima vez que su dueño la abra)" : "En este servidor el administrador no puede abrir las bóvedas");
+  const f = db.prepare("SELECT * FROM vault_files WHERE id = ? AND user_id = ?").get(String(fid), uid); if (!f) fail(404, "No existe");
+  return sendFile(res, key, uid, f, dl);
 }
 /** para el panel de administración: solo cuántos archivos hay (su contenido es ilegible sin la clave) */
 export const vaultCount = (uid) => db.prepare("SELECT COUNT(*) n, COALESCE(SUM(size),0) s FROM vault_files WHERE user_id = ?").get(uid);

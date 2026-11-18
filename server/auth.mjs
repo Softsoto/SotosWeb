@@ -57,11 +57,20 @@ const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 export async function handleAuth(req, res, sub) {
   if (sub === "me" && req.method === "GET") return json(res, 200, { user: publicUser(currentUser(req)), registration: registration() });
   if (sub === "avatar" && req.method === "PUT") {
-    const u = requireUser(req); const { avatar } = await readJson(req, 600 * 1024);
+    const u = requireUser(req); const { avatar, password } = await readJson(req, 600 * 1024);
+    rateLimit("perfil:" + u.id, 10, 900_000);
+    if (!(await verifyPassword(u.id, password))) fail(403, "Contraseña incorrecta"); // cambiar el perfil pide permiso
     const v = String(avatar || "");
     if (!(v.startsWith("def:") && AVATARS.includes(v.slice(4))) && !/^data:image\/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/=]+$/.test(v)) fail(400, "Imagen no válida");
     if (v.length > 400 * 1024) fail(413, "La imagen es muy grande");
     db.prepare("UPDATE users SET avatar = ? WHERE id = ?").run(v, u.id); return json(res, 200, { ok: true, avatar: v });
+  }
+  if (sub === "name" && req.method === "PUT") {
+    const u = requireUser(req); const { name, password } = await readJson(req, 4096);
+    rateLimit("perfil:" + u.id, 10, 900_000);
+    if (!(await verifyPassword(u.id, password))) fail(403, "Contraseña incorrecta");
+    const nm = String(name || "").replace(/\s+/g, " ").trim().slice(0, 60); if (!nm) fail(400, "Escribe tu nombre");
+    db.prepare("UPDATE users SET name = ? WHERE id = ?").run(nm, u.id); return json(res, 200, { ok: true, name: nm });
   }
   if (req.method !== "POST") fail(405, "Método no permitido");
   const ip = clientIp(req);

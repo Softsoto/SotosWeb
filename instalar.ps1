@@ -63,6 +63,16 @@ if (-not $Modo) {
   $Modo = if ((Read-Host "  ? Opción [1]") -eq "2") { "docker" } else { "equipo" }
 }
 
+# ---------------- privacidad de las bóvedas ----------------
+$BovedaAdmin = 0
+if (-not $Actualizar) {
+  Titulo "Bóvedas secretas de los usuarios"
+  Write-Host "    Cada cuenta tiene una bóveda cifrada con su propia clave."
+  Write-Host "    Puedes permitir que el administrador también la revise (por ejemplo, para moderar contenido)."
+  Write-Host "    Cada usuario verá en su bóveda cuál de las dos reglas tiene este servidor."
+  if (Pregunta "¿El administrador podrá ver las bóvedas de los usuarios? (s/n)" "n") { $BovedaAdmin = 1 }
+}
+
 # =====================================================================
 if ($Modo -eq "equipo") {
   Titulo "Instalación en este equipo"
@@ -97,6 +107,7 @@ PX_PORT=$($Puerto + 1)
 SOTOS_DATA=$Datos
 SOTOS_SHOW_LAN=1
 SOTOS_REGISTRATION=open
+SOTOS_VAULT_ADMIN=$BovedaAdmin
 SOTOS_QUOTA_MB=10240
 "@ | Set-Content -Encoding ascii $EnvFile
   }
@@ -152,6 +163,7 @@ PX_DOMAIN=px.$base
 OFFICE_DOMAIN=office.$base
 OO_JWT_SECRET=$secreto
 SOTOS_REGISTRATION=open
+SOTOS_VAULT_ADMIN=$BovedaAdmin
 SOTOS_QUOTA_MB=2048
 OO_VERSION=latest
 "@ | Set-Content -Encoding ascii $envPath
@@ -163,6 +175,7 @@ COMPOSE_FILE=docker-compose.ip.yml
 SOTOS_IP=$ip
 OO_JWT_SECRET=$secreto
 SOTOS_REGISTRATION=open
+SOTOS_VAULT_ADMIN=$BovedaAdmin
 SOTOS_QUOTA_MB=2048
 OO_VERSION=latest
 "@ | Set-Content -Encoding ascii $envPath

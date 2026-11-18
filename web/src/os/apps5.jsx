@@ -340,8 +340,8 @@ function WebViewApp({ file, svc, office, openApp }) {
 }
 
 /* -------------------- Launchpad (apps + servicios + accesos) -------------------- */
-function LaunchpadApp({ openApp, shortcuts = [], scApi }) {
-  const [q, setQ] = useS5("");
+function LaunchpadApp({ openApp, shortcuts = [], scApi, dockApi, dockCfg = [] }) {
+  const [q, setQ] = useS5(""), [lctx, setLctx] = useS5(null);
   const [adding, setAdding] = useS5(false);
   const [nm, setNm] = useS5(""); const [url, setUrl] = useS5("");
   const launchable = APPS.filter(a => a.id !== "launchpad" && a.id !== "web" && !a.hidden && appAllowed(a.id, vfs.getState().user) && a.name.toLowerCase().includes(q.toLowerCase()));
@@ -356,6 +356,9 @@ function LaunchpadApp({ openApp, shortcuts = [], scApi }) {
   };
   return (
     <div className="app launchpad" style={{ flexDirection: "column" }}>
+      {lctx && dockApi && <ContextMenu x={lctx.x} y={lctx.y} onClose={() => setLctx(null)}
+        items={[{ id: "open", label: "Abrir", icon: "open_in_new" }, { sep: true }, dockCfg.includes(lctx.id) ? { id: "undock", label: "Quitar del Dock", icon: "remove_circle", danger: true } : { id: "dock", label: "Agregar al Dock", icon: "add_circle" }]}
+        onSelect={(x) => { if (x === "open") openApp(lctx.id); if (x === "dock") { dockApi.add(lctx.id); toast("Agregada al Dock", { icon: "add_circle" }); } if (x === "undock") { dockApi.remove(lctx.id); toast("Quitada del Dock", { icon: "remove_circle" }); } }} />}
       <div className="lp-search">
         <Ic name="search" />
         <input autoFocus placeholder="Buscar apps, servicios y accesos" value={q} onChange={e => setQ(e.target.value)} />
@@ -365,7 +368,9 @@ function LaunchpadApp({ openApp, shortcuts = [], scApi }) {
           <div className="lp-label">Apps de Sotos</div>
           <div className="lp-grid">
             {launchable.map(a => (
-              <button key={a.id} className="lp-cell" onClick={() => openApp(a.id)}>
+              <button key={a.id} className="lp-cell" onClick={() => openApp(a.id)} draggable
+                onDragStart={e => { e.dataTransfer.setData("application/x-sotos-app", a.id); e.dataTransfer.effectAllowed = "copyMove"; }}
+                onContextMenu={e => { e.preventDefault(); setLctx({ x: e.clientX, y: e.clientY, id: a.id }); }}>
                 <Tile icon={a.icon} color={a.color} size={62} app={a.id} /><span>{a.name}</span>
               </button>
             ))}

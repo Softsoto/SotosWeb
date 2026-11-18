@@ -71,6 +71,13 @@ function applyWorldOps(wid, ops, actorId, origin) {
   return version;
 }
 
+/** documentos de la carpeta de un mundo abiertos en ONLYOFFICE / Euro-Office (coedición entre miembros) */
+export function worldDoc(wid, userId, nodeId) {
+  membership(String(wid), userId); const find = (n) => n.id === nodeId ? n : (n.children || []).reduce((r, c) => r || find(c), null);
+  return { owner: space(String(wid)), node: find(loadWorldFs(String(wid)).state.root) };
+}
+export const worldDocSaved = (wid, nodeId, size, actorId) => applyWorldOps(String(wid), [{ t: "write", id: nodeId, size, mtime: Date.now() }], actorId, "onlyoffice");
+
 /* ---------------- rutas ---------------- */
 export async function handleWorlds(req, res, parts) {
   const u = requireUser(req);
