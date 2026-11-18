@@ -85,4 +85,15 @@ export function markDataUrl(bg = "#c4532f") {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="${bg}"/><g fill="none" stroke="#fff" stroke-linecap="round"><circle cx="50" cy="50" r="40" stroke-width="6" stroke-dasharray="100 25.66" stroke-dashoffset="18.5"/><path d="${MARK_PATHS.s}" stroke-width="11"/></g><circle cx="78.3" cy="21.7" r="6" fill="#fff"/></svg>`;
   return "data:image/svg+xml," + encodeURIComponent(svg);
 }
-export { SotosLogo, SotosMark };
+// logo del sistema elegido en Ajustes: "actual" (S con órbita) o "clasico" (el husky y la gata, el logo original de Sotos)
+let brand = (() => { try { return localStorage.getItem("sotos_logo") || "actual"; } catch { return "actual"; } })();
+const brandSubs = new Set();
+export function setBrandLogo(v) { v = v === "clasico" ? "clasico" : "actual"; if (v === brand) return; brand = v; try { localStorage.setItem("sotos_logo", v); } catch {} brandSubs.forEach(f => f(v)); }
+export function useBrandLogo() { const [v, set] = React.useState(brand); React.useEffect(() => { brandSubs.add(set); return () => brandSubs.delete(set); }, []); return v; }
+/** el logo que corresponde según Ajustes; variant "tile" = con ficha de color */
+function BrandMark({ size = 24, variant = "mono", spin = false }) {
+  const v = useBrandLogo();
+  if (v === "clasico") return <SotosLogo size={size} badge={variant === "tile"} animate={spin} />;
+  return <SotosMark size={size} variant={variant} spin={spin} />;
+}
+export { SotosLogo, SotosMark, BrandMark };

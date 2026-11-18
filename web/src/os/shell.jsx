@@ -4,7 +4,7 @@
    ============================================================ */
 import React from "react";
 import { APPS, APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, DEFAULT_SHORTCUTS, appAllowed } from "./data.jsx";
-import { SotosLogo, SotosMark } from "./logo.jsx";
+import { SotosLogo, SotosMark, BrandMark, setBrandLogo } from "./logo.jsx";
 import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, animateWinOut, animateWinGeometry } from "./ui.jsx";
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
@@ -27,7 +27,7 @@ function DemoWelcome({ onClose, onApp }) {
   return (
     <div className="share-modal" onMouseDown={onClose}>
       <div className="share-card demo-card" onMouseDown={e => e.stopPropagation()}>
-        <SotosMark size={64} variant="tile" />
+        <BrandMark size={64} variant="tile" />
         <div className="demo-title">Bienvenido al demo de Sotos</div>
         <div className="muted" style={{ fontSize: 13.5, lineHeight: 1.55 }}>Un ordenador completo dentro del navegador. En el demo no hay servidor: todo lo que hagas se guarda <b>solo en este navegador</b>. Con Sotos instalado tendrás cuentas, nube, compartir y el navegador con proxy.</div>
         <div className="demo-tips">{tips.map(([i, t]) => <div key={i}><Ic name={i} size={18} /><span>{t}</span></div>)}</div>
@@ -114,7 +114,7 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout,
 
   return (
     <div className="menubar">
-      <div className="brand" onClick={() => onApp("settings")} style={{ cursor: "pointer" }}><SotosMark size={17} />Sotos</div>
+      <div className="brand" onClick={() => onApp("settings")} style={{ cursor: "pointer" }}><BrandMark size={17} />Sotos</div>
       <div className="menu-item active-app">{activeApp ? activeApp.name : "Escritorio"}</div>
       {Object.keys(MENUS).map(name => (
         <div key={name} className="menu-wrap" onMouseDown={e => e.stopPropagation()}>
@@ -211,7 +211,7 @@ function Dock({ position, order, running, minimized, badges, onApp, dockApi }) {
   };
   return (
     <div className={"dock " + position}>
-      {position.includes("rail") && <button className="rail-logo" title="Aplicaciones" onClick={() => onApp("launchpad")}><SotosMark size={32} /></button>}
+      {position.includes("rail") && <button className="rail-logo" title="Aplicaciones" onClick={() => onApp("launchpad")}><BrandMark size={32} /></button>}
       {order.map((id, i) => {
         if (id === "__div__") return <div key={"d" + i} className="divider" />;
         if (id === "launchpad" && position.includes("rail")) return null; // en el riel, la marca abre Aplicaciones
@@ -361,7 +361,7 @@ function BootScreen({ onDone, quick, task }) {
   }, []);
   return (
     <div className="boot">
-      <div className="boot-logo"><SotosMark size={116} variant="tile" spin /></div>
+      <div className="boot-logo"><BrandMark size={116} variant="tile" spin /></div>
       <div className="boot-name">Sotos</div>
       {!err && <div className="boot-bar"><div className="boot-fill" /></div>}
       <div className="boot-tag">{err ? "No se pudo iniciar el almacenamiento: " + err : slow ? "Preparando tus archivos por primera vez…" : "tu ordenador en la nube"}</div>
@@ -483,12 +483,13 @@ function OS() {
     const r = document.documentElement;
     r.setAttribute("data-theme", settings.theme);
     r.setAttribute("data-skin", settings.skin || "sotos");
+    setBrandLogo(settings.logo);
     r.setAttribute("data-wallgray", settings.skin === "grafito" && settings.wallGray !== false ? "1" : "0");
     r.style.setProperty("--accent", settings.accent);
     r.style.setProperty("--ui", `"${settings.font}", system-ui, sans-serif`);
     Object.entries(WIN_STYLES[settings.winStyle]).forEach(([k, v]) => r.style.setProperty(k, v));
     if (settings.skin === "grafito") ["--win-radius", "--win-shadow", "--win-border", "--ui"].forEach(k => r.style.removeProperty(k));
-  }, [settings.theme, settings.accent, settings.font, settings.winStyle, settings.skin, settings.wallGray]);
+  }, [settings.theme, settings.accent, settings.font, settings.winStyle, settings.skin, settings.wallGray, settings.logo]);
 
   // fondo: degradado de la lista o imagen del usuario ("file:<id>")
   const wallFileId = String(settings.wallpaper).startsWith("file:") ? settings.wallpaper.slice(5) : null;

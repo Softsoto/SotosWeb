@@ -238,6 +238,10 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
               <Segmented value={settings.wallGray === false ? "n" : "y"} onChange={v => update("wallGray", v === "y")}
                 options={[{ v: "y", label: "Sí" }, { v: "n", label: "Color" }]} />
             </Row>}
+            <Row label="Logo del sistema" desc="Clásico: el husky y la gata, el logo original de Sotos. Se ve al arrancar, en la barra superior y en el dock lateral">
+              <Segmented value={settings.logo === "clasico" ? "clasico" : "actual"} onChange={v => update("logo", v)}
+                options={[{ v: "actual", label: "Actual" }, { v: "clasico", label: "Clásico" }]} />
+            </Row>
             <Row label="Tema" desc="Claro u oscuro para todo el sistema">
               <Segmented value={settings.theme} onChange={v => update("theme", v)}
                 options={[{ v: "light", label: "Claro", icon: "light_mode" }, { v: "dark", label: "Oscuro", icon: "dark_mode" }]} />
@@ -290,7 +294,7 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
               <div className="about-credit">
                 <div style={{ fontWeight: 700 }}>Diseñado por Sebastián Sotomontes</div>
                 <div className="muted" style={{ marginTop: 6, lineHeight: 1.6 }}>Dedicado a mis 3 gatas <b>Luna</b>, <b>Lumia</b> y <b>Lyra</b><br />y a mi husky <b>Hashy</b> 🐾</div>
-                <div className="about-mascots"><SotosLogo size={58} badge={false} animate /></div>
+                <div className="about-mascots"><SotosLogo size={96} animate /></div>
                 <div className="about-thanks"><span className="faint">Agradecimientos</span><b>Basted</b> y <b>Lyanna</b></div>
               </div>
             </div>
