@@ -12,7 +12,7 @@ Sotos is also a tribute to **inevio**, the web desktop that showed, years ago, t
 
 | | |
 |---|---|
-| Version | 2.3 |
+| Version | 3.0 (official release) · see [CHANGELOG](CHANGELOG.md) |
 | Desktop | React 18 + Vite 6 (`web/`) |
 | Server | Node.js ≥ 22, zero npm dependencies (`server/`) |
 | Data | SQLite built into Node (`node:sqlite`) + one file per blob; IndexedDB in the browser |
@@ -116,6 +116,11 @@ The installer messages are in Spanish, like the rest of the product.
 | `SOTOS_NEKO_PASS` | `data/secrets.json` | Neko room password |
 | `SOTOS_ADMIN_EMAIL` | — | Account promoted to administrator (otherwise the first account) |
 | `SOTOS_MAIL_INSECURE` | — | `1` disables TLS certificate checks for mail (local tests only) |
+| `WA_URL` | — | WhatsApp service (`services/whatsapp`, e.g. `http://127.0.0.1:8790`); enables native WhatsApp |
+| `WA_SECRET` | `data/secrets.json` | Secret shared with the WhatsApp service |
+| `DRAWIO_URL` | — | Self-hosted draw.io (`jgraph/drawio`); otherwise the public embed is used |
+| `FFMPEG_PATH` / `FFPROBE_PATH` | `ffmpeg` / `ffprobe` | Video preparation (MKV, AC3/DTS audio, subtitles) |
+| `SOTOS_MEDIA_CACHE_GB` | `30` | Disk space for prepared videos |
 
 ## 4. Repository layout
 
@@ -127,6 +132,9 @@ scripts/
   capturas.mjs                      automated screenshots (headless Edge + CDP)
   onlyoffice-dev.ps1                local Document Server (-Motor onlyoffice|eurooffice, -Puerto 8099)
   neko-dev.ps1                      local Neko virtual browser (port 8098)
+  whatsapp-dev.ps1                  native WhatsApp service (port 8790)
+  drawio-dev.ps1                    self-hosted draw.io (port 8097)
+services/whatsapp/                  optional WhatsApp service (Baileys), one session per account
   sync-apps.ps1                     copies the Store apps into web/public/apps
 server/
   index.mjs                         routing, static files, injected proxy origin
@@ -143,6 +151,9 @@ server/
   admin.mjs                         admin panel: stats, registration, quotas, users
   mail.mjs                          IMAP/SMTP client and MIME parser (no dependencies), accounts, aliases
   neko.mjs                          virtual browser session and "open this address"
+  wa.mjs                            bridge to the WhatsApp service (events over the main SSE)
+  media.mjs                         video preparation with ffmpeg (cached, served with Range), subtitles
+  vault.mjs                         secret vault: scrypt password, AES-256-GCM at rest
   oo.mjs                            ONLYOFFICE / Euro-Office integration
   px.mjs                            browser proxy (rewriting + injected client)
 web/src/
@@ -277,6 +288,12 @@ Local development: `scripts/onlyoffice-dev.ps1 -Motor onlyoffice` or `-Motor eur
 ### Mail
 
 `mail.mjs` is a small IMAP and SMTP client written for Sotos: literal-aware response parser, modified UTF-7 mailbox names, MIME parser (multipart, base64, quoted-printable, RFC 2047, charsets, `cid:` images inlined), SMTP over implicit TLS or STARTTLS with AUTH PLAIN/LOGIN and timeouts. Each user can link up to 10 accounts; passwords are encrypted with AES-256-GCM and never sent back to the browser. Every account can have aliases (send-as identities); the From selector lists all accounts and aliases and the message goes out through the account that owns the address. Presets for Gmail, Outlook, iCloud and Yahoo (iCloud requires the primary @icloud.com address as the login and an app-specific password; a custom domain goes in as an alias). HTML mail is shown in a sandboxed iframe without scripts, and remote images are blocked until the reader asks for them.
+
+### Native WhatsApp, vault and video preparation
+
+- **WhatsApp**: `services/whatsapp` runs Baileys with one session and one SQLite store per Sotos account, listening on localhost with a shared secret. `server/wa.mjs` proxies it and forwards its events over the existing SSE connection, so the app opens no extra browser connection. The app shows a clear notice that it is an unofficial client before linking.
+- **Secret vault**: hidden app (`vault.jsx`) with its own password; files and names are encrypted at rest with AES-256-GCM using a scrypt-derived key, so neither the server nor administrators can read them. Sessions auto-lock after 15 minutes idle.
+- **Video**: `server/media.mjs` prepares MKV/AVI or AC3/E-AC3/DTS videos once (video stream copied, audio to AAC), caches the result under `data/media-cache` and serves it with HTTP Range; embedded text subtitles are exported as WebVTT and external `.srt`/`.vtt` files next to the video are picked up.
 
 ### Virtual browser (Neko)
 
