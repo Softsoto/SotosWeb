@@ -39,6 +39,7 @@ import { handleVault } from "./vault.mjs";
 import { handleDav, handleDavKeys } from "./dav.mjs";
 import { handlePush } from "./push.mjs";
 import { handleJellyfin, proxyJellyfin, upgradeJellyfin } from "./jellyfin.mjs";
+import { handleImmich } from "./immich.mjs";
 import "./backup.mjs";      // copias de seguridad diarias
 import "./maintenance.mjs"; // papelera automática y avisos de espacio
 import { handleWorlds } from "./worlds.mjs";
@@ -122,6 +123,7 @@ async function handleApi(req, res) {
     case "dav-keys": return handleDavKeys(req, res, rest);
     case "push": return handlePush(req, res, rest);
     case "jellyfin": return handleJellyfin(req, res, rest);
+    case "immich": return handleImmich(req, res, rest);
   }
   return json(res, 404, { error: "No encontrado" });
 }
