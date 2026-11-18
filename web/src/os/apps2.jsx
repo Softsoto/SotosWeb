@@ -216,16 +216,6 @@ function videoMenu(e, v, { audio, setAudio, info, sub, setSub, ext, node }) {
   showMenu(e.clientX, e.clientY, items);
 }
 
-function ShiftedTrack({ url, shift, video }) {
-  // el video preparado empieza en "shift" segundos: se agregan los subtítulos del archivo con los tiempos corridos
-  useE2(() => { const el = video.current; if (!el) return; let tr; fetch(url).then(r => r.text()).then(t => {
-    tr = el.addTextTrack("subtitles", "Externo", "es"); tr.mode = "showing";
-    const re = /(\d\d:)?(\d\d):(\d\d)\.(\d\d\d) --> (\d\d:)?(\d\d):(\d\d)\.(\d\d\d)[^\n]*\n([\s\S]*?)(?=\n\n|$)/g; const sec = (h, m, s2, ms) => (+(h || "0:").slice(0, -1)) * 3600 + +m * 60 + +s2 + +ms / 1000;
-    for (const m of t.replace(/\r/g, "").matchAll(re)) { const a = sec(m[1], m[2], m[3], m[4]) - shift, b = sec(m[5], m[6], m[7], m[8]) - shift; if (b > 0) tr.addCue(new VTTCue(Math.max(0, a), b, m[9].trim())); }
-  }).catch(() => {}); return () => { if (tr) { tr.mode = "disabled"; [...(tr.cues || [])].forEach(c => tr.removeCue(c)); } }; }, [url, shift]);
-  return null;
-}
-
 function ServerVideo({ node, info }) {
   const ext = useExternalSubs(node);
   const pick = (list) => Math.max(0, list.findIndex(x => /^(spa|es)$/.test(x.lang || "")));
@@ -234,41 +224,44 @@ function ServerVideo({ node, info }) {
   const [sub, setSub] = useS2(() => { const sp = info.subs.map((x, i) => ({ x, i })).filter(({ x }) => x.text && /^(spa|es)$/.test(x.lang || ""));
     const full = sp.find(({ x }) => !x.forced) || sp[0]; return full ? "s" + full.i : ""; });
   useE2(() => { if (sub === "" && ext.length && !info.subs.some(x => x.text)) setSub("e0"); }, [ext.length]);
-  const [start, setStart] = useS2(0), [now, setNow] = useS2(0), [playing, setPlaying] = useS2(true);
-  const v = useR2(null);
-  const q = `?a=${audio}&t=${start.toFixed(3)}&v=${node.mtime || 0}`;
-  const src = `/api/media/${node.id}/stream${q}`;
-  // reiniciar en el fotograma clave anterior (lo dice el servidor) para que audio, video y subtítulos vayan juntos
-  const restartAt = async (t) => { t = Math.max(0, Math.min(t, (info.duration || 1) - 2)); let k = t;
-    try { k = (await api("GET", `media/${node.id}/seek?t=${t.toFixed(2)}`)).k; } catch {} setStart(k); setNow(0); };
-  const seekTo = (t) => restartAt(t);
-  const pos = start + now;
+  const [prep, setPrep] = useS2({ ready: false, progress: 0 }), [retry, setRetry] = useS2(0);
+  const v = useR2(null), resumeAt = useR2(0);
+  // el servidor prepara el video una vez (copia la imagen, convierte el audio); luego es un archivo normal
+  useE2(() => { let stop = false, t; setPrep({ ready: false, progress: 0 });
+    const poll = async (first) => { try { const r = await api(first ? "POST" : "GET", `media/${node.id}/prepare?a=${audio}`); if (stop) return; setPrep(r); if (!r.ready && !r.error) t = setTimeout(() => poll(false), 1200); }
+      catch (e) { if (!stop) setPrep({ ready: false, progress: 0, error: e.message }); } };
+    poll(true); return () => { stop = true; clearTimeout(t); }; }, [node.id, node.mtime, audio, retry]);
+  const changeAudio = (i) => { resumeAt.current = v.current?.currentTime || 0; setAudio(i); };
+  const src = prep.ready ? `/api/media/${node.id}/file?a=${audio}&v=${node.mtime || 0}` : null;
+  const menu = (e) => videoMenu(e, v.current, { audio, setAudio: changeAudio, info, sub, setSub, ext, node });
+  if (!src) return (
+    <div className="sv-wrap sv-prep">
+      {prep.error ? <><Ic name="error" size={34} /><div>{prep.error}</div><button className="tb-btn" onClick={() => setRetry(r => r + 1)}>Reintentar</button></>
+        : <><Ic name="movie" size={34} /><div><b>Preparando el video para el navegador…</b></div>
+          <div className="sv-prep-bar"><i style={{ width: Math.max(2, prep.progress) + "%" }} /></div>
+          <div className="faint">{prep.progress}% · solo la primera vez: se copia la imagen tal cual y el audio se convierte para que suene en cualquier navegador</div></>}
+    </div>
+  );
   return (
-    <div className="sv-wrap">
-      <video ref={v} key={src} src={src} autoPlay className="sv-video" onTimeUpdate={e => setNow(e.currentTarget.currentTime)} onPlay={() => setPlaying(true)} onPause={() => setPlaying(false)}
-        onClick={e => e.currentTarget.paused ? e.currentTarget.play() : e.currentTarget.pause()}
-        onContextMenu={e => videoMenu(e, v.current, { audio, setAudio: (i) => { setAudio(i); restartAt(pos); }, info, sub, setSub, ext, node })}
+    <div className="sv-wrap" onContextMenu={menu}>
+      <video ref={v} key={src} src={src} controls autoPlay className="sv-video" crossOrigin="anonymous"
+        onLoadedMetadata={e => { if (resumeAt.current) { e.currentTarget.currentTime = resumeAt.current; resumeAt.current = 0; } }}
         onError={() => toast(`No se pudo reproducir “${node.name}”`, { error: true })}>
-        {sub.startsWith("s") && <track key={sub + ":" + start} kind="subtitles" default src={`/api/media/${node.id}/subs/${sub.slice(1)}?t=${start.toFixed(3)}&v=${node.mtime || 0}`} srcLang={info.subs[+sub.slice(1)]?.lang || "es"} label={trackName(info.subs[+sub.slice(1)], +sub.slice(1), "Subtítulos")} />}
-        {sub.startsWith("e") && ext[+sub.slice(1)] && <ShiftedTrack key={sub + ":" + start} url={ext[+sub.slice(1)].url} shift={start} video={v} />}
+        {sub.startsWith("s") && <track key={sub} kind="subtitles" default src={`/api/media/${node.id}/subs/${sub.slice(1)}?v=${node.mtime || 0}`} srcLang={info.subs[+sub.slice(1)]?.lang || "es"} label={trackName(info.subs[+sub.slice(1)], +sub.slice(1), "Subtítulos")} />}
+        {sub.startsWith("e") && ext[+sub.slice(1)] && <track key={sub} kind="subtitles" default src={ext[+sub.slice(1)].url} srcLang={ext[+sub.slice(1)].lang} label={ext[+sub.slice(1)].label} />}
       </video>
-      <div className="sv-bar">
-        <button className="tb-btn icon" onClick={() => v.current && (v.current.paused ? v.current.play() : v.current.pause())}><Ic name={playing ? "pause" : "play_arrow"} /></button>
-        <span className="sv-time">{hms(pos)}</span>
-        <input type="range" className="sv-seek" min="0" max={info.duration || 0} step="1" value={Math.min(pos, info.duration || 0)} onChange={e => seekTo(Number(e.target.value))} />
-        <span className="sv-time">{hms(info.duration)}</span>
-        {info.audio.length > 1 && <select className="sv-sel" title="Pista de audio" value={audio} onChange={e => { setAudio(Number(e.target.value)); restartAt(pos); }}>
+      {(info.audio.length > 1 || info.subs.length > 0 || ext.length > 0) && <div className="sv-bar">
+        {info.audio.length > 1 && <select className="sv-sel" title="Pista de audio" value={audio} onChange={e => changeAudio(Number(e.target.value))}>
           {info.audio.map((x, i) => <option key={i} value={i}>🔊 {trackName(x, i, "Audio")}{x.channels > 2 ? ` (${x.channels} canales)` : ""}</option>)}</select>}
         {(info.subs.length > 0 || ext.length > 0) && <select className="sv-sel" title="Subtítulos" value={sub} onChange={e => setSub(e.target.value)}>
           <option value="">Sin subtítulos</option>
           {info.subs.map((x, i) => <option key={"s" + i} value={"s" + i} disabled={!x.text}>💬 {trackName(x, i, "Subtítulos")}{x.forced ? " (forzados)" : ""}{x.text ? "" : " — imagen, no disponible"}</option>)}
           {ext.map((x, i) => <option key={"e" + i} value={"e" + i}>💬 {x.label} (archivo)</option>)}</select>}
-        <button className="tb-btn icon" title="Pantalla completa" onClick={() => v.current?.parentElement?.requestFullscreen?.()}><Ic name="fullscreen" /></button>
-      </div>
+        <span className="faint" style={{ fontSize: 11.5 }}>Clic derecho sobre el video: más opciones</span>
+      </div>}
     </div>
   );
 }
-
 const viaServerOf = (info) => !!(info && info.ffmpeg && !info.native && info.video);
 function VideoApp({ fileId }) {
   useVfs(s => s.rev);

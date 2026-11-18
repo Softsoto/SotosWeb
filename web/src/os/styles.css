@@ -2148,3 +2148,9 @@ select.wg-input { padding: 0 4px; }
 .re-pop input { flex: 1; border: 1px solid var(--border); border-radius: 6px; padding: 4px 8px; background: var(--surface); color: var(--text); font: 13px var(--ui); }
 .re-imgs { display: flex; flex-wrap: wrap; gap: 4px; padding: 6px; max-height: 120px; overflow-y: auto; border-bottom: 1px solid var(--border); font-size: 12px; }
 .re-imgs button { display: flex; align-items: center; gap: 4px; border: 1px solid var(--border); background: var(--surface); color: var(--text); border-radius: 6px; padding: 3px 8px; font: 12px var(--ui); cursor: pointer; }
+
+.sv-prep { align-items: center; justify-content: center; gap: 10px; color: #e8e6e1; text-align: center; padding: 20px; }
+.sv-prep .faint { color: #9a978f; font-size: 12px; max-width: 420px; }
+.sv-prep-bar { width: min(420px, 80%); height: 6px; border-radius: 3px; background: #2a2d32; overflow: hidden; }
+.sv-prep-bar i { display: block; height: 100%; background: var(--accent); transition: width .6s; }
+
