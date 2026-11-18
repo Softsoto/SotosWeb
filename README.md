@@ -367,7 +367,7 @@ Las escenas usan un generador pseudoaleatorio con semilla, así cada fondo sale 
 
 ### Identidad visual
 
-Papel y tinta: superficies de color crema, bordes de tinta y sombras desplazadas como de lámina impresa, sin cristal difuminado ni brillos. La paleta de acentos (arcilla, musgo, cielo, mostaza, ciruela y laguna) colorea también los iconos de las aplicaciones y las carpetas color manila. El logo es una S de dos arcos con una órbita abierta; Basted y Lyanna, un husky y una gata, siguen como mascotas en «Acerca de».
+Papel y tinta: superficies de color crema, bordes de tinta y sombras desplazadas como de lámina impresa, sin cristal difuminado ni brillos. La paleta de acentos (arcilla, musgo, cielo, mostaza, ciruela y laguna) colorea también los iconos de las aplicaciones y las carpetas color manila. El logo actual es una S de dos arcos con una órbita abierta. El logo original, un husky y una gata, sigue en «Acerca de» y se puede volver a elegir como logo de todo el sistema en **Ajustes → Apariencia**.
 
 ### Seguridad
 
