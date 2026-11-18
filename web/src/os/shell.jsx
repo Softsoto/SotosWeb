@@ -685,6 +685,7 @@ function OS() {
     if (link.inbox) return openApp("files", { place: "inbox", nonce: Date.now() });
     if (link.app === "calendar") return openApp("calendar", { date: link.date, nonce: Date.now() });
     if (link.app === "tasks") return openApp("tasks", { list: link.list, nonce: Date.now() });
+    if (link.app && APP_BY_ID[link.app]) return openApp(link.app); // avisos del sistema (papelera, espacio)
     if (link.world) return openApp("worlds", { worldId: link.world, tab: link.tab || "wall", nonce: Date.now() });
     if (link.share) {
       const app = { docx: "docs", xlsx: "sheets", csv: "sheets", pptx: "slides" }[link.node?.type];

@@ -13,6 +13,8 @@ import { requireUser, hashPassword, registration, defaultQuota, verifyPassword, 
 import { loadState, applyOps, blobPath } from "./fs.mjs";
 import { addNotification } from "./social.mjs";
 import { VAULT_DIR, vaultForAdmin, vaultAdminFile } from "./vault.mjs";
+import { backupStatus, runBackup } from "./backup.mjs";
+import { totpDisable } from "./totp.mjs";
 
 // registro de lo que hace cada administrador (transparencia: quién vio, borró o cambió qué)
 db.exec(`CREATE TABLE IF NOT EXISTS admin_log (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id TEXT, user_id TEXT, action TEXT NOT NULL, detail TEXT, created INTEGER NOT NULL)`);
@@ -30,7 +32,7 @@ const MB = 1024 * 1024;
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 function requireAdmin(req) { const u = requireUser(req); if (u.role !== "admin") fail(403, "Solo para administradores"); return u; }
 const admins = () => db.prepare("SELECT COUNT(*) n FROM users WHERE role = 'admin' AND disabled = 0").get().n;
-const userRow = (u) => ({
+const userRow = (u) => ({ twoFactor: !!u.totp_on,
   id: u.id, name: u.name, email: u.email, role: u.role, avatar: u.avatar || null, disabled: !!u.disabled, quota: u.quota, created: u.created, lastSeen: u.last_seen || null,
   used: db.prepare("SELECT used FROM fs_state WHERE user_id = ?").get(u.id)?.used || 0,
   sessions: db.prepare("SELECT COUNT(*) n FROM sessions WHERE user_id = ? AND expires > ?").get(u.id, now()).n,
@@ -61,6 +63,10 @@ export async function handleAdmin(req, res, parts) {
     return json(res, 200, { registration: registration(), defaultQuotaMb: Math.round(defaultQuota() / MB) });
   }
 
+  if (a === "backups") { // copias de seguridad del servidor
+    if (req.method === "GET") return json(res, 200, backupStatus());
+    if (req.method === "POST") { audit(me, null, "copia de seguridad manual"); const r = await runBackup("manual"); return json(res, 200, { item: r, ...backupStatus() }); }
+  }
   if (a === "log" && req.method === "GET") {
     const names = Object.fromEntries(db.prepare("SELECT id, name FROM users").all().map(r => [r.id, r.name]));
     return json(res, 200, { items: db.prepare("SELECT * FROM admin_log ORDER BY id DESC LIMIT 300").all().map(r => ({ ...r, admin: names[r.admin_id] || "—", user: names[r.user_id] || "(cuenta eliminada)" })) });
@@ -98,6 +104,9 @@ export async function handleAdmin(req, res, parts) {
       if (Array.isArray(b.hiddenApps)) db.prepare("UPDATE users SET hidden_apps = ? WHERE id = ?").run(JSON.stringify(b.hiddenApps.filter(x => /^[a-z0-9-]{2,30}$/.test(x)).slice(0, 60)), u.id);
       if (b.name !== undefined) { const nm = String(b.name).trim().slice(0, 60); if (!nm) fail(400, "Escribe el nombre"); db.prepare("UPDATE users SET name = ? WHERE id = ?").run(nm, u.id); }
       return json(res, 200, { item: userRow(db.prepare("SELECT * FROM users WHERE id = ?").get(u.id)) });
+    }
+    if (sub === "2fa" && req.method === "DELETE") { // perdió el celular y los códigos de recuperación
+      totpDisable(u.id); audit(me, u.id, "quitar verificación en dos pasos"); return json(res, 200, { ok: true });
     }
     if (sub === "password" && req.method === "POST") {
       const { password } = await readJson(req, 4096);

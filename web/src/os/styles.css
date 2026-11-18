@@ -2229,3 +2229,16 @@ select.wg-input { padding: 0 4px; }
 
 .vault.hot { outline: 3px dashed #d8c49a; outline-offset: -8px; }
 
+
+.login-input.code { text-align: center; font: 600 22px var(--mono, monospace); letter-spacing: .25em; }
+
+
+/* verificación en dos pasos */
+.tfa-on { font-size: 11px; font-weight: 700; color: #fff; background: #4f7a3a; border-radius: 4px; padding: 1px 6px; margin-left: 6px; vertical-align: 1px; }
+.tfa-qr { display: grid; place-items: center; margin: 10px 0; }
+.tfa-qr img { width: 200px; height: 200px; border: 1px solid var(--line); border-radius: 8px; padding: 6px; background: #fff; }
+.tfa-secret { font: 600 12px var(--mono, monospace); user-select: all; }
+.tfa-code { margin: 0; width: 100%; box-sizing: border-box; text-align: center; font: 600 20px var(--mono, monospace) !important; letter-spacing: .2em; }
+.tfa-codes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 12px; }
+.tfa-codes code { font: 600 14px var(--mono, monospace); background: var(--surface-2); border: 1px solid var(--line); border-radius: 6px; padding: 6px; text-align: center; user-select: all; }
+

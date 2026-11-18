@@ -36,6 +36,8 @@ import { handleNeko } from "./neko.mjs";
 import { handleWa } from "./wa.mjs";
 import { handleMedia } from "./media.mjs";
 import { handleVault } from "./vault.mjs";
+import "./backup.mjs";      // copias de seguridad diarias
+import "./maintenance.mjs"; // papelera automática y avisos de espacio
 import { handleWorlds } from "./worlds.mjs";
 
 const PORT = Number(process.env.PORT || 8787);

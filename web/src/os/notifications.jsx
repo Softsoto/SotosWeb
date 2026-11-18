@@ -14,7 +14,7 @@ export const timeAgo = (t) => {
   if (s < 7 * 86400) return `hace ${Math.round(s / 86400)} d`;
   return new Date(t).toLocaleDateString("es-ES", { day: "numeric", month: "short" });
 };
-const KIND = { share: ["group_add", "#2f5d8a"], "world-invite": ["diversity_3", "#c4532f"], "world-post": ["forum", "#4f7a3a"], "world-comment": ["chat", "#c9902a"], "world-file": ["upload_file", "#7a3e6b"] };
+const KIND = { system: ["info", "#2f5d8a"], share: ["group_add", "#2f5d8a"], "world-invite": ["diversity_3", "#c4532f"], "world-post": ["forum", "#4f7a3a"], "world-comment": ["chat", "#c9902a"], "world-file": ["upload_file", "#7a3e6b"] };
 
 export function NotificationBell({ onOpenLink }) {
   const mode = useVfs(s => s.mode);

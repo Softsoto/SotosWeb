@@ -122,7 +122,52 @@ function AccountPanel({ user, env, onLogout }) {
         <button className="tb-btn primary" disabled={busy || !cur || next.length < 8} onClick={changePw}>Cambiar</button>
       </div>
     </div>
+    <TwoFactorPanel />
   </>;
+}
+
+/** verificación en dos pasos: código QR para la app de autenticación + códigos de recuperación */
+function TwoFactorPanel() {
+  const [st, setSt] = useS4(null), [step, setStep] = useS4(null), [pw, setPw] = useS4(""), [code, setCode] = useS4(""), [setup, setSetup] = useS4(null), [qr, setQr] = useS4(null), [codes, setCodes] = useS4(null), [busy, setBusy] = useS4(false);
+  const load = () => api("GET", "auth/2fa").then(setSt).catch(() => {});
+  React.useEffect(() => { load(); }, []);
+  const close = () => { setStep(null); setPw(""); setCode(""); setSetup(null); setQr(null); };
+  const run = async (fn) => { setBusy(true); try { await fn(); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
+  const start = () => run(async () => { const r = await api("POST", "auth/2fa-setup", { password: pw }); setSetup(r); const QR = (await import("qrcode")).default; setQr(await QR.toDataURL(r.uri, { margin: 1, width: 220, color: { dark: "#1f1d1a", light: "#ffffff" } })); setStep("scan"); });
+  const enable = () => run(async () => { const r = await api("POST", "auth/2fa-enable", { code }); setCodes(r.recoveryCodes); close(); load(); });
+  const disable = () => run(async () => { await api("POST", "auth/2fa-disable", { password: pw, code }); toast("Verificación en dos pasos desactivada", { icon: "lock_open" }); close(); load(); });
+  if (!st) return null;
+  return <div style={{ padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 14 }}><Ic name="phonelink_lock" size={17} /> Verificación en dos pasos {st.enabled && <span className="tfa-on">Activa</span>}</div>
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>{st.enabled ? `Al iniciar sesión se pide también un código de tu celular. Te quedan ${st.recoveryLeft} código(s) de recuperación.` : "Además de la contraseña, pide un código de una app como Google Authenticator, Microsoft Authenticator o Authy. Así nadie entra aunque adivine tu contraseña."}</div></div>
+      {st.enabled ? <button className="tb-btn" onClick={() => setStep("off")}>Desactivar</button> : <button className="tb-btn primary" onClick={() => setStep("pw")}><Ic name="add_moderator" /> Activar</button>}
+    </div>
+    {step && <Modal title={step === "off" ? "Desactivar la verificación en dos pasos" : "Activar la verificación en dos pasos"} icon="phonelink_lock" onClose={close} width={440}
+      actions={<><button className="tb-btn" onClick={close}>Cancelar</button>
+        {step === "pw" && <button className="tb-btn primary" disabled={!pw || busy} onClick={start}>Continuar</button>}
+        {step === "scan" && <button className="tb-btn primary" disabled={code.length !== 6 || busy} onClick={enable}>Activar</button>}
+        {step === "off" && <button className="tb-btn danger" disabled={!pw || code.length < 6 || busy} onClick={disable}>Desactivar</button>}</>}>
+      {step === "pw" && <><div style={{ fontSize: 13, marginBottom: 10 }}>Confirma tu contraseña para empezar.</div>
+        <input type="password" className="sc-input" style={{ margin: 0, width: "100%", boxSizing: "border-box" }} autoFocus placeholder="Contraseña" value={pw} onChange={e => setPw(e.target.value)} onKeyDown={e => e.key === "Enter" && pw && start()} /></>}
+      {step === "scan" && <>
+        <div style={{ fontSize: 13, lineHeight: 1.5 }}>1. Abre tu app de autenticación y escanea este código.</div>
+        <div className="tfa-qr">{qr && <img src={qr} alt="Código QR para la app de autenticación" />}</div>
+        <div className="faint" style={{ fontSize: 12, textAlign: "center" }}>¿No puedes escanear? Escribe esta clave: <code className="tfa-secret">{setup?.secret}</code></div>
+        <div style={{ fontSize: 13, margin: "12px 0 6px" }}>2. Escribe el código de 6 dígitos que aparece en la app.</div>
+        <input className="sc-input tfa-code" inputMode="numeric" autoComplete="one-time-code" placeholder="123456" value={code} onChange={e => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} onKeyDown={e => e.key === "Enter" && code.length === 6 && enable()} autoFocus />
+      </>}
+      {step === "off" && <><div style={{ fontSize: 13, marginBottom: 10 }}>Escribe tu contraseña y un código de la app (o un código de recuperación).</div>
+        <input type="password" className="sc-input" style={{ margin: "0 0 8px", width: "100%", boxSizing: "border-box" }} placeholder="Contraseña" value={pw} onChange={e => setPw(e.target.value)} />
+        <input className="sc-input tfa-code" placeholder="Código" value={code} onChange={e => setCode(e.target.value.replace(/[^0-9a-z-]/gi, "").slice(0, 9))} /></>}
+    </Modal>}
+    {codes && <Modal title="Guarda tus códigos de recuperación" icon="key" onClose={() => setCodes(null)} width={440}
+      actions={<><button className="tb-btn" onClick={() => { const b = new Blob(["Códigos de recuperación de Sotos (cada uno sirve una sola vez)\n\n" + codes.join("\n") + "\n"], { type: "text/plain" }); const u = URL.createObjectURL(b); const x = document.createElement("a"); x.href = u; x.download = "sotos-codigos-de-recuperacion.txt"; x.click(); setTimeout(() => URL.revokeObjectURL(u), 5000); }}><Ic name="download" /> Descargar</button>
+        <button className="tb-btn primary" onClick={() => setCodes(null)}>Ya los guardé</button></>}>
+      <div style={{ fontSize: 13, lineHeight: 1.5 }}>La verificación en dos pasos quedó <b>activa</b>. Si pierdes el celular, entra con uno de estos códigos (cada uno sirve una vez). <b>Solo se muestran ahora.</b></div>
+      <div className="tfa-codes">{codes.map(c => <code key={c}>{c}</code>)}</div>
+    </Modal>}
+  </div>;
 }
 
 /* Región: zona horaria, formato de fecha y extensiones de archivo */

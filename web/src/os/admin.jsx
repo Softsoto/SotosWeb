@@ -35,7 +35,7 @@ export function AdminApp() {
     <div className="app admin-app">
       <div className="app-side">
         <div className="side-label">Administración</div>
-        {[["resumen", "monitoring", "Resumen"], ["usuarios", "group", "Usuarios"], ["registro", "history", "Registro"], ["servidor", "dns", "Servidor"]].map(([id, icon, label]) =>
+        {[["resumen", "monitoring", "Resumen"], ["usuarios", "group", "Usuarios"], ["registro", "history", "Registro"], ["copias", "backup", "Copias"], ["servidor", "dns", "Servidor"]].map(([id, icon, label]) =>
           <div key={id} className={"side-item" + (tab === id ? " active" : "")} onClick={() => setTab(id)}><Ic name={icon} /><span>{label}</span></div>)}
       </div>
       <div className="app-main scroll" style={{ padding: "18px 22px" }}>
@@ -72,6 +72,7 @@ export function AdminApp() {
 
         {tab === "servidor" && stats && <ServerSettings stats={stats} onSaved={loadStats} />}
         {tab === "registro" && <AuditLog />}
+        {tab === "copias" && <Backups />}
       </div>
 
       {files && <UserFiles u={files} onClose={() => setFiles(null)} onChanged={() => { loadUsers(); loadStats(); }} />}
@@ -103,6 +104,9 @@ function UserEditor({ u, me, onClose, onFiles, patch, onPassword, onLogout, onDe
         {!self && <div className="admin-line"><span>Cuenta</span>
           <button className={"chip" + (!u.disabled ? " on" : "")} onClick={() => patch({ disabled: false }, "Cuenta activada")}>Activa</button>
           <button className={"chip" + (u.disabled ? " on" : "")} style={{ "--chip": "#d9452f" }} onClick={() => patch({ disabled: true }, "Cuenta desactivada y sesiones cerradas")}>Desactivada</button></div>}
+        <div className="admin-line"><span>Dos pasos</span>{u.twoFactor ? <><span className="tfa-on" style={{ marginLeft: 0 }}>Activa</span>
+          {!self && <button className="tb-btn" title="Si perdió el celular y sus códigos de recuperación" onClick={async () => { try { await api("DELETE", `admin/users/${u.id}/2fa`); toast("Verificación en dos pasos quitada", { icon: "lock_open" }); onClose(); } catch (e) { toast(e.message, { error: true }); } }}>Quitar (perdió el celular)</button>}</>
+          : <span className="faint">No la usa</span>}</div>
         <div className="admin-line"><span>Archivos</span><button className="tb-btn" onClick={onFiles}><Ic name="folder_open" /> Ver sus archivos</button><span className="faint">{fmtSize(u.used)} usados</span></div>
         {demote !== null && <div className="admin-warn"><Ic name="warning" /><div><b>Vas a dejar de ser administrador.</b> Perderás este panel y no podrás devolverte el rol: solo otro administrador podría hacerlo.
           <div className="admin-line" style={{ marginTop: 8 }}><input className="sc-input" type="password" autoComplete="current-password" placeholder="Tu contraseña" value={demote} onChange={e => setDemote(e.target.value)} style={{ flex: 1, margin: 0 }} />
@@ -173,6 +177,31 @@ function UserFiles({ u, onClose, onChanged }) {
       </Modal>}
     </Modal>
   );
+}
+
+/** copias de seguridad automáticas del servidor */
+function Backups() {
+  const [st, setSt] = useState(null), [busy, setBusy] = useState(false);
+  const load = () => api("GET", "admin/backups").then(setSt).catch(e => toast(e.message, { error: true }));
+  useEffect(() => { load(); }, []);
+  const now = async () => { setBusy(true); try { const r = await api("POST", "admin/backups"); setSt(r); toast("Copia de seguridad lista", { icon: "backup" }); } catch (e) { toast("No se pudo hacer la copia: " + e.message, { error: true }); } setBusy(false); };
+  if (!st) return <div className="faint">Cargando…</div>;
+  return <>
+    <h2 style={{ fontSize: 19, fontWeight: 800, marginTop: 0 }}>Copias de seguridad</h2>
+    <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>
+      {st.hour === null ? "Las copias automáticas están desactivadas." : `Cada día a las ${String(st.hour).padStart(2, "0")}:00 se guarda una copia completa (cuentas, archivos, bóvedas, correo, mundos). Se conservan las últimas ${st.keep}.`}
+      {" "}Los archivos que no cambiaron no ocupan espacio de nuevo.
+    </div>
+    <div className="faint" style={{ fontSize: 12, marginBottom: 12 }}><Ic name="folder" size={14} /> {st.dir}{/[\\/]data[\\/]copias$/.test(st.dir) && " · Están en el mismo disco que los datos: para protegerte de una falla del disco, apunta SOTOS_BACKUP_DIR a otro disco."}</div>
+    {st.lastError && <div className="admin-warn"><Ic name="error" /> La última copia falló: {st.lastError}</div>}
+    <button className="tb-btn primary" disabled={busy || st.running} onClick={now}><Ic name="backup" /> {busy || st.running ? "Haciendo la copia…" : "Hacer una copia ahora"}</button>
+    <div className="admin-files" style={{ marginTop: 14 }}>
+      {!st.items.length && <div className="faint" style={{ padding: 10 }}>Todavía no hay copias.</div>}
+      {st.items.map(b => <div key={b.name} className="admin-file"><span className="admin-file-name"><b><Ic name={b.complete ? "check_circle" : "warning"} size={16} style={{ color: b.complete ? "#4f7a3a" : "#c4532f" }} /> {new Date(b.started || 0).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}</b><span className="faint">{b.reason || ""} · {b.files || 0} archivos</span></span>
+        <span className="faint">{fmtSize(b.bytes || 0)}</span><span className="faint">{b.finished ? ((b.finished - b.started) / 1000).toFixed(1) + " s" : ""}</span><span /><span /></div>)}
+    </div>
+    <div className="faint" style={{ fontSize: 12, marginTop: 12 }}>Para restaurar una copia: detén Sotos, reemplaza la carpeta de datos por el contenido de la copia y vuelve a iniciarlo.</div>
+  </>;
 }
 
 function AuditLog() {

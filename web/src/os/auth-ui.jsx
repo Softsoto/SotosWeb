@@ -16,11 +16,15 @@ export function LoginScreen({ wallpaper, server, registration, lastUser, onAccou
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [now, setNow] = useState(new Date());
+  const [ticket, setTicket] = useState(null), [code, setCode] = useState(""); // verificación en dos pasos
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 15_000); return () => clearInterval(t); }, []);
   const submit = async (e) => {
     e.preventDefault(); setErr(null); setBusy(true);
     try {
-      const r = mode === "register" ? await api("POST", "auth/register", { email, name, password: pw }) : await api("POST", "auth/login", { email, password: pw });
+      const r = mode === "code" ? await api("POST", "auth/login2fa", { ticket, code })
+        : mode === "register" ? await api("POST", "auth/register", { email, name, password: pw }) : await api("POST", "auth/login", { email, password: pw });
+      if (r.need2fa) { setTicket(r.ticket); setCode(""); setMode("code"); setBusy(false); return; }
+      if (r.usedRecovery) try { sessionStorage.setItem("sotos_recovery_left", String(r.recoveryLeft)); } catch {}
       await onAccount(r.user);
     } catch (e) { setErr(e.message); setBusy(false); }
   };
@@ -54,6 +58,18 @@ export function LoginScreen({ wallpaper, server, registration, lastUser, onAccou
             <button type="button" className="login-alt" onClick={() => { setErr(null); setMode(mode === "login" ? (registration !== "closed" ? "register" : "choose") : "login"); }}>
               {mode === "login" ? (registration !== "closed" ? "¿No tienes cuenta? Crea una" : "Volver") : "Ya tengo cuenta"}</button>
             <button type="button" className="login-guest" onClick={guest} disabled={busy}>Probar como invitado</button>
+          </form>
+        )}
+        {mode === "code" && (
+          <form className="login-form" onSubmit={submit}>
+            <div className="login-logo" style={{ marginBottom: 4 }}><Ic name="phonelink_lock" size={44} /></div>
+            <div className="login-user" style={{ marginBottom: 2 }}>Verificación en dos pasos</div>
+            <div className="login-sub" style={{ marginBottom: 8 }}>Escribe el código de 6 dígitos de tu app de autenticación, o uno de tus códigos de recuperación.</div>
+            <input className="login-input code" inputMode="numeric" autoComplete="one-time-code" placeholder="123 456" autoFocus value={code}
+              onChange={e => setCode(e.target.value.replace(/[^0-9a-z-]/gi, "").slice(0, 9))} required />
+            {err && <div className="login-err"><Ic name="error" size={16} /> {err}</div>}
+            <button className="login-enter" type="submit" disabled={busy || code.length < 6}>{busy ? <Ic name="progress_activity" size={20} /> : <Ic name="verified_user" size={20} />} Verificar</button>
+            <button type="button" className="login-alt" onClick={() => { setErr(null); setTicket(null); setPw(""); setMode("login"); }}>Volver</button>
           </form>
         )}
         {mode === "guest" && <>

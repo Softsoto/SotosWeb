@@ -7,8 +7,9 @@
    - registro/login con límite de intentos por IP y por correo
    ============================================================ */
 import crypto from "node:crypto";
-import { db, now, rid, getSetting } from "./db.mjs";
-import { fail, json, readJson, cookies, clientIp, rateLimit } from "./http.mjs";
+import { db, now, rid, getSetting, secret } from "./db.mjs";
+import { fail, json, readJson, cookies, clientIp, rateLimit, jwtSign, jwtVerify } from "./http.mjs";
+import { totpEnabled, totpSetup, totpEnable, totpDisable, totpCheck, recoveryLeft } from "./totp.mjs";
 
 const SESSION_DAYS = 30;
 // foto de perfil: uno de los avatares por defecto ("def:perro"…) o una imagen subida (data URL pequeña)
@@ -33,7 +34,7 @@ async function checkPassword(pw, stored) {
   return k.length === want.length && crypto.timingSafeEqual(k, want);
 }
 const sha = (t) => crypto.createHash("sha256").update(t).digest("hex");
-const publicUser = (u) => u && ({ id: u.id, email: u.email, name: u.name, quota: u.quota, role: u.role || "user", avatar: u.avatar || null, hiddenApps: (() => { try { return JSON.parse(u.hidden_apps || "[]"); } catch { return []; } })() });
+const publicUser = (u) => u && ({ id: u.id, email: u.email, name: u.name, quota: u.quota, role: u.role || "user", avatar: u.avatar || null, twoFactor: !!u.totp_on, hiddenApps: (() => { try { return JSON.parse(u.hidden_apps || "[]"); } catch { return []; } })() });
 
 function startSession(req, res, userId) {
   const token = crypto.randomBytes(32).toString("base64url");
@@ -56,6 +57,7 @@ export function requireUser(req) { const u = currentUser(req); if (!u) fail(401,
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 export async function handleAuth(req, res, sub) {
   if (sub === "me" && req.method === "GET") return json(res, 200, { user: publicUser(currentUser(req)), registration: registration() });
+  if (sub === "2fa" && req.method === "GET") { const u = requireUser(req); return json(res, 200, { enabled: totpEnabled(u.id), recoveryLeft: totpEnabled(u.id) ? recoveryLeft(u.id) : 0 }); }
   if (sub === "avatar" && req.method === "PUT") {
     const u = requireUser(req); const { avatar, password } = await readJson(req, 600 * 1024);
     rateLimit("perfil:" + u.id, 10, 900_000);
@@ -101,8 +103,38 @@ export async function handleAuth(req, res, sub) {
     const ok = u ? await checkPassword(String(password || ""), u.pass) : (await hashPassword("x"), false);
     if (!ok) fail(401, "Correo o contraseña incorrectos");
     if (u.disabled) fail(403, "Esta cuenta está desactivada. Habla con el administrador.");
+    // verificación en dos pasos: todavía no hay sesión; se entrega un pase de 5 minutos para el código
+    if (u.totp_on) return json(res, 200, { need2fa: true, ticket: jwtSign({ u: u.id, k: "2fa" }, secret("auth_2fa"), 300) });
     startSession(req, res, u.id);
     return json(res, 200, { user: publicUser(u) });
+  }
+  if (sub === "login2fa") {
+    const { ticket, code } = await readJson(req, 4096);
+    let t; try { t = jwtVerify(String(ticket || ""), secret("auth_2fa")); } catch { fail(401, "El inicio de sesión caducó. Vuelve a escribir tu contraseña."); }
+    if (t.k !== "2fa") fail(401, "Pase no válido");
+    rateLimit("2fa:" + t.u, 6, 900_000); rateLimit("2fa-ip:" + ip, 20, 900_000);
+    const u = db.prepare("SELECT * FROM users WHERE id = ?").get(t.u); if (!u || u.disabled) fail(403, "Cuenta no disponible");
+    const r = totpCheck(u.id, code); if (!r) fail(401, "Código incorrecto");
+    startSession(req, res, u.id);
+    return json(res, 200, { user: publicUser(u), usedRecovery: r === "recovery", recoveryLeft: recoveryLeft(u.id) });
+  }
+  if (sub === "2fa-setup") {
+    const u = requireUser(req); const { password } = await readJson(req, 4096); rateLimit("pw:" + u.id, 8, 900_000);
+    if (!(await checkPassword(String(password || ""), u.pass))) fail(403, "Contraseña incorrecta");
+    if (u.totp_on) fail(409, "La verificación en dos pasos ya está activa");
+    return json(res, 200, totpSetup(u));
+  }
+  if (sub === "2fa-enable") {
+    const u = requireUser(req); const { code } = await readJson(req, 4096); rateLimit("2fa:" + u.id, 8, 900_000);
+    const codes = totpEnable(u.id, code); if (!codes) fail(400, "Ese código no coincide. Revisa la hora del celular y escribe el código actual.");
+    db.prepare("DELETE FROM sessions WHERE user_id = ?").run(u.id); startSession(req, res, u.id); // cierra las demás sesiones
+    return json(res, 200, { recoveryCodes: codes });
+  }
+  if (sub === "2fa-disable") {
+    const u = requireUser(req); const { password, code } = await readJson(req, 4096); rateLimit("pw:" + u.id, 8, 900_000);
+    if (!(await checkPassword(String(password || ""), u.pass))) fail(403, "Contraseña incorrecta");
+    if (!totpCheck(u.id, code)) fail(400, "Código incorrecto");
+    totpDisable(u.id); return json(res, 200, { ok: true });
   }
   if (sub === "logout") {
     const t = cookies(req)[COOKIE]; if (t) db.prepare("DELETE FROM sessions WHERE hash = ?").run(sha(t));
