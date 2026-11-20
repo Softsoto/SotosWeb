@@ -79,6 +79,7 @@ export async function handleAuth(req, res, sub) {
 
   if (sub === "register") {
     if (registration() === "closed") fail(403, "El registro está cerrado");
+    if (getSetting("installed") === null && !db.prepare("SELECT 1 FROM users LIMIT 1").get()) fail(409, "Sotos aún no está instalado: termina el asistente en /instalar"); // nadie se adueña del servidor por el registro
     // 5 cuentas nuevas por hora e IP en producción; en desarrollo no estorba a las pruebas
     rateLimit("reg:" + ip, Number(process.env.SOTOS_REG_LIMIT || (process.env.NODE_ENV === "production" ? 5 : 500)), 3600_000);
     const { email, name, password } = await readJson(req, 8192);

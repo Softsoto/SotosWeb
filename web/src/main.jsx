@@ -26,6 +26,8 @@ import { startI18n } from "./os/i18n.js";
 const share = /^#\/s\/([a-f0-9]{32})/.exec(location.hash);
 if (share) document.body.classList.add("is-share");
 // el idioma (y su diccionario, si es inglés) se prepara antes de pintar la interfaz
+// un Sotos recién descargado (sin instalar) abre el asistente de instalación
+fetch("/api/install/status", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(s => { if (s && s.installed === false) location.replace("/instalar"); }).catch(() => {});
 startI18n().catch(() => {}).finally(() => createRoot(document.getElementById("root")).render(share ? <SharePage token={share[1]} /> : <OS />));
 window.addEventListener("hashchange", () => { if (/^#\/s\//.test(location.hash) !== !!share) location.reload(); });
 

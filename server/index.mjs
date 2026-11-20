@@ -40,6 +40,7 @@ import { handleDav, handleDavKeys } from "./dav.mjs";
 import { handlePush } from "./push.mjs";
 import { handleJellyfin, proxyJellyfin, upgradeJellyfin } from "./jellyfin.mjs";
 import { handleImmich } from "./immich.mjs";
+import { handleSetup, serveInstaller, serveTourImage, isInstalled } from "./setup.mjs";
 import "./backup.mjs";      // copias de seguridad diarias
 import "./maintenance.mjs"; // papelera automática y avisos de espacio
 import { handleWorlds } from "./worlds.mjs";
@@ -124,6 +125,7 @@ async function handleApi(req, res) {
     case "push": return handlePush(req, res, rest);
     case "jellyfin": return handleJellyfin(req, res, rest);
     case "immich": return handleImmich(req, res, rest);
+    case "install": return handleSetup(req, res, rest);
   }
   return json(res, 404, { error: "No encontrado" });
 }
@@ -132,6 +134,10 @@ const server = http.createServer(async (req, res) => {
   try {
     const host = String(req.headers.host || "").split(":")[0].toLowerCase();
     if (PROD && PX_HOST && host === PX_HOST) return await handleProxy(req, res);
+    // instalador web: mientras Sotos no esté instalado, todo lleva al asistente
+    if (req.url === "/instalar" || req.url.startsWith("/instalar?")) return serveInstaller(req, res);
+    if (req.url.startsWith("/instalar/tour/")) return serveTourImage(req, res);
+    if (!isInstalled() && !req.url.startsWith("/api/") && (req.headers.accept || "").includes("text/html")) { res.writeHead(302, { location: "/instalar" }); return res.end(); }
     if (req.url === "/dav" || req.url.startsWith("/dav/")) return await handleDav(req, res); // unidad de red (WebDAV)
     if (req.url === "/jellyfin" || req.url.startsWith("/jellyfin/")) return proxyJellyfin(req, res); // Cine
     if (req.url.startsWith("/api/")) return await handleApi(req, res);

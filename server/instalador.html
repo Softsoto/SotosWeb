@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Instalar Sotos</title>
+<meta name="author" content="Sebastian Sotomontes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<style>
+  :root { --paper: #f3ead8; --card: #fffaf0; --ink: #2a2522; --muted: #6f655c; --line: #d8ccb8; --accent: #c4532f; --ok: #4f7a3a; --warn: #c9902a; --bad: #b23a2a; --teal: #1f7a78; }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink); font: 15px/1.5 "Hanken Grotesk", system-ui, sans-serif;
+    background-image: radial-gradient(#e3d5ba 1.2px, transparent 1.4px); background-size: 14px 14px; display: grid; place-items: center; padding: 28px 14px; }
+  body > div { width: min(1120px, 100%); }
+  .shell { width: 100%; min-height: 640px; display: grid; grid-template-columns: 270px 1fr; background: var(--card); border: 2px solid var(--ink); border-radius: 12px; box-shadow: 8px 8px 0 var(--ink); overflow: hidden; position: relative; }
+  aside { background: #efe3cc; border-right: 2px solid var(--ink); padding: 22px 18px; display: flex; flex-direction: column; gap: 16px; }
+  .brand { display: flex; align-items: center; gap: 10px; font: 700 20px "Space Grotesk", sans-serif; }
+  .logo { width: 40px; height: 40px; flex: 0 0 auto; }
+  ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
+  ol li { display: flex; gap: 10px; align-items: center; padding: 6px 8px; border-radius: 7px; color: var(--muted); font-weight: 600; font-size: 14px; border: 1.5px solid transparent; }
+  ol li b { width: 23px; height: 23px; border-radius: 50%; border: 2px solid currentColor; display: grid; place-items: center; font-size: 11.5px; flex: 0 0 auto; }
+  ol li.on { color: var(--ink); background: var(--card); border-color: var(--ink); }
+  ol li.done { color: var(--ok); } ol li.done b { background: var(--ok); color: #fff; border-color: var(--ok); }
+  /* tour pequeño en la barra lateral */
+  .mini { margin-top: auto; border: 1.5px solid var(--ink); border-radius: 9px; background: var(--card); overflow: hidden; box-shadow: 3px 3px 0 var(--ink); }
+  .mini .shot { aspect-ratio: 16/10; overflow: hidden; border-bottom: 1.5px solid var(--ink); background: #ddd; }
+  .mini .shot img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity .6s; }
+  .mini div.t { padding: 8px 10px 10px; } .mini b { display: block; font-size: 13px; } .mini small { color: var(--muted); font-size: 12px; line-height: 1.35; display: block; }
+  .mini .k { font: 600 10.5px "Space Grotesk"; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
+  .lang { display: flex; gap: 6px; } .lang button { flex: 1; }
+  main { padding: 30px 34px; display: flex; flex-direction: column; min-height: 600px; position: relative; }
+  h1 { font: 700 28px "Space Grotesk", sans-serif; margin: 0 0 6px; letter-spacing: -.01em; }
+  .sub { color: var(--muted); margin: 0 0 22px; }
+  .step { display: none; flex: 1; animation: in .35s ease both; } .step.on { display: block; }
+  @keyframes in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+  label.f { display: grid; gap: 5px; margin-bottom: 14px; font-weight: 600; font-size: 13.5px; }
+  label.f small { font-weight: 400; color: var(--muted); }
+  input[type=text], input[type=email], input[type=password], input[type=number], select { font: inherit; padding: 9px 11px; border: 1.5px solid var(--ink); border-radius: 7px; background: #fff; width: 100%; }
+  input:focus, select:focus { outline: 3px solid #f0c9b8; }
+  input[readonly] { background: #f6efe2; color: var(--muted); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  button { font: 600 14px "Hanken Grotesk", sans-serif; border: 1.5px solid var(--ink); background: var(--card); color: var(--ink); border-radius: 7px; padding: 9px 16px; cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; box-shadow: 3px 3px 0 var(--ink); }
+  button.primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  button:disabled { opacity: .5; cursor: default; }
+  .nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1.5px dashed var(--line); }
+  .req { display: grid; gap: 8px; }
+  .req div { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: #fff; }
+  .req i { font-style: normal; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; }
+  .req .y { background: var(--ok); } .req .n { background: var(--bad); } .req .w { background: var(--warn); }
+  .req small { display: block; color: var(--muted); word-break: break-all; }
+  .opt { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1.5px solid var(--line); border-radius: 8px; background: #fff; margin-bottom: 8px; cursor: pointer; }
+  .opt input { margin-top: 3px; accent-color: var(--accent); width: 17px; height: 17px; }
+  .opt b { display: block; } .opt small { color: var(--muted); }
+  .opt.disabled { opacity: .55; cursor: not-allowed; }
+  .seg { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 7px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; border-right: 1.5px solid var(--ink); } .seg button:last-child { border-right: 0; } .seg button.on { background: var(--ink); color: #fff; }
+  .meter { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 4px; } .meter i { display: block; height: 100%; width: 0; transition: width .2s; }
+  .note { padding: 10px 12px; border-left: 4px solid var(--warn); background: #fbf1dc; border-radius: 4px; font-size: 13.5px; margin-bottom: 14px; }
+  .note.ok { border-color: var(--ok); background: #eaf1e2; }
+  .err { color: var(--bad); font-weight: 600; min-height: 1.4em; margin-top: 6px; }
+  .dbcard { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; padding: 14px; border: 1.5px solid var(--ink); border-radius: 10px; background: #fff; box-shadow: 3px 3px 0 var(--ink); margin-bottom: 16px; }
+  .dbcard svg { width: 64px; height: 64px; }
+  .summary { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 14px; background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .summary dt { color: var(--muted); } .summary dd { margin: 0; font-weight: 600; word-break: break-word; }
+  footer { margin-top: 14px; color: var(--muted); font-size: 12px; text-align: center; }
+  /* presentación grande mientras se instala (como en Ubuntu) */
+  .tour { position: absolute; inset: 0; background: var(--card); display: none; flex-direction: column; z-index: 5; transition: background-color 1.2s ease; }
+  .tour-head { display: flex; align-items: center; gap: 10px; padding: 16px 30px; border-bottom: 2px solid var(--ink); background: #efe3cc; font: 700 17px "Space Grotesk", sans-serif; }
+  .tour-head span { margin-left: auto; font: 500 13px "Hanken Grotesk"; color: var(--muted); }
+  .tour.on { display: flex; animation: in .5s ease both; }
+  .stage { flex: 1; display: grid; grid-template-columns: 1.5fr 1fr; gap: 40px; align-items: center; padding: 30px 46px 10px; min-height: 0; }
+  .frame { position: relative; border: 2px solid var(--ink); border-radius: 10px; box-shadow: 8px 8px 0 var(--ink); overflow: hidden; background: #ddd; aspect-ratio: 16/10; }
+  .frame .bar { height: 22px; background: #efe3cc; border-bottom: 2px solid var(--ink); display: flex; gap: 6px; align-items: center; padding: 0 9px; }
+  .frame .bar i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); }
+  .frame .imgs { position: absolute; inset: 22px 0 0 0; }
+  .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; opacity: 0; transition: opacity 1s ease; }
+  .frame img.on { opacity: 1; animation: kb 9s ease-out both; }
+  @keyframes kb { from { transform: scale(1.08) translate(-1.5%, -1%); } to { transform: scale(1) translate(0, 0); } }
+  .copy .k { font: 600 12px "Space Grotesk"; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
+  .copy h2 { font: 700 38px/1.1 "Space Grotesk", sans-serif; margin: 8px 0 12px; letter-spacing: -.015em; }
+  .copy p { color: #4a423c; font-size: 16.5px; margin: 0; }
+  .copy .swap { animation: in .6s ease both; }
+  .dots { display: flex; gap: 7px; margin-top: 22px; } .dots i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); } .dots i.on { background: var(--ink); }
+  .progress { padding: 12px 38px 22px; }
+  .pbar { height: 12px; border: 1.5px solid var(--ink); border-radius: 7px; background: #fff; overflow: hidden; }
+  .pbar i { display: block; height: 100%; width: 0; background: repeating-linear-gradient(45deg, var(--accent) 0 10px, #d36a46 10px 20px); transition: width .6s ease; }
+  .pinfo { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-top: 6px; gap: 10px; }
+  .pinfo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .details { margin-top: 8px; } .details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
+  .log { background: #1f1d1a; color: #e9e1d2; font: 12px/1.55 ui-monospace, Consolas, monospace; border-radius: 8px; padding: 10px 12px; height: 150px; overflow: auto; white-space: pre-wrap; border: 1.5px solid var(--ink); margin-top: 6px; }
+  .final { text-align: center; padding: 10px 38px 26px; display: none; } .final.on { display: block; animation: in .5s ease both; }
+  .final h2 { font: 700 26px "Space Grotesk", sans-serif; margin: 4px 0; } .final p { color: var(--muted); margin: 0 0 14px; }
+  .welcome-logo { width: 96px; height: 96px; filter: drop-shadow(4px 4px 0 var(--ink)); margin-bottom: 10px; }
+  @media (max-width: 860px) { .stage { grid-template-columns: 1fr; padding: 22px 18px 6px; } .copy h2 { font-size: 26px; } .progress, .final { padding-left: 18px; padding-right: 18px; } }
+  @media (max-width: 760px) { .shell { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 2px solid var(--ink); } ol { grid-template-columns: repeat(3, 1fr); } ol li span { display: none; } .row { grid-template-columns: 1fr; } main { padding: 22px 18px; } .mini { display: none; } }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><symbol id="sotos" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#c4532f"/><g fill="none" stroke="#fff" stroke-linecap="round"><circle cx="50" cy="50" r="40" stroke-width="6" stroke-dasharray="100 25.66" stroke-dashoffset="18.5"/><path d="M61.3 30.5 A13 13 0 1 0 50 50 A13 13 0 1 1 38.7 69.5" stroke-width="11"/></g><circle cx="78.3" cy="21.7" r="6" fill="#fff"/></symbol></svg>
+<div>
+<div class="shell">
+  <aside>
+    <div class="brand"><svg class="logo"><use href="#sotos"/></svg><span data-t="Instalar Sotos">Instalar Sotos</span></div>
+    <ol id="steps"></ol>
+    <div class="mini" id="mini"><div class="shot"><img id="miniImg" alt=""></div><div class="t"><span class="k" data-t="Conoce Sotos">Conoce Sotos</span><b id="miniT"></b><small id="miniP"></small></div></div>
+    <div class="lang"><button data-lang="es">Español</button><button data-lang="en">English</button></div>
+  </aside>
+  <main>
+    <section class="step" data-id="bienvenida">
+      <svg class="welcome-logo"><use href="#sotos"/></svg>
+      <h1 data-t="Bienvenido a Sotos">Bienvenido a Sotos</h1>
+      <p class="sub" data-t="Un ordenador completo dentro del navegador. En unos minutos lo dejamos listo.">Un ordenador completo dentro del navegador. En unos minutos lo dejamos listo.</p>
+      <p data-t="El asistente revisa este servidor, prepara la base de datos, crea tu cuenta de administrador, te deja elegir cómo funcionará y, si hay Docker, instala los servicios opcionales: oficina completa, diagramas, navegador virtual, cine y fotos.">El asistente revisa este servidor, prepara la base de datos, crea tu cuenta de administrador, te deja elegir cómo funcionará y, si hay Docker, instala los servicios opcionales: oficina completa, diagramas, navegador virtual, cine y fotos.</p>
+      <div id="demoNote" class="note" hidden data-t="Modo demostración: los servicios de Docker se simulan; todo lo demás es la instalación real.">Modo demostración: los servicios de Docker se simulan; todo lo demás es la instalación real.</div>
+      <div id="codeBox" hidden>
+        <div class="note" data-t="Estás instalando desde otro equipo. Por seguridad, escribe el código de instalación que aparece en la consola del servidor.">Estás instalando desde otro equipo. Por seguridad, escribe el código de instalación que aparece en la consola del servidor.</div>
+        <label class="f"><span data-t="Código de instalación">Código de instalación</span><input type="text" id="code" placeholder="123-456" inputmode="numeric" autocomplete="off"></label>
+      </div>
+      <div class="err" data-err></div>
+    </section>
+    <section class="step" data-id="requisitos">
+      <h1 data-t="Requisitos">Requisitos</h1>
+      <p class="sub" data-t="Lo marcado en rojo es obligatorio; lo amarillo es opcional.">Lo marcado en rojo es obligatorio; lo amarillo es opcional.</p>
+      <div class="req" id="req"><div><i class="w">…</i><div data-t="Revisando…">Revisando…</div></div></div>
+      <div class="err" data-err></div>
+    </section>
+    <section class="step" data-id="base">
+      <h1 data-t="Base de datos">Base de datos</h1>
+      <p class="sub" data-t="Sotos trae su propia base de datos: no hay que instalar MySQL ni crear usuarios.">Sotos trae su propia base de datos: no hay que instalar MySQL ni crear usuarios.</p>
+      <div class="dbcard"><svg viewBox="0 0 64 64"><ellipse cx="32" cy="14" rx="22" ry="8" fill="#1f7a78" stroke="#2a2522" stroke-width="2.5"/><path d="M10 14v36c0 4.4 9.8 8 22 8s22-3.6 22-8V14" fill="#2b9a97" stroke="#2a2522" stroke-width="2.5"/><path d="M10 26c0 4.4 9.8 8 22 8s22-3.6 22-8M10 38c0 4.4 9.8 8 22 8s22-3.6 22-8" fill="none" stroke="#2a2522" stroke-width="2.5"/></svg>
+        <div><b id="dbEngine">SQLite</b><div class="muted" style="color:var(--muted);font-size:13.5px" data-t="Integrada en Sotos. Un solo archivo, sin servidor aparte, sin usuario ni contraseña: nadie fuera de Sotos puede conectarse a ella.">Integrada en Sotos. Un solo archivo, sin servidor aparte, sin usuario ni contraseña: nadie fuera de Sotos puede conectarse a ella.</div></div></div>
+      <label class="f"><span data-t="Archivo de la base de datos">Archivo de la base de datos</span><input type="text" id="dbFile" readonly></label>
+      <label class="f"><span data-t="Carpeta de los archivos de las personas">Carpeta de los archivos de las personas</span><input type="text" id="dbBlobs" readonly><small data-t="Para guardarlos en otro disco, arranca Sotos con la variable SOTOS_DATA apuntando a esa carpeta.">Para guardarlos en otro disco, arranca Sotos con la variable SOTOS_DATA apuntando a esa carpeta.</small></label>
+      <div class="note ok" data-t="Las contraseñas se guardan con scrypt, las de correo y las bóvedas con AES-256, y cada día se hace una copia de seguridad.">Las contraseñas se guardan con scrypt, las de correo y las bóvedas con AES-256, y cada día se hace una copia de seguridad.</div>
+    </section>
+    <section class="step" data-id="sitio">
+      <h1 data-t="Tu sitio">Tu sitio</h1>
+      <p class="sub" data-t="Cómo se llama y dónde lo encontrarán.">Cómo se llama y dónde lo encontrarán.</p>
+      <label class="f"><span data-t="Nombre del sitio">Nombre del sitio</span><input type="text" id="siteName" value="Sotos" maxlength="60"></label>
+      <label class="f"><span data-t="Dirección del servidor">Dirección del servidor</span><input type="text" id="host"><small data-t="Nombre o IP con que los navegadores llegan a este servidor (por ejemplo localhost, 192.168.1.20 o sotos.midominio.com). Los servicios opcionales usan esta dirección.">Nombre o IP con que los navegadores llegan a este servidor (por ejemplo localhost, 192.168.1.20 o sotos.midominio.com). Los servicios opcionales usan esta dirección.</small></label>
+      <div class="row">
+        <label class="f"><span data-t="Zona horaria">Zona horaria</span><select id="timeZone"></select></label>
+        <label class="f"><span data-t="Idioma por defecto">Idioma por defecto</span><select id="lang"><option value="es">Español</option><option value="en">English</option></select></label>
+      </div>
+    </section>
+    <section class="step" data-id="admin">
+      <h1 data-t="Tu cuenta de administrador">Tu cuenta de administrador</h1>
+      <p class="sub" data-t="Con ella gestionas cuentas, espacio, copias de seguridad y el resto del servidor.">Con ella gestionas cuentas, espacio, copias de seguridad y el resto del servidor.</p>
+      <label class="f"><span data-t="Tu nombre">Tu nombre</span><input type="text" id="adminName" autocomplete="name" maxlength="60"></label>
+      <label class="f"><span data-t="Correo">Correo</span><input type="email" id="adminEmail" autocomplete="email"></label>
+      <div class="row">
+        <label class="f"><span data-t="Contraseña (mín. 8)">Contraseña (mín. 8)</span><input type="password" id="adminPassword" autocomplete="new-password"><div class="meter"><i id="meter"></i></div><small id="meterTxt"></small></label>
+        <label class="f"><span data-t="Repite la contraseña">Repite la contraseña</span><input type="password" id="adminPassword2" autocomplete="new-password"></label>
+      </div>
+      <label class="f"><span data-t="Tu espacio (GB)">Tu espacio (GB)</span><input type="number" id="adminQuotaGb" value="50" min="1"></label>
+      <div class="err" data-err></div>
+    </section>
+    <section class="step" data-id="opciones">
+      <h1 data-t="Cómo funcionará">Cómo funcionará</h1>
+      <p class="sub" data-t="Todo se puede cambiar después desde Administración.">Todo se puede cambiar después desde Administración.</p>
+      <label class="f"><span data-t="Registro de cuentas nuevas">Registro de cuentas nuevas</span>
+        <div class="seg" id="registration"><button type="button" data-v="closed" class="on" data-t="Solo las creo yo">Solo las creo yo</button><button type="button" data-v="open" data-t="Cualquiera puede registrarse">Cualquiera puede registrarse</button></div></label>
+      <div class="row">
+        <label class="f"><span data-t="Espacio por cuenta nueva (GB)">Espacio por cuenta nueva (GB)</span><input type="number" id="defaultQuotaGb" value="2" min="0.1" step="0.5"></label>
+        <label class="f"><span data-t="Tamaño máximo por archivo (GB)">Tamaño máximo por archivo (GB)</span><input type="number" id="maxFileGb" value="50" min="0.1" step="0.5"></label>
+      </div>
+      <div class="row">
+        <label class="f"><span data-t="Días en la papelera antes de borrarse">Días en la papelera antes de borrarse</span><input type="number" id="trashDays" value="30" min="0"><small data-t="0 = nunca">0 = nunca</small></label>
+        <label class="f"><span data-t="Copia de seguridad diaria">Copia de seguridad diaria</span><select id="backupHour"></select></label>
+      </div>
+      <label class="opt"><input type="checkbox" id="vaultAdmin"><div><b data-t="El administrador puede revisar las bóvedas secretas">El administrador puede revisar las bóvedas secretas</b><small data-t="Útil para moderar contenido. Si no lo marcas, nadie más que su dueño podrá abrir una bóveda, ni siquiera tú.">Útil para moderar contenido. Si no lo marcas, nadie más que su dueño podrá abrir una bóveda, ni siquiera tú.</small></div></label>
+    </section>
+    <section class="step" data-id="servicios">
+      <h1 data-t="Servicios opcionales">Servicios opcionales</h1>
+      <p class="sub" data-t="Se instalan con Docker en este mismo equipo. Sotos funciona sin ellos.">Se instalan con Docker en este mismo equipo. Sotos funciona sin ellos.</p>
+      <div id="noDocker" class="note" hidden data-t="Docker no está disponible en este equipo: puedes instalar estos servicios más adelante con los scripts de la carpeta scripts/.">Docker no está disponible en este equipo: puedes instalar estos servicios más adelante con los scripts de la carpeta scripts/.</div>
+      <div id="services"></div>
+    </section>
+    <section class="step" data-id="resumen">
+      <h1 data-t="Todo listo para instalar">Todo listo para instalar</h1>
+      <p class="sub" data-t="Revisa el resumen y pulsa Instalar.">Revisa el resumen y pulsa Instalar.</p>
+      <dl class="summary" id="summary"></dl>
+      <div class="err" data-err></div>
+    </section>
+    <div class="nav"><button id="back" data-t="Atrás">Atrás</button><button class="primary" id="next" data-t="Siguiente">Siguiente</button></div>
+
+  </main>
+    <!-- presentación mientras se instala -->
+    <div class="tour" id="tour">
+      <div class="tour-head"><svg class="logo"><use href="#sotos"/></svg><b data-t="Instalando Sotos">Instalando Sotos</b><span id="tourSite"></span></div>
+      <div class="stage">
+        <div class="frame"><div class="bar"><i></i><i></i><i></i></div><div class="imgs" id="imgs"></div></div>
+        <div class="copy"><div id="copy"></div><div class="dots" id="dots"></div></div>
+      </div>
+      <div class="progress" id="progress">
+        <div class="pbar"><i id="pbar"></i></div>
+        <div class="pinfo"><span id="pnow" data-t="Preparando…">Preparando…</span><span id="ppct">0 %</span></div>
+        <details class="details"><summary data-t="Ver detalles">Ver detalles</summary><div class="log" id="log"></div></details>
+        <div class="err" id="tourErr"></div>
+      </div>
+      <div class="final" id="final">
+        <h2 data-t="Sotos está instalado">Sotos está instalado</h2>
+        <p id="doneTxt" data-t="Sotos se está reiniciando con la configuración nueva…">Sotos se está reiniciando con la configuración nueva…</p>
+        <button class="primary" id="openBtn" disabled data-t="Abrir Sotos">Abrir Sotos</button>
+      </div>
+    </div>
+</div>
+<footer>Sotos · © 2026 Sebastian Sotomontes · MIT</footer>
+</div>
+<script>
+const SLIDES = [
+  ["escritorio", "Tu ordenador, en cualquier navegador", "Ventanas, dock, escritorio y búsqueda: un sistema completo que te sigue al computador, la tableta o el celular.", "Your computer, in any browser", "Windows, dock, desktop and search: a complete system that follows you to your computer, tablet or phone."],
+  ["archivos", "Tus archivos, siempre contigo", "Arrastra, copia, comparte con un enlace y recupera versiones anteriores. También como una unidad más de tu PC.", "Your files, always with you", "Drag, copy, share with a link and restore earlier versions. Also as just another drive on your PC."],
+  ["word", "Office de verdad", "Documentos, hojas y presentaciones en .docx, .xlsx y .pptx reales, y edición a la vez con tu equipo.", "Real Office", "Documents, sheets and slides as real .docx, .xlsx and .pptx files, with real-time co-editing."],
+  ["correo-html", "Todo tu correo en un lugar", "Gmail, Outlook, iCloud o tu dominio: varias cuentas, alias, firma y un editor con formato.", "All your mail in one place", "Gmail, Outlook, iCloud or your own domain: several accounts, aliases, a signature and a rich editor."],
+  ["mundos-chat", "Mundos para tu gente", "Familia, amigos o equipo: muro, chat, carpeta compartida, calendario y videollamadas.", "Worlds for your people", "Family, friends or team: wall, chat, shared folder, calendar and video calls."],
+  ["whatsapp", "WhatsApp dentro de Sotos", "Vincula tu número y usa tus chats con fotos, audios y archivos de tu nube.", "WhatsApp inside Sotos", "Link your number and use your chats with photos, voice notes and files from your cloud."],
+  ["video-mkv", "Tus películas, como en el cine", "Audio en varios idiomas y subtítulos, y una videoteca tipo streaming con Jellyfin.", "Your movies, like at the cinema", "Several audio languages and subtitles, plus a streaming-style library with Jellyfin."],
+  ["paint", "Crea sin instalar nada", "Paint, diagramas, pizarra y un editor de código, guardando todo en tus archivos.", "Create without installing anything", "Paint, diagrams, a whiteboard and a code editor, all saved to your files."],
+  ["tema-grafito-dark", "A tu manera", "Dos estilos, claro u oscuro, fondos ilustrados de Colombia, tus colores y tu foto.", "Your way", "Two styles, light or dark, illustrated Colombian wallpapers, your colors and your photo."],
+  ["notificaciones", "Privado y seguro", "Verificación en dos pasos, bóveda cifrada, copias diarias y tus datos en tu propio servidor.", "Private and secure", "Two-step verification, an encrypted vault, daily backups and your data on your own server."],
+];
+const EN = {
+  "Instalar Sotos": "Install Sotos", "Conoce Sotos": "Discover Sotos", "Bienvenido a Sotos": "Welcome to Sotos", "Un ordenador completo dentro del navegador. En unos minutos lo dejamos listo.": "A complete computer in your browser. It'll be ready in a few minutes.",
+  "El asistente revisa este servidor, prepara la base de datos, crea tu cuenta de administrador, te deja elegir cómo funcionará y, si hay Docker, instala los servicios opcionales: oficina completa, diagramas, navegador virtual, cine y fotos.": "The wizard checks this server, prepares the database, creates your administrator account, lets you choose how it works and, if Docker is available, installs the optional services: full office suite, diagrams, virtual browser, cinema and photos.",
+  "Modo demostración: los servicios de Docker se simulan; todo lo demás es la instalación real.": "Demo mode: Docker services are simulated; everything else is the real installation.",
+  "Estás instalando desde otro equipo. Por seguridad, escribe el código de instalación que aparece en la consola del servidor.": "You're installing from another device. For security, enter the installation code shown in the server console.",
+  "Código de instalación": "Installation code", "Requisitos": "Requirements", "Lo marcado en rojo es obligatorio; lo amarillo es opcional.": "Red items are required; yellow ones are optional.", "Revisando…": "Checking…",
+  "Base de datos": "Database", "Sotos trae su propia base de datos: no hay que instalar MySQL ni crear usuarios.": "Sotos brings its own database: no need to install MySQL or create users.",
+  "Integrada en Sotos. Un solo archivo, sin servidor aparte, sin usuario ni contraseña: nadie fuera de Sotos puede conectarse a ella.": "Built into Sotos. A single file, no separate server, no username or password: nobody outside Sotos can connect to it.",
+  "Archivo de la base de datos": "Database file", "Carpeta de los archivos de las personas": "Folder for people's files", "Para guardarlos en otro disco, arranca Sotos con la variable SOTOS_DATA apuntando a esa carpeta.": "To keep them on another disk, start Sotos with SOTOS_DATA pointing to that folder.",
+  "Las contraseñas se guardan con scrypt, las de correo y las bóvedas con AES-256, y cada día se hace una copia de seguridad.": "Passwords are stored with scrypt, mail passwords and vaults with AES-256, and a backup is made every day.",
+  "Tu sitio": "Your site", "Cómo se llama y dónde lo encontrarán.": "What it's called and where people will find it.", "Nombre del sitio": "Site name", "Dirección del servidor": "Server address",
+  "Nombre o IP con que los navegadores llegan a este servidor (por ejemplo localhost, 192.168.1.20 o sotos.midominio.com). Los servicios opcionales usan esta dirección.": "Name or IP browsers use to reach this server (e.g. localhost, 192.168.1.20 or sotos.mydomain.com). Optional services use this address.",
+  "Zona horaria": "Time zone", "Idioma por defecto": "Default language", "Tu cuenta de administrador": "Your administrator account", "Con ella gestionas cuentas, espacio, copias de seguridad y el resto del servidor.": "You'll use it to manage accounts, storage, backups and the rest of the server.",
+  "Tu nombre": "Your name", "Correo": "Email", "Contraseña (mín. 8)": "Password (min. 8)", "Repite la contraseña": "Repeat the password", "Tu espacio (GB)": "Your storage (GB)",
+  "Cómo funcionará": "How it will work", "Todo se puede cambiar después desde Administración.": "Everything can be changed later in Administration.", "Registro de cuentas nuevas": "New account sign-ups", "Solo las creo yo": "Only I create them", "Cualquiera puede registrarse": "Anyone can sign up",
+  "Espacio por cuenta nueva (GB)": "Storage per new account (GB)", "Tamaño máximo por archivo (GB)": "Maximum file size (GB)", "Días en la papelera antes de borrarse": "Days in the trash before deletion", "0 = nunca": "0 = never", "Copia de seguridad diaria": "Daily backup",
+  "El administrador puede revisar las bóvedas secretas": "The administrator can review secret vaults", "Útil para moderar contenido. Si no lo marcas, nadie más que su dueño podrá abrir una bóveda, ni siquiera tú.": "Useful for moderating content. If unchecked, nobody but its owner can open a vault, not even you.",
+  "Servicios opcionales": "Optional services", "Se instalan con Docker en este mismo equipo. Sotos funciona sin ellos.": "They're installed with Docker on this same machine. Sotos works without them.",
+  "Docker no está disponible en este equipo: puedes instalar estos servicios más adelante con los scripts de la carpeta scripts/.": "Docker isn't available on this machine: you can install these services later with the scripts in the scripts/ folder.",
+  "Todo listo para instalar": "Ready to install", "Revisa el resumen y pulsa Instalar.": "Review the summary and press Install.", "Sotos está instalado": "Sotos is installed", "Sotos se está reiniciando con la configuración nueva…": "Sotos is restarting with the new configuration…",
+  "Abrir Sotos": "Open Sotos", "Atrás": "Back", "Siguiente": "Next", "Instalar": "Install", "Empezar": "Start", "Preparando…": "Preparing…", "Ver detalles": "Show details",
+  "Bienvenida": "Welcome", "Sitio": "Site", "Administrador": "Admin", "Opciones": "Options", "Servicios": "Services", "Resumen": "Summary", "Desactivada": "Off", "débil": "weak", "aceptable": "fair", "fuerte": "strong",
+  "Escribe tu nombre": "Enter your name", "Correo no válido": "Invalid email", "La contraseña debe tener al menos 8 caracteres": "The password must be at least 8 characters", "Las contraseñas no coinciden": "The passwords don't match", "Código incorrecto": "Wrong code",
+  "Registro": "Sign-ups", "Abierto": "Open", "Cerrado": "Closed", "Bóvedas": "Vaults", "El administrador puede revisarlas": "The administrator can review them", "Privadas": "Private", "Ninguno": "None", "Espacio por cuenta": "Storage per account", "Copias": "Backups", "Papelera": "Trash", "días": "days",
+  "Sotos ya está listo. Entra con tu correo y tu contraseña.": "Sotos is ready. Sign in with your email and password.", "Hubo un problema": "There was a problem", "Creando la cuenta administradora": "Creating the administrator account", "Guardando las opciones": "Saving the options", "Sotos está instalado ": "Sotos is installed", "Instalando Sotos": "Installing Sotos", "Instalando": "Installing", "Terminado": "Finished",
+};
+let lang = (navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en"; try { lang = localStorage.getItem("sotos_lang") || lang; } catch {}
+const T = (s) => lang === "en" ? (EN[s] || s) : s;
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const SERVICES = [
+  ["office", "Oficina completa (Euro-Office)", "Word, Excel y PowerPoint con todas sus funciones, y edición a la vez entre varias personas. Unos 4 GB de memoria.", "Full office suite (Euro-Office)", "Word, Excel and PowerPoint with all their features, and real-time co-editing. About 4 GB of memory."],
+  ["drawio", "Diagramas (draw.io)", "Editor de diagramas propio, sin depender del sitio público.", "Diagrams (draw.io)", "Self-hosted diagram editor, independent of the public site."],
+  ["neko", "Navegador virtual", "Un Firefox real en el servidor para abrir las páginas que no se dejan mostrar dentro de otra web.", "Virtual browser", "A real Firefox on the server to open pages that refuse to be embedded."],
+  ["jellyfin", "Cine (Jellyfin)", "Videos y música como en un servicio de streaming, cada persona con su biblioteca.", "Cinema (Jellyfin)", "Videos and music like a streaming service, each person with their own library."],
+  ["immich", "Fotos (Immich)", "Fotos por fecha y lugar, con caras, búsqueda inteligente y recuerdos. Descarga varios GB.", "Photos (Immich)", "Photos by date and place, with faces, smart search and memories. Downloads several GB."],
+];
+const STEPS = [["bienvenida", "Bienvenida"], ["requisitos", "Requisitos"], ["base", "Base de datos"], ["sitio", "Sitio"], ["admin", "Administrador"], ["opciones", "Opciones"], ["servicios", "Servicios"], ["resumen", "Resumen"]];
+const sections = [...document.querySelectorAll(".step")];
+let step = 0, reqs = null, code = "", local = true, installing = false, finished = false;
+const api = async (method, p, body) => { const r = await fetch("/api/install/" + p, { method, headers: { "x-sotos": "1", "x-setup-code": code, ...(body ? { "content-type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined }); const j = r.headers.get("content-type")?.includes("json") ? await r.json() : null; if (!r.ok) throw new Error(j?.error || r.status); return j; };
+
+/* ---------- tour ---------- */
+let slide = 0, mini = 0;
+const img = (s) => `/instalar/tour/${s}.jpg`;
+SLIDES.forEach(s => { const i = new Image(); i.src = img(s[0]); });           // precarga
+function showMini() { const s = SLIDES[mini % SLIDES.length]; const im = $("miniImg"); im.style.opacity = 0; setTimeout(() => { im.src = img(s[0]); im.style.opacity = 1; }, 300); $("miniT").textContent = lang === "en" ? s[3] : s[1]; $("miniP").textContent = lang === "en" ? s[4] : s[2]; }
+setInterval(() => { if (!installing && !finished) { mini++; showMini(); } }, 6000);
+function buildTour() { $("imgs").innerHTML = SLIDES.map((s, i) => `<img src="${img(s[0])}" alt="" class="${i === slide ? "on" : ""}">`).join(""); $("dots").innerHTML = SLIDES.map((_, i) => `<i class="${i === slide ? "on" : ""}"></i>`).join(""); showSlide(); }
+const TINTS = ["#fbf3e4", "#f7efe1", "#eef2f6", "#f6ece4", "#f2f0e2", "#eaf3ec", "#f1ecf4", "#fbefe9", "#ecebe8", "#eef3f0"];
+function showSlide() {
+  const s = SLIDES[slide]; $("tour").style.backgroundColor = TINTS[slide % TINTS.length]; [...$("imgs").children].forEach((im, i) => { im.classList.remove("on"); if (i === slide) { void im.offsetWidth; im.classList.add("on"); } });
+  [...$("dots").children].forEach((d, i) => d.classList.toggle("on", i === slide));
+  $("copy").innerHTML = `<div class="swap"><div class="k">${String(slide + 1).padStart(2, "0")} / ${String(SLIDES.length).padStart(2, "0")}</div><h2>${esc(lang === "en" ? s[3] : s[1])}</h2><p>${esc(lang === "en" ? s[4] : s[2])}</p></div>`;
+}
+setInterval(() => { if ($("tour").classList.contains("on")) { slide = (slide + 1) % SLIDES.length; showSlide(); } }, 7000);
+
+/* ---------- pasos ---------- */
+function translate() {
+  document.documentElement.lang = lang; document.title = T("Instalar Sotos");
+  document.querySelectorAll("[data-t]").forEach(e => e.textContent = T(e.dataset.t));
+  document.querySelectorAll("[data-lang]").forEach(b => b.classList.toggle("primary", b.dataset.lang === lang));
+  renderSteps(); renderServices(); if (reqs) renderReqs(); if (STEPS[step][0] === "resumen") renderSummary(); showMini(); if ($("tour").classList.contains("on")) showSlide(); nav();
+}
+function renderSteps() { $("steps").innerHTML = STEPS.map(([, n], i) => `<li class="${i === step && !finished ? "on" : i < step || finished ? "done" : ""}"><b>${i < step || finished ? "✓" : i + 1}</b><span>${T(n)}</span></li>`).join(""); }
+function renderReqs() {
+  $("req").innerHTML = reqs.map(r => `<div><i class="${r.ok ? "y" : r.need ? "n" : "w"}">${r.ok ? "✓" : r.need ? "✕" : "!"}</i><div><b>${esc(r.label)}</b><small>${esc(r.detail)}</small></div></div>`).join("");
+  const docker = reqs.find(r => r.id === "docker")?.ok || demo; $("noDocker").hidden = !!docker;
+  document.querySelectorAll("#services .opt").forEach(o => { o.classList.toggle("disabled", !docker); o.querySelector("input").disabled = !docker; if (!docker) o.querySelector("input").checked = false; });
+}
+function renderServices() {
+  const sel = new Set([...document.querySelectorAll("#services input:checked")].map(i => i.value));
+  $("services").innerHTML = SERVICES.map(([id, es, desc, en, descEn]) => `<label class="opt"><input type="checkbox" value="${id}" ${sel.has(id) ? "checked" : ""}><div><b>${lang === "en" ? en : es}</b><small>${lang === "en" ? descEn : desc}</small></div></label>`).join("");
+  if (reqs) renderReqs();
+}
+function show(n) { step = n; sections.forEach((s, i) => s.classList.toggle("on", i === n)); renderSteps(); nav(); const id = STEPS[n][0]; if (id === "requisitos" || id === "base") loadReqs(); if (id === "resumen") renderSummary(); mini = n; showMini(); }
+function nav() {
+  const id = STEPS[step][0];
+  $("back").style.visibility = step > 0 ? "visible" : "hidden";
+  $("next").textContent = T(id === "bienvenida" ? "Empezar" : id === "resumen" ? "Instalar" : "Siguiente");
+  $("next").disabled = installing || (id === "requisitos" && (!reqs || reqs.some(r => r.need && !r.ok)));
+}
+let demo = false;
+async function loadReqs() {
+  try { const r = await api("GET", "requirements"); reqs = r.items; demo = r.demo; renderReqs(); if (!$("host").value) $("host").value = r.host || "localhost"; $("dbEngine").textContent = r.db.engine; $("dbFile").value = r.db.file; $("dbBlobs").value = r.db.blobs; $("demoNote").hidden = !demo; }
+  catch (e) { sections[step].querySelector("[data-err]") && (sections[step].querySelector("[data-err]").textContent = e.message); }
+  nav();
+}
+function strength(p) { let s = 0; if (p.length >= 8) s++; if (p.length >= 12) s++; if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++; if (/\d/.test(p)) s++; if (/[^\w]/.test(p)) s++; return s; }
+$("adminPassword").addEventListener("input", (e) => { const s = strength(e.target.value); const m = $("meter"); m.style.width = (s / 5 * 100) + "%"; m.style.background = s <= 2 ? "var(--bad)" : s === 3 ? "var(--warn)" : "var(--ok)"; $("meterTxt").textContent = e.target.value ? T(s <= 2 ? "débil" : s === 3 ? "aceptable" : "fuerte") : ""; });
+document.querySelectorAll("#registration button").forEach(b => b.onclick = () => document.querySelectorAll("#registration button").forEach(x => x.classList.toggle("on", x === b)));
+document.querySelectorAll("[data-lang]").forEach(b => b.onclick = () => { lang = b.dataset.lang; $("lang").value = lang; translate(); });
+const val = () => ({
+  siteName: $("siteName").value.trim(), host: $("host").value.trim(), timeZone: $("timeZone").value, lang: $("lang").value,
+  adminName: $("adminName").value.trim(), adminEmail: $("adminEmail").value.trim(), adminPassword: $("adminPassword").value, adminQuotaMb: Math.round(Number($("adminQuotaGb").value || 50) * 1024),
+  registration: document.querySelector("#registration button.on").dataset.v, defaultQuotaMb: Math.round(Number($("defaultQuotaGb").value || 2) * 1024), maxFileMb: Math.round(Number($("maxFileGb").value || 50) * 1024),
+  trashDays: Number($("trashDays").value || 0), backups: $("backupHour").value !== "off", backupHour: Number($("backupHour").value === "off" ? 3 : $("backupHour").value), vaultAdmin: $("vaultAdmin").checked,
+  services: [...document.querySelectorAll("#services input:checked")].map(i => i.value),
+});
+function renderSummary() {
+  const v = val(); const sv = SERVICES.filter(s => v.services.includes(s[0])).map(s => lang === "en" ? s[3] : s[1]).join(", ") || T("Ninguno");
+  const rows = [[T("Sitio"), `${v.siteName} · ${v.host}`], [T("Base de datos"), $("dbEngine").textContent], [T("Administrador"), `${v.adminName} · ${v.adminEmail}`], [T("Registro"), T(v.registration === "open" ? "Abierto" : "Cerrado")],
+    [T("Espacio por cuenta"), `${v.defaultQuotaMb / 1024} GB`], [T("Papelera"), v.trashDays ? `${v.trashDays} ${T("días")}` : "∞"], [T("Copias"), v.backups ? `${String(v.backupHour).padStart(2, "0")}:00` : T("Desactivada")],
+    [T("Bóvedas"), T(v.vaultAdmin ? "El administrador puede revisarlas" : "Privadas")], [T("Servicios"), sv]];
+  $("summary").innerHTML = rows.map(([k, d]) => `<dt>${esc(k)}</dt><dd>${esc(d)}</dd>`).join("");
+}
+
+/* ---------- instalación con presentación ---------- */
+async function install() {
+  installing = true; nav(); $("tourSite").textContent = val().siteName + " · " + val().host; $("tour").classList.add("on"); slide = 0; buildTour();
+  const v = val(); const total = 3 + v.services.length; let doneSteps = 0;
+  const prog = (txt, inc) => { if (inc) doneSteps++; const p = Math.min(99, Math.round(doneSteps / total * 100)); $("pbar").style.width = p + "%"; $("ppct").textContent = p + " %"; if (txt) $("pnow").textContent = txt; };
+  const log = (t) => { $("log").textContent += t + "\n"; $("log").scrollTop = 1e9; };
+  const names = Object.fromEntries(SERVICES.map(s => [s[0], lang === "en" ? s[3] : s[1]]));
+  try {
+    const r = await fetch("/api/install/install", { method: "POST", headers: { "x-sotos": "1", "x-setup-code": code, "content-type": "application/json" }, body: JSON.stringify(v) });
+    if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || r.status); }
+    const rd = r.body.getReader(); const dec = new TextDecoder(); let buf = "", ok = false;
+    while (true) { const { value, done } = await rd.read(); if (done) break; buf += dec.decode(value, { stream: true }); let i;
+      while ((i = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (!line) continue; const m = JSON.parse(line);
+        if (m.error && !m.service) throw new Error(m.error);
+        if (m.step === "cuenta" || m.step === "opciones") { prog(T(m.msg), true); log("▸ " + m.msg); }
+        if (m.step === "servicio") { prog(T("Instalando") + " " + (names[m.service] || m.service) + "…"); log("▸ " + (names[m.service] || m.service)); }
+        if (m.log) { log("  " + m.log); $("pnow").textContent = (names[(m.service)] ? "" : "") + $("pnow").textContent; }
+        if (m.service && m.done) { prog(null, true); log("  ✓ " + (names[m.service] || m.service)); }
+        if (m.service && m.error) { prog(null, true); log("  ✕ " + (names[m.service] || m.service) + ": " + m.error); }
+        if (m.step === "listo") ok = true; } }
+    if (!ok) throw new Error(T("Hubo un problema"));
+    $("pbar").style.width = "100%"; $("ppct").textContent = "100 %"; $("pnow").textContent = T("Terminado");
+    installing = false; finished = true; renderSteps();
+    setTimeout(() => { $("progress").style.display = "none"; $("final").classList.add("on"); waitRestart(); }, 900);
+  } catch (e) { installing = false; $("tourErr").textContent = e.message; setTimeout(() => { $("tour").classList.remove("on"); const er = sections[step].querySelector("[data-err]"); if (er) er.textContent = e.message; nav(); }, 2500); }
+}
+async function waitRestart() {
+  for (let i = 0; i < 90; i++) { await new Promise(r => setTimeout(r, 1500)); try { const s = await (await fetch("/api/install/status", { cache: "no-store" })).json(); if (s.installed) { $("doneTxt").textContent = T("Sotos ya está listo. Entra con tu correo y tu contraseña."); $("openBtn").disabled = false; break; } } catch {} }
+}
+$("openBtn").onclick = () => { try { localStorage.setItem("sotos_lang", $("lang").value); } catch {} location.href = "/"; };
+$("back").onclick = () => show(Math.max(0, step - 1));
+$("next").onclick = async () => {
+  const er = sections[step].querySelector("[data-err]"); if (er) er.textContent = "";
+  const id = STEPS[step][0];
+  if (id === "bienvenida" && !local) { code = $("code").value.trim(); try { await api("POST", "check"); } catch { er.textContent = T("Código incorrecto"); return; } }
+  if (id === "admin") { const v = val(); const e = !v.adminName ? "Escribe tu nombre" : !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v.adminEmail) ? "Correo no válido" : v.adminPassword.length < 8 ? "La contraseña debe tener al menos 8 caracteres" : v.adminPassword !== $("adminPassword2").value ? "Las contraseñas no coinciden" : null; if (e) { er.textContent = T(e); return; } }
+  if (id === "resumen") return install();
+  show(step + 1);
+};
+try { for (const z of Intl.supportedValuesOf("timeZone")) $("timeZone").add(new Option(z.replace(/_/g, " "), z)); } catch { $("timeZone").add(new Option("UTC", "UTC")); }
+$("timeZone").value = Intl.DateTimeFormat().resolvedOptions().timeZone;
+for (let h = 0; h < 24; h++) $("backupHour").add(new Option(String(h).padStart(2, "0") + ":00", String(h))); $("backupHour").add(new Option("—", "off")); $("backupHour").value = "3";
+$("lang").value = lang;
+fetch("/api/install/status", { cache: "no-store" }).then(r => r.json()).then(s => { if (s.installed) location.href = "/"; local = s.local; $("codeBox").hidden = local; if (local) loadReqs(); }).catch(() => {});
+translate(); show(0);
+</script>
+</body>
+</html>
