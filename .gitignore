@@ -12,3 +12,4 @@ iniciar-sotos-oculto.vbs
 !.env.example
 demo-dist/
 services/whatsapp/data/
+dist-paquetes/

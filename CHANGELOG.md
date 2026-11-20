@@ -3,6 +3,18 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.4 — 20 de noviembre de 2026
+
+### Nuevo
+- **Paquetes de instalación** en cada versión publicada: `Sotos-Setup.exe` para Windows (revisa el equipo, instala, crea accesos en el menú Inicio y el escritorio y abre el asistente), `sotos-x.y.z.zip`/`.tar.gz` con el escritorio ya compilado y `SHA256SUMS.txt`.
+- **Instalador de un solo archivo** (`instalar-sotos.ps1` y `instalar-sotos.sh`) con las acciones `instalar`, `actualizar`, `comprobar` y `desinstalar`: descarga la última versión, comprueba su huella SHA-256, separa la aplicación de los datos y, en Linux, puede dejar Sotos como servicio de systemd.
+- **Synology y otros NAS**: el paquete trae un `Dockerfile` (con ffmpeg) y `docker-compose.nas.yml` para Container Manager.
+- **Actualizaciones desde Administración → Servidor**: aviso diario a los administradores, novedades de la versión y «Actualizar ahora» (copia de seguridad, descarga, verificación SHA-256, reemplazo solo de la aplicación y reinicio).
+- `node scripts/empaquetar.mjs` arma todos los paquetes.
+
+### Arreglado
+- El panel de Administración quedaba centrado en vertical por un estilo que se aplicaba a toda la ventana.
+
 ## 3.3 — 20 de noviembre de 2026
 
 ### Nuevo

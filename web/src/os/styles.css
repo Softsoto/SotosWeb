@@ -1818,11 +1818,11 @@ select.wg-input { padding: 0 4px; }
 .admin-line > span:first-child { min-width: 150px; font-weight: 600; }
 .admin-sub { font-weight: 700; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-faint); margin-top: 6px; }
 .admin-apps { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
-.admin-app { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text-faint); font: 12.5px var(--ui); cursor: pointer; text-align: left; }
-.admin-app span { flex: 1; }
-.admin-app:not(.on) .tile { filter: grayscale(1); opacity: .45; }
-.admin-app.on { color: var(--text); }
-.admin-app.on .material-symbols-rounded:last-child { color: #3fb950; }
+.admin-apps .admin-app { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--text-faint); font: 12.5px var(--ui); cursor: pointer; text-align: left; }
+.admin-apps .admin-app span { flex: 1; }
+.admin-apps .admin-app:not(.on) .tile { filter: grayscale(1); opacity: .45; }
+.admin-apps .admin-app.on { color: var(--text); }
+.admin-apps .admin-app.on .material-symbols-rounded:last-child { color: #3fb950; }
 
 /* calendario */
 .cal-app .app-side { width: 236px; flex-basis: 236px; display: flex; flex-direction: column; }
@@ -2355,4 +2355,8 @@ select.wg-input { padding: 0 4px; }
 
 .login-lang { position: absolute; top: 14px; right: 16px; z-index: 3; background: rgba(0,0,0,.35); color: #fff; border: 1px solid rgba(255,255,255,.35); border-radius: 6px; padding: 5px 12px; font: 600 12.5px var(--ui); cursor: pointer; }
 .login-lang:hover { background: rgba(0,0,0,.5); }
+
+
+.admin-update { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; margin-bottom: 18px; background: var(--surface-2); }
+.admin-update-notes, .admin-update-log { white-space: pre-wrap; font: 12px/1.5 var(--mono, monospace); max-height: 220px; overflow: auto; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin: 8px 0 0; }
 

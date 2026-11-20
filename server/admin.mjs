@@ -15,6 +15,7 @@ import { addNotification } from "./social.mjs";
 import { VAULT_DIR, vaultForAdmin, vaultAdminFile } from "./vault.mjs";
 import { backupStatus, runBackup } from "./backup.mjs";
 import { totpDisable } from "./totp.mjs";
+import { checkUpdate, applyUpdate, currentVersion, restart } from "./updates.mjs";
 
 // registro de lo que hace cada administrador (transparencia: quién vio, borró o cambió qué)
 db.exec(`CREATE TABLE IF NOT EXISTS admin_log (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id TEXT, user_id TEXT, action TEXT NOT NULL, detail TEXT, created INTEGER NOT NULL)`);
@@ -63,6 +64,17 @@ export async function handleAdmin(req, res, parts) {
     return json(res, 200, { registration: registration(), defaultQuotaMb: Math.round(defaultQuota() / MB) });
   }
 
+  if (a === "update") { // actualizaciones de Sotos
+    if (req.method === "GET") { try { return json(res, 200, await checkUpdate(new URL(req.url, "http://x").searchParams.has("force"))); } catch (e) { return json(res, 200, { current: currentVersion(), error: "No se pudo consultar GitHub: " + e.message }); } }
+    if (req.method === "POST") {
+      audit(me, null, "actualizar Sotos");
+      res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" });
+      const send = (o) => res.write(JSON.stringify(o) + "\n");
+      try { const v = await applyUpdate((m) => send({ log: m })); send({ done: true, version: v }); res.end(); restart(); }
+      catch (e) { send({ error: e.message }); res.end(); }
+      return;
+    }
+  }
   if (a === "backups") { // copias de seguridad del servidor
     if (req.method === "GET") return json(res, 200, backupStatus());
     if (req.method === "POST") { audit(me, null, "copia de seguridad manual"); const r = await runBackup("manual"); return json(res, 200, { item: r, ...backupStatus() }); }

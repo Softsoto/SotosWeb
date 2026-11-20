@@ -2,6 +2,9 @@
 
 © 2026 Sebastian Sotomontes · MIT License. The Spanish [CHANGELOG](../CHANGELOG.md) is the reference.
 
+## 3.4 — 2026-11-20
+- Install packages per release: Windows `Sotos-Setup.exe` (IExpress), prebuilt `sotos-x.y.z.zip`/`.tar.gz`, `SHA256SUMS.txt`; single-file installers `instalar-sotos.ps1`/`.sh` (install, update, check, uninstall; SHA-256 verification; app and data kept apart; optional systemd service); Synology/NAS `Dockerfile` + `docker-compose.nas.yml`; one-click updates in Admin → Server with daily admin notice, backup first, SHA-256 check and restart; `scripts/empaquetar.mjs`. Fixed the Admin window being vertically centered.
+
 ## 3.3 — 2026-11-20
 - Web installer (WordPress/Chevereto style) at /instalar: target selection with auto-detection (this computer, hosting/VPS, Synology NAS, other NAS), requirements, built-in SQLite database step, site, admin account, options, optional Docker services with live progress, Ubuntu-style slideshow during setup and install, dark (default) and light themes, install code for remote setup, Windows autostart, self-restart; existing instances are marked as installed; `scripts/restablecer-clave.mjs`.
 

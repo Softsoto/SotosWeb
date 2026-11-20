@@ -1,0 +1,20 @@
+# Sotos en un NAS (Synology, QNAP, TrueNAS, Unraid…) o cualquier equipo con Docker
+#
+#   Synology (DSM 7): copia el paquete descomprimido a /volume1/docker/sotos y en
+#   Container Manager → Proyecto → Crear, elige esa carpeta y este archivo.
+#   Por terminal:  docker compose -f docker-compose.nas.yml up -d --build
+#
+#   Luego abre http://IP-DEL-NAS:8787 y termina la configuración en el asistente.
+#   Para HTTPS en Synology: Panel de control → Portal de inicio de sesión → Avanzado → Proxy inverso.
+# © 2026 Sebastian Sotomontes
+services:
+  sotos:
+    build: .
+    image: sotos:local
+    container_name: sotos
+    restart: unless-stopped
+    ports: ["8787:8787"]
+    environment:
+      TZ: ${TZ:-America/Bogota}
+    volumes:
+      - ./datos:/data

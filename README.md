@@ -10,7 +10,7 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 3.3 |
+| **Versión** | 3.4 |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
 | **Licencia** | [MIT](LICENSE) |
@@ -36,7 +36,9 @@ Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde 
 
 ## Novedades
 
-**Versión 3.3** ([historial completo](CHANGELOG.md)): **asistente de instalación** como el de WordPress, para computador, hosting, Synology u otro NAS, con tema oscuro y una presentación de Sotos mientras se instala.
+**Versión 3.4** ([historial completo](CHANGELOG.md)): **paquetes de instalación** (instalador `.exe` para Windows, instalador de un solo archivo para Linux, hosting y NAS, paquete para Synology con Docker) y **actualizaciones con un clic** desde Administración.
+
+**Versión 3.3**: **asistente de instalación** como el de WordPress, para computador, hosting, Synology u otro NAS, con tema oscuro y una presentación de Sotos mientras se instala.
 
 **Versión 3.2**:
 
@@ -325,6 +327,28 @@ Como WordPress o Chevereto: arrancas Sotos, abres su dirección en el navegador 
 | ![Servicios opcionales](docs/capturas/instalador-servicios.jpg) | ![Presentación mientras se instala](docs/capturas/instalador-presentacion.jpg) |
 
 Tiene **tema oscuro** (por defecto) y **claro**, en español e inglés. Desde el propio equipo se instala directo; desde otra máquina pide un **código de instalación** que el servidor muestra en su consola, para que nadie se adueñe de un servidor recién publicado. Al terminar, el asistente desaparece.
+
+### Descargar e instalar
+
+En cada [versión publicada](https://github.com/Softsoto/SotosWeb/releases/latest):
+
+| Archivo | Para qué |
+|---|---|
+| `Sotos-Setup-x.y.z.exe` | **Windows**: doble clic. Revisa el equipo (ofrece instalar Node.js si falta), instala Sotos, crea los accesos en el menú Inicio y el escritorio, y abre el asistente. |
+| `instalar-sotos.ps1` / `instalar-sotos.sh` | **Instalador de un solo archivo** (Windows / Linux, hosting o NAS): descarga la última versión, comprueba su huella SHA-256 e instala. Acciones: `instalar`, `actualizar`, `comprobar`, `desinstalar`. En Linux, `--servicio` lo deja como servicio de systemd. |
+| `sotos-x.y.z.zip` / `.tar.gz` | El paquete listo (escritorio ya compilado). Trae `Dockerfile` y `docker-compose.nas.yml` para **Synology** (Container Manager → Proyecto) y otros NAS. |
+| `SHA256SUMS.txt` | Huellas para comprobar cada descarga. |
+
+```bash
+# Linux / VPS
+curl -fsSLO https://github.com/Softsoto/SotosWeb/releases/latest/download/instalar-sotos.sh && bash instalar-sotos.sh --servicio
+```
+
+La aplicación y tus datos viven en carpetas separadas: actualizar o desinstalar nunca toca tus archivos, cuentas ni configuración.
+
+**Actualizaciones desde el panel.** Sotos mira una vez al día si hay una versión nueva y avisa a los administradores. En *Administración → Servidor* se ve qué trae y se actualiza con un clic: hace una copia de seguridad, descarga el paquete, comprueba su huella SHA-256, reemplaza solo la aplicación y se reinicia.
+
+Para armar los paquetes desde el código: `node scripts/empaquetar.mjs` (quedan en `dist-paquetes/`).
 
 ### Instaladores de línea de comandos
 

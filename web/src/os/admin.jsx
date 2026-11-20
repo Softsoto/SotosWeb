@@ -179,6 +179,39 @@ function UserFiles({ u, onClose, onChanged }) {
   );
 }
 
+/** actualizaciones de Sotos (versiones publicadas en GitHub) */
+function UpdatesCard() {
+  const [u, setU] = useState(null), [busy, setBusy] = useState(false), [log, setLog] = useState([]), [showNotes, setShowNotes] = useState(false);
+  const load = (force) => api("GET", "admin/update" + (force ? "?force=1" : "")).then(setU).catch(e => setU({ error: e.message }));
+  useEffect(() => { load(); }, []);
+  const update = async () => {
+    setBusy(true); setLog([]);
+    try {
+      const r = await fetch("/api/admin/update", { method: "POST", headers: { "x-sotos": "1" } }); const rd = r.body.getReader(), dec = new TextDecoder(); let buf = "", done = false;
+      while (true) { const { value, done: d } = await rd.read(); if (d) break; buf += dec.decode(value, { stream: true }); let i;
+        while ((i = buf.indexOf("\n")) >= 0) { const m = JSON.parse(buf.slice(0, i)); buf = buf.slice(i + 1); if (m.log) setLog(l => [...l, m.log]); if (m.error) throw new Error(m.error); if (m.done) done = true; } }
+      if (done) { setLog(l => [...l, "Esperando a que Sotos vuelva…"]); for (let k = 0; k < 60; k++) { await new Promise(r => setTimeout(r, 2000)); try { const h = await fetch("/api/health"); if (h.ok) { location.reload(); return; } } catch {} } }
+    } catch (e) { toast(e.message, { error: true }); }
+    setBusy(false);
+  };
+  if (!u) return null;
+  return <div className="admin-update">
+    <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+      <Ic name={u.newer ? "release_alert" : "verified"} size={26} style={{ color: u.newer ? "var(--accent)" : "#4f7a3a" }} />
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <b>{u.error ? "Actualizaciones" : u.newer ? `Sotos ${u.latest} está disponible` : "Sotos está al día"}</b>
+        <div className="faint" style={{ fontSize: 12.5 }}>{u.error || `Versión instalada: ${u.current}${u.latest && !u.newer ? "" : ` · nueva: ${u.latest}`}`}{u.newer && !u.ok ? " · " + u.reason : ""}</div>
+      </div>
+      <button className="tb-btn" disabled={busy} onClick={() => load(true)}><Ic name="refresh" /> Buscar</button>
+      {u.newer && u.ok && <button className="tb-btn primary" disabled={busy} onClick={update}><Ic name="system_update_alt" /> {busy ? "Actualizando…" : "Actualizar ahora"}</button>}
+    </div>
+    {u.newer && u.notes && <><button className="login-alt" style={{ padding: 0, fontSize: 12.5, marginTop: 6 }} onClick={() => setShowNotes(s => !s)}>{showNotes ? "Ocultar novedades" : "Ver qué trae"}</button>
+      {showNotes && <pre className="admin-update-notes">{u.notes}</pre>}</>}
+    {!!log.length && <pre className="admin-update-log">{log.join("\n")}</pre>}
+    {u.newer && u.ok && !busy && <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>Antes de actualizar se hace una copia de seguridad. Tus archivos, cuentas y configuración no se tocan.</div>}
+  </div>;
+}
+
 /** copias de seguridad automáticas del servidor */
 function Backups() {
   const [st, setSt] = useState(null), [busy, setBusy] = useState(false);
@@ -237,6 +270,7 @@ function ServerSettings({ stats, onSaved }) {
   const [quota, setQuota] = useState(stats.settings.defaultQuotaMb);
   const save = async (b, msg) => { try { await api("PUT", "admin/settings", b); toast(msg, { icon: "check" }); onSaved(); } catch (e) { toast(e.message, { error: true }); } };
   return <>
+    <UpdatesCard />
     <h2 className="admin-h">Ajustes del servidor</h2>
     <div className="admin-line"><span>Registro de cuentas nuevas</span>
       <button className={"chip" + (stats.settings.registration === "open" ? " on" : "")} onClick={() => save({ registration: "open" }, "Registro abierto")}>Abierto</button>
