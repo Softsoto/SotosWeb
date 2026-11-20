@@ -66,6 +66,18 @@ async function requirements() {
   ];
 }
 
+/* ---------------- dónde corre Sotos (para proponer la opción y los valores) ---------------- */
+function detectTarget() {
+  const has = (p) => { try { return fs.existsSync(p); } catch { return false; } };
+  const read = (p) => { try { return fs.readFileSync(p, "utf8"); } catch { return ""; } };
+  if (has("/etc/synoinfo.conf") || has("/etc.defaults/synoinfo.conf") || /synology/i.test(read("/proc/version"))) return "synology";
+  if (has("/etc/config/qpkg.conf") || has("/etc/unraid-version") || /truenas|freenas/i.test(read("/etc/version")) || has("/usr/builtin/etc/asustor")) return "nas";
+  if (process.platform === "win32" || process.platform === "darwin") return "computer";
+  if (has("/.dockerenv")) return "nas"; // contenedor en Linux: normalmente un NAS o un servidor casero
+  return os.networkInterfaces && Object.values(os.networkInterfaces()).flat().some(i => i && !i.internal && i.family === "IPv4" && !/^(10|127|192\.168|172\.(1[6-9]|2\d|3[01]))\./.test(i.address)) ? "hosting" : "computer";
+}
+const lanIps = () => Object.values(os.networkInterfaces()).flat().filter(i => i && !i.internal && i.family === "IPv4").map(i => i.address);
+
 /* ---------------- servicios opcionales (Docker) ---------------- */
 // cada servicio devuelve las variables de entorno que Sotos necesita para usarlo
 function dockerRun(name, args, log) {
@@ -130,7 +142,7 @@ export async function handleSetup(req, res, parts) {
   if (a === "status" && req.method === "GET") return json(res, 200, { installed: isInstalled(), local: isLocal(req), site: getSetting("siteName", "Sotos") });
   guard(req);
   if (a === "check" && req.method === "POST") return json(res, 200, { ok: true });
-  if (a === "requirements" && req.method === "GET") return json(res, 200, { demo: DEMO, db: { engine: "SQLite " + (process.versions.sqlite || ""), file: path.join(DATA_DIR, "sotos.db"), blobs: path.join(DATA_DIR, "blobs") }, items: await requirements(), env: envFile(), data: DATA_DIR, port: Number(process.env.PORT || 8787), host: String(req.headers.host || "").split(":")[0], tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+  if (a === "requirements" && req.method === "GET") return json(res, 200, { target: detectTarget(), platform: process.platform, memGb: Math.round(os.totalmem() / 1073741824), ips: lanIps(), demo: DEMO, db: { engine: "SQLite " + (process.versions.sqlite || ""), file: path.join(DATA_DIR, "sotos.db"), blobs: path.join(DATA_DIR, "blobs") }, items: await requirements(), env: envFile(), data: DATA_DIR, port: Number(process.env.PORT || 8787), host: String(req.headers.host || "").split(":")[0], tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
   if (a === "install" && req.method === "POST") {
     const b = await readJson(req, 64 * 1024);
     const name = String(b.adminName || "").trim().slice(0, 60), email = String(b.adminEmail || "").trim().toLowerCase(), pw = String(b.adminPassword || "");
@@ -151,6 +163,16 @@ export async function handleSetup(req, res, parts) {
       setSetting("registration", b.registration === "open" ? "open" : "closed");
       setSetting("defaultQuotaMb", Math.max(10, Math.min(10_000_000, Number(b.defaultQuotaMb || 2048))));
       if (b.lang === "en" || b.lang === "es") setSetting("defaultLang", b.lang);
+      if (["computer", "hosting", "synology", "nas"].includes(b.target)) setSetting("deployTarget", b.target);
+      // en un computador con Windows: arrancar Sotos al iniciar sesión, sin ventana
+      if (b.target === "computer" && b.autostart && process.platform === "win32" && !DEMO) {
+        try {
+          const dir = path.join(process.env.APPDATA || "", "Microsoft", "Windows", "Start Menu", "Programs", "Startup");
+          const args = [...process.execArgv.filter(x => !/^--watch/.test(x)), ...process.argv.slice(1)].map(x => `""${x}""`).join(" ");
+          fs.writeFileSync(path.join(dir, "Sotos.vbs"), `CreateObject("WScript.Shell").Run """${process.execPath}"" ${args}", 0, False\r\n`);
+          log("Sotos arrancará solo al iniciar sesión en este equipo");
+        } catch (e) { log("No se pudo configurar el arranque automático: " + e.message); }
+      }
       const env = {
         SOTOS_VAULT_ADMIN: b.vaultAdmin ? "1" : "0", SOTOS_TRASH_DAYS: String(Math.max(0, Number(b.trashDays ?? 30))), SOTOS_MAX_FILE_MB: String(Math.max(16, Number(b.maxFileMb || 51200))),
         SOTOS_BACKUP_HOUR: b.backups === false ? "off" : String(Math.max(0, Math.min(23, Number(b.backupHour ?? 3)))), SOTOS_BACKUP_DIR: b.backupDir || undefined, TZ: b.timeZone || undefined,

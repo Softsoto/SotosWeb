@@ -8,13 +8,22 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;600;800&family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
 <style>
-  :root { --paper: #f3ead8; --card: #fffaf0; --ink: #2a2522; --muted: #6f655c; --line: #d8ccb8; --accent: #c4532f; --ok: #4f7a3a; --warn: #c9902a; --bad: #b23a2a; --teal: #1f7a78; }
+  :root { --paper: #f3ead8; --card: #fffaf0; --ink: #2a2522; --edge: #2a2522; --shadow: #2a2522; --muted: #6f655c; --line: #d8ccb8; --accent: #c4532f; --ok: #4f7a3a; --warn: #c9902a; --bad: #b23a2a; --teal: #1f7a78;
+    --aside: #efe3cc; --field: #ffffff; --note: #fbf1dc; --noteok: #eaf1e2; --dot: #e3d5ba; --text2: #4a423c; --focus: #f0c9b8; color-scheme: light; }
+  :root[data-theme="dark"] { --paper: #0f1011; --card: #18191c; --ink: #ebe5da; --edge: #393b41; --shadow: #000000; --muted: #9b958b; --line: #2e3035; --accent: #d9784f; --ok: #79a85f; --warn: #d6a54a; --bad: #e0705e; --teal: #4fb3ad;
+    --aside: #141518; --field: #212327; --note: #2a2418; --noteok: #1b2719; --dot: #1b1c1f; --text2: #cfc8bd; --focus: #5a3326; color-scheme: dark; }
+  :root[data-theme="dark"] body { background-image: radial-gradient(var(--dot) 1.2px, transparent 1.4px), radial-gradient(circle at 20% 0%, #1d1a16 0%, transparent 60%); }
+  :root[data-theme="dark"] .shell { box-shadow: 0 0 0 1px #000, 0 30px 80px -20px #000; }
+  :root[data-theme="dark"] .frame, :root[data-theme="dark"] .dbcard, :root[data-theme="dark"] .mini { box-shadow: 0 18px 40px -16px #000; }
+  :root[data-theme="dark"] button.primary { box-shadow: none; }
+  :root[data-theme="dark"] .logo, :root[data-theme="dark"] .welcome-logo { filter: drop-shadow(0 8px 18px rgba(217,120,79,.25)); }
+  body, .shell, aside, main, .tour, input, select, .req > div, .opt, .summary { transition: background-color .4s ease, border-color .4s ease, color .4s ease; }
   * { box-sizing: border-box; }
   body { margin: 0; min-height: 100vh; background: var(--paper); color: var(--ink); font: 15px/1.5 "Hanken Grotesk", system-ui, sans-serif;
-    background-image: radial-gradient(#e3d5ba 1.2px, transparent 1.4px); background-size: 14px 14px; display: grid; place-items: center; padding: 28px 14px; }
+    background-image: radial-gradient(var(--dot) 1.2px, transparent 1.4px); background-size: 14px 14px; display: grid; place-items: center; padding: 28px 14px; }
   body > div { width: min(1120px, 100%); }
-  .shell { width: 100%; min-height: 640px; display: grid; grid-template-columns: 270px 1fr; background: var(--card); border: 2px solid var(--ink); border-radius: 12px; box-shadow: 8px 8px 0 var(--ink); overflow: hidden; position: relative; }
-  aside { background: #efe3cc; border-right: 2px solid var(--ink); padding: 22px 18px; display: flex; flex-direction: column; gap: 16px; }
+  .shell { width: 100%; min-height: 640px; display: grid; grid-template-columns: 270px 1fr; background: var(--card); border: 2px solid var(--edge); border-radius: 12px; box-shadow: 8px 8px 0 var(--shadow); overflow: hidden; position: relative; }
+  aside { background: var(--aside); border-right: 2px solid var(--edge); padding: 22px 18px; display: flex; flex-direction: column; gap: 16px; }
   .brand { display: flex; align-items: center; gap: 10px; font: 700 20px "Space Grotesk", sans-serif; }
   .logo { width: 40px; height: 40px; flex: 0 0 auto; }
   ol { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; }
@@ -23,8 +32,8 @@
   ol li.on { color: var(--ink); background: var(--card); border-color: var(--ink); }
   ol li.done { color: var(--ok); } ol li.done b { background: var(--ok); color: #fff; border-color: var(--ok); }
   /* tour pequeño en la barra lateral */
-  .mini { margin-top: auto; border: 1.5px solid var(--ink); border-radius: 9px; background: var(--card); overflow: hidden; box-shadow: 3px 3px 0 var(--ink); }
-  .mini .shot { aspect-ratio: 16/10; overflow: hidden; border-bottom: 1.5px solid var(--ink); background: #ddd; }
+  .mini { margin-top: auto; border: 1.5px solid var(--edge); border-radius: 9px; background: var(--card); overflow: hidden; box-shadow: 3px 3px 0 var(--shadow); }
+  .mini .shot { aspect-ratio: 16/10; overflow: hidden; border-bottom: 1.5px solid var(--edge); background: #ddd; }
   .mini .shot img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity .6s; }
   .mini div.t { padding: 8px 10px 10px; } .mini b { display: block; font-size: 13px; } .mini small { color: var(--muted); font-size: 12px; line-height: 1.35; display: block; }
   .mini .k { font: 600 10.5px "Space Grotesk"; letter-spacing: .12em; text-transform: uppercase; color: var(--accent); }
@@ -36,65 +45,77 @@
   @keyframes in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   label.f { display: grid; gap: 5px; margin-bottom: 14px; font-weight: 600; font-size: 13.5px; }
   label.f small { font-weight: 400; color: var(--muted); }
-  input[type=text], input[type=email], input[type=password], input[type=number], select { font: inherit; padding: 9px 11px; border: 1.5px solid var(--ink); border-radius: 7px; background: #fff; width: 100%; }
-  input:focus, select:focus { outline: 3px solid #f0c9b8; }
-  input[readonly] { background: #f6efe2; color: var(--muted); }
-  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
-  button { font: 600 14px "Hanken Grotesk", sans-serif; border: 1.5px solid var(--ink); background: var(--card); color: var(--ink); border-radius: 7px; padding: 9px 16px; cursor: pointer; }
-  button.primary { background: var(--accent); color: #fff; box-shadow: 3px 3px 0 var(--ink); }
-  button.primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--ink); }
+  input[type=text], input[type=email], input[type=password], input[type=number], select { font: inherit; padding: 9px 11px; border: 1.5px solid var(--edge); border-radius: 7px; background: var(--field); width: 100%; }
+  input:focus, select:focus { outline: 3px solid var(--focus); }
+  input[readonly] { background: var(--aside); color: var(--muted); }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
+  button { font: 600 14px "Hanken Grotesk", sans-serif; border: 1.5px solid var(--edge); background: var(--card); color: var(--ink); border-radius: 7px; padding: 9px 16px; cursor: pointer; }
+  button.primary { background: var(--accent); color: #fff; box-shadow: 3px 3px 0 var(--shadow); }
+  button.primary:active { transform: translate(2px, 2px); box-shadow: 1px 1px 0 var(--shadow); }
   button:disabled { opacity: .5; cursor: default; }
   .nav { display: flex; justify-content: space-between; gap: 10px; margin-top: 24px; padding-top: 16px; border-top: 1.5px dashed var(--line); }
   .req { display: grid; gap: 8px; }
-  .req div { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: #fff; }
+  .req > div { display: grid; grid-template-columns: 26px 1fr; gap: 10px; align-items: start; padding: 10px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--field); }
   .req i { font-style: normal; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; }
   .req .y { background: var(--ok); } .req .n { background: var(--bad); } .req .w { background: var(--warn); }
   .req small { display: block; color: var(--muted); word-break: break-all; }
-  .opt { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1.5px solid var(--line); border-radius: 8px; background: #fff; margin-bottom: 8px; cursor: pointer; }
+  .opt { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--field); margin-bottom: 8px; cursor: pointer; }
   .opt input { margin-top: 3px; accent-color: var(--accent); width: 17px; height: 17px; }
   .opt b { display: block; } .opt small { color: var(--muted); }
   .opt.disabled { opacity: .55; cursor: not-allowed; }
-  .seg { display: inline-flex; border: 1.5px solid var(--ink); border-radius: 7px; overflow: hidden; }
-  .seg button { border: 0; border-radius: 0; border-right: 1.5px solid var(--ink); } .seg button:last-child { border-right: 0; } .seg button.on { background: var(--ink); color: #fff; }
+  .seg { display: inline-flex; border: 1.5px solid var(--edge); border-radius: 7px; overflow: hidden; }
+  .seg button { border: 0; border-radius: 0; border-right: 1.5px solid var(--edge); } .seg button:last-child { border-right: 0; } .seg button.on { background: var(--ink); color: var(--card); }
   .meter { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 4px; } .meter i { display: block; height: 100%; width: 0; transition: width .2s; }
-  .note { padding: 10px 12px; border-left: 4px solid var(--warn); background: #fbf1dc; border-radius: 4px; font-size: 13.5px; margin-bottom: 14px; }
-  .note.ok { border-color: var(--ok); background: #eaf1e2; }
+  .note { padding: 10px 12px; border-left: 4px solid var(--warn); background: var(--note); border-radius: 4px; font-size: 13.5px; margin-bottom: 14px; }
+  .note.ok { border-color: var(--ok); background: var(--noteok); }
   .err { color: var(--bad); font-weight: 600; min-height: 1.4em; margin-top: 6px; }
-  .dbcard { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; padding: 14px; border: 1.5px solid var(--ink); border-radius: 10px; background: #fff; box-shadow: 3px 3px 0 var(--ink); margin-bottom: 16px; }
+  .targets { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .target { position: relative; display: grid; grid-template-columns: 48px 1fr; gap: 12px; align-items: start; padding: 14px; border: 1.5px solid var(--line); border-radius: 10px; background: var(--field); cursor: pointer; transition: border-color .2s, transform .2s; }
+  .target:hover { border-color: var(--muted); transform: translateY(-1px); }
+  .target.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+  .target svg { width: 48px; height: 48px; color: var(--accent); }
+  .target b { display: block; font-size: 15px; } .target small { color: var(--muted); font-size: 12.5px; line-height: 1.4; display: block; }
+  .target .tag { position: absolute; top: 10px; right: 10px; font: 600 10.5px "Space Grotesk"; letter-spacing: .08em; text-transform: uppercase; color: var(--teal); }
+  .tips { margin-top: 14px; display: grid; gap: 6px; font-size: 13.5px; } .tips div { padding-left: 18px; position: relative; } .tips div::before { content: "→"; position: absolute; left: 0; color: var(--accent); }
+  .theme { display: flex; gap: 6px; } .theme button { flex: 1; font-size: 13px; padding: 7px; }
+  .next-steps { text-align: left; max-width: 620px; margin: 0 auto 16px; font-size: 13.5px; display: grid; gap: 6px; }
+  .next-steps div { padding: 8px 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--field); }
+  @media (max-width: 760px) { .targets { grid-template-columns: 1fr; } }
+  .dbcard { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; padding: 14px; border: 1.5px solid var(--edge); border-radius: 10px; background: var(--field); box-shadow: 3px 3px 0 var(--shadow); margin-bottom: 16px; }
   .dbcard svg { width: 64px; height: 64px; }
-  .summary { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 14px; background: #fff; border: 1.5px solid var(--line); border-radius: 8px; padding: 12px 14px; }
+  .summary { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; font-size: 14px; background: var(--field); border: 1.5px solid var(--line); border-radius: 8px; padding: 12px 14px; }
   .summary dt { color: var(--muted); } .summary dd { margin: 0; font-weight: 600; word-break: break-word; }
   footer { margin-top: 14px; color: var(--muted); font-size: 12px; text-align: center; }
   /* presentación grande mientras se instala (como en Ubuntu) */
   .tour { position: absolute; inset: 0; background: var(--card); display: none; flex-direction: column; z-index: 5; transition: background-color 1.2s ease; }
-  .tour-head { display: flex; align-items: center; gap: 10px; padding: 16px 30px; border-bottom: 2px solid var(--ink); background: #efe3cc; font: 700 17px "Space Grotesk", sans-serif; }
+  .tour-head { display: flex; align-items: center; gap: 10px; padding: 16px 30px; border-bottom: 2px solid var(--edge); background: var(--aside); font: 700 17px "Space Grotesk", sans-serif; }
   .tour-head span { margin-left: auto; font: 500 13px "Hanken Grotesk"; color: var(--muted); }
   .tour.on { display: flex; animation: in .5s ease both; }
   .stage { flex: 1; display: grid; grid-template-columns: 1.5fr 1fr; gap: 40px; align-items: center; padding: 30px 46px 10px; min-height: 0; }
-  .frame { position: relative; border: 2px solid var(--ink); border-radius: 10px; box-shadow: 8px 8px 0 var(--ink); overflow: hidden; background: #ddd; aspect-ratio: 16/10; }
-  .frame .bar { height: 22px; background: #efe3cc; border-bottom: 2px solid var(--ink); display: flex; gap: 6px; align-items: center; padding: 0 9px; }
-  .frame .bar i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); }
+  .frame { position: relative; border: 2px solid var(--edge); border-radius: 10px; box-shadow: 8px 8px 0 var(--shadow); overflow: hidden; background: #ddd; aspect-ratio: 16/10; }
+  .frame .bar { height: 22px; background: var(--aside); border-bottom: 2px solid var(--edge); display: flex; gap: 6px; align-items: center; padding: 0 9px; }
+  .frame .bar i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--edge); }
   .frame .imgs { position: absolute; inset: 22px 0 0 0; }
   .frame img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: top left; opacity: 0; transition: opacity 1s ease; }
   .frame img.on { opacity: 1; animation: kb 9s ease-out both; }
   @keyframes kb { from { transform: scale(1.08) translate(-1.5%, -1%); } to { transform: scale(1) translate(0, 0); } }
   .copy .k { font: 600 12px "Space Grotesk"; letter-spacing: .16em; text-transform: uppercase; color: var(--accent); }
   .copy h2 { font: 700 38px/1.1 "Space Grotesk", sans-serif; margin: 8px 0 12px; letter-spacing: -.015em; }
-  .copy p { color: #4a423c; font-size: 16.5px; margin: 0; }
+  .copy p { color: var(--text2); font-size: 16.5px; margin: 0; }
   .copy .swap { animation: in .6s ease both; }
-  .dots { display: flex; gap: 7px; margin-top: 22px; } .dots i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--ink); } .dots i.on { background: var(--ink); }
+  .dots { display: flex; gap: 7px; margin-top: 22px; } .dots i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--edge); } .dots i.on { background: var(--accent); border-color: var(--accent); }
   .progress { padding: 12px 38px 22px; }
-  .pbar { height: 12px; border: 1.5px solid var(--ink); border-radius: 7px; background: #fff; overflow: hidden; }
+  .pbar { height: 12px; border: 1.5px solid var(--edge); border-radius: 7px; background: var(--field); overflow: hidden; }
   .pbar i { display: block; height: 100%; width: 0; background: repeating-linear-gradient(45deg, var(--accent) 0 10px, #d36a46 10px 20px); transition: width .6s ease; }
   .pinfo { display: flex; justify-content: space-between; font-size: 13px; color: var(--muted); margin-top: 6px; gap: 10px; }
   .pinfo span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .details { margin-top: 8px; } .details summary { cursor: pointer; font-size: 13px; color: var(--muted); }
-  .log { background: #1f1d1a; color: #e9e1d2; font: 12px/1.55 ui-monospace, Consolas, monospace; border-radius: 8px; padding: 10px 12px; height: 150px; overflow: auto; white-space: pre-wrap; border: 1.5px solid var(--ink); margin-top: 6px; }
+  .log { background: #1f1d1a; color: #e9e1d2; font: 12px/1.55 ui-monospace, Consolas, monospace; border-radius: 8px; padding: 10px 12px; height: 150px; overflow: auto; white-space: pre-wrap; border: 1.5px solid var(--edge); margin-top: 6px; }
   .final { text-align: center; padding: 10px 38px 26px; display: none; } .final.on { display: block; animation: in .5s ease both; }
   .final h2 { font: 700 26px "Space Grotesk", sans-serif; margin: 4px 0; } .final p { color: var(--muted); margin: 0 0 14px; }
-  .welcome-logo { width: 96px; height: 96px; filter: drop-shadow(4px 4px 0 var(--ink)); margin-bottom: 10px; }
+  .welcome-logo { width: 96px; height: 96px; filter: drop-shadow(4px 4px 0 var(--shadow)); margin-bottom: 10px; }
   @media (max-width: 860px) { .stage { grid-template-columns: 1fr; padding: 22px 18px 6px; } .copy h2 { font-size: 26px; } .progress, .final { padding-left: 18px; padding-right: 18px; } }
-  @media (max-width: 760px) { .shell { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 2px solid var(--ink); } ol { grid-template-columns: repeat(3, 1fr); } ol li span { display: none; } .row { grid-template-columns: 1fr; } main { padding: 22px 18px; } .mini { display: none; } }
+  @media (max-width: 760px) { .shell { grid-template-columns: 1fr; } aside { border-right: 0; border-bottom: 2px solid var(--edge); } ol { grid-template-columns: repeat(3, 1fr); } ol li span { display: none; } .row { grid-template-columns: 1fr; } main { padding: 22px 18px; } .mini { display: none; } }
   @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
 </style>
 </head>
@@ -106,6 +127,7 @@
     <div class="brand"><svg class="logo"><use href="#sotos"/></svg><span data-t="Instalar Sotos">Instalar Sotos</span></div>
     <ol id="steps"></ol>
     <div class="mini" id="mini"><div class="shot"><img id="miniImg" alt=""></div><div class="t"><span class="k" data-t="Conoce Sotos">Conoce Sotos</span><b id="miniT"></b><small id="miniP"></small></div></div>
+    <div class="theme"><button data-theme-btn="dark" data-t="Oscuro">Oscuro</button><button data-theme-btn="light" data-t="Claro">Claro</button></div>
     <div class="lang"><button data-lang="es">Español</button><button data-lang="en">English</button></div>
   </aside>
   <main>
@@ -120,6 +142,12 @@
         <label class="f"><span data-t="Código de instalación">Código de instalación</span><input type="text" id="code" placeholder="123-456" inputmode="numeric" autocomplete="off"></label>
       </div>
       <div class="err" data-err></div>
+    </section>
+    <section class="step" data-id="destino">
+      <h1 data-t="¿Dónde vivirá Sotos?">¿Dónde vivirá Sotos?</h1>
+      <p class="sub" data-t="Elige el tipo de equipo: el asistente ajusta los valores y los consejos para ese caso.">Elige el tipo de equipo: el asistente ajusta los valores y los consejos para ese caso.</p>
+      <div class="targets" id="targets"></div>
+      <div class="tips" id="tips"></div>
     </section>
     <section class="step" data-id="requisitos">
       <h1 data-t="Requisitos">Requisitos</h1>
@@ -145,6 +173,7 @@
         <label class="f"><span data-t="Zona horaria">Zona horaria</span><select id="timeZone"></select></label>
         <label class="f"><span data-t="Idioma por defecto">Idioma por defecto</span><select id="lang"><option value="es">Español</option><option value="en">English</option></select></label>
       </div>
+      <label class="opt" id="autostartBox" hidden><input type="checkbox" id="autostart" checked><div><b data-t="Arrancar Sotos al encender este computador">Arrancar Sotos al encender este computador</b><small data-t="Sotos queda funcionando en segundo plano, sin ventanas, cada vez que inicias sesión.">Sotos queda funcionando en segundo plano, sin ventanas, cada vez que inicias sesión.</small></div></label>
     </section>
     <section class="step" data-id="admin">
       <h1 data-t="Tu cuenta de administrador">Tu cuenta de administrador</h1>
@@ -203,6 +232,7 @@
       </div>
       <div class="final" id="final">
         <h2 data-t="Sotos está instalado">Sotos está instalado</h2>
+        <div class="next-steps" id="nextSteps"></div>
         <p id="doneTxt" data-t="Sotos se está reiniciando con la configuración nueva…">Sotos se está reiniciando con la configuración nueva…</p>
         <button class="primary" id="openBtn" disabled data-t="Abrir Sotos">Abrir Sotos</button>
       </div>
@@ -247,7 +277,11 @@ const EN = {
   "Bienvenida": "Welcome", "Sitio": "Site", "Administrador": "Admin", "Opciones": "Options", "Servicios": "Services", "Resumen": "Summary", "Desactivada": "Off", "débil": "weak", "aceptable": "fair", "fuerte": "strong",
   "Escribe tu nombre": "Enter your name", "Correo no válido": "Invalid email", "La contraseña debe tener al menos 8 caracteres": "The password must be at least 8 characters", "Las contraseñas no coinciden": "The passwords don't match", "Código incorrecto": "Wrong code",
   "Registro": "Sign-ups", "Abierto": "Open", "Cerrado": "Closed", "Bóvedas": "Vaults", "El administrador puede revisarlas": "The administrator can review them", "Privadas": "Private", "Ninguno": "None", "Espacio por cuenta": "Storage per account", "Copias": "Backups", "Papelera": "Trash", "días": "days",
-  "Sotos ya está listo. Entra con tu correo y tu contraseña.": "Sotos is ready. Sign in with your email and password.", "Hubo un problema": "There was a problem", "Creando la cuenta administradora": "Creating the administrator account", "Guardando las opciones": "Saving the options", "Sotos está instalado ": "Sotos is installed", "Instalando Sotos": "Installing Sotos", "Instalando": "Installing", "Terminado": "Finished",
+  "Sotos ya está listo. Entra con tu correo y tu contraseña.": "Sotos is ready. Sign in with your email and password.", "Hubo un problema": "There was a problem", "Creando la cuenta administradora": "Creating the administrator account", "Guardando las opciones": "Saving the options", "Sotos está instalado ": "Sotos is installed", "Instalando Sotos": "Installing Sotos", "Dónde": "Where", "Detectado": "Detected", "Oscuro": "Dark", "Claro": "Light",
+  "¿Dónde vivirá Sotos?": "Where will Sotos live?", "Elige el tipo de equipo: el asistente ajusta los valores y los consejos para ese caso.": "Choose the kind of machine: the wizard adjusts its values and tips for it.",
+  "Arrancar Sotos al encender este computador": "Start Sotos when this computer turns on", "Sotos queda funcionando en segundo plano, sin ventanas, cada vez que inicias sesión.": "Sotos keeps running in the background, with no windows, every time you sign in.",
+  "Ábrelo en este equipo": "Open it on this computer", "Desde el celular u otro equipo de tu red": "From your phone or another device on your network", "Apunta tu dominio (registro A) a la IP pública del servidor.": "Point your domain (A record) to the server's public IP.", "Activa HTTPS: ./instalar.sh servidor": "Enable HTTPS: ./instalar.sh servidor",
+  "Ábrelo en tu red": "Open it on your network", "HTTPS y acceso desde fuera: Panel de control → Portal de inicio de sesión → Proxy inverso.": "HTTPS and outside access: Control Panel → Login Portal → Reverse Proxy.", "Para entrar desde fuera, usa el proxy inverso del NAS o una VPN.": "To reach it from outside, use the NAS reverse proxy or a VPN.", "Instalando": "Installing", "Terminado": "Finished",
 };
 let lang = (navigator.language || "es").toLowerCase().startsWith("es") ? "es" : "en"; try { lang = localStorage.getItem("sotos_lang") || lang; } catch {}
 const T = (s) => lang === "en" ? (EN[s] || s) : s;
@@ -260,7 +294,7 @@ const SERVICES = [
   ["jellyfin", "Cine (Jellyfin)", "Videos y música como en un servicio de streaming, cada persona con su biblioteca.", "Cinema (Jellyfin)", "Videos and music like a streaming service, each person with their own library."],
   ["immich", "Fotos (Immich)", "Fotos por fecha y lugar, con caras, búsqueda inteligente y recuerdos. Descarga varios GB.", "Photos (Immich)", "Photos by date and place, with faces, smart search and memories. Downloads several GB."],
 ];
-const STEPS = [["bienvenida", "Bienvenida"], ["requisitos", "Requisitos"], ["base", "Base de datos"], ["sitio", "Sitio"], ["admin", "Administrador"], ["opciones", "Opciones"], ["servicios", "Servicios"], ["resumen", "Resumen"]];
+const STEPS = [["bienvenida", "Bienvenida"], ["destino", "Dónde"], ["requisitos", "Requisitos"], ["base", "Base de datos"], ["sitio", "Sitio"], ["admin", "Administrador"], ["opciones", "Opciones"], ["servicios", "Servicios"], ["resumen", "Resumen"]];
 const sections = [...document.querySelectorAll(".step")];
 let step = 0, reqs = null, code = "", local = true, installing = false, finished = false;
 const api = async (method, p, body) => { const r = await fetch("/api/install/" + p, { method, headers: { "x-sotos": "1", "x-setup-code": code, ...(body ? { "content-type": "application/json" } : {}) }, body: body ? JSON.stringify(body) : undefined }); const j = r.headers.get("content-type")?.includes("json") ? await r.json() : null; if (!r.ok) throw new Error(j?.error || r.status); return j; };
@@ -273,19 +307,61 @@ function showMini() { const s = SLIDES[mini % SLIDES.length]; const im = $("mini
 setInterval(() => { if (!installing && !finished) { mini++; showMini(); } }, 6000);
 function buildTour() { $("imgs").innerHTML = SLIDES.map((s, i) => `<img src="${img(s[0])}" alt="" class="${i === slide ? "on" : ""}">`).join(""); $("dots").innerHTML = SLIDES.map((_, i) => `<i class="${i === slide ? "on" : ""}"></i>`).join(""); showSlide(); }
 const TINTS = ["#fbf3e4", "#f7efe1", "#eef2f6", "#f6ece4", "#f2f0e2", "#eaf3ec", "#f1ecf4", "#fbefe9", "#ecebe8", "#eef3f0"];
+const TINTS_D = ["#18191c", "#1a1917", "#16191d", "#1b1816", "#181a17", "#161a18", "#19171c", "#1c1716", "#18181a", "#161a1a"];
 function showSlide() {
-  const s = SLIDES[slide]; $("tour").style.backgroundColor = TINTS[slide % TINTS.length]; [...$("imgs").children].forEach((im, i) => { im.classList.remove("on"); if (i === slide) { void im.offsetWidth; im.classList.add("on"); } });
+  const s = SLIDES[slide]; $("tour").style.backgroundColor = (theme === "dark" ? TINTS_D : TINTS)[slide % TINTS.length]; [...$("imgs").children].forEach((im, i) => { im.classList.remove("on"); if (i === slide) { void im.offsetWidth; im.classList.add("on"); } });
   [...$("dots").children].forEach((d, i) => d.classList.toggle("on", i === slide));
   $("copy").innerHTML = `<div class="swap"><div class="k">${String(slide + 1).padStart(2, "0")} / ${String(SLIDES.length).padStart(2, "0")}</div><h2>${esc(lang === "en" ? s[3] : s[1])}</h2><p>${esc(lang === "en" ? s[4] : s[2])}</p></div>`;
 }
 setInterval(() => { if ($("tour").classList.contains("on")) { slide = (slide + 1) % SLIDES.length; showSlide(); } }, 7000);
 
-/* ---------- pasos ---------- */
-function translate() {
+/* ---------- dónde se instala ---------- */
+const ICON = {
+  computer: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><rect x="6" y="9" width="36" height="23" rx="3"/><path d="M18 39h12M24 32v7"/></svg>',
+  hosting: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><rect x="8" y="7" width="32" height="10" rx="2.5"/><rect x="8" y="20" width="32" height="10" rx="2.5"/><path d="M14 12h.01M14 25h.01M24 30v6M12 40h24"/><circle cx="24" cy="40" r="2.6"/></svg>',
+  synology: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><rect x="11" y="5" width="26" height="38" rx="3.5"/><path d="M17 12h14M17 18h14"/><circle cx="18" cy="35" r="1.6" fill="currentColor"/><circle cx="24" cy="35" r="1.6" fill="currentColor"/></svg>',
+  nas: '<svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><rect x="6" y="10" width="36" height="28" rx="3.5"/><path d="M14 10v28M22 10v28M30 10v28"/><circle cx="37" cy="31" r="1.6" fill="currentColor"/></svg>',
+};
+const TARGETS = {
+  computer: { es: ["Este computador", "Windows, Mac o Linux. Para ti y tu casa u oficina, por la red local."], en: ["This computer", "Windows, Mac or Linux. For you and your home or office, over the local network."],
+    tips: { es: ["Entra desde otros equipos y el celular con la IP de este computador.", "Puede arrancar solo al encender el equipo.", "Si el equipo se apaga, Sotos también: para tenerlo siempre disponible, mejor un NAS o un servidor."], en: ["Reach it from other devices and your phone with this computer's IP.", "It can start automatically when the computer turns on.", "If the computer turns off, so does Sotos: for 24/7 access, a NAS or a server is better."] } },
+  hosting: { es: ["Hosting o VPS", "Un servidor en internet (DigitalOcean, Hetzner, AWS…) con tu propio dominio."], en: ["Hosting or VPS", "An internet server (DigitalOcean, Hetzner, AWS…) with your own domain."],
+    tips: { es: ["Usa tu dominio como dirección (por ejemplo sotos.midominio.com).", "Activa HTTPS con el instalador: ./instalar.sh servidor tu-dominio (usa Caddy y certificados automáticos).", "Deja el registro cerrado y crea tú las cuentas."], en: ["Use your domain as the address (e.g. sotos.mydomain.com).", "Enable HTTPS with the installer: ./instalar.sh servidor your-domain (Caddy with automatic certificates).", "Keep sign-ups closed and create the accounts yourself."] } },
+  synology: { es: ["Synology NAS", "Con Container Manager (Docker) en DSM 7. Siempre encendido y en tu casa."], en: ["Synology NAS", "With Container Manager (Docker) on DSM 7. Always on, at home."],
+    tips: { es: ["Guarda los datos en una carpeta compartida, por ejemplo /volume1/docker/sotos.", "Para HTTPS: Panel de control → Portal de inicio de sesión → Avanzado → Proxy inverso.", "Euro-Office e Immich necesitan al menos 4 GB de RAM; en modelos con 2 GB, mejor solo Cine y Diagramas."], en: ["Keep the data in a shared folder, e.g. /volume1/docker/sotos.", "For HTTPS: Control Panel → Login Portal → Advanced → Reverse Proxy.", "Euro-Office and Immich need at least 4 GB of RAM; on 2 GB models, prefer only Cinema and Diagrams."] } },
+  nas: { es: ["Otro NAS", "QNAP, TrueNAS, Unraid, Asustor o un servidor casero con Docker."], en: ["Another NAS", "QNAP, TrueNAS, Unraid, Asustor or a home server with Docker."],
+    tips: { es: ["Usa la IP fija del NAS en tu red como dirección.", "Monta la carpeta de datos en un volumen con espacio y copias.", "Para entrar desde fuera de casa, usa el proxy inverso del NAS o una VPN (Tailscale, WireGuard)."], en: ["Use the NAS's fixed IP on your network as the address.", "Mount the data folder on a volume with space and backups.", "To reach it from outside, use the NAS reverse proxy or a VPN (Tailscale, WireGuard)."] } },
+};
+let target = "computer", platform = "", memGb = 0, ips = [];
+const tr = (t) => TARGETS[t][lang === "en" ? "en" : "es"];
+function renderTargets() {
+  $("targets").innerHTML = Object.keys(TARGETS).map(t => `<div class="target ${t === target ? "on" : ""}" data-target="${t}">${ICON[t]}<div><b>${esc(tr(t)[0])}</b><small>${esc(tr(t)[1])}</small></div>${t === detected ? `<span class="tag">${esc(T("Detectado"))}</span>` : ""}</div>`).join("");
+  $("tips").innerHTML = TARGETS[target].tips[lang === "en" ? "en" : "es"].map(x => `<div>${esc(x)}</div>`).join("");
+  document.querySelectorAll("[data-target]").forEach(el => el.onclick = () => { target = el.dataset.target; applyTarget(); renderTargets(); });
+}
+let detected = null;
+function applyTarget() {
+  $("autostartBox").hidden = !(target === "computer" && platform === "win32");
+  const hostIn = $("host");
+  if (!hostIn.dataset.touched) hostIn.value = target === "hosting" ? "" : target === "computer" ? "localhost" : (ips[0] || "localhost");
+  hostIn.placeholder = target === "hosting" ? "sotos.midominio.com" : "";
+  // servicios recomendados según la memoria del equipo
+  if (!servicesTouched) document.querySelectorAll("#services input").forEach(i => { i.checked = (i.value === "drawio") || (i.value === "jellyfin" && target !== "hosting") || (memGb >= 6 && (i.value === "office" || (i.value === "immich" && target !== "hosting"))); });
+}
+let servicesTouched = false;
+document.addEventListener("change", (e) => { if (e.target.closest("#services")) servicesTouched = true; });
+document.addEventListener("input", (e) => { if (e.target.id === "host") e.target.dataset.touched = "1"; });
+/* ---------- tema ---------- */
+let theme = "dark"; try { theme = localStorage.getItem("sotos_install_theme") || "dark"; } catch {}
+function applyTheme() { document.documentElement.dataset.theme = theme; document.querySelectorAll("[data-theme-btn]").forEach(b => b.classList.toggle("primary", b.dataset.themeBtn === theme)); if ($("tour").classList.contains("on")) showSlide(); }
+document.querySelectorAll("[data-theme-btn]").forEach(b => b.onclick = () => { theme = b.dataset.themeBtn; try { localStorage.setItem("sotos_install_theme", theme); } catch {} applyTheme(); });
+applyTheme();
+
+/* ---------- pasos ---------- */function translate() {
   document.documentElement.lang = lang; document.title = T("Instalar Sotos");
   document.querySelectorAll("[data-t]").forEach(e => e.textContent = T(e.dataset.t));
   document.querySelectorAll("[data-lang]").forEach(b => b.classList.toggle("primary", b.dataset.lang === lang));
-  renderSteps(); renderServices(); if (reqs) renderReqs(); if (STEPS[step][0] === "resumen") renderSummary(); showMini(); if ($("tour").classList.contains("on")) showSlide(); nav();
+  renderSteps(); renderServices(); renderTargets(); if (reqs) renderReqs(); if (STEPS[step][0] === "resumen") renderSummary(); showMini(); if ($("tour").classList.contains("on")) showSlide(); nav();
 }
 function renderSteps() { $("steps").innerHTML = STEPS.map(([, n], i) => `<li class="${i === step && !finished ? "on" : i < step || finished ? "done" : ""}"><b>${i < step || finished ? "✓" : i + 1}</b><span>${T(n)}</span></li>`).join(""); }
 function renderReqs() {
@@ -298,7 +374,7 @@ function renderServices() {
   $("services").innerHTML = SERVICES.map(([id, es, desc, en, descEn]) => `<label class="opt"><input type="checkbox" value="${id}" ${sel.has(id) ? "checked" : ""}><div><b>${lang === "en" ? en : es}</b><small>${lang === "en" ? descEn : desc}</small></div></label>`).join("");
   if (reqs) renderReqs();
 }
-function show(n) { step = n; sections.forEach((s, i) => s.classList.toggle("on", i === n)); renderSteps(); nav(); const id = STEPS[n][0]; if (id === "requisitos" || id === "base") loadReqs(); if (id === "resumen") renderSummary(); mini = n; showMini(); }
+function show(n) { step = n; sections.forEach((s, i) => s.classList.toggle("on", i === n)); renderSteps(); nav(); const id = STEPS[n][0]; if (id === "destino" || id === "requisitos" || id === "base") loadReqs(); if (id === "destino") renderTargets(); if (id === "resumen") renderSummary(); mini = n; showMini(); }
 function nav() {
   const id = STEPS[step][0];
   $("back").style.visibility = step > 0 ? "visible" : "hidden";
@@ -307,7 +383,7 @@ function nav() {
 }
 let demo = false;
 async function loadReqs() {
-  try { const r = await api("GET", "requirements"); reqs = r.items; demo = r.demo; renderReqs(); if (!$("host").value) $("host").value = r.host || "localhost"; $("dbEngine").textContent = r.db.engine; $("dbFile").value = r.db.file; $("dbBlobs").value = r.db.blobs; $("demoNote").hidden = !demo; }
+  try { const r = await api("GET", "requirements"); reqs = r.items; demo = r.demo; platform = r.platform; memGb = r.memGb; ips = r.ips || []; if (!detected) { detected = r.target; target = r.target; applyTarget(); renderTargets(); } renderReqs(); if (!$("host").value) $("host").value = r.host || "localhost"; $("dbEngine").textContent = r.db.engine; $("dbFile").value = r.db.file; $("dbBlobs").value = r.db.blobs; $("demoNote").hidden = !demo; }
   catch (e) { sections[step].querySelector("[data-err]") && (sections[step].querySelector("[data-err]").textContent = e.message); }
   nav();
 }
@@ -320,11 +396,11 @@ const val = () => ({
   adminName: $("adminName").value.trim(), adminEmail: $("adminEmail").value.trim(), adminPassword: $("adminPassword").value, adminQuotaMb: Math.round(Number($("adminQuotaGb").value || 50) * 1024),
   registration: document.querySelector("#registration button.on").dataset.v, defaultQuotaMb: Math.round(Number($("defaultQuotaGb").value || 2) * 1024), maxFileMb: Math.round(Number($("maxFileGb").value || 50) * 1024),
   trashDays: Number($("trashDays").value || 0), backups: $("backupHour").value !== "off", backupHour: Number($("backupHour").value === "off" ? 3 : $("backupHour").value), vaultAdmin: $("vaultAdmin").checked,
-  services: [...document.querySelectorAll("#services input:checked")].map(i => i.value),
+  services: [...document.querySelectorAll("#services input:checked")].map(i => i.value), target, autostart: !$("autostartBox").hidden && $("autostart").checked,
 });
 function renderSummary() {
   const v = val(); const sv = SERVICES.filter(s => v.services.includes(s[0])).map(s => lang === "en" ? s[3] : s[1]).join(", ") || T("Ninguno");
-  const rows = [[T("Sitio"), `${v.siteName} · ${v.host}`], [T("Base de datos"), $("dbEngine").textContent], [T("Administrador"), `${v.adminName} · ${v.adminEmail}`], [T("Registro"), T(v.registration === "open" ? "Abierto" : "Cerrado")],
+  const rows = [[T("Dónde"), tr(v.target)[0]], [T("Sitio"), `${v.siteName} · ${v.host}`], [T("Base de datos"), $("dbEngine").textContent], [T("Administrador"), `${v.adminName} · ${v.adminEmail}`], [T("Registro"), T(v.registration === "open" ? "Abierto" : "Cerrado")],
     [T("Espacio por cuenta"), `${v.defaultQuotaMb / 1024} GB`], [T("Papelera"), v.trashDays ? `${v.trashDays} ${T("días")}` : "∞"], [T("Copias"), v.backups ? `${String(v.backupHour).padStart(2, "0")}:00` : T("Desactivada")],
     [T("Bóvedas"), T(v.vaultAdmin ? "El administrador puede revisarlas" : "Privadas")], [T("Servicios"), sv]];
   $("summary").innerHTML = rows.map(([k, d]) => `<dt>${esc(k)}</dt><dd>${esc(d)}</dd>`).join("");
@@ -352,7 +428,13 @@ async function install() {
         if (m.step === "listo") ok = true; } }
     if (!ok) throw new Error(T("Hubo un problema"));
     $("pbar").style.width = "100%"; $("ppct").textContent = "100 %"; $("pnow").textContent = T("Terminado");
-    installing = false; finished = true; renderSteps();
+    installing = false; finished = true; renderSteps(); document.querySelector(".tour-head b").textContent = T("Sotos está instalado");
+    const addr = `http://${v.host}${location.port ? ":" + location.port : ""}`;
+    const ns = { computer: [T("Ábrelo en este equipo") + ": " + addr, ...(ips.length ? [T("Desde el celular u otro equipo de tu red") + ": http://" + ips[0] + (location.port ? ":" + location.port : "")] : [])],
+      hosting: [T("Apunta tu dominio (registro A) a la IP pública del servidor."), T("Activa HTTPS: ./instalar.sh servidor") + " " + v.host],
+      synology: [T("Ábrelo en tu red") + ": " + addr, T("HTTPS y acceso desde fuera: Panel de control → Portal de inicio de sesión → Proxy inverso.")],
+      nas: [T("Ábrelo en tu red") + ": " + addr, T("Para entrar desde fuera, usa el proxy inverso del NAS o una VPN.")] }[v.target] || [];
+    $("nextSteps").innerHTML = ns.map(x => `<div>${esc(x)}</div>`).join("");
     setTimeout(() => { $("progress").style.display = "none"; $("final").classList.add("on"); waitRestart(); }, 900);
   } catch (e) { installing = false; $("tourErr").textContent = e.message; setTimeout(() => { $("tour").classList.remove("on"); const er = sections[step].querySelector("[data-err]"); if (er) er.textContent = e.message; nav(); }, 2500); }
 }
