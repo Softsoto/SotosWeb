@@ -129,7 +129,7 @@ const SERVICES = {
 };
 
 /* ---------------- reinicio para leer la configuración nueva ---------------- */
-function restart() {
+export function restart() {
   setTimeout(() => {
     if (process.env.INVOCATION_ID || process.env.SOTOS_SUPERVISED) process.exit(0); // systemd u otro supervisor lo vuelve a levantar
     const child = spawn(process.execPath, [...process.execArgv, ...process.argv.slice(1)], { cwd: process.cwd(), detached: true, stdio: "inherit", windowsHide: false });
