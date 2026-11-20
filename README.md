@@ -10,7 +10,7 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 3.2 |
+| **Versión** | 3.3 |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
 | **Licencia** | [MIT](LICENSE) |
@@ -36,7 +36,9 @@ Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde 
 
 ## Novedades
 
-**Versión 3.2** ([historial completo](CHANGELOG.md)):
+**Versión 3.3** ([historial completo](CHANGELOG.md)): **asistente de instalación** como el de WordPress, para computador, hosting, Synology u otro NAS, con tema oscuro y una presentación de Sotos mientras se instala.
+
+**Versión 3.2**:
 
 - **Cine (Jellyfin)** y **Fotos (Immich)** integrados: cada persona con su propia cuenta y solo sus archivos, sin otra contraseña.
 - **Sotos como unidad** en Windows, Mac, Linux o el celular (WebDAV), con una clave por dispositivo.
@@ -301,17 +303,40 @@ Varias cuentas, alias para enviar desde otras direcciones y la elección de remi
 
 ## Instalación
 
-Sotos se instala con un asistente que pregunta dónde va a vivir y deja todo funcionando. Al terminar muestra las direcciones para entrar, incluida la **IP de tu red**, para abrirlo desde el celular u otro computador.
+<p align="center"><img src="docs/capturas/instalador-bienvenida.jpg" alt="Asistente de instalación de Sotos en tema oscuro" width="100%"></p>
+
+### Asistente de instalación
+
+Como WordPress o Chevereto: arrancas Sotos, abres su dirección en el navegador y un asistente lo deja listo en unos minutos. Funciona en **este computador, un hosting o VPS, un Synology NAS u otro NAS** (QNAP, TrueNAS, Unraid): detecta solo dónde está corriendo y ajusta los valores y los consejos para ese caso.
+
+1. **Dónde vivirá Sotos**: computador, hosting, Synology u otro NAS, con sus recomendaciones (proxy inverso de DSM, HTTPS con Caddy, memoria necesaria…).
+2. **Requisitos**: Node.js, permisos de la carpeta de datos, espacio en disco, Docker y ffmpeg.
+3. **Base de datos**: SQLite integrada. No hay que instalar MySQL ni crear usuarios ni contraseñas de base de datos.
+4. **Sitio**: nombre, dirección, zona horaria e idioma.
+5. **Cuenta de administrador**, con medidor de seguridad de la contraseña.
+6. **Opciones**: registro abierto o cerrado, espacio por cuenta, tamaño máximo de archivo, papelera, copia diaria y privacidad de las bóvedas.
+7. **Servicios opcionales con Docker**: oficina completa (Euro-Office), diagramas, navegador virtual, Cine (Jellyfin) y Fotos (Immich), recomendados según la memoria del equipo.
+8. **Instalar**: mientras se instala, una presentación recorre lo que trae Sotos, con una barra de avance y el registro técnico a un clic.
+
+| | |
+|---|---|
+| ![Elegir dónde vivirá Sotos](docs/capturas/instalador-destino.jpg) | ![Requisitos del servidor](docs/capturas/instalador-requisitos.jpg) |
+| ![Base de datos integrada (tema claro)](docs/capturas/instalador-base-claro.jpg) | ![Cuenta de administrador](docs/capturas/instalador-administrador.jpg) |
+| ![Servicios opcionales](docs/capturas/instalador-servicios.jpg) | ![Presentación mientras se instala](docs/capturas/instalador-presentacion.jpg) |
+
+Tiene **tema oscuro** (por defecto) y **claro**, en español e inglés. Desde el propio equipo se instala directo; desde otra máquina pide un **código de instalación** que el servidor muestra en su consola, para que nadie se adueñe de un servidor recién publicado. Al terminar, el asistente desaparece.
+
+### Instaladores de línea de comandos
+
+Para dejar Sotos funcionando como servicio (arranque automático, HTTPS, Docker) siguen los instaladores; al terminar, el asistente web completa la configuración.
 
 | Modo | Para qué | Qué hace el instalador |
 |---|---|---|
-| **Este equipo** | Usarlo en casa o en la oficina, para ti y tu red local | Comprueba o instala Node.js, compila el escritorio, guarda los datos en tu carpeta de usuario, puede arrancar Sotos con el sistema y abrir el firewall solo para redes privadas. Muestra `http://localhost:8787` y `http://TU-IP:8787`. |
-| **Servidor / hosting** | Un VPS Linux accesible desde internet | Instala Sotos como servicio `systemd` con usuario propio y permisos mínimos, que se reinicia solo. Con dominio configura **HTTPS automático** con Caddy; sin dominio publica por IP y muestra tu IP pública. |
-| **Docker** | Despliegue en contenedores | Genera la configuración con un secreto aleatorio y levanta Sotos junto al servidor de documentos (ONLYOFFICE o Euro-Office). Por IP o con tres subdominios y HTTPS. |
+| **Este equipo** | Usarlo en casa o en la oficina, para ti y tu red local | Comprueba o instala Node.js, compila el escritorio, guarda los datos en tu carpeta de usuario, puede arrancar Sotos con el sistema y abrir el firewall solo para redes privadas. |
+| **Servidor / hosting** | Un VPS Linux accesible desde internet | Instala Sotos como servicio `systemd` con usuario propio y permisos mínimos. Con dominio configura **HTTPS automático** con Caddy. |
+| **Docker** | Despliegue en contenedores (también en NAS) | Genera la configuración con un secreto aleatorio y levanta Sotos junto al servidor de documentos. |
 
-Los tres modos usan la misma compilación: la dirección del proxy del navegador se decide al arrancar, no al compilar. El instalador también **actualiza** y **desinstala** sin tocar tus archivos.
-
-Requisitos: Node.js 22 o superior (el instalador lo ofrece si falta), o Docker. Para el servidor de documentos en Docker se recomiendan 4 GB de RAM.
+Requisitos: Node.js 22 o superior (el instalador lo ofrece si falta), o Docker. Si olvidas la contraseña del administrador: `node scripts/restablecer-clave.mjs tu@correo` en el servidor.
 
 ## Para desarrolladores
 

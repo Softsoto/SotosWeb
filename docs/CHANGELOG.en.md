@@ -2,6 +2,9 @@
 
 © 2026 Sebastian Sotomontes · MIT License. The Spanish [CHANGELOG](../CHANGELOG.md) is the reference.
 
+## 3.3 — 2026-11-20
+- Web installer (WordPress/Chevereto style) at /instalar: target selection with auto-detection (this computer, hosting/VPS, Synology NAS, other NAS), requirements, built-in SQLite database step, site, admin account, options, optional Docker services with live progress, Ubuntu-style slideshow during setup and install, dark (default) and light themes, install code for remote setup, Windows autostart, self-restart; existing instances are marked as installed; `scripts/restablecer-clave.mjs`.
+
 ## 3.2 — 2026-11-18
 - Cinema (Jellyfin) and Photos (Immich): media library mirrored with hard links, automatic service setup, one service account per Sotos user limited to their own media, sign-in without another password (Jellyfin served same-origin at /jellyfin; Immich via its session cookies).
 - WebDAV drive at /dav/ with per-device app passwords; daily backups (VACUUM INTO + hard links, rotation, admin tab); trash auto-empty and quota warnings; two-step verification (TOTP + recovery codes).

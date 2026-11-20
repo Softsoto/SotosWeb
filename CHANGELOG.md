@@ -3,6 +3,18 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.3 — 20 de noviembre de 2026
+
+### Nuevo
+- **Asistente de instalación web** (como el de WordPress o Chevereto): al abrir un Sotos recién descargado aparece un asistente de 9 pasos. Elige dónde vivirá Sotos (este computador, hosting o VPS, Synology NAS u otro NAS) con detección automática y consejos para cada caso, revisa los requisitos, muestra la base de datos integrada (SQLite, sin usuarios ni contraseñas de base de datos), configura el sitio, crea la cuenta de administrador, fija las opciones y, si hay Docker, instala los servicios opcionales con su avance en vivo.
+- **Presentación mientras se instala**, al estilo de Ubuntu: diapositivas con capturas reales de Sotos, barra de avance y registro técnico. Mientras se configura, la barra lateral también va mostrando las funciones.
+- **Tema oscuro elegante** (por defecto) y claro, en español e inglés.
+- En Windows, opción de **arrancar Sotos al encender** el equipo.
+- `scripts/restablecer-clave.mjs` para cambiar la contraseña de una cuenta desde el servidor.
+
+### Seguridad
+- Desde otro equipo, el asistente pide un **código de instalación** que muestra la consola del servidor. Mientras Sotos no está instalado nadie puede registrarse, y al terminar el asistente deja de existir.
+
 ## 3.2 — 18 de noviembre de 2026
 
 ### Nuevo
