@@ -10,7 +10,7 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 3.4 |
+| **Versión** | 3.5 |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
 | **Licencia** | [MIT](LICENSE) |
@@ -36,7 +36,9 @@ Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde 
 
 ## Novedades
 
-**Versión 3.4** ([historial completo](CHANGELOG.md)): **paquetes de instalación** (instalador `.exe` para Windows, instalador de un solo archivo para Linux, hosting y NAS, paquete para Synology con Docker) y **actualizaciones con un clic** desde Administración.
+**Versión 3.5** ([historial completo](CHANGELOG.md)): **SDK para crear apps** de la Tienda, **calendario y contactos en el celular** (CalDAV/CardDAV), **recuperar la contraseña por correo**, **copias fuera del servidor** (otro disco, NAS o S3), enlaces con **contraseña, límite de descargas y carpetas para pedir archivos**, y un **selector de archivos** común a todas las apps.
+
+**Versión 3.4**: **paquetes de instalación** (instalador `.exe` para Windows, instalador de un solo archivo para Linux, hosting y NAS, paquete para Synology con Docker) y **actualizaciones con un clic** desde Administración.
 
 **Versión 3.3**: **asistente de instalación** como el de WordPress, para computador, hosting, Synology u otro NAS, con tema oscuro y una presentación de Sotos mientras se instala.
 

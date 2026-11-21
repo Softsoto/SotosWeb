@@ -2,6 +2,15 @@
 
 © 2026 Sebastian Sotomontes · MIT License. The Spanish [CHANGELOG](../CHANGELOG.md) is the reference.
 
+## 3.5 — 2026-11-21
+- App SDK (`sdk/`): `sotos-app.json` manifest with permissions (files.read, files.write, storage, notify, user); `sotos-sdk.js` (pick/read/save/write files through the system picker, per-user app storage, notifications, window title, live theme, "Open with" from Files). Apps run sandboxed (opaque origin, no access to the session or API) and only get the files the user picks. Admin installs `.zip` apps in Admin → Apps; the Store shows author, version and permissions. Tools: `crear-app.mjs`, `empaquetar-app.mjs`, TypeScript types, docs and a Markdown notes example app.
+- CalDAV/CardDAV: calendars, World calendars and contacts sync with iPhone/iPad/Mac (auto-discovery), Android (DAVx⁵), Thunderbird and Outlook; time zones, alarms and recurring events preserved; uses per-device app passwords.
+- Password recovery by email (single-use 30-minute link, signs out other sessions, asks for the 2FA code when enabled, no account enumeration) with server SMTP settings in Admin → Server.
+- Off-site backups to another disk/NAS folder or S3-compatible storage (Backblaze B2, Cloudflare R2, Wasabi, AWS, MinIO): incremental, rotation and cleanup, own SigV4 signing; `scripts/restaurar-copia.mjs` restores from the bucket.
+- Share links: password, download limit, view/download counters and upload-only folders (file requests).
+- System file picker shared by Mail, Worlds, Vault, Calendar, Contacts and Paint ("Save as").
+- Fixes: 12 icons that did not exist in the font, icon subset size guard, admin pane layout.
+
 ## 3.4 — 2026-11-20
 - Install packages per release: Windows `Sotos-Setup.exe` (IExpress), prebuilt `sotos-x.y.z.zip`/`.tar.gz`, `SHA256SUMS.txt`; single-file installers `instalar-sotos.ps1`/`.sh` (install, update, check, uninstall; SHA-256 verification; app and data kept apart; optional systemd service); Synology/NAS `Dockerfile` + `docker-compose.nas.yml`; one-click updates in Admin → Server with daily admin notice, backup first, SHA-256 check and restart; `scripts/empaquetar.mjs`. Fixed the Admin window being vertically centered.
 
