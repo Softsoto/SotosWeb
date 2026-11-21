@@ -188,7 +188,7 @@ function MessageView({ m, acc, onReply, onForward, onDelete, onFlag, flagged }) 
         </div>
         <div className="mail-from"><PersonAvatar name={nameOf(m.from)} size={36} /><div><b>{nameOf(m.from)}</b> <span className="faint">&lt;{emailOf(m.from)}&gt;</span>
           <div className="faint" style={{ fontSize: 12 }}>Para: {m.to}{m.cc ? ` · Cc: ${m.cc}` : ""} · {m.date ? new Date(m.date).toLocaleString("es-CO") : ""}</div></div></div>
-        {hasRemote && !remote && <div className="mail-help"><Ic name="image_not_supported" size={16} /> Las imágenes externas están bloqueadas para que el remitente no sepa que abriste el correo. <a onClick={() => setRemote(true)}>Mostrar imágenes</a></div>}
+        {hasRemote && !remote && <div className="mail-help"><Ic name="hide_image" size={16} /> Las imágenes externas están bloqueadas para que el remitente no sepa que abriste el correo. <a onClick={() => setRemote(true)}>Mostrar imágenes</a></div>}
       </div>
       {html ? <iframe ref={frame} title="mensaje" sandbox="allow-popups allow-popups-to-escape-sandbox" srcDoc={html} className="mail-frame" />
         : <pre className="mail-text">{m.text || "(mensaje vacío)"}</pre>}
@@ -242,7 +242,7 @@ export function RealMail() {
           {list?.map(it => <div key={it.uid} className={"mail-row" + (it.seen ? "" : " unread") + (sel === it.uid ? " sel" : "")} onClick={() => open(it)}>
             <div className="mail-row-top"><b>{nameOf(box === boxes.find(b => b.role === "sent")?.id ? it.to : it.from)}</b><span className="faint">{when(it.date)}</span></div>
             <div className="mail-row-sub">{it.flagged && <Ic name="star" size={13} style={{ color: "#e8a33d", fontVariationSettings: "'FILL' 1" }} />}{it.attach && <Ic name="attach_file" size={13} />}{it.subject}</div></div>)}
-          {list && list.length > 0 && !q && list.length < total && <button className="tb-btn" style={{ margin: 10, width: "calc(100% - 20px)", justifyContent: "center" }} disabled={loading} onClick={() => loadList(box, "", page + 1)}><Ic name="expand_more" /> {loading ? "Cargando…" : `Cargar más (${list.length} de ${total.toLocaleString("es-CO")})`}</button>}
+          {list && list.length > 0 && !q && list.length < total && <button className="tb-btn" style={{ margin: 10, width: "calc(100% - 20px)", justifyContent: "center" }} disabled={loading} onClick={() => loadList(box, "", page + 1)}><Ic name="keyboard_arrow_down" /> {loading ? "Cargando…" : `Cargar más (${list.length} de ${total.toLocaleString("es-CO")})`}</button>}
           {list && !list.length && <EmptyState icon="inbox" text={q ? "Sin resultados" : "No hay mensajes"} />}
           {!list && <div className="faint" style={{ padding: 16 }}>Cargando…</div>}
         </div>

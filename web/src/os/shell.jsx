@@ -277,7 +277,7 @@ function Dock({ position, order, running, minimized, badges, onApp, dockApi }) {
   const dragEnd = (id) => (e) => {
     const from = drag.current; drag.current = null; setHotAt(null); if (from == null) return;
     const r = self.current?.getBoundingClientRect(); const out = r && (e.clientX < r.left - 40 || e.clientX > r.right + 40 || e.clientY < r.top - 40 || e.clientY > r.bottom + 40);
-    if (out && e.dataTransfer.dropEffect === "none") { const before = [...order]; dockApi.remove(id); toast(`${id.startsWith("f:") ? "Carpeta «" + (vfs.node(id.slice(2))?.name || "") + "»" : APP_BY_ID[id]?.name} quitada del Dock`, { icon: "remove_circle", action: { label: "Deshacer", run: () => dockApi.reorder(before) } }); }
+    if (out && e.dataTransfer.dropEffect === "none") { const before = [...order]; dockApi.remove(id); toast(`${id.startsWith("f:") ? "Carpeta «" + (vfs.node(id.slice(2))?.name || "") + "»" : APP_BY_ID[id]?.name} quitada del Dock`, { icon: "do_not_disturb_on", action: { label: "Deshacer", run: () => dockApi.reorder(before) } }); }
   };
   // apps abiertas que no están fijadas: se muestran al final, como en cualquier escritorio
   const extra = [...running].filter(id => !order.includes(id) && APP_BY_ID[id] && !APP_BY_ID[id].hidden && id !== "launchpad");
@@ -319,8 +319,8 @@ function Dock({ position, order, running, minimized, badges, onApp, dockApi }) {
       {!!extra.length && <div className="divider" />}
       {extra.map((id, i) => item(id, order.length + i, false))}
       {ctx && <ContextMenu x={ctx.x} y={ctx.y}
-        items={ctx.folder ? [{ id: "open", label: "Abrir carpeta", icon: "folder_open" }, { sep: true }, { id: "remove", label: "Quitar del Dock", icon: "remove_circle", danger: true }] : [{ id: "open", label: running.has(ctx.id) ? "Mostrar" : "Abrir", icon: "open_in_new" }, { sep: true },
-          ctx.pinned ? { id: "remove", label: "Quitar del Dock", icon: "remove_circle", danger: true } : { id: "keep", label: "Mantener en el Dock", icon: "keep" }]}
+        items={ctx.folder ? [{ id: "open", label: "Abrir carpeta", icon: "folder_open" }, { sep: true }, { id: "remove", label: "Quitar del Dock", icon: "do_not_disturb_on", danger: true }] : [{ id: "open", label: running.has(ctx.id) ? "Mostrar" : "Abrir", icon: "open_in_new" }, { sep: true },
+          ctx.pinned ? { id: "remove", label: "Quitar del Dock", icon: "do_not_disturb_on", danger: true } : { id: "keep", label: "Mantener en el Dock", icon: "keep" }]}
         onSelect={(a) => { if (a === "open") ctx.folder ? onApp("files", { folderId: ctx.folder.id, nonce: Date.now() }) : onApp(ctx.id); if (a === "remove") dockApi.remove(ctx.id); if (a === "keep") { dockApi.add(ctx.id); toast(`${APP_BY_ID[ctx.id].name} se queda en el Dock`, { icon: "keep" }); } }} onClose={() => setCtx(null)} />}
     </div>
   );
@@ -456,7 +456,7 @@ function Desktop({ shifted, openApp, openItem, settings, update, widgetApi }) {
           onDrop={e => { e.preventDefault(); e.stopPropagation(); setTrashHot(false); try { const ids = JSON.parse(e.dataTransfer.getData("application/x-sotos-ids")); runItemAction("trash", ids.map(vfs.node).filter(Boolean), helpers); } catch {} }}
           onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setCtx({ x: e.clientX, y: e.clientY, item: null }); }}>
           <div style={{ position: "relative" }}>
-            <Tile icon={trashCount ? "delete" : "delete_outline"} color="#7d8590" app="trash" />
+            <Tile icon={trashCount ? "delete" : "delete_sweep"} color="#7d8590" app="trash" />
             {trashCount > 0 && <span className="trash-badge">{trashCount}</span>}
           </div>
           <span className="lbl">Papelera</span>
@@ -826,9 +826,9 @@ function OS() {
       {wins.map(win => {
         const app = APP_BY_ID[win.appId];
         const Comp = APP_COMPONENTS[app.comp];
-        const extra = { ...storeProps, ...(win.payload || {}), winId: win.id, appId: win.appId };
+        const extra = { ...storeProps, ...(win.payload || {}), winId: win.id, appId: win.appId, setWinTitle: (t) => setRect(win.id, { customTitle: t ? String(t).slice(0, 80) : null }), closeWin: () => close(win.id) };
         const fnode = win.payload && win.payload.fileId ? vfs.node(win.payload.fileId) : null;
-        const title = fnode ? fnode.name : win.payload?.sharedNode ? win.payload.sharedNode.name + " · compartido" : (win.payload && win.payload.scName) ? win.payload.scName : app.name;
+        const title = win.customTitle ? win.customTitle : fnode ? fnode.name : win.payload?.sharedNode ? win.payload.sharedNode.name + " · compartido" : (win.payload && win.payload.scName) ? win.payload.scName : app.name;
         return (
           <Win key={win.id} win={{ ...win, title }} app={app} focused={top && top.id === win.id}
             onFocus={() => focus(win.id)} onClose={() => close(win.id)} onMin={() => min(win.id)} onMax={() => max(win.id)}

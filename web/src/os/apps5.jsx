@@ -357,8 +357,8 @@ function LaunchpadApp({ openApp, shortcuts = [], scApi, dockApi, dockCfg = [] })
   return (
     <div className="app launchpad" style={{ flexDirection: "column" }}>
       {lctx && dockApi && <ContextMenu x={lctx.x} y={lctx.y} onClose={() => setLctx(null)}
-        items={[{ id: "open", label: "Abrir", icon: "open_in_new" }, { sep: true }, dockCfg.includes(lctx.id) ? { id: "undock", label: "Quitar del Dock", icon: "remove_circle", danger: true } : { id: "dock", label: "Agregar al Dock", icon: "add_circle" }]}
-        onSelect={(x) => { if (x === "open") openApp(lctx.id); if (x === "dock") { dockApi.add(lctx.id); toast("Agregada al Dock", { icon: "add_circle" }); } if (x === "undock") { dockApi.remove(lctx.id); toast("Quitada del Dock", { icon: "remove_circle" }); } }} />}
+        items={[{ id: "open", label: "Abrir", icon: "open_in_new" }, { sep: true }, dockCfg.includes(lctx.id) ? { id: "undock", label: "Quitar del Dock", icon: "do_not_disturb_on", danger: true } : { id: "dock", label: "Agregar al Dock", icon: "add_circle" }]}
+        onSelect={(x) => { if (x === "open") openApp(lctx.id); if (x === "dock") { dockApi.add(lctx.id); toast("Agregada al Dock", { icon: "add_circle" }); } if (x === "undock") { dockApi.remove(lctx.id); toast("Quitada del Dock", { icon: "do_not_disturb_on" }); } }} />}
       <div className="lp-search">
         <Ic name="search" />
         <input autoFocus placeholder="Buscar apps, servicios y accesos" value={q} onChange={e => setQ(e.target.value)} />
@@ -455,7 +455,7 @@ function TrashApp() {
               </div>
             ))}
           </div>
-        ) : <EmptyState icon="delete_outline" text="La papelera está vacía" />}
+        ) : <EmptyState icon="delete" text="La papelera está vacía" />}
       </div>
       <div className="files-status"><span>Doble clic restaura · clic derecho para restaurar o eliminar permanentemente.</span></div>
       {ctx && <ContextMenu x={ctx.x} y={ctx.y}

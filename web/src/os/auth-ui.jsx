@@ -70,7 +70,7 @@ export function LoginScreen({ wallpaper, server, registration, canRecover, reset
         )}
         {mode === "code" && (
           <form className="login-form" onSubmit={submit}>
-            <div className="login-logo" style={{ marginBottom: 4 }}><Ic name="phonelink_lock" size={44} /></div>
+            <div className="login-logo" style={{ marginBottom: 4 }}><Ic name="mobile_lock_portrait" size={44} /></div>
             <div className="login-user" style={{ marginBottom: 2 }}>Verificación en dos pasos</div>
             <div className="login-sub" style={{ marginBottom: 8 }}>Escribe el código de 6 dígitos de tu app de autenticación, o uno de tus códigos de recuperación.</div>
             <input className="login-input code" inputMode="numeric" autoComplete="one-time-code" placeholder="123 456" autoFocus value={code}

@@ -1,0 +1,15 @@
+{
+  "id": "notas-md",
+  "name": "Notas Markdown",
+  "version": "1.0.0",
+  "description": "Escribe en Markdown con vista previa al lado. Abre y guarda tus .md en Sotos Drive.",
+  "author": "Sebastian Sotomontes",
+  "icon": "edit_note",
+  "color": "#2f5d8a",
+  "category": "Productividad",
+  "entry": "index.html",
+  "width": 1040,
+  "height": 680,
+  "permissions": ["files.read", "files.write", "storage", "notify", "user"],
+  "opens": ["md", "markdown"]
+}

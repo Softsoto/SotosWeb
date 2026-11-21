@@ -26,7 +26,7 @@ function copy(rel, dest = rel) {
 }
 log("Reuniendo los archivos…");
 for (const p of ["server", "web/dist", "web/src/os/tree-ops.js", "VERSION", "README.md", "CHANGELOG.md", "LICENSE", ".env.example", "instalar-sotos.ps1", "instalar-sotos.sh",
-  "scripts/restablecer-clave.mjs", "scripts/restaurar-copia.mjs", "scripts/whatsapp-dev.ps1", "scripts/jellyfin-dev.ps1", "scripts/immich-dev.ps1", "scripts/onlyoffice-dev.ps1", "scripts/drawio-dev.ps1", "scripts/neko-dev.ps1",
+  "sdk", "scripts/restablecer-clave.mjs", "scripts/restaurar-copia.mjs", "scripts/whatsapp-dev.ps1", "scripts/jellyfin-dev.ps1", "scripts/immich-dev.ps1", "scripts/onlyoffice-dev.ps1", "scripts/drawio-dev.ps1", "scripts/neko-dev.ps1",
   "services/whatsapp/index.mjs", "services/whatsapp/package.json", "services/whatsapp/package-lock.json"]) copy(p);
 // capturas que usa la presentación del asistente
 const TOUR = ["escritorio", "archivos", "word", "correo-html", "mundos-chat", "whatsapp", "video-mkv", "paint", "tema-grafito-dark", "notificaciones"];

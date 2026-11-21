@@ -2,9 +2,10 @@
    Sotos OS — Settings & Store
    ============================================================ */
 import React from "react";
+import { pickFiles } from "./filepicker.jsx";
 import { APPS, WALLPAPERS, ACCENTS, STORE_APPS } from "./data.jsx";
 import { SotosLogo, SotosMark } from "./logo.jsx";
-import { isInstalled, setInstalled, loadInstalled, subscribeInstalled, getRatings } from "./installed.js";
+import { isInstalled, setInstalled, loadInstalled, subscribeInstalled, getRatings, permissionNames } from "./installed.js";
 import { Tile, Ic, SideItem, Avatar, Modal, toast, EmptyState, DEFAULT_AVATARS, avatarUrl } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize, fmtDate } from "./vfs.js";
@@ -71,11 +72,11 @@ function BackupRows() {
   const [busy, setBusy] = useS4(null), inp = useR4(null);
   const run = async (label, fn) => { setBusy(label + "…"); try { await fn((i, n) => setBusy(`${label} ${i} de ${n}…`)); } catch (e) { toast(e.message, { error: true }); } setBusy(null); };
   return <>
-    <input ref={inp} type="file" accept=".zip" style={{ display: "none" }} onChange={e => { const f = e.target.files[0]; e.target.value = ""; if (f) run("Importando", async (p) => { const { importBackup } = await import("./backup.js"); const r = await importBackup(f, p); toast(`Copia importada: ${r.files} archivo(s), ${r.contacts} contacto(s), ${r.events} evento(s), ${r.tasks} tarea(s)`, { icon: "restore" }); }); }} />
+    <input ref={inp} type="file" accept=".zip" style={{ display: "none" }} onChange={e => { const f = e.target.files[0]; e.target.value = ""; if (f) run("Importando", async (p) => { const { importBackup } = await import("./backup.js"); const r = await importBackup(f, p); toast(`Copia importada: ${r.files} archivo(s), ${r.contacts} contacto(s), ${r.events} evento(s), ${r.tasks} tarea(s)`, { icon: "settings_backup_restore" }); }); }} />
     <Row label="Copia de seguridad" desc={busy || "Todos tus archivos, contactos, calendario, tareas y ajustes en un .zip"}>
       <div className="wl-btns" style={{ margin: 0 }}>
         <button className="tb-btn" disabled={!!busy} onClick={() => run("Preparando", async (p) => { const { downloadBackup } = await import("./backup.js"); const size = await downloadBackup(p); toast(`Copia descargada (${fmtSize(size)})`, { icon: "download_done" }); })}><Ic name="cloud_download" /> Descargar copia</button>
-        <button className="tb-btn" disabled={!!busy} onClick={() => inp.current.click()}><Ic name="restore" /> Importar copia</button>
+        <button className="tb-btn" disabled={!!busy} onClick={() => inp.current.click()}><Ic name="settings_backup_restore" /> Importar copia</button>
       </div>
     </Row>
   </>;
@@ -213,11 +214,11 @@ function TwoFactorPanel() {
   if (!st) return null;
   return <div style={{ padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 14 }}><Ic name="phonelink_lock" size={17} /> Verificación en dos pasos {st.enabled && <span className="tfa-on">Activa</span>}</div>
+      <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 14 }}><Ic name="mobile_lock_portrait" size={17} /> Verificación en dos pasos {st.enabled && <span className="tfa-on">Activa</span>}</div>
         <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>{st.enabled ? `Al iniciar sesión se pide también un código de tu celular. Te quedan ${st.recoveryLeft} código(s) de recuperación.` : "Además de la contraseña, pide un código de una app como Google Authenticator, Microsoft Authenticator o Authy. Así nadie entra aunque adivine tu contraseña."}</div></div>
       {st.enabled ? <button className="tb-btn" onClick={() => setStep("off")}>Desactivar</button> : <button className="tb-btn primary" onClick={() => setStep("pw")}><Ic name="add_moderator" /> Activar</button>}
     </div>
-    {step && <Modal title={step === "off" ? "Desactivar la verificación en dos pasos" : "Activar la verificación en dos pasos"} icon="phonelink_lock" onClose={close} width={440}
+    {step && <Modal title={step === "off" ? "Desactivar la verificación en dos pasos" : "Activar la verificación en dos pasos"} icon="mobile_lock_portrait" onClose={close} width={440}
       actions={<><button className="tb-btn" onClick={close}>Cancelar</button>
         {step === "pw" && <button className="tb-btn primary" disabled={!pw || busy} onClick={start}>Continuar</button>}
         {step === "scan" && <button className="tb-btn primary" disabled={code.length !== 6 || busy} onClick={enable}>Activar</button>}
@@ -446,11 +447,60 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
 
 /* -------------------- Tienda -------------------- */
 // apps de la Tienda: proyectos HTML que corren aislados en su ventana
-function WebApp({ appId }) {
+function WebApp({ appId, fileId, setWinTitle, closeWin }) {
   const app = APPS.find(a => a.id === appId);
   if (!app) return <EmptyState icon="error" text="App no encontrada" />;
+  if (app.ext) return <SdkHost app={app} fileId={fileId} setWinTitle={setWinTitle} closeWin={closeWin} />;
   return <iframe title={app.name} src={import.meta.env.BASE_URL + app.url} allow="fullscreen; clipboard-read; clipboard-write; camera; microphone; gamepad; autoplay"
     style={{ flex: 1, width: "100%", height: "100%", border: 0, background: "#fff" }} />;
+}
+/* ---------- puente del SDK: la app corre aislada (origen opaco) y pide todo por postMessage ---------- */
+const meta = (n) => n instanceof File ? { id: n.__sdkId, name: n.name, size: n.size, type: n.type, local: true } : { id: n.id, name: n.name, size: n.size || 0, type: n.type, ext: vfs.extOf(n.name), mtime: n.mtime };
+function SdkHost({ app, fileId, setWinTitle, closeWin }) {
+  const frame = React.useRef(null);
+  const grants = React.useRef(new Map()); // archivos que la persona le dio a la app en esta ventana (id → nodo o File)
+  const sent = React.useRef(null), greeted = React.useRef(false); // greeted: la app ya cargó y saludó (hello)
+  const can = (p) => app.permissions?.includes(p);
+  const send = (msg) => frame.current?.contentWindow?.postMessage({ sotos: "event", ...msg }, "*");
+  const theme = () => ({ dark: document.documentElement.getAttribute("data-theme") === "dark", accent: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#c4532f" });
+  const grant = (n) => { if (n instanceof File) { n.__sdkId = n.__sdkId || "local-" + Math.random().toString(36).slice(2, 10); grants.current.set(n.__sdkId, n); } else grants.current.set(n.id, n); return meta(n); };
+  const toBlob = (d, type) => d instanceof Blob ? d : new Blob([d ?? ""], { type: type || (typeof d === "string" ? "text/plain;charset=utf-8" : "application/octet-stream") });
+  React.useEffect(() => {
+    const need = (p) => { if (!can(p)) throw Object.assign(new Error(`La app no tiene el permiso «${p}»`), { code: "permission" }); };
+    const own = (id) => { const g = grants.current.get(id); if (!g) throw Object.assign(new Error("Ese archivo no se le dio a la app"), { code: "not-granted" }); return g; };
+    const api_ = (m, k, b) => api(m, `apps/${app.id}/storage${k != null ? "/" + encodeURIComponent(k) : ""}`, b);
+    const methods = {
+      hello: () => { greeted.current = true; const f = fileId && vfs.node(fileId); if (f && can("files.read") && sent.current !== fileId) { sent.current = fileId; setTimeout(() => send({ name: "open", data: grant(f) }), 0); }
+        return { app: { id: app.id, name: app.name, version: app.version }, lang: getLang(), theme: theme(), ...(can("user") ? { user: { name: vfs.getState().user?.name || "Invitado" } } : {}) }; },
+      user: () => { need("user"); const u = vfs.getState().user; return { name: u?.name || "Invitado", lang: getLang(), avatar: u?.avatar && !String(u.avatar).startsWith("data:") ? u.avatar : null }; },
+      "files.pick": async (o) => { need("files.read"); const r = await pickFiles({ title: o.title || `${app.name}: elegir archivo`, types: o.types || null, exts: o.exts || null, multiple: !!o.multiple }); return (r || []).map(grant); },
+      "files.read": async ({ id }) => { need("files.read"); const g = own(id); return g instanceof File ? g : await vfs.read(g.id); },
+      "files.save": async (o) => { need("files.write"); const r = await pickFiles({ mode: "save", title: o.title || `${app.name}: guardar como`, name: String(o.name || "archivo") }); if (!r) return null;
+        const blob = toBlob(o.data, o.type); let id; if (r.replaceId) { await vfs.write(r.replaceId, blob); id = r.replaceId; } else id = await vfs.create(r.folderId, vfs.uniqueName(vfs.node(r.folderId), r.name), blob);
+        return grant(vfs.node(id)); },
+      "files.write": async ({ id, data }) => { need("files.write"); const g = own(id); if (g instanceof File) throw new Error("Ese archivo vino del equipo: usa files.save para guardarlo en Sotos"); await vfs.write(g.id, toBlob(data)); return meta(vfs.node(g.id) || g); },
+      notify: async ({ title, body }) => { need("notify"); if (vfs.getState().mode === "cloud") await api("POST", `apps/${app.id}/notify`, { title, body }); else toast(`${app.name}: ${title}`, { icon: app.icon }); return true; },
+      "storage.get": async ({ key }) => { need("storage"); return (await api_("GET", key)).value; },
+      "storage.set": async ({ key, value }) => { need("storage"); await api_("PUT", key, { value }); return true; },
+      "storage.remove": async ({ key }) => { need("storage"); await api_("DELETE", key); return true; },
+      "storage.keys": async () => { need("storage"); return (await api_("GET")).keys; },
+      "window.setTitle": ({ title }) => { setWinTitle?.(title); return true; },
+      "window.close": () => { closeWin?.(); return true; },
+    };
+    const onMsg = async (e) => {
+      if (!frame.current || e.source !== frame.current.contentWindow) return; const m = e.data; if (!m || m.sotos !== "req") return;
+      const reply = (p) => e.source.postMessage({ sotos: "res", id: m.id, ...p }, "*");
+      const fn = methods[m.method]; if (!fn) return reply({ ok: false, error: "Función desconocida: " + m.method, code: "unknown" });
+      try { reply({ ok: true, result: await fn(m.params || {}) }); } catch (err) { reply({ ok: false, error: err.message, code: err.code }); }
+    };
+    window.addEventListener("message", onMsg);
+    const mo = new MutationObserver(() => send({ name: "theme", data: theme() })); mo.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "style"] });
+    return () => { window.removeEventListener("message", onMsg); mo.disconnect(); };
+  }, [app, fileId]);
+  // «Abrir con» con la ventana ya abierta
+  React.useEffect(() => { if (!fileId || !greeted.current || sent.current === fileId || !can("files.read")) return; const f = vfs.node(fileId); if (f) { sent.current = fileId; send({ name: "open", data: grant(f) }); } }, [fileId]);
+  return <iframe ref={frame} title={app.name} src={import.meta.env.BASE_URL.replace(/\/?$/, "/") + app.url} sandbox="allow-scripts allow-forms allow-popups allow-modals allow-downloads allow-pointer-lock"
+    allow="fullscreen; clipboard-write; gamepad; autoplay" referrerPolicy="no-referrer" style={{ flex: 1, width: "100%", height: "100%", border: 0, background: "var(--surface)" }} />;
 }
 const Stars = ({ value = 0, size = 15, onPick }) => <span className="stars">{[1, 2, 3, 4, 5].map(i => onPick
   ? <button key={i} type="button" className={"star-btn" + (i <= Math.round(value) ? " on" : "")} title={`${i} estrella${i > 1 ? "s" : ""}`} onClick={() => onPick(i)}><Ic name="star" size={size} style={{ fontVariationSettings: "'FILL' 1" }} /></button>
@@ -476,7 +526,7 @@ function StoreApp({ openApp }) {
       <div className="app-main">
         <div className="store-hero">
           <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: "-.02em" }}>Amplía tu Sotos</div>
-          <div className="muted" style={{ fontSize: 13.5, marginTop: 4 }}>Herramientas hechas por Sebastian Sotomontes. Se instalan al instante, sin descargas, y funcionan dentro de Sotos.</div>
+          <div className="muted" style={{ fontSize: 13.5, marginTop: 4 }}>Apps de Sotos y de quienes las crean con su SDK. Se instalan al instante, sin descargas, y funcionan dentro de Sotos.</div>
         </div>
         <div className="scroll" style={{ flex: 1, padding: 20 }}>
           <div className="store-grid">
@@ -510,7 +560,12 @@ function StoreDetail({ a, cloud, onClose, onToggle, onOpen }) {
     <Modal title={a.name} icon={a.icon} onClose={onClose} width={520}
       actions={<><button className="tb-btn" onClick={onClose}>Cerrar</button>{on && <button className="tb-btn" onClick={onOpen}><Ic name="open_in_new" /> Abrir</button>}<button className={"tb-btn" + (on ? " danger" : " primary")} onClick={onToggle}>{on ? "Desinstalar" : "Instalar"}</button></>}>
       <div style={{ display: "flex", gap: 14, alignItems: "center" }}><Tile icon={a.icon} color={a.color} size={64} app={a.id} />
-        <div><div className="faint" style={{ fontSize: 12 }}>{a.cat} · por Sebastian Sotomontes</div><div style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 4 }}>{a.desc}</div></div></div>
+        <div><div className="faint" style={{ fontSize: 12 }}>{a.cat} · por {a.ext ? (a.author || "autor desconocido") : "Sebastian Sotomontes"}{a.version ? ` · versión ${a.version}` : ""}</div><div style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 4 }}>{a.desc}</div>
+          {a.homepage && <a href={a.homepage} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5 }}>Página del autor</a>}</div></div>
+      {a.ext && <><div className="side-label" style={{ marginTop: 14 }}>Esta app puede</div>
+        <div className="store-perms">{(a.permissions || []).length ? a.permissions.map(p => <div key={p}><Ic name={{ "files.read": "file_open", "files.write": "save", notify: "notifications", storage: "database", user: "person" }[p] || "check"} size={16} /> {permissionNames()[p] || p}</div>)
+          : <div><Ic name="lock" size={16} /> Nada fuera de su ventana: no pide permisos</div>}
+          <div className="faint"><Ic name="shield" size={16} /> Corre aislada: no ve tu sesión, tus otros archivos ni tus datos.{a.opens?.length ? ` Abre archivos ${a.opens.map(e => "." + e).join(", ")} desde Archivos («Abrir con»).` : ""}</div></div></>}
       <div className="side-label" style={{ marginTop: 16 }}>Reseñas</div>
       {cloud ? <div className="store-review-form"><Stars value={stars} size={22} onPick={setStars} />
         <input placeholder="¿Qué te pareció? (opcional)" maxLength={1000} value={text} onChange={e => setText(e.target.value)} />

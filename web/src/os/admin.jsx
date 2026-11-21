@@ -10,6 +10,7 @@ import { api } from "./api.js";
 import * as vfs from "./vfs.js";
 import { fmtSize, fmtDate, useVfs } from "./vfs.js";
 import { APPS } from "./data.jsx";
+import { loadInstalled } from "./installed.js";
 import { PersonAvatar } from "./contacts.jsx";
 const { useState, useEffect } = React;
 
@@ -35,7 +36,7 @@ export function AdminApp() {
     <div className="app admin-app">
       <div className="app-side">
         <div className="side-label">Administración</div>
-        {[["resumen", "monitoring", "Resumen"], ["usuarios", "group", "Usuarios"], ["registro", "history", "Registro"], ["copias", "backup", "Copias"], ["servidor", "dns", "Servidor"]].map(([id, icon, label]) =>
+        {[["resumen", "monitoring", "Resumen"], ["usuarios", "group", "Usuarios"], ["registro", "history", "Registro"], ["copias", "backup", "Copias"], ["apps", "extension", "Apps"], ["servidor", "dns", "Servidor"]].map(([id, icon, label]) =>
           <div key={id} className={"side-item" + (tab === id ? " active" : "")} onClick={() => setTab(id)}><Ic name={icon} /><span>{label}</span></div>)}
       </div>
       <div className="app-main scroll" style={{ padding: "18px 22px", display: "block" }}>
@@ -73,6 +74,7 @@ export function AdminApp() {
         {tab === "servidor" && stats && <ServerSettings stats={stats} onSaved={loadStats} />}
         {tab === "registro" && <AuditLog />}
         {tab === "copias" && <Backups />}
+        {tab === "apps" && <ServerApps />}
       </div>
 
       {files && <UserFiles u={files} onClose={() => setFiles(null)} onChanged={() => { loadUsers(); loadStats(); }} />}
@@ -265,6 +267,39 @@ function Backups() {
     </div>
     <div className="faint" style={{ fontSize: 12, marginTop: 12 }}>Para restaurar una copia: detén Sotos, reemplaza la carpeta de datos por el contenido de la copia y vuelve a iniciarlo.</div>
     <Offsite />
+  </>;
+}
+
+/** apps del SDK instaladas en el servidor: subir un .zip, ver permisos y quitar */
+function ServerApps() {
+  const [d, setD] = useState(null), [busy, setBusy] = useState(false), [del, setDel] = useState(null); const inp = React.useRef(null);
+  const load = () => api("GET", "apps").then(setD).catch(e => toast(e.message, { error: true }));
+  useEffect(() => { load(); }, []);
+  const upload = async (file) => {
+    if (!file) return; setBusy(true);
+    try { const r = await fetch("/api/apps", { method: "POST", headers: { "x-sotos": "1", "content-type": "application/zip" }, body: file }); const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || "No se pudo instalar"); toast(j.updatedFrom ? `${j.app.name} actualizada de ${j.updatedFrom} a ${j.app.version}` : `${j.app.name} ${j.app.version} instalada en el servidor · ya está en la Tienda`, { icon: "extension" }); load(); loadInstalled(); }
+    catch (e) { toast(e.message, { error: true }); } setBusy(false);
+  };
+  const remove = async (a) => { try { await api("DELETE", "apps/" + a.id); toast(`${a.name} se quitó del servidor`, { icon: "delete" }); setDel(null); load(); loadInstalled(); } catch (e) { toast(e.message, { error: true }); } };
+  if (!d) return <div className="faint">Cargando…</div>;
+  return <>
+    <h2 style={{ fontSize: 19, fontWeight: 800, marginTop: 0 }}>Apps del servidor</h2>
+    <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>Apps hechas con el SDK de Sotos. Al instalarlas aquí aparecen en la Tienda y cada persona decide si las agrega a su cuenta. Corren aisladas y solo pueden hacer lo que dicen sus permisos.</div>
+    <input ref={inp} type="file" accept=".zip,application/zip" style={{ display: "none" }} onChange={e => { const f = e.target.files[0]; e.target.value = ""; upload(f); }} />
+    <button className="tb-btn primary" disabled={busy} onClick={() => inp.current.click()}><Ic name="upload" /> {busy ? "Instalando…" : "Instalar una app (.zip)"}</button>
+    <div className="admin-files" style={{ marginTop: 14 }}>
+      {!d.items.length && <div className="faint" style={{ padding: 10 }}>Todavía no hay apps del SDK. Crea una con <code>node sdk/crear-app.mjs</code> y empaquétala con <code>node sdk/empaquetar-app.mjs</code>.</div>}
+      {d.items.map(a => <div key={a.id} className="admin-file" style={{ gridTemplateColumns: "1fr auto" }}>
+        <span className="admin-file-name" style={{ flexDirection: "row", alignItems: "center", gap: 10 }}><Tile icon={a.icon} color={a.color} size={34} app={a.id} />
+          <span style={{ display: "flex", flexDirection: "column" }}><b>{a.name} <span className="faint" style={{ fontWeight: 400 }}>{a.version} · {a.id}</span></b>
+            <span className="faint">{a.author || "autor desconocido"} · {a.permissions.length ? a.permissions.map(p => d.permissions[p] || p).join(" · ") : "sin permisos"}</span></span></span>
+        <span><button className="tb-btn danger" onClick={() => setDel(a)}><Ic name="delete" /> Quitar</button></span></div>)}
+    </div>
+    <div className="faint" style={{ fontSize: 12, marginTop: 12 }}>Para actualizar una app, instala el .zip de la versión nueva: reemplaza a la anterior y conserva los datos de cada persona. Documentación: <code>sdk/README.md</code>.</div>
+    {del && <Modal title={`Quitar ${del.name}`} icon="delete" onClose={() => setDel(null)} width={420}
+      actions={<><button className="tb-btn" onClick={() => setDel(null)}>Cancelar</button><button className="tb-btn danger" onClick={() => remove(del)}>Quitar del servidor</button></>}>
+      <div style={{ fontSize: 13.5 }}>Se quita de la Tienda y de todas las cuentas, junto con los datos que la app guardó. Los archivos que la gente guardó con ella en su Drive no se tocan.</div></Modal>}
   </>;
 }
 

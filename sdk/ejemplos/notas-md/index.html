@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notas Markdown</title>
+  <link rel="stylesheet" href="estilo.css">
+  <script src="/sdk/sotos-sdk.js"></script>
+</head>
+<body>
+  <header>
+    <button id="nuevo" title="Nota nueva">Nueva</button>
+    <button id="abrir" title="Abrir un .md de Sotos Drive">Abrir…</button>
+    <button id="guardar" title="Guardar (Ctrl+S)">Guardar</button>
+    <button id="como">Guardar como…</button>
+    <span id="nombre">Sin título</span>
+    <span id="sucio" hidden>●</span>
+  </header>
+  <main>
+    <textarea id="texto" spellcheck="true" placeholder="# Título&#10;&#10;Escribe en **Markdown**…"></textarea>
+    <article id="vista"></article>
+  </main>
+  <footer><span id="estado">Lista</span><span id="cuenta"></span></footer>
+  <script src="app.js"></script>
+</body>
+</html>

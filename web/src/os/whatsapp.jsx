@@ -108,7 +108,7 @@ function Conversation({ chat, onBack }) {
     <div className="wa-conv">
       <div className="wa-conv-head"><button className="tb-btn icon wa-back" onClick={onBack}><Ic name="arrow_back" /></button><PersonAvatar name={chat.name} size={34} /><div><b>{chat.name}</b><div className="faint" style={{ fontSize: 11.5 }}>{chat.group ? "Grupo" : chat.jid.split("@")[0].replace(/^(\d+)$/, "+$1")}</div></div></div>
       <div className="wa-msgs" ref={box} onScroll={e => { const el = e.currentTarget; stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 60; }}>
-        {msgs && more && msgs.length >= 60 && <button className="tb-btn wa-older" onClick={older}><Ic name="expand_less" /> Mensajes anteriores</button>}
+        {msgs && more && msgs.length >= 60 && <button className="tb-btn wa-older" onClick={older}><Ic name="keyboard_arrow_up" /> Mensajes anteriores</button>}
         {!msgs && <div className="faint" style={{ padding: 20 }}>Cargando…</div>}
         {msgs && !msgs.length && <EmptyState icon="forum" text="Aún no hay mensajes guardados de este chat. Los nuevos aparecerán aquí." />}
         {msgs?.map(m => { const dl = dayLabel(m.ts); const sep = dl !== lastDay; lastDay = dl;

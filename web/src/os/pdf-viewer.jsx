@@ -177,7 +177,7 @@ export function PdfViewer({ fileId }) {
         <div className="search-box pdf-search"><Ic name="search" size={16} />
           <input placeholder="Buscar en el PDF" value={q} onChange={e => setQ(e.target.value)} onKeyDown={e => { if (e.key === "Enter") hits && q ? nextHit(e.shiftKey ? -1 : 1) : search(q); if (e.key === "Escape") search(""); }} onBlur={() => q && !hits && search(q)} />
           {hits && <span className="faint pdf-hits">{hits.length ? `${hitIdx + 1}/${hits.length}` : "0"}</span>}
-          {hits?.length > 0 && <><Ic name="expand_less" size={16} style={{ cursor: "pointer" }} onClick={() => nextHit(-1)} /><Ic name="expand_more" size={16} style={{ cursor: "pointer" }} onClick={() => nextHit(1)} /></>}
+          {hits?.length > 0 && <><Ic name="keyboard_arrow_up" size={16} style={{ cursor: "pointer" }} onClick={() => nextHit(-1)} /><Ic name="keyboard_arrow_down" size={16} style={{ cursor: "pointer" }} onClick={() => nextHit(1)} /></>}
         </div>
         <button className="tb-btn icon" title="Imprimir" onClick={print} disabled={!doc}><Ic name="print" /></button>
         <button className="tb-btn icon" title="Descargar" onClick={() => vfs.download(fileId)}><Ic name="download" /></button>

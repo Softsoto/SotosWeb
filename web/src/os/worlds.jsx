@@ -295,7 +295,7 @@ function WorldFiles({ w, openItem }) {
       <div className="files-status"><span>{fmtSize(st.used)} de {fmtSize(st.quota)} · lo que subas aquí lo ven todos los miembros</span></div>
       {ctx && <ContextMenu x={ctx.x} y={ctx.y}
         items={[{ id: "open", label: "Abrir", icon: "open_in_new" }, ...(ctx.n.type !== "folder" ? [{ id: "mine", label: "Guardar en mis archivos", icon: "download_done" }, { id: "dl", label: "Descargar", icon: "download" }] : []),
-          { sep: true }, { id: "ren", label: "Renombrar", icon: "drive_file_rename_outline" }, { id: "del", label: "Eliminar para todos", icon: "delete", danger: true }]}
+          { sep: true }, { id: "ren", label: "Renombrar", icon: "drive_file_rename" }, { id: "del", label: "Eliminar para todos", icon: "delete", danger: true }]}
         onSelect={(id) => { const n = ctx.n; if (id === "open") open(n); if (id === "mine") saveMine(n); if (id === "dl") download(n); if (id === "ren") setRenaming(n); if (id === "del") remove(n); }}
         onClose={() => setCtx(null)} />}
       {preview && (

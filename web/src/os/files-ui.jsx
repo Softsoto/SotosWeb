@@ -7,6 +7,8 @@ import * as vfs from "./vfs.js";
 import { fmtSize, fmtDate } from "./vfs.js";
 import { FileGlyph, Modal, toast, Ic } from "./ui.jsx";
 import { api } from "./api.js";
+import { APPS } from "./data.jsx";
+import { isInstalled } from "./installed.js";
 import { useVideoThumb } from "./video-thumb.js";
 import { useTrackInfo } from "./id3.js";
 import { coverOf } from "./cover-art.js";
@@ -106,7 +108,7 @@ export function itemMenu(nodes, { canPaste } = {}) {
   const items = [];
   if (one) items.push({ id: "open", label: "Abrir", icon: "open_in_new" });
   if (one && one.type === "folder" && canPaste) items.push({ id: "pasteInto", label: "Pegar aquí dentro", icon: "content_paste" });
-  if (one && one.type === "folder") items.push({ id: "dock", label: "Agregar al Dock", icon: "add_to_home_screen" });
+  if (one && one.type === "folder") items.push({ id: "dock", label: "Agregar al Dock", icon: "install_desktop" });
   items.push({ sep: true },
     { id: "moveto", label: "Mover a…", icon: "drive_file_move" },
     { id: "copy", label: "Copiar", icon: "content_copy" },
@@ -117,10 +119,11 @@ export function itemMenu(nodes, { canPaste } = {}) {
   if (one && one.type === "img") items.push({ id: "wallpaper", label: "Usar como fondo", icon: "wallpaper" }, { id: "with:paint", label: "Editar con Paint", icon: "palette" });
   if (one && one.type === "txt") items.push({ id: "with:code", label: "Abrir en el editor de código", icon: "code" });
   if (one && one.type === "code") items.push({ id: "with:editor", label: "Abrir en Notas (vista previa)", icon: "edit_note" });
+  if (one && one.type !== "folder") for (const a of APPS.filter(a => a.ext && a.opens?.includes(vfs.extOf(one.name)) && isInstalled(a.id))) items.push({ id: "with:" + a.id, label: `Abrir con ${a.name}`, icon: a.icon }); // apps del SDK
   if (one && isArchive(one)) items.push({ id: "unzip", label: "Extraer aquí", icon: "unarchive" });
   items.push({ id: "compress", label: nodes.length > 1 ? `Comprimir ${nodes.length} elementos en .zip` : "Comprimir en .zip", icon: "folder_zip" });
   items.push({ sep: true });
-  if (one) items.push({ id: "rename", label: "Renombrar", icon: "drive_file_rename_outline" });
+  if (one) items.push({ id: "rename", label: "Renombrar", icon: "drive_file_rename" });
   if (one && one.type !== "folder" && vfs.getState().mode === "cloud") items.push({ id: "versions", label: "Versiones anteriores…", icon: "history" });
   if (one) items.push({ id: "props", label: "Propiedades", icon: "info" });
   items.push({ id: "trash", label: "Mover a la papelera", icon: "delete", danger: true });
@@ -132,7 +135,7 @@ export async function runItemAction(id, nodes, { openItem, update, startRename, 
   const one = nodes[0];
   switch (id) {
     case "open": openItem(one); return true;
-    case "with:paint": case "with:code": case "with:editor": window.dispatchEvent(new CustomEvent("sotos-open-with", { detail: { app: id.slice(5), fileId: one.id } })); return true;
+    case "with:paint": case "with:code": case "with:editor": default: if (!id.startsWith("with:")) break; window.dispatchEvent(new CustomEvent("sotos-open-with", { detail: { app: id.slice(5), fileId: one.id } })); return true;
     case "copy": vfs.clip("copy", ids); toast(`${ids.length} elemento(s) copiado(s) al portapapeles`, { icon: "content_copy" }); return true;
     case "cut": vfs.clip("cut", ids); toast(`${ids.length} elemento(s) cortado(s)`, { icon: "content_cut" }); return true;
     case "pasteInto": { const n = await vfs.paste(one.id); if (n) toast(`${n} elemento(s) pegado(s) en ${one.name}`); return true; }
@@ -197,7 +200,7 @@ export function MoveToDialog({ ids, onClose }) {
     const isOpen = open.has(n.id);
     return <React.Fragment key={n.id}>
       <div className={"moveto-row" + (dest === n.id ? " sel" : "")} style={{ paddingLeft: 8 + depth * 18 }} onClick={() => setDest(n.id)} onDoubleClick={() => { setDest(n.id); go(n.id); }}>
-        <span className="moveto-tw" onClick={e => { e.stopPropagation(); setOpen(s => { const x = new Set(s); x.has(n.id) ? x.delete(n.id) : x.add(n.id); return x; }); }}>{kids.length ? <Ic name={isOpen ? "expand_more" : "chevron_right"} size={18} /> : null}</span>
+        <span className="moveto-tw" onClick={e => { e.stopPropagation(); setOpen(s => { const x = new Set(s); x.has(n.id) ? x.delete(n.id) : x.add(n.id); return x; }); }}>{kids.length ? <Ic name={isOpen ? "keyboard_arrow_down" : "chevron_right"} size={18} /> : null}</span>
         <Ic name={n.id === vfs.ROOT ? "cloud" : "folder"} size={18} style={{ color: n.id === vfs.ROOT ? "#2f6fed" : "#c9902a" }} /> {n.id === vfs.ROOT ? "Sotos Drive" : n.name}
       </div>
       {isOpen && kids.map(k => row(k, depth + 1))}
@@ -331,7 +334,7 @@ export function VersionsDialog({ id, onClose }) {
       <div className="versions">
         <div className="version-row now"><Ic name="radio_button_checked" /><span><b>Versión actual</b><span className="faint">{new Date(n.mtime).toLocaleString("es-CO")} · {fmtSize(n.size)}</span></span></div>
         {items?.map(v => <div key={v.at} className="version-row"><Ic name="history" /><span><b>{new Date(v.at).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" })}</b><span className="faint">{fmtSize(v.size)}</span></span>
-          <button className="tb-btn" onClick={() => download(v)}><Ic name="download" /> Descargar</button><button className="tb-btn" disabled={busy} onClick={() => restore(v)}><Ic name="restore" /> Restaurar</button></div>)}
+          <button className="tb-btn" onClick={() => download(v)}><Ic name="download" /> Descargar</button><button className="tb-btn" disabled={busy} onClick={() => restore(v)}><Ic name="settings_backup_restore" /> Restaurar</button></div>)}
         {items && !items.length && <div className="faint" style={{ padding: 12, fontSize: 13 }}>Todavía no hay versiones anteriores de este archivo.</div>}
       </div>
     </Modal>

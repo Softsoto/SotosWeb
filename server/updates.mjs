@@ -24,7 +24,7 @@ const REPO = process.env.SOTOS_UPDATE_REPO || "Softsoto/SotosWeb";
 export const currentVersion = () => { try { return fs.readFileSync(path.join(ROOT, "VERSION"), "utf8").trim(); } catch { return "0.0.0"; } };
 const cmp = (a, b) => { const x = String(a).replace(/^v/, "").split(".").map(Number), y = String(b).replace(/^v/, "").split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); } return 0; };
 // lo que se reemplaza al actualizar (los datos y la configuración nunca)
-const APP_PARTS = ["server", "web/dist", "web/src/os/tree-ops.js", "scripts", "services/whatsapp/index.mjs", "services/whatsapp/package.json", "services/whatsapp/package-lock.json", "docs/capturas", "VERSION", "README.md", "CHANGELOG.md", "LICENSE", "Dockerfile", "docker-compose.nas.yml", "instalar-sotos.ps1", "instalar-sotos.sh"];
+const APP_PARTS = ["server", "web/dist", "web/src/os/tree-ops.js", "scripts", "sdk", "services/whatsapp/index.mjs", "services/whatsapp/package.json", "services/whatsapp/package-lock.json", "docs/capturas", "VERSION", "README.md", "CHANGELOG.md", "LICENSE", "Dockerfile", "docker-compose.nas.yml", "instalar-sotos.ps1", "instalar-sotos.sh"];
 const KEEP = new Set(["data", ".env", "sotos.env"]); // dentro de server/: no se tocan
 
 function updatable() {

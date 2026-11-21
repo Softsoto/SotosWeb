@@ -2397,3 +2397,7 @@ select.wg-input { padding: 0 4px; }
 .sp-drop:hover, .sp-drop.hot { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
 .sp-uplist { display: grid; gap: 4px; }
 .sp-uprow { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; }
+
+.store-perms { display: grid; gap: 6px; font-size: 13px; }
+.store-perms > div { display: flex; align-items: center; gap: 8px; }
+

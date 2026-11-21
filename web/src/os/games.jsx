@@ -210,7 +210,7 @@ function G2048() {
         </div>
         {over && (
           <div className="game-overlay">
-            <Ic name="emoji_events" size={44} style={{ color: "#edc22e" }} />
+            <Ic name="trophy" size={44} style={{ color: "#edc22e" }} />
             <div style={{ fontSize: 18, fontWeight: 800 }}>¡Fin!</div>
             <div className="faint" style={{ fontSize: 13 }}>Puntuación: {score}</div>
             <button className="tb-btn primary" onClick={restart}><Ic name="refresh" /> Jugar de nuevo</button>

@@ -4,6 +4,8 @@
    ============================================================ */
 import { api, onServer } from "./api.js";
 import * as vfs from "./vfs.js";
+import { registerExtApps } from "./data.jsx";
+let permNames = {}; export const permissionNames = () => permNames;
 const LKEY = "sotos_installed";
 let installed = new Set((() => { try { return JSON.parse(localStorage.getItem(LKEY)) || []; } catch { return []; } })());
 let ratings = {}; const subs = new Set(); let started = false;
@@ -14,6 +16,7 @@ export function subscribeInstalled(f) { subs.add(f); return () => subs.delete(f)
 export async function loadInstalled() {
   if (vfs.getState().mode === "cloud") {
     try { const r = await api("GET", "store"); installed = new Set(r.installed); ratings = r.ratings || {}; } catch {}
+    try { const a = await api("GET", "apps"); registerExtApps(a.items || []); permNames = a.permissions || {}; } catch {} // apps del SDK
     if (!started) { started = true; onServer("store", () => loadInstalled()); }
   } else { try { installed = new Set(JSON.parse(localStorage.getItem(LKEY)) || []); } catch {} }
   emit();

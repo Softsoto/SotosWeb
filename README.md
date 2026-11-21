@@ -362,6 +362,17 @@ Para dejar Sotos funcionando como servicio (arranque automático, HTTPS, Docker)
 
 Requisitos: Node.js 22 o superior (el instalador lo ofrece si falta), o Docker. Si olvidas la contraseña del administrador: `node scripts/restablecer-clave.mjs tu@correo` en el servidor.
 
+## Crear apps para Sotos
+
+Con el **SDK** cualquiera puede hacer apps para la Tienda en HTML, CSS y JavaScript: abren y guardan archivos con el selector del sistema, guardan sus datos en la cuenta de cada persona, mandan avisos y siguen el tema claro u oscuro. Corren aisladas y solo pueden hacer lo que dicen sus permisos.
+
+```bash
+node sdk/crear-app.mjs lista-compras "Lista de compras"   # esqueleto listo para editar
+node sdk/empaquetar-app.mjs lista-compras                 # revisa y crea lista-compras-1.0.0.zip
+```
+
+Se instala en *Administración → Apps*. Guía completa, permisos y API en [sdk/README.md](sdk/README.md); ejemplo completo en [sdk/ejemplos/notas-md](sdk/ejemplos/notas-md).
+
 ## Para desarrolladores
 
 Todo el código está en este repositorio. Hay una guía técnica más extensa en inglés en [docs/README.en.md](docs/README.en.md) y el historial en inglés en [docs/CHANGELOG.en.md](docs/CHANGELOG.en.md).

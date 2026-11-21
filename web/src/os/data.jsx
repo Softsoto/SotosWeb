@@ -45,6 +45,15 @@ const APPS = [
   { id: "games",   name: "Juegos",    icon: "sports_esports",    color: "#8a5a3b", comp: "GamesApp",     size: { w: 980, h: 700 } },
 ];
 const APP_BY_ID = Object.fromEntries(APPS.map(a => [a.id, a]));
+/** apps del SDK instaladas en el servidor: se agregan (o actualizan) en el catálogo del escritorio */
+export function registerExtApps(list) {
+  for (let i = APPS.length - 1; i >= 0; i--) if (APPS[i].ext && !list.some(m => m.id === APPS[i].id)) { delete APP_BY_ID[APPS[i].id]; APPS.splice(i, 1); }
+  for (const m of list) {
+    const a = { id: m.id, name: m.name, icon: m.icon, color: m.color, comp: "WebApp", ext: true, url: `ext-apps/${m.id}/${m.entry}`, size: m.size, store: true, cat: m.category, desc: m.description, author: m.author, version: m.version, permissions: m.permissions, opens: m.opens, homepage: m.homepage };
+    const at = APPS.findIndex(x => x.id === m.id); if (at >= 0) APPS[at] = a; else APPS.splice(APPS.findIndex(x => x.id === "admin"), 0, a);
+    APP_BY_ID[m.id] = a;
+  }
+}
 
 // dock order
 const DOCK_IDS = ["launchpad","files","worlds","calendar","tasks","docs","sheets","slides","gallery","mail","contacts","browser","music","games","__div__","terminal","store","settings"];
@@ -83,7 +92,7 @@ const CTX_FILE = [
   { id: "share",   label: "Compartir con…", icon: "group_add" },
   { id: "download",label: "Descargar",      icon: "download" },
   { sep: true },
-  { id: "rename",  label: "Renombrar",      icon: "drive_file_rename_outline" },
+  { id: "rename",  label: "Renombrar",      icon: "drive_file_rename" },
   { id: "props",   label: "Propiedades",    icon: "info" },
   { id: "delete",  label: "Eliminar",       icon: "delete", danger: true },
 ];

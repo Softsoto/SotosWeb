@@ -82,7 +82,7 @@ export function TasksApp({ list: openList }) {
         <div className="scroll" style={{ flex: 1 }}>
           {open.map(t => <TaskRow key={t.id} t={t} sel={sel === t.id} lists={data.lists} showList={!list} onSel={() => setSel(t.id)} onDone={() => upd(t, { done: true })} />)}
           {!open.length && <EmptyState icon="task_alt" text={view === "today" ? "Nada pendiente para hoy" : "Sin tareas pendientes"} />}
-          {done.length > 0 && <button className="tasks-done-toggle" onClick={() => setShowDone(s => !s)}><Ic name={showDone ? "expand_more" : "chevron_right"} size={18} /> Completadas ({done.length})</button>}
+          {done.length > 0 && <button className="tasks-done-toggle" onClick={() => setShowDone(s => !s)}><Ic name={showDone ? "keyboard_arrow_down" : "chevron_right"} size={18} /> Completadas ({done.length})</button>}
           {showDone && done.map(t => <TaskRow key={t.id} t={t} sel={sel === t.id} lists={data.lists} showList={!list} onSel={() => setSel(t.id)} onDone={() => upd(t, { done: false })} />)}
         </div>
       </div>

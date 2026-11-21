@@ -200,7 +200,7 @@ const EMBED_HOME = [
   { name: "OpenStreetMap", icon: "map", color: "#7ebc6f", url: "https://www.openstreetmap.org/export/embed.html?bbox=-3.75%2C40.39%2C-3.66%2C40.44" },
   { name: "Archive.org", icon: "inventory_2", color: "#3a4a78", url: "https://archive.org" },
   { name: "Wikilibros", icon: "auto_stories", color: "#1aa260", url: "https://es.wikibooks.org" },
-  { name: "Wikinoticias", icon: "feed", color: "#ff8a00", url: "https://es.wikinews.org" },
+  { name: "Wikinoticias", icon: "newspaper", color: "#ff8a00", url: "https://es.wikinews.org" },
   { name: "Wikcionario", icon: "translate", color: "#0aa5b5", url: "https://es.wiktionary.org" },
 ];
 
