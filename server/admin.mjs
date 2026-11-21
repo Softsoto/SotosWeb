@@ -17,6 +17,7 @@ import { backupStatus, runBackup } from "./backup.mjs";
 import { totpDisable } from "./totp.mjs";
 import { checkUpdate, applyUpdate, currentVersion, restart } from "./updates.mjs";
 import { sysMailConfig, saveSysMail, sendSystemMail, publicUrl } from "./mail.mjs";
+import { publicOffsite, saveOffsite, runOffsite, testOffsite } from "./offsite.mjs";
 
 // registro de lo que hace cada administrador (transparencia: quién vio, borró o cambió qué)
 db.exec(`CREATE TABLE IF NOT EXISTS admin_log (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id TEXT, user_id TEXT, action TEXT NOT NULL, detail TEXT, created INTEGER NOT NULL)`);
@@ -88,6 +89,12 @@ export async function handleAdmin(req, res, parts) {
       catch (e) { send({ error: e.message }); res.end(); }
       return;
     }
+  }
+  if (a === "offsite") { // copia fuera del servidor
+    if (req.method === "GET") return json(res, 200, publicOffsite());
+    if (req.method === "PUT") { const b = await readJson(req, 16384); try { saveOffsite(b.config ?? null); } catch (e) { fail(e.status || 400, e.message); } audit(me, null, "configurar copia fuera del servidor"); return json(res, 200, publicOffsite()); }
+    if (req.method === "POST" && id === "test") { try { return json(res, 200, await testOffsite()); } catch (e) { fail(502, e.message); } }
+    if (req.method === "POST" && id === "run") { audit(me, null, "enviar copia fuera del servidor"); try { return json(res, 200, { result: await runOffsite(), ...publicOffsite() }); } catch (e) { fail(502, e.message); } }
   }
   if (a === "backups") { // copias de seguridad del servidor
     if (req.method === "GET") return json(res, 200, backupStatus());

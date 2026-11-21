@@ -38,7 +38,7 @@ export function AdminApp() {
         {[["resumen", "monitoring", "Resumen"], ["usuarios", "group", "Usuarios"], ["registro", "history", "Registro"], ["copias", "backup", "Copias"], ["servidor", "dns", "Servidor"]].map(([id, icon, label]) =>
           <div key={id} className={"side-item" + (tab === id ? " active" : "")} onClick={() => setTab(id)}><Ic name={icon} /><span>{label}</span></div>)}
       </div>
-      <div className="app-main scroll" style={{ padding: "18px 22px" }}>
+      <div className="app-main scroll" style={{ padding: "18px 22px", display: "block" }}>
         {loadErr && <div className="admin-warn soft" style={{ marginBottom: 12 }}><Ic name="cloud_off" /><div>No se pudo cargar el panel: {loadErr}. <button className="tb-btn" onClick={() => { setLoadErr(null); loadStats(); loadUsers(); }}>Reintentar</button></div></div>}
         {!users && !loadErr && tab === "usuarios" && <div className="faint" style={{ padding: 10 }}>Cargando cuentas…</div>}
         {tab === "resumen" && stats && <>
@@ -264,7 +264,56 @@ function Backups() {
         <span className="faint">{fmtSize(b.bytes || 0)}</span><span className="faint">{b.finished ? ((b.finished - b.started) / 1000).toFixed(1) + " s" : ""}</span><span /><span /></div>)}
     </div>
     <div className="faint" style={{ fontSize: 12, marginTop: 12 }}>Para restaurar una copia: detén Sotos, reemplaza la carpeta de datos por el contenido de la copia y vuelve a iniciarlo.</div>
+    <Offsite />
   </>;
+}
+
+/** copia fuera del servidor: otro disco/NAS o almacenamiento S3 compatible */
+const S3_PRESETS = {
+  b2: { label: "Backblaze B2", endpoint: "https://s3.us-west-004.backblazeb2.com", region: "us-west-004", help: "En B2: crea un bucket privado y una «Application Key» con acceso a él. La dirección y la región aparecen en el bucket (Endpoint)." },
+  r2: { label: "Cloudflare R2", endpoint: "https://<id-de-cuenta>.r2.cloudflarestorage.com", region: "auto", help: "En R2: crea un bucket y un token de API de R2 (lectura y escritura). La dirección lleva el id de tu cuenta." },
+  wasabi: { label: "Wasabi", endpoint: "https://s3.us-east-1.wasabisys.com", region: "us-east-1", help: "Crea un bucket y una clave de acceso en Wasabi; usa la dirección de la región del bucket." },
+  aws: { label: "Amazon S3", endpoint: "https://s3.us-east-1.amazonaws.com", region: "us-east-1", help: "Crea un bucket y un usuario IAM con permiso sobre él (PutObject, GetObject, DeleteObject, ListBucket)." },
+  minio: { label: "MinIO / otro", endpoint: "http://192.168.1.50:9000", region: "us-east-1", help: "Cualquier servicio compatible con S3, también uno propio en tu NAS." },
+};
+function Offsite() {
+  const [d, setD] = useState(null), [f, setF] = useState(null), [busy, setBusy] = useState(""), [preset, setPreset] = useState(null);
+  const load = () => api("GET", "admin/offsite").then(r => { setD(r); const c = r.config; setF({ kind: c?.kind || "folder", keep: c?.keep || 7, folder: c?.folder || "", endpoint: c?.s3?.endpoint || "", region: c?.s3?.region || "", bucket: c?.s3?.bucket || "", prefix: c?.s3?.prefix || "sotos", accessKey: c?.s3?.accessKey || "", secret: "" }); }).catch(() => {});
+  useEffect(() => { load(); }, []);
+  if (!f) return null;
+  const set = (k) => (e) => setF(s => ({ ...s, [k]: e.target.value }));
+  const body = () => ({ config: { kind: f.kind, keep: +f.keep, folder: f.folder, s3: { endpoint: f.endpoint, region: f.region, bucket: f.bucket, prefix: f.prefix, accessKey: f.accessKey, secret: f.secret } } });
+  const act = async (what, fn) => { setBusy(what); try { await fn(); } catch (e) { toast(e.message, { error: true }); } setBusy(""); };
+  const save = () => act("save", async () => { const r = await api("PUT", "admin/offsite", body()); setD(r); setF(s => ({ ...s, secret: "" })); toast("Destino guardado", { icon: "check" }); });
+  const test = () => act("test", async () => { await api("PUT", "admin/offsite", body()); await api("POST", "admin/offsite/test"); toast("Conexión correcta: se pudo escribir, leer y borrar", { icon: "check_circle" }); load(); });
+  const run = () => act("run", async () => { const r = await api("POST", "admin/offsite/run"); setD(r); toast(`Copia enviada: ${r.result.sent} archivo(s) nuevos, ${r.result.reused} ya estaban`, { icon: "cloud_done" }); });
+  const off = () => act("off", async () => { const r = await api("PUT", "admin/offsite", { config: null }); setD(r); toast("Copia fuera del servidor desactivada"); });
+  const st = d?.status; const p = preset && S3_PRESETS[preset];
+  return <div className="admin-update" style={{ marginTop: 18 }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}><Ic name="cloud_sync" size={24} style={{ color: "var(--accent)" }} />
+      <div style={{ flex: 1 }}><b>Copia fuera del servidor</b><div className="faint" style={{ fontSize: 12.5 }}>Después de cada copia, se envía también a otro disco, un NAS o un almacenamiento en la nube. Solo viaja lo nuevo.</div></div></div>
+    {st && <div className={st.ok ? "faint" : "admin-warn"} style={{ fontSize: 12.5, margin: "6px 0" }}><Ic name={st.ok ? "cloud_done" : "error"} size={15} /> {st.ok ? `Última copia enviada ${new Date(st.at).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}: ${st.sent} archivo(s) nuevos (${fmtSize(st.bytes || 0)}), ${st.reused} ya estaban · ${st.secs} s` : `Falló ${new Date(st.at).toLocaleString("es", { dateStyle: "short", timeStyle: "short" })}: ${st.error}`}</div>}
+    <div className="admin-line"><span>Destino</span>
+      <button className={"chip" + (f.kind === "folder" ? " on" : "")} onClick={() => setF(s => ({ ...s, kind: "folder" }))}>Otro disco o carpeta de red</button>
+      <button className={"chip" + (f.kind === "s3" ? " on" : "")} onClick={() => setF(s => ({ ...s, kind: "s3" }))}>Almacenamiento S3</button></div>
+    {f.kind === "folder" ? <>
+      <div className="admin-line"><span>Carpeta</span><input className="sc-input" value={f.folder} onChange={set("folder")} placeholder={navigator.platform.startsWith("Win") ? "E:\\Copias de Sotos  o  \\\\NAS\\copias" : "/mnt/usb/copias-sotos"} style={{ width: 340, margin: 0 }} /></div>
+      <div className="faint" style={{ fontSize: 12, margin: "0 0 6px" }}>Un disco USB, otro disco interno o una carpeta compartida del NAS montada en el servidor. Lo que no cambió entre copias no ocupa espacio de nuevo.</div>
+    </> : <>
+      <div className="admin-line"><span>Servicio</span>{Object.entries(S3_PRESETS).map(([k, v]) => <button key={k} className={"chip" + (preset === k ? " on" : "")} onClick={() => { setPreset(k); setF(s => ({ ...s, endpoint: v.endpoint, region: v.region })); }}>{v.label}</button>)}</div>
+      {p && <div className="faint" style={{ fontSize: 12, margin: "0 0 6px" }}>{p.help}</div>}
+      <div className="admin-line"><span>Dirección y región</span><input className="sc-input" value={f.endpoint} onChange={set("endpoint")} placeholder="https://s3.…" style={{ width: 300, margin: 0 }} /><input className="sc-input" value={f.region} onChange={set("region")} placeholder="región" style={{ width: 120, margin: 0 }} /></div>
+      <div className="admin-line"><span>Bucket y carpeta</span><input className="sc-input" value={f.bucket} onChange={set("bucket")} placeholder="mi-bucket" style={{ width: 200, margin: 0 }} /><input className="sc-input" value={f.prefix} onChange={set("prefix")} placeholder="sotos" style={{ width: 120, margin: 0 }} /></div>
+      <div className="admin-line"><span>Clave de acceso</span><input className="sc-input" value={f.accessKey} onChange={set("accessKey")} placeholder="Access key ID" style={{ width: 200, margin: 0 }} autoComplete="off" />
+        <input className="sc-input" type="password" value={f.secret} onChange={set("secret")} placeholder={d?.config?.s3?.hasSecret ? "•••••••• (guardada)" : "Clave secreta"} style={{ width: 200, margin: 0 }} autoComplete="new-password" /></div>
+    </>}
+    <div className="admin-line"><span>Conservar</span><input className="sc-input" type="number" min={1} max={90} value={f.keep} onChange={set("keep")} style={{ width: 80, margin: 0 }} /><span className="faint">copias</span></div>
+    <div className="admin-line"><span />
+      <button className="tb-btn primary" disabled={!!busy} onClick={save}>Guardar</button>
+      <button className="tb-btn" disabled={!!busy} onClick={test}><Ic name="network_check" /> {busy === "test" ? "Probando…" : "Probar"}</button>
+      {d?.config && <button className="tb-btn" disabled={!!busy || d.running} onClick={run}><Ic name="cloud_upload" /> {busy === "run" || d.running ? "Enviando…" : "Enviar la última copia ahora"}</button>}
+      {d?.config && <button className="tb-btn" disabled={!!busy} onClick={off}>Desactivar</button>}</div>
+  </div>;
 }
 
 function AuditLog() {

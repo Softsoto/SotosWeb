@@ -24,6 +24,7 @@ const SKIP = new Set(["copias", "media-cache", "biblioteca", "servicios", "sotos
 const LINKABLE = new Set(["blobs", "vault"]); // contenido inmutable: se enlaza
 
 let running = null, lastError = null;
+export const afterBackup = []; // tareas al terminar una copia (p. ej. enviarla fuera del servidor)
 const stamp = (d = new Date()) => d.toISOString().slice(0, 19).replace("T", "_").replace(/:/g, "-");
 
 function copyTree(src, dst, link, acc) {
@@ -70,6 +71,7 @@ export function runBackup(reason = "automática") {
       // rotación: se borran las más viejas
       for (const old of listBackups().slice(KEEP)) fs.rmSync(path.join(BACKUP_DIR, old.name), { recursive: true, force: true });
       lastError = null; console.log(`[copias] ${name}: ${acc.files} archivos (${(acc.bytes / 1048576).toFixed(1)} MB, ${acc.linked} enlazados) en ${((Date.now() - t0) / 1000).toFixed(1)} s`);
+      for (const f of afterBackup) Promise.resolve().then(() => f(name)).catch(() => {});
       return { name, ...info };
     } catch (e) {
       lastError = e.message; console.error("[copias] falló:", e.message);
