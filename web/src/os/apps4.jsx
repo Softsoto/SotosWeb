@@ -165,11 +165,12 @@ function DavPanel({ user }) {
   if (!items) return null;
   return <div style={{ padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 14 }}><Ic name="lan" size={17} /> Conectar como unidad</div>
-        <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>Tus archivos de Sotos como una carpeta más en tu computador o celular, sin abrir el navegador. Cada dispositivo usa su propia clave, que puedes revocar cuando quieras.</div></div>
+      <div style={{ flex: 1 }}><div style={{ fontWeight: 600, fontSize: 14 }}><Ic name="lan" size={17} /> Conectar como unidad, calendario y contactos</div>
+        <div className="muted" style={{ fontSize: 12.5, marginTop: 3 }}>Tus archivos como una carpeta más en tu computador o celular, y tu calendario y tus contactos en el iPhone, Android, Thunderbird u Outlook, siempre sincronizados. Cada dispositivo usa su propia clave, que puedes revocar cuando quieras.</div></div>
       <button className="tb-btn primary" onClick={() => setAsk(true)}><Ic name="add_link" /> Conectar un dispositivo</button>
     </div>
     <div className="dav-addr"><span className="faint">Dirección</span><code>{addr}</code><button className="tb-btn icon" title="Copiar" onClick={() => copy(addr)}><Ic name="content_copy" size={16} /></button>
+      <span className="faint">Calendario y contactos</span><code>{location.origin + "/"}</code><button className="tb-btn icon" title="Copiar" onClick={() => copy(location.origin + "/")}><Ic name="content_copy" size={16} /></button>
       <span className="faint">Usuario</span><code>{user.email}</code><button className="tb-btn icon" title="Copiar" onClick={() => copy(user.email)}><Ic name="content_copy" size={16} /></button></div>
     <button className="login-alt" style={{ padding: 0, fontSize: 12.5 }} onClick={() => setHelp(h => !h)}>{help ? "Ocultar instrucciones" : "¿Cómo lo conecto?"}</button>
     {help && <div className="dav-help">
@@ -178,6 +179,10 @@ function DavPanel({ user }) {
       <div><b>Linux</b>: en Archivos, <i>Otras ubicaciones → Conectar al servidor</i>, con <code>davs://</code> (o <code>dav://</code>) en vez de <code>https://</code>.</div>
       <div><b>Android</b>: Solid Explorer, CX File Explorer o Material Files («WebDAV»). <b>iPhone</b>: Documents de Readdle, FE File Explorer o Cyberduck.</div>
       <div className="faint">Lo que borres desde la unidad va a la Papelera de Sotos.</div>
+      <div style={{ marginTop: 6 }}><b>Calendario y contactos en el iPhone, iPad o Mac</b>: Ajustes → Calendario (o Contactos) → Cuentas → Añadir cuenta → Otra → <i>Añadir cuenta CalDAV</i> (o CardDAV). Servidor: solo el nombre, sin <code>https://</code> (<code>{location.host}</code>); usuario: tu correo; contraseña: la clave del dispositivo.</div>
+      <div><b>Android</b>: instala DAVx⁵, elige «Iniciar sesión con URL y nombre de usuario» y pega la dirección de calendario y contactos. Aparecen en el Calendario y los Contactos del teléfono.</div>
+      <div><b>Thunderbird</b>: Nuevo calendario → En la red, y Libreta de direcciones → CardDAV, con la misma dirección. <b>Outlook</b>: con el complemento gratuito CalDav Synchronizer.</div>
+      <div className="faint">Se sincronizan tus calendarios, los de tus Mundos y tu agenda de contactos. Lo que cambies en un lado aparece en el otro.</div>
     </div>}
     {!!items.length && <div className="dav-list">{items.map(k => <div key={k.id} className="dav-row"><Ic name="devices" size={18} /><div style={{ flex: 1 }}><b>{k.name}</b><div className="faint" style={{ fontSize: 11.5 }}>Creada {fmtDate(k.created)} · {k.last_used ? "último uso " + fmtDate(k.last_used) : "aún sin usar"}</div></div>
       <button className="tb-btn danger" onClick={async () => { await api("DELETE", "dav-keys/" + k.id).catch(e => toast(e.message, { error: true })); load(); toast("Ese dispositivo ya no tiene acceso", { icon: "link_off" }); }}>Revocar</button></div>)}</div>}

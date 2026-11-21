@@ -37,6 +37,7 @@ import { handleWa } from "./wa.mjs";
 import { handleMedia } from "./media.mjs";
 import { handleVault } from "./vault.mjs";
 import { handleDav, handleDavKeys } from "./dav.mjs";
+import { handleCalDav } from "./caldav.mjs";
 import { handlePush } from "./push.mjs";
 import { handleJellyfin, proxyJellyfin, upgradeJellyfin } from "./jellyfin.mjs";
 import { handleImmich } from "./immich.mjs";
@@ -139,6 +140,7 @@ const server = http.createServer(async (req, res) => {
     if (req.url.startsWith("/instalar/tour/")) return serveTourImage(req, res);
     if (!isInstalled() && !req.url.startsWith("/api/") && (req.headers.accept || "").includes("text/html")) { res.writeHead(302, { location: "/instalar" }); return res.end(); }
     if (req.url === "/dav" || req.url.startsWith("/dav/")) return await handleDav(req, res); // unidad de red (WebDAV)
+    if (req.url === "/cal" || req.url.startsWith("/cal/") || req.url.startsWith("/.well-known/caldav") || req.url.startsWith("/.well-known/carddav")) return await handleCalDav(req, res); // calendario y contactos (CalDAV/CardDAV)
     if (req.url === "/jellyfin" || req.url.startsWith("/jellyfin/")) return proxyJellyfin(req, res); // Cine
     if (req.url.startsWith("/api/")) return await handleApi(req, res);
     if (PROD) return serveStatic(req, res);

@@ -44,7 +44,7 @@ export async function handleDavKeys(req, res, parts) {
   fail(404, "No encontrado");
 }
 
-function davUser(req) {
+export function davUser(req) {
   const m = /^Basic\s+(.+)$/i.exec(req.headers.authorization || ""); if (!m) return null;
   const [email, ...rest] = Buffer.from(m[1], "base64").toString("utf8").split(":"); const pw = rest.join(":").replace(/[\s-]/g, "").toLowerCase();
   const row = db.prepare("SELECT u.*, a.id app_id FROM app_passwords a JOIN users u ON u.id = a.user_id WHERE a.hash = ?").get(sha(pw));

@@ -7,7 +7,7 @@
 import React from "react";
 import { Ic, EmptyState, Modal, toast, ContextMenu } from "./ui.jsx";
 import { avatarUrl, avatarFor } from "./ui.jsx";
-import { api } from "./api.js";
+import { api, onServer } from "./api.js";
 import { useVfs } from "./vfs.js";
 import * as vfs from "./vfs.js";
 import { PresenceDot } from "./presence.jsx";
@@ -96,6 +96,7 @@ export function ContactsApp({ contactId }) {
   };
   const load = () => store.list().then(l => { setItems(l); return l; }).catch(e => { toast(e.message, { error: true }); setItems([]); });
   useEffect(() => { load(); }, [store]);
+  useEffect(() => cloud ? onServer(["contacts"], () => load()) : undefined, [cloud, store]); // cambios desde el celular (CardDAV)
   const filtered = (items || []).filter(c => [c.name, c.email, c.phone, c.company].join(" ").toLowerCase().includes(q.toLowerCase()) && (!group || inGroup(group, c.id)));
   const groups = {}; filtered.forEach(c => { const k = (c.name[0] || "#").toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); (groups[/[A-Z]/.test(k) ? k : "#"] ||= []).push(c); });
   const cur = items?.find(c => c.id === sel);
