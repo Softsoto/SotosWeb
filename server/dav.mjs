@@ -222,3 +222,4 @@ export async function handleDav(req, res) {
     default: await drain(req); return send(res, 405, "", base);
   }
 }
+export { typeOf, newId, quotaOf, MAX_FILE };

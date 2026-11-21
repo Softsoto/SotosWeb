@@ -2388,3 +2388,12 @@ select.wg-input { padding: 0 4px; }
 .fp-save { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-top: 1px solid var(--border); font: 13px var(--ui); }
 .fp-hint { padding: 6px 10px; border-top: 1px solid var(--border); font: 12px var(--ui); display: flex; align-items: center; gap: 6px; }
 @media (max-width: 640px) { .fp-side { display: none; } .fp-meta { display: none; } }
+
+/* enlaces: contraseña y pedir archivos */
+.sp-lock { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 30px 10px; text-align: center; }
+.sp-lock .sc-input { width: min(280px, 100%); margin: 6px 0 0; }
+.sp-up { display: grid; gap: 14px; }
+.sp-drop { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 34px 16px; border: 2px dashed var(--border); border-radius: 10px; cursor: pointer; text-align: center; color: var(--text); }
+.sp-drop:hover, .sp-drop.hot { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.sp-uplist { display: grid; gap: 4px; }
+.sp-uprow { display: flex; align-items: center; gap: 10px; padding: 6px 8px; border: 1px solid var(--border); border-radius: 7px; font-size: 13px; }

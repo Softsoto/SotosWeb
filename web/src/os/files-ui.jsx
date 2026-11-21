@@ -257,6 +257,7 @@ export function ShareDialog({ id, onClose }) {
   const [busy, setBusy] = useState(false);
   const [list, setList] = useState(null);
   const [made, setMade] = useState(null);
+  const [pass, setPass] = useState(""), [maxDl, setMaxDl] = useState(0);
   const load = () => api("GET", "shares").then(r => setList(r.shares.filter(s => s.nodeId === id))).catch(() => setList([]));
   useEffect(() => { if (mode === "cloud") load(); }, [id, mode]);
   if (!n) return null;
@@ -270,8 +271,8 @@ export function ShareDialog({ id, onClose }) {
     setBusy(true);
     try {
       await vfs.flush();
-      const r = await api("POST", "shares", { nodeId: id, perm, days: Number(days) || 0, emails: emails.split(/[\s,;]+/).filter(Boolean) });
-      setMade(r.token); copy(r.token); load();
+      const r = await api("POST", "shares", { nodeId: id, perm, days: Number(days) || 0, emails: perm === "upload" ? [] : emails.split(/[\s,;]+/).filter(Boolean), password: pass, maxDownloads: perm === "view" ? Number(maxDl) || 0 : 0 });
+      setMade(r.token); copy(r.token); load(); setPass("");
       if (r.missing?.length) toast(`Sin cuenta en Sotos: ${r.missing.join(", ")}`, { icon: "person_off" });
     } catch (e) { toast("No se pudo compartir: " + e.message, { error: true }); }
     setBusy(false);
@@ -282,20 +283,26 @@ export function ShareDialog({ id, onClose }) {
       actions={<><button className="tb-btn" onClick={onClose}>Cerrar</button><button className="tb-btn primary" disabled={busy} onClick={create}><Ic name="link" /> Crear enlace</button></>}>
       <div style={{ display: "grid", gap: 10 }}>
         <div style={{ display: "flex", gap: 10 }}>
-          <label className="field">Permiso<select value={perm} onChange={e => setPerm(e.target.value)}><option value="view">Solo ver y descargar</option><option value="edit">Puede editar (Word/Excel/PowerPoint)</option></select></label>
+          <label className="field">Permiso<select value={perm} onChange={e => setPerm(e.target.value)}><option value="view">Solo ver y descargar</option><option value="edit">Puede editar (Word/Excel/PowerPoint)</option>{n.type === "folder" && <option value="upload">Pedir archivos (solo pueden subir)</option>}</select></label>
           <label className="field" style={{ flex: "0 0 130px" }}>Caduca<select value={days} onChange={e => setDays(e.target.value)}><option value={0}>Nunca</option><option value={1}>En 1 día</option><option value={7}>En 7 días</option><option value={30}>En 30 días</option></select></label>
         </div>
-        <label className="field">Solo para estas personas (opcional)
-          <input placeholder="correo@ejemplo.com, otro@ejemplo.com" value={emails} onChange={e => setEmails(e.target.value)} /></label>
-        <div className="faint" style={{ fontSize: 12 }}>{emails.trim() ? "Solo esas cuentas de Sotos podrán abrirlo y lo verán en “Compartido conmigo”." : "Cualquiera con el enlace podrá abrirlo, sin cuenta."}</div>
+        <div style={{ display: "flex", gap: 10 }}>
+          <label className="field">Contraseña (opcional)<input type="text" autoComplete="off" placeholder="Sin contraseña" value={pass} onChange={e => setPass(e.target.value)} /></label>
+          {perm === "view" && <label className="field" style={{ flex: "0 0 150px" }}>Descargas<select value={maxDl} onChange={e => setMaxDl(e.target.value)}><option value={0}>Sin límite</option><option value={1}>Solo 1</option><option value={5}>Hasta 5</option><option value={10}>Hasta 10</option><option value={50}>Hasta 50</option></select></label>}
+        </div>
+        {perm !== "upload" && <label className="field">Solo para estas personas (opcional)
+          <input placeholder="correo@ejemplo.com, otro@ejemplo.com" value={emails} onChange={e => setEmails(e.target.value)} /></label>}
+        <div className="faint" style={{ fontSize: 12 }}>{perm === "upload" ? "Quien tenga el enlace podrá subir archivos a esta carpeta, pero no verá lo que hay dentro. Te avisamos con cada archivo que llegue." : emails.trim() ? "Solo esas cuentas de Sotos podrán abrirlo y lo verán en “Compartido conmigo”." : "Cualquiera con el enlace podrá abrirlo, sin cuenta."}{pass ? " Pedirá la contraseña." : ""}{perm === "view" && Number(maxDl) ? " Con límite de descargas no se muestran vistas previas." : ""}</div>
         {made && <div className="share-link"><span>{shareUrl(made)}</span><button className="tb-btn primary" onClick={() => copy(made)}><Ic name="content_copy" size={16} /> Copiar</button></div>}
         {list?.length > 0 && <div>
           <div className="side-label" style={{ padding: "6px 0" }}>Enlaces activos</div>
           {list.map(s => (
             <div key={s.token} className="share-row">
-              <Ic name={s.people.length ? "group" : "public"} size={18} />
-              <span style={{ flex: 1, minWidth: 0 }}>{s.perm === "edit" ? "Edición" : "Lectura"} · {s.people.length ? s.people.map(p => p.name).join(", ") : "cualquiera con el enlace"}
-                <span className="faint"> · {s.expires ? "caduca " + fmtDate(s.expires) : "sin caducidad"}</span></span>
+              <Ic name={s.perm === "upload" ? "drive_folder_upload" : s.people.length ? "group" : "public"} size={18} />
+              <span style={{ flex: 1, minWidth: 0 }}>{s.perm === "upload" ? "Pedir archivos" : s.perm === "edit" ? "Edición" : "Lectura"} · {s.people.length ? s.people.map(p => p.name).join(", ") : "cualquiera con el enlace"}
+                {s.hasPassword && <Ic name="lock" size={14} style={{ marginLeft: 4, verticalAlign: -2 }} title="Con contraseña" />}
+                <span className="faint"> · {s.expires ? "caduca " + fmtDate(s.expires) : "sin caducidad"}</span>
+                <div className="faint" style={{ fontSize: 11.5 }}>{s.perm === "upload" ? `${s.uploads} archivo(s) recibido(s)` : `${s.views} visita(s) · ${s.downloads}${s.maxDownloads ? ` de ${s.maxDownloads}` : ""} descarga(s)`}</div></span>
               <button className="tb-btn icon" title="Copiar" onClick={() => copy(s.token)}><Ic name="content_copy" size={16} /></button>
               <button className="tb-btn icon" title="Dejar de compartir" onClick={() => revoke(s.token)}><Ic name="link_off" size={16} /></button>
             </div>

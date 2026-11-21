@@ -4,10 +4,18 @@
    ============================================================ */
 import fs from "node:fs";
 import { pipeline } from "node:stream/promises";
-import { db, now, rid } from "./db.mjs";
-import { fail, json, readJson } from "./http.mjs";
-import { requireUser, currentUser } from "./auth.mjs";
-import { loadState, blobPath } from "./fs.mjs";
+import path from "node:path";
+import { db, now, rid, secret } from "./db.mjs";
+import { fail, json, readJson, rateLimit, clientIp, jwtSign, jwtVerify } from "./http.mjs";
+import { requireUser, currentUser, hashPassword, checkPassword } from "./auth.mjs";
+import { loadState, blobPath, applyOps } from "./fs.mjs";
+import { typeOf, newId, quotaOf, MAX_FILE } from "./dav.mjs";
+
+// enlaces con contraseña, límite de descargas, contadores y carpetas «solo subir» (pedir archivos)
+for (const c of ["pass_hash TEXT", "max_downloads INTEGER", "downloads INTEGER NOT NULL DEFAULT 0", "views INTEGER NOT NULL DEFAULT 0", "uploads INTEGER NOT NULL DEFAULT 0"])
+  if (!db.prepare("PRAGMA table_info(shares)").all().some(x => x.name === c.split(" ")[0])) db.exec(`ALTER TABLE shares ADD COLUMN ${c}`);
+const keyFor = (token) => jwtSign({ t: token, k: "share" }, secret("share"), 12 * 3600);
+const unlocked = (s, req) => { const url = new URL(req.url, "http://x"); const k = req.headers["x-share-key"] || url.searchParams.get("k"); if (!k) return false; try { const p = jwtVerify(String(k), secret("share")); return p.k === "share" && p.t === s.token; } catch { return false; } };
 import { addNotification } from "./social.mjs";
 import { index, findNode, ROOT } from "../web/src/os/tree-ops.js";
 
@@ -42,6 +50,8 @@ function shareRow(token) {
 }
 /** acceso a un recurso compartido: público por enlace, o restringido a destinatarios */
 function canSee(s, req) {
+  const me = currentUser(req); if (me && me.id === s.user_id) return true; // el dueño siempre entra
+  if (s.pass_hash && !unlocked(s, req)) fail(423, "Este enlace tiene contraseña");
   const restricted = db.prepare("SELECT COUNT(*) n FROM share_users WHERE token = ?").get(s.token).n > 0;
   if (!restricted) return true;
   const u = currentUser(req); if (!u) fail(401, "Inicia sesión para ver este elemento");
@@ -57,17 +67,20 @@ export async function handleShares(req, res, parts) {
   if (!a && req.method === "GET") {
     const st = loadState(u.id).state; const map = index(st.root);
     const rows = db.prepare("SELECT * FROM shares WHERE user_id = ? ORDER BY created DESC").all(u.id);
-    return json(res, 200, { shares: rows.map(r => ({ token: r.token, nodeId: r.node_id, perm: r.perm, created: r.created, expires: r.expires, name: map.get(r.node_id)?.node.name || "(eliminado)",
+    return json(res, 200, { shares: rows.map(r => ({ token: r.token, nodeId: r.node_id, perm: r.perm, created: r.created, expires: r.expires, hasPassword: !!r.pass_hash, maxDownloads: r.max_downloads, downloads: r.downloads, views: r.views, uploads: r.uploads, name: map.get(r.node_id)?.node.name || "(eliminado)",
       people: db.prepare("SELECT u.email, u.name FROM share_users su JOIN users u ON u.id = su.user_id WHERE su.token = ?").all(r.token) })) });
   }
   if (!a && req.method === "POST") {
-    const { nodeId, perm, days, emails } = await readJson(req, 16384);
+    const { nodeId, perm, days, emails, password, maxDownloads } = await readJson(req, 16384);
     if (nodeId === ROOT) fail(400, "No se puede compartir todo el Drive");
-    if (!findNode({ root: loadState(u.id).state.root, trash: [] }, nodeId)) fail(404, "No existe");
-    const p = perm === "edit" ? "edit" : "view";
+    const target = findNode({ root: loadState(u.id).state.root, trash: [] }, nodeId); if (!target) fail(404, "No existe");
+    const p = perm === "edit" ? "edit" : perm === "upload" ? "upload" : "view";
+    if (p === "upload" && !target.children) fail(400, "Solo se pueden pedir archivos en una carpeta");
     const exp = Number(days) > 0 ? now() + Math.min(365, Number(days)) * 86400_000 : null;
+    const pw = String(password || ""); if (pw && pw.length < 4) fail(400, "La contraseña del enlace debe tener al menos 4 caracteres");
+    const maxDl = Number(maxDownloads) > 0 ? Math.min(100000, Math.round(Number(maxDownloads))) : null;
     const token = rid(16);
-    db.prepare("INSERT INTO shares(token,user_id,node_id,perm,created,expires) VALUES(?,?,?,?,?,?)").run(token, u.id, nodeId, p, now(), exp);
+    db.prepare("INSERT INTO shares(token,user_id,node_id,perm,created,expires,pass_hash,max_downloads) VALUES(?,?,?,?,?,?,?,?)").run(token, u.id, nodeId, p, now(), exp, pw ? await hashPassword(pw) : null, p === "upload" ? null : maxDl);
     const missing = [];
     for (const e of (Array.isArray(emails) ? emails : []).slice(0, 50)) {
       const em = String(e).trim().toLowerCase(); if (!em) continue;
@@ -96,15 +109,55 @@ export async function handleShares(req, res, parts) {
 export async function handlePublicShare(req, res, parts) {
   const [token, kind, id] = parts;
   if (!/^[a-f0-9]{32}$/.test(token || "")) fail(404, "Enlace no válido");
+  if (kind === "unlock" && req.method === "POST") { // contraseña del enlace → llave de 12 horas
+    const { s } = shareRow(token); rateLimit("share-pw:" + clientIp(req) + token, 10, 900_000);
+    const { password } = await readJson(req, 4096);
+    if (!s.pass_hash || !(await checkPassword(String(password || ""), s.pass_hash))) fail(403, "Contraseña incorrecta");
+    return json(res, 200, { key: keyFor(token) });
+  }
   const { s, node } = resolveShare(token, req);
+  const me = currentUser(req), owner = me && me.id === s.user_id;
+  const left = s.max_downloads ? Math.max(0, s.max_downloads - s.downloads) : null;
   if (!kind && req.method === "GET") {
+    if (!owner) db.prepare("UPDATE shares SET views = views + 1 WHERE token = ?").run(token);
+    if (s.perm === "upload") return json(res, 200, { owner: s.owner, perm: "upload", expires: s.expires, node: { id: node.id, name: node.name, type: "folder" }, maxFile: MAX_FILE });
     const strip = (n) => n.children ? { id: n.id, name: n.name, type: n.type, mtime: n.mtime, children: n.children.map(strip) } : { id: n.id, name: n.name, type: n.type, size: n.size, mtime: n.mtime, online: !!n.url };
-    return json(res, 200, { owner: s.owner, perm: s.perm, expires: s.expires, node: strip(node) });
+    return json(res, 200, { owner: s.owner, perm: s.perm, expires: s.expires, limited: !!s.max_downloads, left, node: strip(node) });
   }
   if (kind === "blob" && id && req.method === "GET") {
+    if (s.perm === "upload") fail(403, "Esta carpeta solo recibe archivos");
     const inner = index(node).get(id)?.node; // solo archivos dentro de lo compartido
     if (!inner || inner.children) fail(404, "No encontrado");
-    return sendBlob(res, s.user_id, inner, { download: new URL(req.url, "http://x").searchParams.has("dl") });
+    const dl = new URL(req.url, "http://x").searchParams.has("dl");
+    if (s.max_downloads && !owner) { // con límite: nada de vistas previas, y cada descarga cuenta
+      if (!dl) fail(403, "Este enlace solo permite descargar");
+      const r = db.prepare("UPDATE shares SET downloads = downloads + 1 WHERE token = ? AND downloads < max_downloads").run(token);
+      if (!r.changes) fail(410, "Se alcanzó el límite de descargas de este enlace");
+    } else if (dl && !owner) db.prepare("UPDATE shares SET downloads = downloads + 1 WHERE token = ?").run(token);
+    return sendBlob(res, s.user_id, inner, { download: dl });
+  }
+  if (kind === "upload" && req.method === "POST") { // pedir archivos: suben sin ver el contenido
+    if (s.perm !== "upload") fail(403, "Este enlace no permite subir archivos");
+    rateLimit("share-up:" + clientIp(req), 200, 3600_000);
+    const url = new URL(req.url, "http://x");
+    let name = String(url.searchParams.get("name") || "").replace(/[\\/:*?"<>|\x00-\x1f]/g, "_").trim().slice(0, 180);
+    const who = String(url.searchParams.get("by") || "").replace(/[\x00-\x1f<>]/g, "").trim().slice(0, 60);
+    if (!name || name === "." || name === "..") fail(400, "Nombre no válido");
+    const len = Number(req.headers["content-length"] || 0); const { quota, used } = quotaOf(s.user_id);
+    if (len > MAX_FILE) fail(413, "El archivo es demasiado grande");
+    if (quota && used + len > quota) fail(507, "La carpeta no tiene espacio para más archivos");
+    const folder = findNode({ root: loadState(s.user_id).state.root, trash: [] }, s.node_id); if (!folder?.children) fail(404, "La carpeta ya no existe");
+    const taken = new Set(folder.children.map(c => c.name.toLowerCase())); const ext = path.extname(name), base = name.slice(0, name.length - ext.length);
+    for (let i = 2; taken.has(name.toLowerCase()); i++) name = `${base} (${i})${ext}`;
+    const nid = newId(), dest = blobPath(s.user_id, nid), tmp = dest + ".part"; let n = 0;
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    try { await pipeline(req, async function* (src) { for await (const ch of src) { n += ch.length; if (n > MAX_FILE || (quota && used + n > quota)) throw Object.assign(new Error("Sin espacio"), { status: 507 }); yield ch; } }, fs.createWriteStream(tmp)); }
+    catch (e) { fs.rmSync(tmp, { force: true }); fail(e.status || 500, e.status === 507 ? "La carpeta no tiene espacio para más archivos" : "La subida se interrumpió"); }
+    fs.renameSync(tmp, dest); const t = Date.now();
+    applyOps(s.user_id, [{ t: "create", parent: folder.id, node: { id: nid, name, type: typeOf(name), size: n, ctime: t, mtime: t } }], "share-upload");
+    db.prepare("UPDATE shares SET uploads = uploads + 1 WHERE token = ?").run(token);
+    addNotification(s.user_id, { kind: "share", title: `${who || "Alguien"} subió “${name}” a ${folder.name}`, body: "Por tu enlace para pedir archivos", link: { app: "files", folder: folder.id } });
+    return json(res, 201, { ok: true, name });
   }
   fail(404, "No encontrado");
 }
