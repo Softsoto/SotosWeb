@@ -10,6 +10,12 @@ import crypto from "node:crypto";
 import { db, now, rid, getSetting, secret } from "./db.mjs";
 import { fail, json, readJson, cookies, clientIp, rateLimit, jwtSign, jwtVerify } from "./http.mjs";
 import { totpEnabled, totpSetup, totpEnable, totpDisable, totpCheck, recoveryLeft } from "./totp.mjs";
+import { sysMailConfig, sendSystemMail, publicUrl } from "./mail.mjs";
+
+// recuperar contraseña: enlace de un solo uso, 30 minutos; en la BD solo su SHA-256
+db.exec("CREATE TABLE IF NOT EXISTS password_resets (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created INTEGER NOT NULL, expires INTEGER NOT NULL)");
+export const canRecover = () => !!(sysMailConfig() && publicUrl());
+const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[c]);
 
 const SESSION_DAYS = 30;
 // foto de perfil: uno de los avatares por defecto ("def:perro"…) o una imagen subida (data URL pequeña)
@@ -56,7 +62,7 @@ export function requireUser(req) { const u = currentUser(req); if (!u) fail(401,
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 export async function handleAuth(req, res, sub) {
-  if (sub === "me" && req.method === "GET") return json(res, 200, { user: publicUser(currentUser(req)), registration: registration() });
+  if (sub === "me" && req.method === "GET") return json(res, 200, { user: publicUser(currentUser(req)), registration: registration(), canRecover: canRecover() });
   if (sub === "2fa" && req.method === "GET") { const u = requireUser(req); return json(res, 200, { enabled: totpEnabled(u.id), recoveryLeft: totpEnabled(u.id) ? recoveryLeft(u.id) : 0 }); }
   if (sub === "avatar" && req.method === "PUT") {
     const u = requireUser(req); const { avatar, password } = await readJson(req, 600 * 1024);
@@ -109,6 +115,42 @@ export async function handleAuth(req, res, sub) {
     startSession(req, res, u.id);
     return json(res, 200, { user: publicUser(u) });
   }
+  if (sub === "forgot") { // pide el enlace; la respuesta es la misma exista o no la cuenta
+    const { email } = await readJson(req, 4096); const em = String(email || "").trim().toLowerCase();
+    rateLimit("forgot:" + ip, 10, 3600_000); rateLimit("forgot:" + em, 3, 3600_000);
+    if (!canRecover()) fail(409, "Este servidor no tiene configurado el correo. Pide al administrador que cambie tu contraseña.");
+    const u = db.prepare("SELECT id, name, email, disabled FROM users WHERE email = ?").get(em);
+    if (u && !u.disabled) {
+      const token = crypto.randomBytes(32).toString("base64url");
+      db.prepare("DELETE FROM password_resets WHERE user_id = ?").run(u.id);
+      db.prepare("INSERT INTO password_resets(hash,user_id,created,expires) VALUES(?,?,?,?)").run(sha(token), u.id, now(), now() + 30 * 60_000);
+      const link = `${publicUrl()}/?restablecer=${token}`, site = getSetting("siteName", "Sotos");
+      sendSystemMail({ to: u.email, subject: `Cambia tu contraseña de ${site}`,
+        text: `Hola ${u.name}:\n\nAlguien (ojalá tú) pidió cambiar la contraseña de tu cuenta de ${site}. Para elegir una nueva abre este enlace en los próximos 30 minutos:\n\n${link}\n\nSi no fuiste tú, ignora este correo: tu contraseña sigue igual.\n\n— ${site}`,
+        html: `<div style="font-family:system-ui,sans-serif;max-width:480px;color:#2b2622"><h2 style="font-weight:600">Cambia tu contraseña</h2><p>Hola ${esc(u.name)}:</p><p>Alguien (ojalá tú) pidió cambiar la contraseña de tu cuenta de <b>${esc(site)}</b>. El enlace sirve una sola vez durante 30 minutos.</p><p><a href="${esc(link)}" style="display:inline-block;background:#c4532f;color:#fff;padding:10px 18px;border-radius:6px;text-decoration:none">Elegir una contraseña nueva</a></p><p style="color:#776d63;font-size:13px">Si no fuiste tú, ignora este correo: tu contraseña sigue igual.</p></div>` })
+        .catch(e => console.error("[sotos] no se pudo enviar el correo de recuperación:", e.message));
+    } else await hashPassword("x"); // mismo tiempo exista o no
+    return json(res, 200, { ok: true });
+  }
+  if (sub === "reset-check") { // ¿el enlace sigue vivo? y ¿pide código de dos pasos?
+    const { token } = await readJson(req, 4096); rateLimit("reset:" + ip, 30, 3600_000);
+    const r = db.prepare("SELECT r.user_id, r.expires, u.email, u.totp_on FROM password_resets r JOIN users u ON u.id = r.user_id WHERE r.hash = ?").get(sha(String(token || "")));
+    if (!r || r.expires < now()) fail(410, "El enlace caducó o ya se usó. Pide uno nuevo.");
+    return json(res, 200, { email: r.email, need2fa: !!r.totp_on });
+  }
+  if (sub === "reset") {
+    const { token, password, code } = await readJson(req, 8192); rateLimit("reset:" + ip, 30, 3600_000);
+    const r = db.prepare("SELECT * FROM password_resets WHERE hash = ?").get(sha(String(token || "")));
+    if (!r || r.expires < now()) fail(410, "El enlace caducó o ya se usó. Pide uno nuevo.");
+    if (String(password || "").length < 8) fail(400, "La contraseña debe tener al menos 8 caracteres");
+    if (String(password).length > 200) fail(400, "Contraseña demasiado larga");
+    if (totpEnabled(r.user_id)) { rateLimit("2fa:" + r.user_id, 6, 900_000); if (!totpCheck(r.user_id, code)) fail(401, "Código de verificación incorrecto"); }
+    db.prepare("UPDATE users SET pass = ? WHERE id = ?").run(await hashPassword(password), r.user_id);
+    db.prepare("DELETE FROM password_resets WHERE user_id = ?").run(r.user_id);
+    db.prepare("DELETE FROM sessions WHERE user_id = ?").run(r.user_id); // cierra todas las sesiones abiertas
+    startSession(req, res, r.user_id);
+    return json(res, 200, { user: publicUser(db.prepare("SELECT * FROM users WHERE id = ?").get(r.user_id)) });
+  }
   if (sub === "login2fa") {
     const { ticket, code } = await readJson(req, 4096);
     let t; try { t = jwtVerify(String(ticket || ""), secret("auth_2fa")); } catch { fail(401, "El inicio de sesión caducó. Vuelve a escribir tu contraseña."); }
@@ -154,4 +196,4 @@ export async function handleAuth(req, res, sub) {
   fail(404, "No encontrado");
 }
 
-setInterval(() => db.prepare("DELETE FROM sessions WHERE expires < ?").run(now()), 3600_000).unref();
+setInterval(() => { db.prepare("DELETE FROM sessions WHERE expires < ?").run(now()); db.prepare("DELETE FROM password_resets WHERE expires < ?").run(now()); }, 3600_000).unref();

@@ -3,6 +3,12 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.5 — en preparación
+
+### Nuevo
+- **Recuperar la contraseña por correo**: «¿Olvidaste tu contraseña?» en la pantalla de acceso envía un enlace de un solo uso que dura 30 minutos. Al cambiarla se cierran las demás sesiones, y si la cuenta tiene verificación en dos pasos también pide el código. La respuesta es la misma exista o no la cuenta.
+- **Correo del servidor** en Administración → Servidor: cuenta de envío (Gmail, Outlook, iCloud, Yahoo o cualquier SMTP) con la contraseña cifrada, dirección pública de Sotos para los enlaces y botón de prueba.
+
 ## 3.4 — 20 de noviembre de 2026
 
 ### Nuevo

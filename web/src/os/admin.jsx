@@ -179,6 +179,36 @@ function UserFiles({ u, onClose, onChanged }) {
   );
 }
 
+/** correo de envío del servidor: recuperar contraseñas por correo */
+const SMTP_PRESETS = { gmail: ["smtp.gmail.com", 465, "ssl"], outlook: ["smtp-mail.outlook.com", 587, "starttls"], icloud: ["smtp.mail.me.com", 587, "starttls"], yahoo: ["smtp.mail.yahoo.com", 465, "ssl"] };
+function SysMailSettings() {
+  const [d, setD] = useState(null), [f, setF] = useState(null), [busy, setBusy] = useState(false);
+  const load = () => api("GET", "admin/sysmail").then(r => { setD(r); setF({ publicUrl: r.publicUrl || location.origin, host: r.smtp?.host || "", port: r.smtp?.port || 587, tls: r.smtp?.tls || "starttls", username: r.smtp?.username || "", from: r.smtp?.from || "", name: r.smtp?.name || "Sotos", password: "" }); }).catch(() => {});
+  useEffect(() => { load(); }, []);
+  if (!f) return null;
+  const set = (k) => (e) => setF(s => ({ ...s, [k]: e.target.value }));
+  const preset = (p) => { const [host, port, tls] = SMTP_PRESETS[p]; setF(s => ({ ...s, host, port, tls })); };
+  const save = async () => { setBusy(true); try { await api("PUT", "admin/sysmail", { publicUrl: f.publicUrl, smtp: { ...f, port: +f.port } }); toast("Correo del servidor guardado", { icon: "check" }); load(); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
+  const test = async () => { setBusy(true); try { const r = await api("POST", "admin/sysmail/test"); toast(`Correo de prueba enviado a ${r.to}`, { icon: "mark_email_read" }); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
+  const off = async () => { try { await api("PUT", "admin/sysmail", { smtp: null }); toast("Recuperación por correo desactivada"); load(); } catch (e) { toast(e.message, { error: true }); } };
+  const on = !!d?.smtp;
+  return <>
+    <div className="admin-sub">Correo del servidor</div>
+    <div className="faint" style={{ fontSize: 12.5, marginBottom: 8 }}>{on ? "Las personas pueden recuperar su contraseña con un enlace que llega a su correo." : "Configura una cuenta de envío para que las personas puedan recuperar su contraseña por correo. Sin ella, solo el administrador puede cambiarla."}</div>
+    <div className="admin-line"><span>Dirección pública de Sotos</span><input className="sc-input" value={f.publicUrl} onChange={set("publicUrl")} placeholder="https://nube.midominio.com" style={{ width: 300, margin: 0 }} /></div>
+    <div className="admin-line"><span>Proveedor</span>{Object.keys(SMTP_PRESETS).map(p => <button key={p} className={"chip" + (f.host === SMTP_PRESETS[p][0] ? " on" : "")} onClick={() => preset(p)}>{{ gmail: "Gmail", outlook: "Outlook", icloud: "iCloud", yahoo: "Yahoo" }[p]}</button>)}</div>
+    <div className="admin-line"><span>Servidor SMTP</span><input className="sc-input" value={f.host} onChange={set("host")} placeholder="smtp.midominio.com" style={{ width: 220, margin: 0 }} />
+      <input className="sc-input" type="number" value={f.port} onChange={set("port")} style={{ width: 80, margin: 0 }} />
+      <button className={"chip" + (f.tls === "ssl" ? " on" : "")} onClick={() => setF(s => ({ ...s, tls: "ssl" }))}>SSL</button><button className={"chip" + (f.tls === "starttls" ? " on" : "")} onClick={() => setF(s => ({ ...s, tls: "starttls" }))}>STARTTLS</button></div>
+    <div className="admin-line"><span>Remitente</span><input className="sc-input" value={f.name} onChange={set("name")} placeholder="Nombre" style={{ width: 140, margin: 0 }} /><input className="sc-input" type="email" value={f.from} onChange={set("from")} placeholder="no-responder@midominio.com" style={{ width: 240, margin: 0 }} /></div>
+    <div className="admin-line"><span>Usuario y contraseña</span><input className="sc-input" value={f.username} onChange={set("username")} placeholder="igual que el remitente" style={{ width: 200, margin: 0 }} autoComplete="off" />
+      <input className="sc-input" type="password" value={f.password} onChange={set("password")} placeholder={d?.smtp?.hasPassword ? "•••••••• (guardada)" : "contraseña de aplicación"} style={{ width: 200, margin: 0 }} autoComplete="new-password" /></div>
+    <div className="admin-line"><span /><button className="tb-btn primary" disabled={busy || !f.host || !f.from} onClick={save}>Guardar</button>
+      {on && <button className="tb-btn" disabled={busy} onClick={test}><Ic name="send" /> Enviarme una prueba</button>}
+      {on && <button className="tb-btn" disabled={busy} onClick={off}>Desactivar</button>}</div>
+  </>;
+}
+
 /** actualizaciones de Sotos (versiones publicadas en GitHub) */
 function UpdatesCard() {
   const [u, setU] = useState(null), [busy, setBusy] = useState(false), [log, setLog] = useState([]), [showNotes, setShowNotes] = useState(false);
@@ -277,6 +307,7 @@ function ServerSettings({ stats, onSaved }) {
       <button className={"chip" + (stats.settings.registration === "closed" ? " on" : "")} onClick={() => save({ registration: "closed" }, "Registro cerrado: solo el administrador crea cuentas")}>Cerrado</button></div>
     <div className="admin-line"><span>Cuota para cuentas nuevas</span><input className="sc-input" type="number" min={10} value={quota} onChange={e => setQuota(e.target.value)} style={{ width: 110, margin: 0 }} /><span className="faint">MB</span>
       <button className="tb-btn" onClick={() => save({ defaultQuotaMb: +quota }, "Cuota por defecto actualizada")}>Guardar</button></div>
+    <SysMailSettings />
     <div className="admin-sub">Equipo</div>
     <div className="faint" style={{ fontSize: 13, lineHeight: 1.7 }}>{stats.server.platform} · {stats.server.cpus} núcleos · Node {stats.server.node}<br />Sotos usa {fmtSize(stats.server.memory)} de memoria · encendido hace {dur(stats.server.uptime)}</div>
   </>;

@@ -9,7 +9,7 @@ import tls from "node:tls";
 import net from "node:net";
 import crypto from "node:crypto";
 import fs from "node:fs";
-import { db, now, secret } from "./db.mjs";
+import { db, now, secret, getSetting, setSetting } from "./db.mjs";
 import { fail, json, readJson, rateLimit } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
 import { userNode, blobPath } from "./fs.mjs";
@@ -210,6 +210,24 @@ function buildMessage({ from, name, to, cc, subject, text, html, attachments, in
   if (!attachments.length) return [...head, altPart].join("\r\n");
   const parts = attachments.map(a => [`--${boundary}`, `Content-Type: ${a.type || "application/octet-stream"}; name="${word(a.name)}"`, "Content-Transfer-Encoding: base64", `Content-Disposition: attachment; filename="${word(a.name)}"`, "", wrap(a.data.toString("base64"))].join("\r\n"));
   return [...head, `Content-Type: multipart/mixed; boundary="${boundary}"`, "", `--${boundary}`, altPart, ...parts, `--${boundary}--`, ""].join("\r\n");
+}
+
+/* ---------------- correo del sistema (recuperar contraseña, avisos) ----------------
+   Una cuenta de envío del servidor que configura el administrador; su contraseña se guarda cifrada. */
+export const sysMailConfig = () => { const c = getSetting("systemSmtp", null); return c && c.host ? c : null; };
+export const publicUrl = () => String(getSetting("publicUrl", process.env.SOTOS_PUBLIC_URL || "") || "").replace(/\/+$/, "");
+export function saveSysMail(c) {
+  if (!c) { setSetting("systemSmtp", null); return; }
+  const old = sysMailConfig();
+  const host = String(c.host || "").trim(), port = Number(c.port) || 587, from = String(c.from || "").trim();
+  if (!host || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(from)) fail(400, "Escribe el servidor SMTP y un remitente válido");
+  const pass_enc = c.password ? enc(String(c.password)) : old?.pass_enc; if (!pass_enc) fail(400, "Escribe la contraseña de la cuenta de envío");
+  setSetting("systemSmtp", { host, port, tls: c.tls === "ssl" || c.tls === "starttls" ? c.tls : (port === 465 ? "ssl" : "starttls"), username: String(c.username || from).trim(), from, name: String(c.name || "Sotos").slice(0, 60), pass_enc });
+}
+export async function sendSystemMail({ to, subject, text, html }) {
+  const c = sysMailConfig(); if (!c) throw new Error("El servidor no tiene configurado el correo de envío");
+  const raw = buildMessage({ from: c.from, name: c.name, to: [to], cc: [], subject, text, html, attachments: [] });
+  await smtpSend({ smtp_host: c.host, smtp_port: c.port, smtp_tls: c.tls, username: c.username, pass: dec(c.pass_enc) }, { from: c.from, to: [to], raw });
 }
 
 /* ---------------- API ---------------- */

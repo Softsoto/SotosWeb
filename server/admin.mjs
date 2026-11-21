@@ -16,6 +16,7 @@ import { VAULT_DIR, vaultForAdmin, vaultAdminFile } from "./vault.mjs";
 import { backupStatus, runBackup } from "./backup.mjs";
 import { totpDisable } from "./totp.mjs";
 import { checkUpdate, applyUpdate, currentVersion, restart } from "./updates.mjs";
+import { sysMailConfig, saveSysMail, sendSystemMail, publicUrl } from "./mail.mjs";
 
 // registro de lo que hace cada administrador (transparencia: quién vio, borró o cambió qué)
 db.exec(`CREATE TABLE IF NOT EXISTS admin_log (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id TEXT, user_id TEXT, action TEXT NOT NULL, detail TEXT, created INTEGER NOT NULL)`);
@@ -57,6 +58,19 @@ export async function handleAdmin(req, res, parts) {
     });
   }
 
+  if (a === "sysmail") { // correo de envío del servidor (recuperar contraseñas) y dirección pública
+    if (req.method === "GET") { const c = sysMailConfig(); return json(res, 200, { publicUrl: publicUrl(), smtp: c ? { host: c.host, port: c.port, tls: c.tls, username: c.username, from: c.from, name: c.name, hasPassword: !!c.pass_enc } : null }); }
+    if (req.method === "PUT") {
+      const b = await readJson(req, 8192);
+      if (b.publicUrl !== undefined) { const u = String(b.publicUrl || "").trim().replace(/\/+$/, ""); if (u && !/^https?:\/\/[^\s/]+(\/[^\s]*)?$/i.test(u)) fail(400, "Dirección no válida (ej.: https://nube.midominio.com)"); setSetting("publicUrl", u); }
+      if (b.smtp !== undefined) saveSysMail(b.smtp); audit(me, null, "configurar correo del sistema");
+      return json(res, 200, { ok: true });
+    }
+    if (req.method === "POST" && id === "test") {
+      try { await sendSystemMail({ to: me.email, subject: "Prueba del correo de Sotos", text: "Si lees esto, Sotos ya puede enviar correos para recuperar contraseñas.", html: "<p>Si lees esto, <b>Sotos ya puede enviar correos</b> para recuperar contraseñas.</p>" }); return json(res, 200, { ok: true, to: me.email }); }
+      catch (e) { fail(502, e.message); }
+    }
+  }
   if (a === "settings" && req.method === "PUT") {
     const b = await readJson(req, 4096);
     if (b.registration !== undefined) { if (!["open", "closed"].includes(b.registration)) fail(400, "Valor no válido"); setSetting("registration", b.registration); }

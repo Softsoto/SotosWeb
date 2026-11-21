@@ -769,9 +769,11 @@ function OS() {
   const bootInner = useCh(async () => {
     if (DEMO) { await vfs.init(); localStorage.setItem("sotos_in", "1"); return "desktop"; } // demo: directo al escritorio, como invitado
     const server = await hasServer();
-    let me = null, registration = "open";
-    if (server) { try { const r = await api("GET", "auth/me"); me = r.user; registration = r.registration; } catch {} }
-    setEnv({ server, registration });
+    let me = null, registration = "open", canRecover = false;
+    if (server) { try { const r = await api("GET", "auth/me"); me = r.user; registration = r.registration; canRecover = !!r.canRecover; } catch {} }
+    const resetToken = server ? new URLSearchParams(location.search).get("restablecer") : null; // enlace del correo de recuperación
+    setEnv({ server, registration, canRecover, resetToken });
+    if (resetToken) return "login";
     if (me) { await vfs.init({ user: me }); return "desktop"; }
     if (quickBoot.current && localStorage.getItem("sotos_mode") !== "cloud") { await vfs.init(); return "desktop"; }
     return "login";
@@ -810,7 +812,7 @@ function OS() {
   const storeProps = { openApp, openItem, newDoc, settings, update, profile: shownProfile, setProfile, shortcuts, scApi, dockApi, dockCfg, user, env, onLogout: logout, openSpotlight: () => setSpot(true) };
 
   if (stage === "boot") return <BootScreen quick={quickBoot.current} task={bootTask} onDone={(s) => setStage(s)} />;
-  if (stage === "login") return <LoginScreen wallpaper={wallpaper} server={env.server} registration={env.registration} lastUser={lastUser} onAccount={enterAccount} onGuest={enterGuest} />;
+  if (stage === "login") return <LoginScreen wallpaper={wallpaper} server={env.server} registration={env.registration} canRecover={env.canRecover} resetToken={env.resetToken} lastUser={lastUser} onAccount={enterAccount} onGuest={enterGuest} />;
 
   return (
     <div id="os" data-screen-label="Escritorio">
