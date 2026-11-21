@@ -47,6 +47,8 @@ import "./backup.mjs";      // copias de seguridad diarias
 import "./maintenance.mjs"; // papelera automática y avisos de espacio
 import { handleWorlds } from "./worlds.mjs";
 
+// prueba de arranque del actualizador: todos los módulos cargaron bien → salir sin abrir puertos
+if (process.env.SOTOS_SMOKE === "1") { console.log("[sotos] arranque comprobado"); process.exit(0); }
 const PORT = Number(process.env.PORT || 8787);
 const PROD = process.env.NODE_ENV === "production";
 const PX_HOST = (process.env.PX_HOST || "").toLowerCase();

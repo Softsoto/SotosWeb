@@ -2,6 +2,9 @@
 
 © 2026 Sebastian Sotomontes · MIT License. The Spanish [CHANGELOG](../CHANGELOG.md) is the reference.
 
+## 3.5.1 — 2026-11-21
+- Safer updates: the updater installs everything in the new package (no fixed list, so new folders are never missed), keeps the previous version, checks that the new one boots before restarting, and rolls back automatically if it does not.
+
 ## 3.5 — 2026-11-21
 - App SDK (`sdk/`): `sotos-app.json` manifest with permissions (files.read, files.write, storage, notify, user); `sotos-sdk.js` (pick/read/save/write files through the system picker, per-user app storage, notifications, window title, live theme, "Open with" from Files). Apps run sandboxed (opaque origin, no access to the session or API) and only get the files the user picks. Admin installs `.zip` apps in Admin → Apps; the Store shows author, version and permissions. Tools: `crear-app.mjs`, `empaquetar-app.mjs`, TypeScript types, docs and a Markdown notes example app.
 - CalDAV/CardDAV: calendars, World calendars and contacts sync with iPhone/iPad/Mac (auto-discovery), Android (DAVx⁵), Thunderbird and Outlook; time zones, alarms and recurring events preserved; uses per-device app passwords.

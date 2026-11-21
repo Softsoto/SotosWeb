@@ -3,6 +3,11 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.5.1 — 21 de noviembre de 2026
+
+### Arreglado
+- **Actualizaciones más seguras**: el actualizador ahora instala todo lo que trae la versión nueva (antes usaba una lista fija y una carpeta nueva podía faltar, dejando el servidor sin arrancar). Guarda la versión anterior, comprueba que la nueva arranca antes de reiniciar y, si no arranca, vuelve sola a la anterior y lo avisa.
+
 ## 3.5 — 21 de noviembre de 2026
 
 ### Nuevo

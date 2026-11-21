@@ -23,8 +23,6 @@ const ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const REPO = process.env.SOTOS_UPDATE_REPO || "Softsoto/SotosWeb";
 export const currentVersion = () => { try { return fs.readFileSync(path.join(ROOT, "VERSION"), "utf8").trim(); } catch { return "0.0.0"; } };
 const cmp = (a, b) => { const x = String(a).replace(/^v/, "").split(".").map(Number), y = String(b).replace(/^v/, "").split(".").map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) - (y[i] || 0); } return 0; };
-// lo que se reemplaza al actualizar (los datos y la configuración nunca)
-const APP_PARTS = ["server", "web/dist", "web/src/os/tree-ops.js", "scripts", "sdk", "services/whatsapp/index.mjs", "services/whatsapp/package.json", "services/whatsapp/package-lock.json", "docs/capturas", "VERSION", "README.md", "CHANGELOG.md", "LICENSE", "Dockerfile", "docker-compose.nas.yml", "instalar-sotos.ps1", "instalar-sotos.sh"];
 const KEEP = new Set(["data", ".env", "sotos.env"]); // dentro de server/: no se tocan
 
 function updatable() {
@@ -46,11 +44,34 @@ export async function checkUpdate(force = false) {
   cache = { at: Date.now(), data }; return data;
 }
 
-const sh = (cmd, args, cwd) => new Promise((ok, bad) => execFile(cmd, args, { cwd, windowsHide: true, timeout: 600_000 }, (e, o, er) => e ? bad(new Error(String(er || e.message).trim().split("\n").pop())) : ok(o)));
+const sh = (cmd, args, cwd, env) => new Promise((ok, bad) => execFile(cmd, args, { cwd, env, windowsHide: true, timeout: 600_000 }, (e, o, er) => e ? bad(new Error(String(er || e.message).trim().split("\n").filter(l => /Error|error/.test(l)).pop() || String(er || e.message).trim().split("\n").pop())) : ok(o)));
 function copyInto(src, dst) {
   const st = fs.statSync(src);
   if (st.isDirectory()) { fs.mkdirSync(dst, { recursive: true }); for (const e of fs.readdirSync(src)) copyInto(path.join(src, e), path.join(dst, e)); }
   else fs.copyFileSync(src, dst);
+}
+
+// lo que nunca se toca al actualizar: datos, configuración y lanzadores creados por el instalador
+const LEAVE = new Set(["data", "node_modules", ".env", "sotos.env", "iniciar-sotos.cmd", "iniciar-sotos.sh", "abrir-sotos.vbs", ".git"]);
+const appEntries = (dir) => fs.readdirSync(dir).filter(e => !LEAVE.has(e));
+/** reemplaza la aplicación por la del paquete (todo lo que traiga, no una lista fija), guarda la anterior en «backup»,
+ *  comprueba que la nueva arranca y, si no, deja todo como estaba */
+export async function installPackage(top, backup, log = () => {}) {
+  fs.rmSync(backup, { recursive: true, force: true }); fs.mkdirSync(backup, { recursive: true });
+  const swap = (from, to, list) => { for (const e of list) { const s = path.join(from, e), d = path.join(to, e); if (!fs.existsSync(s)) continue;
+    if (e === "server") { fs.mkdirSync(d, { recursive: true }); for (const f of fs.readdirSync(s)) if (!KEEP.has(f)) { fs.rmSync(path.join(d, f), { recursive: true, force: true }); copyInto(path.join(s, f), path.join(d, f)); } }
+    else { fs.rmSync(d, { recursive: true, force: true }); copyInto(s, d); } } };
+  const oldList = appEntries(ROOT), newList = appEntries(top);
+  swap(ROOT, backup, oldList);                                                        // 1) copia de la versión actual
+  for (const e of oldList) if (!newList.includes(e) && e !== "server") fs.rmSync(path.join(ROOT, e), { recursive: true, force: true }); // lo que ya no existe
+  swap(top, ROOT, newList);                                                           // 2) la versión nueva
+  try { await sh(process.execPath, [path.join(ROOT, "server", "index.mjs")], ROOT, { ...process.env, SOTOS_SMOKE: "1" }); } // 3) ¿arranca?
+  catch (e) {
+    log("La versión nueva no arrancó: se vuelve a la anterior…");
+    for (const e2 of newList) if (!oldList.includes(e2) && e2 !== "server") fs.rmSync(path.join(ROOT, e2), { recursive: true, force: true });
+    swap(backup, ROOT, oldList);
+    throw new Error("La versión nueva no arrancó y se dejó la anterior (" + String(e.message).slice(0, 200) + ")");
+  }
 }
 
 let running = null;
@@ -74,12 +95,7 @@ export function applyUpdate(log) {
     const top = fs.readdirSync(x).map(n => path.join(x, n)).find(p => fs.existsSync(path.join(p, "VERSION")));
     if (!top) throw new Error("El paquete no tiene el formato esperado");
     log("Instalando la versión nueva (tus datos y tu configuración no se tocan)…");
-    for (const part of APP_PARTS) {
-      const src = path.join(top, part), dst = path.join(ROOT, part); if (!fs.existsSync(src)) continue;
-      if (part === "server") { for (const e of fs.readdirSync(src)) if (!KEEP.has(e)) { fs.rmSync(path.join(dst, e), { recursive: true, force: true }); copyInto(path.join(src, e), path.join(dst, e)); } continue; }
-      if (fs.statSync(src).isDirectory()) fs.rmSync(dst, { recursive: true, force: true });
-      copyInto(src, dst);
-    }
+    await installPackage(top, path.join(dir, "anterior"), log);
     fs.rmSync(dir, { recursive: true, force: true });
     setSetting("updatedTo", { version: info.latest, at: Date.now() });
     log(`Sotos ${info.latest} instalado. Reiniciando…`);
