@@ -8,6 +8,7 @@ Todas las versiones de Sotos, de la más reciente a la más antigua.
 ### Nuevo
 - **Recuperar la contraseña por correo**: «¿Olvidaste tu contraseña?» en la pantalla de acceso envía un enlace de un solo uso que dura 30 minutos. Al cambiarla se cierran las demás sesiones, y si la cuenta tiene verificación en dos pasos también pide el código. La respuesta es la misma exista o no la cuenta.
 - **Calendario y contactos en el celular (CalDAV y CardDAV)**: iPhone, iPad y Mac los encuentran solos; Android con DAVx⁵; Thunderbird y Outlook. Se sincronizan tus calendarios, los de tus Mundos y tus contactos en ambos sentidos, con zonas horarias, avisos y eventos que se repiten (se conservan tal cual los manda el celular). Usa las mismas claves por dispositivo de la unidad de red.
+- **Selector de archivos del sistema**, el mismo en todas las apps: Sotos Drive con sus carpetas, Recientes, búsqueda, miniaturas, vista de lista, carpeta nueva y «Desde este equipo». Recuerda la última carpeta. Lo usan Correo (adjuntar), Mundos y Bóveda (subir), Calendario y Contactos (importar) y Paint («Guardar como», con aviso antes de reemplazar).
 - **Correo del servidor** en Administración → Servidor: cuenta de envío (Gmail, Outlook, iCloud, Yahoo o cualquier SMTP) con la contraseña cifrada, dirección pública de Sotos para los enlaces y botón de prueba.
 
 ## 3.4 — 20 de noviembre de 2026

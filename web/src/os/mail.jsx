@@ -5,6 +5,7 @@
    © 2026 Sebastian Sotomontes
    ============================================================ */
 import React from "react";
+import { pickFiles } from "./filepicker.jsx";
 import { Ic, Modal, EmptyState, toast } from "./ui.jsx";
 import { api } from "./api.js";
 import * as vfs from "./vfs.js";
@@ -137,6 +138,14 @@ function Compose({ init, onClose, onSent, account, accounts }) {
   const first = idents.find(x => x.acc === account.id && x.email.toLowerCase() === String(init?.from || account.default_from || account.email).toLowerCase()) || idents.find(x => x.acc === account.id) || idents[0];
   const sigOf = (acc) => accounts.find(a => a.id === acc)?.signature || "";
   const [f, setF] = useState({ to: "", cc: "", subject: "", ...init, ident: key(first) }), [att, setAtt] = useState([]), [busy, setBusy] = useState(false), [pick, setPick] = useState(false);
+  // selector del sistema: de Sotos Drive o del equipo (lo del equipo se sube primero a la carpeta «Adjuntos»)
+  const attachPick = async () => {
+    const r = await pickFiles({ title: "Adjuntar archivos", multiple: true }); if (!r?.length) return;
+    let nodes = r.filter(n => !(n instanceof File)); const local = r.filter(n => n instanceof File);
+    if (local.length) { const root = vfs.getState().root; const dir = (root.children || []).find(c => c.type === "folder" && c.name === "Adjuntos")?.id || vfs.mkdir(vfs.ROOT, "Adjuntos");
+      toast(`Subiendo ${local.length} archivo(s) a Adjuntos…`, { icon: "upload" }); const ids = await vfs.importFiles(dir, local); nodes = [...nodes, ...ids.map(vfs.node).filter(Boolean)]; }
+    setAtt(a => [...a, ...nodes.filter(n => !a.some(x => x.id === n.id))]);
+  };
   const [body, setBody] = useState(() => (init?.html || (init?.text ? textToHtml(init.text) : "<p><br></p>")) + (sigOf(first.acc) ? `<p><br></p><div class="sotos-firma">${sigOf(first.acc)}</div>` : ""));
   const send = async () => { setBusy(true); try { await vfs.flush?.().catch(() => {}); const who = idents.find(x => key(x) === f.ident) || first;
     const html = cleanHtml(body); const tmp = document.createElement("div"); tmp.innerHTML = html.replace(/<br\s*\/?>/gi, "\n").replace(/<\/(p|div|li|h[1-3]|blockquote)>/gi, "\n");
@@ -145,7 +154,7 @@ function Compose({ init, onClose, onSent, account, accounts }) {
   const files = []; vfs.walk(n => { if (!n.children && n.size > 0 && n.size < 20e6) files.push(n); });
   return (
     <Modal title={init?.subject ? f.subject : "Correo nuevo"} icon="edit" onClose={onClose} width={820}
-      actions={<><button className="tb-btn" onClick={() => setPick(p => !p)}><Ic name="attach_file" /> Adjuntar de Archivos</button><div style={{ flex: 1 }} /><button className="tb-btn" onClick={onClose}>Descartar</button>
+      actions={<><button className="tb-btn" onClick={attachPick}><Ic name="attach_file" /> Adjuntar</button><div style={{ flex: 1 }} /><button className="tb-btn" onClick={onClose}>Descartar</button>
         <button className="tb-btn primary" disabled={busy || !f.to.trim()} onClick={send}><Ic name="send" /> {busy ? "Enviando…" : "Enviar"}</button></>}>
       <div className="mail-compose">
         {idents.length > 1 ? <label className="compose-row"><span>De</span><select className="compose-from" value={f.ident} onChange={e => setF({ ...f, ident: e.target.value })}>

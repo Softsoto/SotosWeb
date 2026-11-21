@@ -5,6 +5,7 @@
    © 2026 Sebastian Sotomontes
    ============================================================ */
 import React from "react";
+import { pickAsFiles } from "./filepicker.jsx";
 import { Ic, Modal, toast } from "./ui.jsx";
 import { api, onServer } from "./api.js";
 import * as vfs from "./vfs.js";
@@ -98,7 +99,7 @@ export function CalendarApp({ date: openDate }) {
         <button className="cal-add" onClick={() => setNewCal("")}><Ic name="add" size={15} /> Calendario</button>
         {data.worlds.length > 0 && <><div className="side-label">Calendarios de Mundos</div>
           {data.worlds.map(w => <label key={w.id} className="cal-toggle"><input type="checkbox" checked={!hidden.has(w.id)} onChange={() => toggle(w.id)} style={{ accentColor: w.color }} /><i style={{ background: w.color }} />{w.name}</label>)}</>}
-        <div className="cal-foot"><button className="tb-btn" onClick={() => imp.current.click()}><Ic name="upload" size={16} /> Importar .ics</button><button className="tb-btn" onClick={exportIcs}><Ic name="download" size={16} /> Exportar</button></div>
+        <div className="cal-foot"><button className="tb-btn" onClick={async () => { const f = await pickAsFiles({ title: "Importar calendario (.ics)", exts: ["ics"] }); if (f?.[0]) importIcs(f[0]); }}><Ic name="upload" size={16} /> Importar .ics</button><button className="tb-btn" onClick={exportIcs}><Ic name="download" size={16} /> Exportar</button></div>
       </div>
       <div className="app-main" style={{ display: "flex", flexDirection: "column" }}>
         <div className="cal-bar">

@@ -4,6 +4,7 @@
    © 2026 Sebastian Sotomontes
    ============================================================ */
 import React from "react";
+import { pickAsFiles } from "./filepicker.jsx";
 import { Ic, EmptyState, Modal, toast } from "./ui.jsx";
 import { api } from "./api.js";
 import * as vfs from "./vfs.js";
@@ -85,7 +86,7 @@ export function VaultApp() {
       <div className="vault-bar">
         <Ic name="lock_open" /><b>Bóveda</b><span className="faint">{items ? `${items.length} archivo(s) · ${fmtSize(items.reduce((s, x) => s + x.size, 0))}` : ""}</span>
         <div className="search-box" style={{ flex: 1, maxWidth: 280, marginLeft: "auto" }}><Ic name="search" size={16} /><input placeholder="Buscar" value={q} onChange={e => setQ(e.target.value)} /></div>
-        <button className="tb-btn primary" onClick={() => input.current.click()}><Ic name="upload" /> Subir</button>
+        <button className="tb-btn primary" onClick={async () => { const f = await pickAsFiles({ title: "Guardar en la bóveda", multiple: true }); if (f?.length) upload(f); }}><Ic name="upload" /> Subir</button>
         <button className="tb-btn" title="Cerrar la bóveda" onClick={async () => { await vapi("POST", "lock").catch(() => {}); token = null; setItems(null); setSt("locked"); }}><Ic name="lock" /> Cerrar</button>
       </div>
       {up && <div className="vault-up"><Ic name="upload" size={16} /> Cifrando y guardando «{up.name}»… {up.pct}%<div className="tr-bar"><i style={{ width: up.pct + "%" }} /></div></div>}

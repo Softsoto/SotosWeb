@@ -12,6 +12,7 @@ import * as vfs from "./vfs.js";
 import { useVfs, DESKTOP } from "./vfs.js";
 import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl, ShareDialog, VersionsDialog, MoveToDialog, DRAG_MIME } from "./files-ui.jsx";
 import { LoginScreen } from "./auth-ui.jsx";
+import { FilePickerHost } from "./filepicker.jsx";
 import { wallUrl, isWall } from "./wallpapers.js";
 import { GlobalContextMenu } from "./context-menu.jsx";
 import { DEMO, SHOWCASE_URL } from "./config.js";
@@ -846,6 +847,7 @@ function OS() {
       <GlobalContextMenu openApp={openApp} winAction={winAction} />
       {DEMO && demoWelcome && <DemoWelcome onApp={openApp} onClose={() => { setDemoWelcome(false); try { localStorage.setItem("sotos_demo_seen", "1"); } catch {} }} />}
       <Toasts />
+      <FilePickerHost />
     </div>
   );
 }

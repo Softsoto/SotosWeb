@@ -5,6 +5,7 @@
    © 2026 Sebastian Sotomontes
    ============================================================ */
 import React from "react";
+import { pickFiles } from "./filepicker.jsx";
 import { Ic, Toolbar, EmptyState, toast } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtDate } from "./vfs.js";
@@ -225,7 +226,14 @@ export function PaintApp({ fileId }) {
   const toBlob = () => new Promise(r => canvas.current.toBlob(r, "image/png"));
   const save = async (asNew = false) => {
     const blob = await toBlob(); const cur = fileRef.current && vfs.node(fileRef.current);
-    if (cur && !asNew && vfs.extOf(cur.name) === "png") { await vfs.write(cur.id, blob); }
+    if (asNew) { // «Guardar como»: carpeta y nombre en el selector del sistema
+      const base = (cur ? cur.name.replace(/\.[^.]+$/, "") : name.replace(/\.png$/i, "")) + ".png";
+      const r = await pickFiles({ mode: "save", title: "Guardar dibujo como", name: base, start: (cur && vfs.parentOf(cur.id)?.id) || vfs.resolve("/Imágenes")?.id }); if (!r) return;
+      const fname = /\.png$/i.test(r.name) ? r.name : r.name + ".png";
+      let id; if (r.replaceId) { await vfs.write(r.replaceId, blob); id = r.replaceId; } else id = await vfs.create(r.folderId, vfs.uniqueName(vfs.node(r.folderId), fname), blob);
+      fileRef.current = id; setName(vfs.node(id).name); setDirty(false); toast(`Guardado como “${vfs.node(id).name}”`, { icon: "save" }); return;
+    }
+    if (cur && vfs.extOf(cur.name) === "png") { await vfs.write(cur.id, blob); }
     else { const dir = vfs.resolve("/Imágenes") || vfs.getState().root; const base = (cur ? cur.name.replace(/\.[^.]+$/, "") : name.replace(/\.png$/i, "")) + ".png"; const id = await vfs.create(dir.id, vfs.uniqueName(dir, base), blob); fileRef.current = id; setName(vfs.node(id).name); toast(`Guardado en Imágenes como “${vfs.node(id).name}”`, { icon: "save" }); }
     setDirty(false);
   };
@@ -238,7 +246,7 @@ export function PaintApp({ fileId }) {
       <Toolbar>
         <button className="tb-btn" onClick={() => { const x = ctx(); x.fillStyle = "#ffffff"; x.fillRect(0, 0, canvas.current.width, canvas.current.height); snap(); fileRef.current = null; setName("Dibujo.png"); setDirty(false); toast("Lienzo nuevo (Ctrl+Z recupera el anterior)", { icon: "note_add" }); }} title="Lienzo nuevo"><Ic name="note_add" /></button>
         <button className="tb-btn" onClick={() => save()} title="Guardar (Ctrl+S)"><Ic name="save" /> Guardar</button>
-        <button className="tb-btn" onClick={() => save(true)} title="Guardar una copia en Imágenes"><Ic name="save_as" /></button>
+        <button className="tb-btn" onClick={() => save(true)} title="Guardar como…"><Ic name="save_as" /></button>
         <span className="tb-sep" />
         <button className="tb-btn icon" onClick={undo} title="Deshacer (Ctrl+Z)"><Ic name="undo" /></button>
         <button className="tb-btn icon" onClick={redo} title="Rehacer (Ctrl+Y)"><Ic name="redo" /></button>

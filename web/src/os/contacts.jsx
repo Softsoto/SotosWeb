@@ -5,6 +5,7 @@
    importar/exportar vCard y añadir contactos con cuenta a un Mundo.
    ============================================================ */
 import React from "react";
+import { pickAsFiles } from "./filepicker.jsx";
 import { Ic, EmptyState, Modal, toast, ContextMenu } from "./ui.jsx";
 import { avatarUrl, avatarFor } from "./ui.jsx";
 import { api, onServer } from "./api.js";
@@ -150,7 +151,7 @@ export function ContactsApp({ contactId }) {
           {items && !items.length && <div className="faint" style={{ padding: 14, fontSize: 12.5, lineHeight: 1.5 }}>Aún no tienes contactos. Crea uno o importa un archivo <b>.vcf</b> del celular, Gmail u Outlook.</div>}
         </div>
         <div className="contacts-foot">
-          <button className="tb-btn" onClick={() => imp.current.click()}><Ic name="upload" size={16} /> Importar .vcf</button>
+          <button className="tb-btn" onClick={async () => { const f = await pickAsFiles({ title: "Importar contactos (.vcf)", exts: ["vcf"] }); if (f?.[0]) doImport(f[0]); }}><Ic name="upload" size={16} /> Importar .vcf</button>
           <button className="tb-btn" disabled={!items?.length} onClick={doExport}><Ic name="download" size={16} /> Exportar</button>
         </div>
       </div>

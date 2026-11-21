@@ -3,6 +3,7 @@
    © 2026 Sebastian Sotomontes
    ============================================================ */
 import React from "react";
+import { pickAsFiles } from "./filepicker.jsx";
 import { Ic, EmptyState, Modal, toast, ContextMenu } from "./ui.jsx";
 import { api, onServer } from "./api.js";
 import * as vfs from "./vfs.js";
@@ -276,7 +277,7 @@ function WorldFiles({ w, openItem }) {
         <div className="tb-spacer" />
         {busy > 0 && <span className="faint" style={{ fontSize: 12 }}><Ic name="progress_activity" size={15} /> Subiendo {busy}…</span>}
         <button className="tb-btn icon" title="Nueva carpeta" onClick={mkdir}><Ic name="create_new_folder" /></button>
-        <button className="tb-btn primary" onClick={() => up.current.click()}><Ic name="upload" /> Subir</button>
+        <button className="tb-btn primary" onClick={async () => { const f = await pickAsFiles({ title: "Subir al mundo", multiple: true }); if (f?.length) uploadFiles(f); }}><Ic name="upload" /> Subir</button>
       </div>
       <div className="scroll" style={{ flex: 1 }}>
         <div className="file-list">
