@@ -3,7 +3,7 @@
    ============================================================ */
 import React from "react";
 import { useEra, EraPlate, EraFolder } from "./iconos-epoca.jsx";
-import { EraObject, hasObject } from "./iconos-objetos.jsx";
+import { EraObject, hasObject, ICON_OBJECT } from "./iconos-objetos.jsx";
 import { playUi } from "./sonidos.js";
 import ReactDOM from "react-dom";
 import { TYPE_META } from "./data.jsx";
@@ -17,7 +17,7 @@ function Tile({ icon, color, size = 46, style, app }) {
   return (
     <div className={"tile" + (obj ? " has-object" : "")} data-app={app} style={{ width: size, height: size, background: era ? undefined : color, "--c": color, fontSize: size, ...style }}>
       {obj && era === "aluminio" && <EraPlate era="aluminio-claro" />}
-      {obj ? <EraObject app={app} era={era} /> : era && <EraPlate era={era} />}
+      {obj ? <EraObject app={app} era={era} size={size} /> : era && <EraPlate era={era} />}
       <span className="material-symbols-rounded">{icon}</span>
       {app && <TileGlyph app={app} />}
     </div>
@@ -79,6 +79,7 @@ function WinGlyph({ kind }) {
 
 /* -------------------- Window -------------------- */
 function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResize, children }) {
+  const winEra = useEra(); // en las épocas el ícono del título es el de la época
   const ref = useRef(null);
   const drag = useRef(null);
   // oculto de verdad solo cuando termina la animación de minimizar
@@ -167,7 +168,7 @@ function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResi
       onMouseDown={onFocus}
     >
       <div className="titlebar" onMouseDown={startDrag} onDoubleClick={e => !e.target.closest(".win-ctrls") && onMax()}>
-        <span className="win-app"><Ic name={app.icon} size={16} /></span>
+        <span className="win-app">{winEra ? <Tile icon={app.icon} color={app.color} app={app.id} size={16} /> : <Ic name={app.icon} size={16} />}</span>
         <div className="title">{win.title || app.name}</div>
         <div className="win-ctrls">
           <button className="wc-min" onClick={onMin} title="Minimizar" aria-label="Minimizar"><WinGlyph kind="min" /></button>
@@ -183,9 +184,10 @@ function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResi
 
 /* -------------------- Small reusable pieces -------------------- */
 function SideItem({ icon, label, active, onClick, color }) {
+  const era = useEra(); const obj = (era === "prado" || era === "cristal" || era === "vidrio") && ICON_OBJECT[icon];
   return (
     <div className={"side-item" + (active ? " active" : "")} onClick={onClick}>
-      <Ic name={icon} style={color && !active ? { color } : undefined} />
+      {obj ? <span className="side-obj"><EraObject app={obj} era={era} size={20} /></span> : <Ic name={icon} style={color && !active ? { color } : undefined} />}
       <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
     </div>
   );

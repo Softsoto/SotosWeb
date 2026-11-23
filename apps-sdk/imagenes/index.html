@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Convertidor de imágenes</title>
+  <link rel="stylesheet" href="comun.css">
+  <link rel="stylesheet" href="estilo.css">
+  <script src="/sdk/sotos-sdk.js"></script>
+</head>
+<body>
+  <header class="barra">
+    <h1>Convertidor de imágenes</h1>
+    <button id="elegir" class="principal">Elegir fotos…</button>
+    <button id="limpiar" disabled>Vaciar lista</button>
+  </header>
+  <main class="cuerpo">
+    <section class="ajustes" aria-label="Ajustes de conversión">
+      <label>Formato <select id="formato"><option value="image/jpeg">JPG</option><option value="image/webp">WebP</option><option value="image/png">PNG</option></select></label>
+      <label>Ancho máximo <select id="ancho"><option value="0">Igual que el original</option><option>3840</option><option>2560</option><option selected>1920</option><option>1280</option><option>800</option><option>400</option></select></label>
+      <label id="calidad-l">Calidad <input id="calidad" type="range" min="40" max="100" value="82"> <span id="calidad-v">82%</span></label>
+      <button id="convertir" class="principal" disabled>Convertir y guardar…</button>
+    </section>
+    <section id="lista" class="lista" aria-live="polite"><div class="vacio">Elige fotos de Sotos Drive o de tu equipo. También puedes abrirlas desde Archivos con «Abrir con».</div></section>
+  </main>
+  <footer class="estado" id="estado">Listo</footer>
+  <script src="app.js"></script>
+</body>
+</html>

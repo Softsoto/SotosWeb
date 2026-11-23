@@ -47,6 +47,10 @@
       read: function (f) { return call("files.read", { id: f && f.id || f }); },
       /** guarda con «Guardar como»: { name, data: Blob|string|ArrayBuffer, type?, title? } → archivo o null (permiso «files.write») */
       save: function (o) { return call("files.save", Object.assign({}, o, { data: toData(o && o.data) })); },
+      /** la persona elige una carpeta de Sotos Drive → carpeta o null (permiso «files.write») */
+      pickFolder: function (o) { return call("files.pickFolder", o); },
+      /** guarda un archivo nuevo dentro de una carpeta elegida con pickFolder: { name, data, type? } (no pisa: agrega «(2)») */
+      saveIn: function (folder, o) { return call("files.saveIn", Object.assign({}, o, { folder: folder && folder.id || folder, data: toData(o && o.data) })); },
       /** reescribe un archivo que el usuario ya te dio (permiso «files.write») */
       write: function (f, data) { return call("files.write", { id: f && f.id || f, data: toData(data) }); }
     },

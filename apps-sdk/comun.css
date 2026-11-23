@@ -1,0 +1,25 @@
+/* Estilo común de las apps de ejemplo del SDK de Sotos · © 2026 Sebastian Sotomontes · MIT
+   Sigue el tema de Sotos: claro u oscuro (data-sotos-theme) y el color de acento (--sotos-accent). */
+:root { --fondo: #f6f1e7; --papel: #fbf8f2; --texto: #2b2622; --suave: #776d63; --borde: #ddd3c3; --acento: var(--sotos-accent, #c4532f); --ok: #4f7a3a; --mal: #b3412b; }
+:root[data-sotos-theme="dark"] { --fondo: #1d1a17; --papel: #24201c; --texto: #ece6dc; --suave: #a69c90; --borde: #3a342e; }
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body { margin: 0; display: flex; flex-direction: column; background: var(--fondo); color: var(--texto); font: 14px/1.5 system-ui, "Segoe UI", sans-serif; }
+header.barra { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 10px 14px; border-bottom: 1px solid var(--borde); }
+header.barra h1 { margin: 0 8px 0 0; font-size: 16px; }
+.espacio { flex: 1; }
+button, select, input, textarea { font: inherit; color: inherit; }
+button { padding: 6px 12px; border: 1px solid var(--borde); border-radius: 7px; background: var(--papel); cursor: pointer; }
+button:hover { border-color: var(--acento); }
+button.principal { background: var(--acento); border-color: var(--acento); color: #fff; }
+button:disabled { opacity: .5; cursor: default; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--acento); outline-offset: 1px; }
+input, select, textarea { padding: 6px 9px; border: 1px solid var(--borde); border-radius: 7px; background: var(--papel); }
+main { flex: 1; min-height: 0; overflow: auto; }
+footer.estado { padding: 5px 14px; border-top: 1px solid var(--borde); color: var(--suave); font-size: 12px; }
+.vacio { padding: 40px 20px; text-align: center; color: var(--suave); }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 7px 10px; border-bottom: 1px solid var(--borde); text-align: left; }
+th { font-weight: 600; color: var(--suave); font-size: 13px; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }

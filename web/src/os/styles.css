@@ -2467,3 +2467,5 @@ select.wg-input { padding: 0 4px; }
 .acct-ses { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; background: var(--surface-2); font-size: 13px; }
 .acct-ses span { flex: 1; display: grid; gap: 1px; color: var(--text-dim); }
 .acct-ses b { color: var(--text); }
+
+.vault-guest { display: grid; justify-items: center; gap: 12px; max-width: 360px; text-align: center; }

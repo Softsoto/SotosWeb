@@ -78,6 +78,8 @@ const [f] = await sotos.files.pick({ exts: ["md", "txt"], multiple: false });   
 const texto = await (await sotos.files.read(f)).text();                        // Blob
 const nuevo = await sotos.files.save({ name: "nota.md", data: texto });       // «Guardar como» → archivo o null
 await sotos.files.write(nuevo, "contenido nuevo");                            // reescribe uno que ya te dieron
+const carpeta = await sotos.files.pickFolder();                               // la persona elige una carpeta
+await sotos.files.saveIn(carpeta, { name: "foto.webp", data: blob });         // varios archivos sin preguntar cada vez
 
 // datos de la app (por persona)
 await sotos.storage.set("ajustes", { fuente: 16 });

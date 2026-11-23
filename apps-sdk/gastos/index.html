@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Gastos del mes</title>
+  <link rel="stylesheet" href="comun.css">
+  <link rel="stylesheet" href="estilo.css">
+  <script src="/sdk/sotos-sdk.js"></script>
+</head>
+<body>
+  <header class="barra">
+    <h1>Gastos del mes</h1>
+    <button id="antes" aria-label="Mes anterior">‹</button>
+    <input type="month" id="mes" aria-label="Mes">
+    <button id="despues" aria-label="Mes siguiente">›</button>
+    <span class="espacio"></span>
+    <label class="presu">Presupuesto <input id="presupuesto" type="number" min="0" step="1000" placeholder="0"></label>
+    <button id="exportar">Exportar a .csv</button>
+  </header>
+  <main>
+    <section class="resumen">
+      <div><span>Gastado</span><b id="gastado">$0</b></div>
+      <div><span>Queda del presupuesto</span><b id="queda">—</b></div>
+      <div><span>Gastos anotados</span><b id="cuantos">0</b></div>
+    </section>
+    <form id="nuevo" class="nuevo">
+      <input id="fecha" type="date" required aria-label="Fecha">
+      <input id="concepto" required maxlength="80" placeholder="¿En qué gastaste?" aria-label="Concepto">
+      <select id="categoria" aria-label="Categoría"></select>
+      <input id="monto" type="number" min="1" step="1" required placeholder="Monto" aria-label="Monto">
+      <button class="principal">Anotar</button>
+    </form>
+    <div class="dos">
+      <section><h2>Movimientos</h2><table><thead><tr><th>Fecha</th><th>Concepto</th><th>Categoría</th><th class="num">Monto</th><th></th></tr></thead><tbody id="lista"></tbody></table><div id="vacio" class="vacio">Todavía no hay gastos este mes.</div></section>
+      <section><h2>Por categoría</h2><table><tbody id="porcat"></tbody></table></section>
+    </div>
+  </main>
+  <footer class="estado" id="estado">Cargando…</footer>
+  <script src="app.js"></script>
+</body>
+</html>

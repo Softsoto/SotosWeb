@@ -55,37 +55,83 @@ const O = {
 };
 O.donar = [["red", "M32 54C14 42 6 32 6 22a12 12 0 0 1 22-7l4 5 4-5a12 12 0 0 1 22 7c0 10-8 20-26 32Z"], ["hl", "M14 18a7 7 0 0 1 10-3", { line: 1, sw: 2.4, o: 0.7 }], ["gold", "M44 40a8 8 0 1 1 0 16 8 8 0 0 1 0-16Z"], ["wood", "M41 48h6M44 44v8", { line: 1, sw: 1.8 }]];
 O.descargas = [["sky", "M16 40a12 12 0 0 1 2-24 16 16 0 0 1 30 2 11 11 0 0 1 0 22Z"], ["hl", "M20 20a12 12 0 0 1 16-6", { line: 1, sw: 2, o: 0.6 }], ["green", "M27 26h10v12h7L32 52 20 38h7Z"]];
+O.drive = [["sky", "M14 44a12 12 0 0 1 1-24 17 17 0 0 1 32 1 11.5 11.5 0 0 1 2 23Z"], ["hl", "M18 24a13 13 0 0 1 18-6", { line: 1, sw: 2.2, o: 0.65 }]];
+O.escritorio = [["metal", "M26 46h12l2 8H24ZM20 56h24", { sw: 1.2 }], ["ink", "M6 8h52v38H6Z"], ["sky", "M9 11h46v32H9Z"], ["green", "M9 43c8-8 18-10 26-6s12 0 20-6v12H9Z", { nostroke: 1 }], ["hl", "M9 11h46v10H9Z", { o: 0.35 }]];
+O.inbox = [["metal", "M6 34l8-24h36l8 24v20H6Z"], ["paper", "M16 14h32l6 20H42l-3 6H25l-3-6H10Z"], ["main", "M24 20h16M22 26h20", { line: 1, sw: 1.6 }]];
+O.compartido = [["gold", "M6 14a3 3 0 0 1 3-3h15l5 5h26a3 3 0 0 1 3 3v29H6Z"], ["gold", "M4 26a3 3 0 0 1 3-3h50a3 3 0 0 1 3 3l-3 25a3 3 0 0 1-3 3H10a3 3 0 0 1-3-3Z"], ["blue", "M24 38a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z"], ["green", "M40 34a5 5 0 1 1 0 10 5 5 0 0 1 0-10Z"], ["paper", "M28 42l8-3", { line: 1, sw: 2 }]];
 O.files = O.folder;
+/** símbolo de Material → objeto de época (panel lateral, menús) */
+export const ICON_OBJECT = { cloud: "drive", cloud_done: "drive", desktop_windows: "escritorio", computer: "escritorio", description: "docs", image: "gallery", photo_library: "gallery", music_note: "music", movie: "video", download: "descargas",
+  rocket_launch: "folder", folder: "folder", folder_open: "folder", inbox: "inbox", move_to_inbox: "inbox", folder_shared: "compartido", group: "worlds", groups: "worlds", diversity_3: "worlds", delete: "trash",
+  mail: "mail", calendar_month: "calendar", event: "calendar", task_alt: "tasks", checklist: "tasks", contacts: "contacts", person: "contacts", settings: "settings", tune: "settings", lock: "vault", shield: "admin",
+  admin_panel_settings: "admin", shopping_bag: "store", sports_esports: "games", language: "browser", public: "web", terminal: "terminal", code: "code", palette: "paint", draw: "whiteboard", chat: "chat", chat_bubble: "chat" };
 const ALIAS = { pdfmeta: "pdf", informes: "docs", panel: "launchpad", pinball: "games", audioext: "music", diagnostico: "settings" };
 export const hasObject = (app) => !!O[ALIAS[app] || app];
 
-export function EraObject({ app, era }) {
+/* cómo pinta cada generación los mismos objetos
+   prado    (2001) contorno oscuro grueso, color saturado, brillo especular arriba a la izquierda
+   cristal  (2007) el objeto dentro de una caja de vidrio en perspectiva, con reflejo en el piso
+   vidrio   (2009) objeto limpio y brillante, halo claro, brillo suave en la mitad de arriba, sombra difusa
+   aluminio (Mac)  sombreado suave sin contorno duro (va sobre una placa clara) */
+const STYLE = {
+  prado: { top: 46, bottom: 62, edge: 36, sw: 1.7, op: 1 },
+  cristal: { top: 40, bottom: 76, edge: 55, sw: 0.8, op: 0.86 },
+  vidrio: { top: 34, bottom: 84, edge: 64, sw: 0.7, op: 1 },
+  aluminio: { top: 60, bottom: 82, edge: 70, sw: 0.6, op: 1 },
+};
+
+export function EraObject({ app, era, size = 46 }) {
   const parts = O[ALIAS[app] || app]; const uid = React.useId().replace(/:/g, "");
   if (!parts) return null;
-  const glass = era === "cristal" || era === "vidrio";
+  const s = STYLE[era] || STYLE.prado;
   const tones = [...new Set(parts.map(p => p[0]).filter(t => t !== "hl"))];
-  const mac = era === "aluminio";
-  const top = glass ? (era === "vidrio" ? 30 : 42) : mac ? 60 : 52, bottom = glass ? 80 : mac ? 82 : 72;
+  const solid = parts.filter(p => p[0] !== "hl" && !p[2]?.line);
+  const body = (halo) => parts.map(([tone, d, o = {}], i) => {
+    if (tone === "hl") return halo ? null : <path key={i} d={d} fill={o.line ? "none" : "var(--era-white)"} stroke={o.line ? "var(--era-white)" : "none"} strokeWidth={o.sw || 1.4} strokeLinecap="round" opacity={o.o ?? 0.55} />;
+    if (halo) return o.line ? null : <path key={i} d={d} fill="none" stroke="var(--era-white)" strokeWidth="3.4" strokeLinejoin="round" opacity=".7" />;
+    if (o.line) return <path key={i} d={d} fill="none" stroke={TONE[tone]} strokeWidth={o.sw || 2} strokeLinecap="round" strokeLinejoin="round" opacity={o.o ?? 1} />;
+    return <path key={i} d={d} fill={o.fillnone ? "none" : `url(#${uid + tone})`} fillOpacity={era === "cristal" && GLASSY.has(tone) ? s.op : 1}
+      stroke={o.nostroke ? "none" : `color-mix(in srgb, ${TONE[tone]} ${s.edge}%, var(--era-black))`} strokeWidth={o.sw || s.sw} strokeLinejoin="round" opacity={o.o ?? 1} />;
+  });
+  const defs = <defs>
+    {tones.map(t => <linearGradient key={t} id={uid + t} x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stopColor={`color-mix(in srgb, ${TONE[t]} ${s.top}%, var(--era-white))`} />
+      <stop offset=".55" stopColor={TONE[t]} />
+      <stop offset="1" stopColor={`color-mix(in srgb, ${TONE[t]} ${s.bottom}%, var(--era-black))`} />
+    </linearGradient>)}
+    <clipPath id={uid + "clip"}>{solid.map((p, i) => <path key={i} d={p[1]} />)}</clipPath>
+    <linearGradient id={uid + "gloss"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--era-white)" stopOpacity=".55" /><stop offset=".5" stopColor="var(--era-white)" stopOpacity=".12" /><stop offset=".51" stopColor="var(--era-white)" stopOpacity="0" /></linearGradient>
+    <linearGradient id={uid + "pane"} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="var(--obj-glass)" stopOpacity=".55" /><stop offset=".5" stopColor="var(--obj-glass)" stopOpacity=".18" /><stop offset="1" stopColor="var(--obj-glass)" stopOpacity=".38" /></linearGradient>
+    <linearGradient id={uid + "streak"} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="var(--era-white)" stopOpacity=".7" /><stop offset=".35" stopColor="var(--era-white)" stopOpacity=".12" /><stop offset=".36" stopColor="var(--era-white)" stopOpacity="0" /></linearGradient>
+    <linearGradient id={uid + "fade"} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--era-white)" stopOpacity=".5" /><stop offset="1" stopColor="var(--era-white)" stopOpacity="0" /></linearGradient>
+    <mask id={uid + "mfade"}><rect x="0" y="46" width="64" height="18" fill={`url(#${uid}fade)`} /></mask>
+    <filter id={uid + "soft"} x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="1.6" /></filter>
+  </defs>;
+
+  if (era === "cristal" && size < 40) { // Vista en tamaño chico: el objeto entero, translúcido, con veta de luz y reflejo
+    return <svg className="era-object era-object-cristal" viewBox="0 0 64 64" aria-hidden="true">{defs}
+      <g id={uid + "obj"} transform="translate(4 0) scale(.88)">{body(false)}<rect x="0" y="0" width="64" height="64" fill={`url(#${uid}streak)`} clipPath={`url(#${uid}clip)`} /></g>
+      <g mask={`url(#${uid}mfade)`}><use href={`#${uid}obj`} transform="translate(0 112) scale(1 -1)" opacity=".5" /></g></svg>;
+  }
+  if (era === "cristal") { // Vista: caja de vidrio en perspectiva con el objeto adentro y reflejo en el piso
+    const kase = <g id={uid + "case"}>
+      <path d="M10 10l6-5h40l-6 5Z" fill="var(--era-white)" fillOpacity=".38" stroke="var(--era-white)" strokeOpacity=".8" strokeWidth=".7" />
+      <path d="M50 10l6-5v36l-6 5Z" fill={`url(#${uid}pane)`} stroke="var(--era-white)" strokeOpacity=".7" strokeWidth=".7" />
+      <rect x="10" y="10" width="40" height="36" rx="1.5" fill={`url(#${uid}pane)`} />
+      <g transform="translate(11 10) scale(.6)">{body(false)}</g>
+      <rect x="10" y="10" width="40" height="36" rx="1.5" fill={`url(#${uid}streak)`} stroke="var(--era-white)" strokeOpacity=".85" strokeWidth=".8" />
+    </g>;
+    return <svg className="era-object era-object-cristal" viewBox="0 0 64 64" aria-hidden="true">{defs}{kase}
+      <g mask={`url(#${uid}mfade)`}><use href={`#${uid}case`} transform="translate(0 92) scale(1 -1)" opacity=".6" /></g></svg>;
+  }
   return (
     <svg className={"era-object era-object-" + era} viewBox="0 0 64 64" aria-hidden="true">
-      <defs>
-        {tones.map(t => <linearGradient key={t} id={uid + t} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor={`color-mix(in srgb, ${TONE[t]} ${top}%, var(--era-white))`} />
-          <stop offset=".55" stopColor={TONE[t]} />
-          <stop offset="1" stopColor={`color-mix(in srgb, ${TONE[t]} ${bottom}%, var(--era-black))`} />
-        </linearGradient>)}
-        {glass && <linearGradient id={uid + "sheen"} x1="0" y1="0" x2="1" y2="1"><stop offset="0" stopColor="var(--era-white)" stopOpacity=".6" /><stop offset=".45" stopColor="var(--era-white)" stopOpacity=".05" /><stop offset=".46" stopColor="var(--era-white)" stopOpacity="0" /></linearGradient>}
-        {glass && <clipPath id={uid + "clip"}>{parts.filter(p => p[0] !== "hl" && !p[2]?.line).map((p, i) => <path key={i} d={p[1]} />)}</clipPath>}
-      </defs>
-      {glass && <ellipse cx="32" cy="60" rx="22" ry="3" fill="var(--era-black)" opacity=".16" />}
-      {parts.map(([tone, d, o = {}], i) => {
-        if (tone === "hl") return <path key={i} d={d} fill={o.line ? "none" : "var(--era-white)"} stroke={o.line ? "var(--era-white)" : "none"} strokeWidth={o.sw || 1.4} strokeLinecap="round" opacity={o.o ?? 0.55} />;
-        const edge = glass ? `color-mix(in srgb, ${TONE[tone]} 55%, var(--era-black))` : mac ? `color-mix(in srgb, ${TONE[tone]} 70%, var(--era-black))` : `color-mix(in srgb, ${TONE[tone]} 45%, var(--era-black))`;
-        if (o.line) return <path key={i} d={d} fill="none" stroke={TONE[tone]} strokeWidth={o.sw || 2} strokeLinecap="round" strokeLinejoin="round" opacity={o.o ?? 1} />;
-        return <path key={i} d={d} fill={o.fillnone ? "none" : `url(#${uid + tone})`} fillOpacity={glass && GLASSY.has(tone) ? 0.82 : 1}
-          stroke={o.nostroke ? "none" : edge} strokeWidth={o.sw || (glass ? 0.9 : mac ? 0.6 : 1.3)} strokeLinejoin="round" opacity={o.o ?? 1} />;
-      })}
-      {glass && <rect x="0" y="0" width="64" height="64" fill={`url(#${uid}sheen)`} clipPath={`url(#${uid}clip)`} />}
+      {defs}
+      {era === "vidrio" && <ellipse cx="32" cy="59" rx="20" ry="3.2" fill="var(--era-black)" opacity=".22" filter={`url(#${uid}soft)`} />}
+      {era === "vidrio" && body(true)}
+      {body(false)}
+      {era === "vidrio" && <rect x="0" y="0" width="64" height="40" fill={`url(#${uid}gloss)`} clipPath={`url(#${uid}clip)`} />}
+      {era === "prado" && <ellipse cx="22" cy="17" rx="8" ry="4.5" fill="var(--era-white)" opacity=".55" clipPath={`url(#${uid}clip)`} transform="rotate(-20 22 17)" />}
     </svg>
   );
 }

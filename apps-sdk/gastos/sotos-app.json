@@ -1,0 +1,14 @@
+{
+  "id": "gastos",
+  "name": "Gastos del mes",
+  "version": "1.0.0",
+  "description": "Anota tus gastos por categoría, sigue tu presupuesto del mes y exporta todo a una hoja de cálculo.",
+  "author": "Sebastian Sotomontes",
+  "icon": "payments",
+  "color": "#4f7a3a",
+  "category": "Productividad",
+  "entry": "index.html",
+  "width": 980,
+  "height": 660,
+  "permissions": ["storage", "files.write", "notify"]
+}

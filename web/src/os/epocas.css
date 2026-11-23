@@ -16,6 +16,23 @@
   /* vidrio: vetas de luz diagonales sobre marcos, barra y menú */
   --aero-streaks: linear-gradient(115deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.16) 18%, rgba(255, 255, 255, 0) 26%, rgba(255, 255, 255, 0) 46%, rgba(255, 255, 255, 0.1) 54%, rgba(255, 255, 255, 0.02) 60%, rgba(255, 255, 255, 0) 72%, rgba(255, 255, 255, 0.08) 82%, rgba(255, 255, 255, 0) 90%);
   --aero-edge: rgba(255, 255, 255, 0.42);
+  --aero-glass-plain: blur(16px) saturate(170%) brightness(1.06);
+  --aero-glass-wave: url(#vidrio-onda) blur(7px) saturate(170%) brightness(1.06);
+  /* interior de las apps en cada época (claro) */
+  --prado-in-surface: #ffffff; --prado-in-surface-2: #ece9d8; --prado-in-surface-3: #d9d3bc; --prado-in-text: #000000; --prado-in-dim: #444444; --prado-in-faint: #7a7a7a;
+  --prado-in-border: rgba(0, 0, 0, 0.16); --prado-in-strong: #7f9db9; --prado-in-hover: rgba(49, 106, 197, 0.12);
+  --prado-pane: linear-gradient(180deg, #7ba2e7 0%, #6375d6 100%); --prado-pane-head: linear-gradient(90deg, #ffffff, #c6d3f7); --prado-pane-ink: #215dc6; --prado-pane-item: #d6dff7; --prado-pane-hot: #428eff; --prado-sel: #316ac5;
+  --prado-btn: linear-gradient(#ffffff, #ece9d8 85%, #d6d0bc); --prado-btn-edge: #003c74; --prado-btn-hot: #f8b636;
+  --aero-in-surface: #ffffff; --aero-in-surface-2: #f4f7fb; --aero-in-surface-3: #e3ebf5; --aero-in-text: #1e1e1e; --aero-in-dim: #4a5563; --aero-in-faint: #7d8794;
+  --aero-in-border: rgba(30, 60, 100, 0.14); --aero-in-strong: #abadb3; --aero-in-hover: #e5f3fb;
+  --aero-pane: linear-gradient(180deg, #f1f5fb 0%, #ffffff 100%); --aero-item-hot: #e5f3fb; --aero-item-hot-edge: #b8d6fb; --aero-item-sel: linear-gradient(#dcebfc, #c1dbfc); --aero-item-sel-edge: #7da2ce;
+  --aero-btn-hot: linear-gradient(#ffffff, #e5f0fb); --aero-btn-hot-edge: #a8c8eb;
+  --cristal-cmd: linear-gradient(#5c6e7c 0%, #3b4c5a 48%, #233440 52%, #2c3f4c 100%); --cristal-cmd-ink: #ffffff; --cristal-cmd-hot: rgba(255, 255, 255, 0.18); --cristal-cmd-edge: rgba(255, 255, 255, 0.35);
+  --vidrio-cmd: linear-gradient(#fafcfe 0%, #e8f0f9 50%, #dce8f4 100%); --vidrio-cmd-edge: #a0afc3;
+  --mosaico-in-surface: #ffffff; --mosaico-in-surface-2: #f3f3f3; --mosaico-in-surface-3: #e6e6e6; --mosaico-in-text: #1f1f1f; --mosaico-in-dim: #555555; --mosaico-in-faint: #888888;
+  --mosaico-in-border: #dadada; --mosaico-in-strong: #ababab; --mosaico-in-hover: #e5f3ff; --mosaico-sel: #cce8ff; --mosaico-sel-edge: #99d1ff;
+  --aluminio-in-surface: #ffffff; --aluminio-in-surface-2: #ececee; --aluminio-in-surface-3: #dcdce0; --aluminio-in-text: #1d1d1f; --aluminio-in-dim: #545458; --aluminio-in-faint: #8e8e93;
+  --aluminio-in-border: rgba(0, 0, 0, 0.1); --aluminio-in-strong: #c6c6c8; --aluminio-in-hover: rgba(0, 0, 0, 0.05); --aluminio-sel: rgba(0, 0, 0, 0.1); --aluminio-btn-edge: #c6c6c8;
   /* placa clara de los íconos de Aluminio */
   --mac-plate-top: #ffffff; --mac-plate-bottom: #e3e4ea; --mac-plate-edge: rgba(0, 0, 0, 0.12);
   /* íconos-objeto (Prado, Cristal, Vidrio) */
@@ -118,7 +135,7 @@
   --vidrio-orb: radial-gradient(circle at 50% 28%, #c8f6ff 0%, #4fc3e8 30%, #146e98 62%, #07324a 100%);
   --vidrio-orb-hover: radial-gradient(circle at 50% 28%, #ffffff 0%, #7fe0ff 32%, #1f8cc0 64%, #0a4462 100%);
   --vidrio-start-ink: #ffffff;
-  --vidrio-task: transparent;
+  --vidrio-task: linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.06) 45%, rgba(20, 60, 100, 0.14));
   --vidrio-task-run: linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08));
   --vidrio-task-active: linear-gradient(rgba(255, 255, 255, 0.5), rgba(170, 225, 255, 0.24));
   --vidrio-task-edge: rgba(255, 255, 255, 0.42);
@@ -731,6 +748,78 @@
 .skin-prev-aluminio em { left: 26%; right: 26%; bottom: 4%; height: 11%; border-radius: 4px; background: var(--aluminio-shelf); box-shadow: inset 0 0 0 1px var(--era-light); }
 .skin-year { margin-left: 6px; font-weight: 400; opacity: .6; }
 
+/* ============================================================
+   Interior de las apps: cada época cambia también colores, panel lateral, botones y campos
+   ============================================================ */
+[data-skin="prado"][data-theme="light"] { --surface: var(--prado-in-surface); --surface-2: var(--prado-in-surface-2); --surface-3: var(--prado-in-surface-3); --text: var(--prado-in-text); --text-dim: var(--prado-in-dim); --text-faint: var(--prado-in-faint); --border: var(--prado-in-border); --border-strong: var(--prado-in-strong); --hover: var(--prado-in-hover); }
+[data-skin="cristal"][data-theme="light"] { --surface: var(--aero-in-surface); --surface-2: var(--aero-in-surface-2); --surface-3: var(--aero-in-surface-3); --text: var(--aero-in-text); --text-dim: var(--aero-in-dim); --text-faint: var(--aero-in-faint); --border: var(--aero-in-border); --border-strong: var(--aero-in-strong); --hover: var(--aero-in-hover); }
+[data-skin="vidrio"][data-theme="light"] { --surface: var(--aero-in-surface); --surface-2: var(--aero-in-surface-2); --surface-3: var(--aero-in-surface-3); --text: var(--aero-in-text); --text-dim: var(--aero-in-dim); --text-faint: var(--aero-in-faint); --border: var(--aero-in-border); --border-strong: var(--aero-in-strong); --hover: var(--aero-in-hover); }
+[data-skin="mosaico"][data-theme="light"] { --surface: var(--mosaico-in-surface); --surface-2: var(--mosaico-in-surface-2); --surface-3: var(--mosaico-in-surface-3); --text: var(--mosaico-in-text); --text-dim: var(--mosaico-in-dim); --text-faint: var(--mosaico-in-faint); --border: var(--mosaico-in-border); --border-strong: var(--mosaico-in-strong); --hover: var(--mosaico-in-hover); }
+[data-skin="aluminio"][data-theme="light"] { --surface: var(--aluminio-in-surface); --surface-2: var(--aluminio-in-surface-2); --surface-3: var(--aluminio-in-surface-3); --text: var(--aluminio-in-text); --text-dim: var(--aluminio-in-dim); --text-faint: var(--aluminio-in-faint); --border: var(--aluminio-in-border); --border-strong: var(--aluminio-in-strong); --hover: var(--aluminio-in-hover); }
+/* Prado: panel de tareas azul, barras beige, botones con bisel */
+[data-skin="prado"][data-theme="light"] .app-side { background: var(--prado-pane); border-right: 0; }
+[data-skin="prado"][data-theme="light"] .side-label { margin: 8px 6px 0; padding: 4px 8px; border-radius: 3px 3px 0 0; background: var(--prado-pane-head); color: var(--prado-pane-ink); font-weight: 700; }
+[data-skin="prado"][data-theme="light"] .side-item { margin: 0 6px; border-radius: 0; background: var(--prado-pane-item); color: var(--prado-pane-ink); }
+[data-skin="prado"][data-theme="light"] .side-item:hover { background: var(--prado-pane-item); color: var(--prado-pane-hot); text-decoration: underline; }
+[data-skin="prado"][data-theme="light"] .side-item.active { background: var(--prado-sel); color: var(--era-white); }
+[data-skin="prado"][data-theme="light"] .side-item .material-symbols-rounded { color: inherit; }
+[data-skin="prado"][data-theme="light"] .app-toolbar { background: var(--prado-in-surface-2); border-bottom: 1px solid var(--prado-in-surface-3); }
+[data-skin="prado"] .tb-btn { border-radius: 3px; border: 1px solid transparent; background: transparent; box-shadow: none; }
+[data-skin="prado"] .tb-btn:hover { border-color: var(--prado-in-strong); background: var(--prado-in-surface); }
+[data-skin="prado"] .tb-btn.primary, [data-skin="prado"] .tb-btn.danger { background: var(--prado-btn); color: var(--prado-in-text); border-color: var(--prado-btn-edge); box-shadow: inset 0 -1px 0 var(--prado-in-surface-3); }
+[data-skin="prado"] .tb-btn.primary:hover { box-shadow: inset 0 0 0 2px var(--prado-btn-hot); }
+[data-skin="prado"] .sc-input, [data-skin="prado"] .search-box, [data-skin="prado"] .field input, [data-skin="prado"] .field select, [data-skin="prado"] .field textarea { border-radius: 0; border: 1px solid var(--prado-in-strong); background: var(--prado-in-surface); box-shadow: none; }
+[data-skin="prado"] .file-cell.sel, [data-skin="prado"] .file-row.sel { background: var(--prado-sel); color: var(--era-white); }
+
+/* Cristal y Vidrio: panel de navegación claro, resaltado celeste con borde, barra de comandos */
+[data-skin="cristal"][data-theme="light"] .app-side, [data-skin="vidrio"][data-theme="light"] .app-side { background: var(--aero-pane); border-right: 1px solid var(--aero-in-border); }
+[data-skin="cristal"] .side-item, [data-skin="vidrio"] .side-item { border: 1px solid transparent; border-radius: 3px; }
+[data-skin="cristal"] .side-item:hover, [data-skin="vidrio"] .side-item:hover { background: var(--aero-item-hot); border-color: var(--aero-item-hot-edge); }
+[data-skin="cristal"] .side-item.active, [data-skin="vidrio"] .side-item.active { background: var(--aero-item-sel); border-color: var(--aero-item-sel-edge); color: var(--aero-in-text); }
+[data-skin="cristal"] .side-item.active .material-symbols-rounded, [data-skin="vidrio"] .side-item.active .material-symbols-rounded { color: var(--aero-in-dim); }
+[data-skin="cristal"][data-theme="light"] .app-toolbar { background: var(--cristal-cmd); color: var(--cristal-cmd-ink); border-bottom: 0; }
+[data-skin="cristal"][data-theme="light"] .app-toolbar .tb-btn { color: var(--cristal-cmd-ink); }
+[data-skin="cristal"][data-theme="light"] .app-toolbar .tb-btn:hover { background: var(--cristal-cmd-hot); border-color: var(--cristal-cmd-edge); }
+[data-skin="cristal"][data-theme="light"] .app-toolbar .breadcrumb, [data-skin="cristal"][data-theme="light"] .app-toolbar .breadcrumb .crumb { color: var(--cristal-cmd-ink); }
+[data-skin="vidrio"][data-theme="light"] .app-toolbar { background: var(--vidrio-cmd); border-bottom: 1px solid var(--vidrio-cmd-edge); }
+[data-skin="cristal"] .tb-btn, [data-skin="vidrio"] .tb-btn { border-radius: 3px; border: 1px solid transparent; background: transparent; box-shadow: none; }
+[data-skin="cristal"] .tb-btn:hover, [data-skin="vidrio"] .tb-btn:hover { background: var(--aero-btn-hot); border-color: var(--aero-btn-hot-edge); }
+[data-skin="cristal"] .tb-btn.primary, [data-skin="vidrio"] .tb-btn.primary { background: var(--aero-btn-hot); color: var(--aero-in-text); border-color: var(--aero-item-sel-edge); }
+[data-skin="cristal"] .sc-input, [data-skin="vidrio"] .sc-input, [data-skin="cristal"] .search-box, [data-skin="vidrio"] .search-box, [data-skin="cristal"] .field input, [data-skin="vidrio"] .field input { border-radius: 2px; border: 1px solid var(--aero-in-strong); background: var(--aero-in-surface); box-shadow: none; }
+[data-skin="cristal"] .file-cell.sel, [data-skin="vidrio"] .file-cell.sel, [data-skin="cristal"] .file-row.sel, [data-skin="vidrio"] .file-row.sel { background: var(--aero-item-sel); outline: 1px solid var(--aero-item-sel-edge); outline-offset: -1px; }
+[data-skin="cristal"] .file-cell:hover, [data-skin="vidrio"] .file-cell:hover { background: var(--aero-item-hot); outline: 1px solid var(--aero-item-hot-edge); outline-offset: -1px; }
+
+/* Mosaico: plano, cinta blanca, selección celeste cuadrada */
+[data-skin="mosaico"][data-theme="light"] .app-side { background: var(--mosaico-in-surface); border-right: 1px solid var(--mosaico-in-border); }
+[data-skin="mosaico"] .side-item { border-radius: 0; }
+[data-skin="mosaico"] .side-item.active { background: var(--mosaico-sel); color: var(--mosaico-in-text); outline: 1px solid var(--mosaico-sel-edge); outline-offset: -1px; }
+[data-skin="mosaico"] .side-item.active .material-symbols-rounded { color: var(--accent); }
+[data-skin="mosaico"][data-theme="light"] .app-toolbar { background: var(--mosaico-in-surface); border-bottom: 1px solid var(--mosaico-in-border); }
+[data-skin="mosaico"] .tb-btn { border-radius: 0; box-shadow: none; border: 1px solid transparent; background: transparent; }
+[data-skin="mosaico"] .tb-btn:hover { background: var(--mosaico-in-hover); border-color: var(--mosaico-sel); }
+[data-skin="mosaico"] .tb-btn.primary { background: var(--accent); color: var(--era-white); }
+[data-skin="mosaico"] .sc-input, [data-skin="mosaico"] .search-box, [data-skin="mosaico"] .field input { border-radius: 0; border: 1px solid var(--mosaico-in-strong); box-shadow: none; }
+[data-skin="mosaico"] .file-cell.sel, [data-skin="mosaico"] .file-row.sel { background: var(--mosaico-sel); outline: 1px solid var(--mosaico-sel-edge); outline-offset: -1px; }
+
+/* Aluminio: barra lateral gris, selección redondeada, botones blancos con borde fino */
+[data-skin="aluminio"][data-theme="light"] .app-side { background: var(--aluminio-in-surface-2); border-right: 1px solid var(--aluminio-in-border); }
+[data-skin="aluminio"] .side-item { border-radius: 6px; }
+[data-skin="aluminio"] .side-item.active { background: var(--aluminio-sel); color: var(--aluminio-in-text); }
+[data-skin="aluminio"] .side-item .material-symbols-rounded, [data-skin="aluminio"] .side-item.active .material-symbols-rounded { color: var(--accent); }
+[data-skin="aluminio"] .tb-btn { border-radius: 6px; border: 1px solid var(--aluminio-btn-edge); background: var(--aluminio-in-surface); box-shadow: 0 1px 1px var(--era-shade-soft); }
+[data-skin="aluminio"] .tb-btn.icon { border-color: transparent; box-shadow: none; background: transparent; }
+[data-skin="aluminio"] .tb-btn.primary { background: var(--accent); border-color: transparent; color: var(--era-white); }
+[data-skin="aluminio"] .sc-input, [data-skin="aluminio"] .search-box { border-radius: 6px; border: 1px solid var(--aluminio-btn-edge); box-shadow: none; }
+
+/* Aero de verdad: lo que queda detrás de la barra, el menú y los marcos se ve borroso y ondulado.
+   Primero el desenfoque solo (para navegadores sin filtros SVG), después la versión con onda. */
+.taskbar.era-cristal, .taskbar.era-vidrio, .startmenu.era-cristal, .startmenu.era-vidrio, [data-skin="cristal"] .window, [data-skin="vidrio"] .window { -webkit-backdrop-filter: var(--aero-glass-plain); backdrop-filter: var(--aero-glass-plain); }
+@supports (backdrop-filter: url(#vidrio-onda) blur(1px)) {
+  .taskbar.era-cristal, .taskbar.era-vidrio, .startmenu.era-cristal, .startmenu.era-vidrio, [data-skin="cristal"] .window, [data-skin="vidrio"] .window { backdrop-filter: var(--aero-glass-wave); }
+}
+/* íconos de época dentro del panel lateral y en el título de la ventana */
+.side-obj { position: relative; width: 20px; height: 20px; flex: 0 0 auto; display: inline-block; }
+.win-app .tile { border-radius: 0; }
 /* ============================================================
    Movimiento
    ============================================================ */

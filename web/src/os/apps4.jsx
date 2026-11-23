@@ -488,6 +488,9 @@ function SdkHost({ app, fileId, setWinTitle, closeWin }) {
       "files.save": async (o) => { need("files.write"); const r = await pickFiles({ mode: "save", title: o.title || `${app.name}: guardar como`, name: String(o.name || "archivo") }); if (!r) return null;
         const blob = toBlob(o.data, o.type); let id; if (r.replaceId) { await vfs.write(r.replaceId, blob); id = r.replaceId; } else id = await vfs.create(r.folderId, vfs.uniqueName(vfs.node(r.folderId), r.name), blob);
         return grant(vfs.node(id)); },
+      "files.pickFolder": async (o) => { need("files.write"); const r = await pickFiles({ mode: "folder", title: o.title || `${app.name}: elegir carpeta` }); return r ? grant(r) : null; },
+      "files.saveIn": async ({ folder, name, data, type }) => { need("files.write"); const f = own(folder); if (f instanceof File || f.type !== "folder") throw new Error("Eso no es una carpeta que la persona eligió");
+        const dir = vfs.node(f.id); if (!dir) throw new Error("La carpeta ya no existe"); const id = await vfs.create(dir.id, vfs.uniqueName(dir, String(name || "archivo").replace(/[\\/:*?"<>|]/g, "_").slice(0, 180)), toBlob(data, type)); return grant(vfs.node(id)); },
       "files.write": async ({ id, data }) => { need("files.write"); const g = own(id); if (g instanceof File) throw new Error("Ese archivo vino del equipo: usa files.save para guardarlo en Sotos"); await vfs.write(g.id, toBlob(data)); return meta(vfs.node(g.id) || g); },
       notify: async ({ title, body }) => { need("notify"); if (vfs.getState().mode === "cloud") await api("POST", `apps/${app.id}/notify`, { title, body }); else toast(`${app.name}: ${title}`, { icon: app.icon }); return true; },
       "storage.get": async ({ key }) => { need("storage"); return (await api_("GET", key)).value; },

@@ -1,0 +1,14 @@
+/* Gastos del mes · © 2026 Sebastian Sotomontes · MIT */
+.presu { display: flex; align-items: center; gap: 6px; color: var(--suave); font-size: 13px; }
+.presu input { width: 130px; }
+#mes { width: 150px; }
+.resumen { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding: 14px; }
+.resumen div { display: grid; gap: 2px; padding: 12px 14px; border: 1px solid var(--borde); border-radius: 10px; background: var(--papel); }
+.resumen span { color: var(--suave); font-size: 13px; }
+.resumen b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.resumen b.mal { color: var(--mal); }
+.nuevo { display: grid; grid-template-columns: 150px minmax(0, 1fr) 160px 130px auto; gap: 8px; padding: 0 14px 14px; }
+.dos { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 16px; padding: 0 14px 14px; }
+h2 { font-size: 14px; margin: 6px 0; }
+td button { padding: 2px 8px; }
+@media (max-width: 760px) { .nuevo, .dos, .resumen { grid-template-columns: minmax(0, 1fr); } }

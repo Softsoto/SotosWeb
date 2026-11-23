@@ -1,0 +1,15 @@
+{
+  "id": "imagenes",
+  "name": "Convertidor de imágenes",
+  "version": "1.0.0",
+  "description": "Cambia el tamaño y el formato (JPG, PNG o WebP) de muchas fotos a la vez y guárdalas en la carpeta que elijas.",
+  "author": "Sebastian Sotomontes",
+  "icon": "photo_size_select_large",
+  "color": "#a8476b",
+  "category": "Multimedia",
+  "entry": "index.html",
+  "width": 960,
+  "height": 640,
+  "permissions": ["files.read", "files.write", "storage"],
+  "opens": ["jpg", "jpeg", "png", "webp", "gif", "bmp"]
+}

@@ -1,0 +1,15 @@
+{
+  "id": "lector",
+  "name": "Lector de libros",
+  "version": "1.0.0",
+  "description": "Lee tus libros EPUB guardados en Sotos Drive. Recuerda la página en la que ibas y el tamaño de letra.",
+  "author": "Sebastian Sotomontes",
+  "icon": "menu_book",
+  "color": "#8a5a3b",
+  "category": "Productividad",
+  "entry": "index.html",
+  "width": 900,
+  "height": 700,
+  "permissions": ["files.read", "storage"],
+  "opens": ["epub"]
+}

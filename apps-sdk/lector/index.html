@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lector de libros</title>
+  <link rel="stylesheet" href="comun.css">
+  <link rel="stylesheet" href="estilo.css">
+  <script src="/sdk/sotos-sdk.js"></script>
+</head>
+<body>
+  <header class="barra">
+    <button id="abrir" class="principal">Abrir libro…</button>
+    <select id="capitulos" aria-label="Capítulo" disabled></select>
+    <span class="espacio"></span>
+    <button id="menos" aria-label="Letra más pequeña">A−</button>
+    <button id="mas" aria-label="Letra más grande">A+</button>
+  </header>
+  <main id="hoja">
+    <div class="portada" id="portada"><h1>Lector de libros</h1><p>Abre un libro EPUB de Sotos Drive, o desde Archivos con «Abrir con Lector de libros». El lector recuerda dónde ibas.</p></div>
+    <article id="texto" hidden></article>
+  </main>
+  <footer class="estado"><button id="anterior" disabled>‹ Anterior</button><span id="estado">Sin libro</span><button id="siguiente" disabled>Siguiente ›</button></footer>
+  <script src="zip.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

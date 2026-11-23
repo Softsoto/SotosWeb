@@ -587,7 +587,8 @@ function OS() {
         if (tema === "sotos" && isPhoto) s.wallpaper = "paramo"; }
       if (eraOf(tema)) { s.skin = tema; s.accent = eraOf(tema).accent; if (!String(s.wallpaper).startsWith("file:")) s.wallpaper = eraOf(tema).wall; } // ?tema=prado|cristal|vidrio|mosaico|aluminio
       if (modo === "oscuro" || modo === "claro") s.theme = modo === "oscuro" ? "dark" : "light";
-      if (tema || modo) { try { localStorage.setItem("sotos", JSON.stringify(s)); } catch {} }
+      if (tema || modo) { try { localStorage.setItem("sotos", JSON.stringify(s)); } catch {}
+        q.delete("tema"); q.delete("modo"); const rest = q.toString(); history.replaceState(history.state, "", location.pathname + (rest ? "?" + rest : "") + location.hash); } // queda guardado; la dirección vuelve a quedar limpia
       return s;
     } catch { return DEFAULTS; }
   });
@@ -799,6 +800,8 @@ function OS() {
     localStorage.setItem("sotos_in", "1"); localStorage.setItem("sotos_mode", "guest");
     setWins([]); setStage("desktop");
   }, []);
+  useEh(() => { const h = () => logoutRef.current?.(); window.addEventListener("sotos-ir-a-login", h); return () => window.removeEventListener("sotos-ir-a-login", h); }, []);
+  const logoutRef = useRh(null);
   const logout = useCh(async () => {
     if (vfs.getState().mode === "cloud") { await vfs.flush().catch(() => {}); await api("POST", "auth/logout").catch(() => {}); }
     localStorage.removeItem("sotos_in"); setWins([]); quickBoot.current = false; setStage("login");
@@ -841,6 +844,7 @@ function OS() {
   const activeApp = top ? APP_BY_ID[top.appId] : null;
 
   const shownProfile = user ? { ...profile, name: user.name, avatar: profile.avatar || user.avatar || null } : profile;
+  logoutRef.current = logout;
   const storeProps = { openApp, openItem, newDoc, settings, update, profile: shownProfile, setProfile, shortcuts, scApi, dockApi, dockCfg, user, env, onLogout: logout, openSpotlight: () => setSpot(true) };
 
   if (stage === "boot") return <BootScreen quick={quickBoot.current} task={bootTask} onDone={(s) => setStage(s)} />;

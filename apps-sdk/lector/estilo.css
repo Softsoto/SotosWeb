@@ -1,0 +1,10 @@
+/* Lector de libros · © 2026 Sebastian Sotomontes · MIT */
+#capitulos { max-width: 360px; }
+#hoja { padding: 0 16px; }
+.portada { max-width: 520px; margin: 80px auto; text-align: center; color: var(--suave); }
+.portada h1 { color: var(--texto); font-size: 24px; }
+article { max-width: 680px; margin: 0 auto; padding: 28px 0 60px; font: var(--letra, 18px)/1.7 Georgia, "Times New Roman", serif; overflow-wrap: break-word; }
+article img, article svg { max-width: 100%; height: auto; }
+article h1, article h2, article h3 { line-height: 1.25; }
+article a { color: var(--acento); }
+footer.estado { display: flex; align-items: center; justify-content: space-between; gap: 10px; }

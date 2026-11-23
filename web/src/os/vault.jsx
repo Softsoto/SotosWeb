@@ -23,7 +23,7 @@ export function useVaultGesture(openApp) {
   useEffect(() => {
     let hits = [];
     const on = (e) => {
-      if (!e.target.closest?.('[data-app="launchpad"], .rail-logo')) return;
+      if (!e.target.closest?.('[data-app="launchpad"], .rail-logo, .tb-start, .ss-head h1')) return; // dock, riel de Grafito, botón Inicio de las épocas o «Inicio» de Mosaico
       const t = Date.now(); hits = hits.filter(x => t - x < 3000); hits.push(t);
       if (hits.length >= 5) { hits = []; setTimeout(() => openApp("vault"), 50); }
     };
@@ -66,7 +66,9 @@ export function VaultApp() {
   const url = (it, dl) => `/api/vault/files/${it.id}?k=${encodeURIComponent(token || "")}${dl ? "&dl=1" : ""}`;
 
   if (st === "loading") return <div className="app vault"><EmptyState icon="hourglass_empty" text="…" /></div>;
-  if (st === "guest") return <div className="app vault"><EmptyState icon="lock" text="La bóveda necesita tu cuenta de Sotos" /></div>;
+  if (st === "guest") return <div className="app vault"><div className="vault-gate"><div className="vault-guest">
+    <EmptyState icon="lock" text="Estás usando Sotos como invitado. La bóveda cifra tus archivos con tu cuenta, así que necesitas iniciar sesión." />
+    <button className="tb-btn primary" onClick={() => window.dispatchEvent(new Event("sotos-ir-a-login"))}><Ic name="login" size={18} /> Iniciar sesión</button></div></div></div>;
   if (st === "error") return <div className="app vault"><EmptyState icon="cloud_off" text="No se pudo abrir la bóveda" /></div>;
   if (st === "new" || st === "locked") return (
     <div className="app vault"><div className="vault-gate">

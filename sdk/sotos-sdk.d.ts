@@ -18,6 +18,8 @@ declare namespace Sotos {
       read(file: FileRef | string): Promise<Blob>;
       save(options: SaveOptions): Promise<FileRef | null>;
       write(file: FileRef | string, data: SaveOptions["data"]): Promise<FileRef>;
+      pickFolder(options?: { title?: string }): Promise<FileRef | null>;
+      saveIn(folder: FileRef | string, options: { name: string; data: SaveOptions["data"]; type?: string }): Promise<FileRef>;
     };
     notify(n: { title: string; body?: string } | string): Promise<true>;
     storage: { get<T = unknown>(key: string): Promise<T | null>; set(key: string, value: unknown): Promise<true>; remove(key: string): Promise<true>; keys(): Promise<string[]> };
