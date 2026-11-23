@@ -1,4 +1,4 @@
-﻿# Sotos — servicio de WhatsApp para desarrollo (cada cuenta vincula su propio WhatsApp)
+# Sotos — servicio de WhatsApp para desarrollo (cada cuenta vincula su propio WhatsApp)
 # AVISO: usa un cliente NO oficial (Baileys); WhatsApp puede suspender números que lo usan.
 # Uso:  powershell -File scripts\whatsapp-dev.ps1 [-Puerto 8790]
 # © 2026 Sebastian Sotomontes
@@ -11,4 +11,13 @@ $envFile = Join-Path $server ".env"; $lines = @(); if (Test-Path $envFile) { $li
 $lines += "WA_URL=http://127.0.0.1:$Puerto"; $lines | Set-Content -Encoding ascii $envFile
 $env:WA_SECRET = $secret; $env:WA_PORT = "$Puerto"
 Write-Host "Servicio de WhatsApp en 127.0.0.1:$Puerto. Reinicia el servidor de Sotos para que lea server\.env"
-node (Join-Path $svc "index.mjs")
+# vigilante: si el servicio se cierra por cualquier motivo, se vuelve a levantar (sin perder la sesión vinculada)
+$fallos = 0
+while ($true) {
+  $inicio = Get-Date
+  node (Join-Path $svc "index.mjs")
+  if (((Get-Date) - $inicio).TotalSeconds -gt 60) { $fallos = 0 } else { $fallos++ }
+  $espera = [Math]::Min(30, 2 * [Math]::Max(1, $fallos))
+  Write-Host "El servicio de WhatsApp se cerró (código $LASTEXITCODE). Se reinicia en $espera s. Ctrl+C para detenerlo."
+  Start-Sleep -Seconds $espera
+}

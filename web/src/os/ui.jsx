@@ -313,3 +313,21 @@ function Modal({ title, icon, onClose, children, actions, width = 380 }) {
 }
 
 export { Tile, Ic, Win, SideItem, Toolbar, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, Modal };
+
+/** Barrera de errores: si una app falla al dibujarse, solo esa ventana muestra el aviso (el resto de Sotos sigue) */
+export class AppGuard extends React.Component {
+  constructor(p) { super(p); this.state = { err: null, n: 0 }; }
+  static getDerivedStateFromError(err) { return { err }; }
+  componentDidCatch(err, info) { console.error(`[sotos] la app «${this.props.name || "?"}» falló`, err, info?.componentStack); }
+  render() {
+    if (!this.state.err) return <React.Fragment key={this.state.n}>{this.props.children}</React.Fragment>;
+    return <div className="app app-crash"><div className="app-crash-card">
+      <Ic name="sentiment_dissatisfied" size={34} />
+      <b>{this.props.name || "Esta app"} tuvo un problema</b>
+      <span className="faint">El resto de Sotos sigue funcionando. Tus archivos no se tocaron.</span>
+      <code>{String(this.state.err?.message || this.state.err).slice(0, 220)}</code>
+      <div style={{ display: "flex", gap: 8 }}><button className="tb-btn primary" onClick={() => this.setState(s => ({ err: null, n: s.n + 1 }))}><Ic name="refresh" size={18} /> Volver a abrir</button>
+        {this.props.onClose && <button className="tb-btn" onClick={this.props.onClose}>Cerrar ventana</button>}</div>
+    </div></div>;
+  }
+}

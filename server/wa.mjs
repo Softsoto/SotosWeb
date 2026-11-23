@@ -26,7 +26,10 @@ function call(user, route, { method = "GET", query = {}, body, res: pipeTo } = {
   const data = body ? Buffer.from(JSON.stringify(body)) : null;
   return new Promise((ok, bad) => {
     const rq = http.request(u, { method, headers: { "x-wa-secret": KEY(), ...(data ? { "content-type": "application/json", "content-length": data.length } : {}) }, timeout: pipeTo ? 0 : 120000 }, (r) => {
+      r.on("error", () => { try { pipeTo?.destroy(); } catch {} bad(Object.assign(new Error("Se cortó la conexión con WhatsApp"), { status: 502 })); }); // corte a mitad de respuesta
       if (pipeTo) {
+        if (pipeTo.destroyed || pipeTo.writableEnded) { r.destroy(); return ok(null); }
+        pipeTo.on("error", () => { r.destroy(); rq.destroy(); });
         pipeTo.writeHead(r.statusCode, { "content-type": r.headers["content-type"] || "application/octet-stream", "cache-control": r.headers["cache-control"] || "no-store", ...(r.headers["content-length"] ? { "content-length": r.headers["content-length"] } : {}), "x-content-type-options": "nosniff" });
         r.pipe(pipeTo); pipeTo.on("close", () => { r.destroy(); rq.destroy(); }); return ok(null);
       }
@@ -50,10 +53,11 @@ function follow(user) {
       let buf = ""; r.setEncoding("utf8");
       r.on("data", (c) => { buf += c; let i; while ((i = buf.indexOf("\n\n")) >= 0) { const block = buf.slice(0, i); buf = buf.slice(i + 2);
         const type = /^event: (.+)$/m.exec(block)?.[1], data = /^data: (.+)$/m.exec(block)?.[1];
-        if (type && data) { try { notify(user, "wa", { type, data: JSON.parse(data) }); } catch {} } } });
+        if (type && data) { try { notify(user, "wa", { type, data: JSON.parse(data) }); } catch {} } }
+        if (buf.length > 4 * 1024 * 1024) buf = ""; }); // un evento roto no puede crecer sin límite
       r.on("end", retry); r.on("error", retry);
     });
-    rq.on("error", retry); st.req = rq;
+    rq.setTimeout(0); rq.on("error", retry); st.req = rq;
   };
   let waiting = false; const retry = () => { if (waiting) return; waiting = true; setTimeout(() => { waiting = false; connect(); }, 3000); };
   connect();
@@ -67,7 +71,8 @@ export async function handleWa(req, res, parts) {
   if (!a && req.method === "GET") {
     if (!WA_URL) return json(res, 200, { enabled: false });
     const r = await call(u.id, "status").catch(() => null);
-    return json(res, 200, { enabled: !!r, running: !!r, ...(r?.body || {}) });
+    // configurado pero caído: igual se usa la app nativa, que muestra «no responde» y reintenta sola
+    return json(res, 200, { enabled: true, running: !!r, ...(r?.body || {}) });
   }
   if (!WA_URL) fail(503, "WhatsApp no está activado en este servidor");
   if (a === "events" && req.method === "GET") return call(u.id, "events", { res }).catch(e => fail(503, e.message));

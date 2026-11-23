@@ -19,6 +19,7 @@ import "./os/styles.css";
 import "./os/epocas.css"; // temas de época (Prado, Cristal, Vidrio, Mosaico, Aluminio)
 import React from "react";
 import { createRoot } from "react-dom/client";
+import { AppGuard } from "./os/ui.jsx";
 import { OS } from "./os/shell.jsx";
 import { SharePage } from "./os/share-page.jsx";
 import { DonatePage } from "./os/donar.jsx";
@@ -30,7 +31,7 @@ if (share || /^#\/donar\b/.test(location.hash)) document.body.classList.add("is-
 // el idioma (y su diccionario, si es inglés) se prepara antes de pintar la interfaz
 // un Sotos recién descargado (sin instalar) abre el asistente de instalación
 fetch("/api/install/status", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(s => { if (s && s.installed === false) location.replace("/instalar"); }).catch(() => {});
-startI18n().catch(() => {}).finally(() => createRoot(document.getElementById("root")).render(share ? <SharePage token={share[1]} /> : /^#\/donar\b/.test(location.hash) ? <DonatePage /> : <OS />));
+startI18n().catch(() => {}).finally(() => createRoot(document.getElementById("root")).render(<AppGuard name="Sotos">{share ? <SharePage token={share[1]} /> : /^#\/donar\b/.test(location.hash) ? <DonatePage /> : <OS />}</AppGuard>));
 window.addEventListener("hashchange", () => { if (/^#\/s\//.test(location.hash) !== !!share || /^#\/donar\b/.test(location.hash)) location.reload(); });
 
 // service worker: avisos con Sotos cerrado y app instalable (en el celular o el computador)

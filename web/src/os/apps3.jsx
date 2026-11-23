@@ -443,10 +443,11 @@ function BrowserApp({ shortcuts = [], url, scName }) {
 function WhatsAppApp() {
   const neko = useNeko(); const mode = useVfs(s => s.mode);
   const native = useNativeWa(mode === "cloud" && !DEMO);
-  if (native === null) return <div className="app"><EmptyState icon="hourglass_empty" text="Preparando WhatsApp…" /></div>;
-  if (native.enabled) return <NativeWhatsApp />;
+  // los hooks van SIEMPRE antes de cualquier return: si no, React se cae al cambiar de estado
   const [waited, setWaited] = useS3(false);
   useE3(() => { const t = setTimeout(() => setWaited(true), 2500); return () => clearTimeout(t); }, []);
+  if (native === null) return <div className="app"><EmptyState icon="hourglass_empty" text="Preparando WhatsApp…" /></div>;
+  if (native.enabled) return <NativeWhatsApp />;
   const open = () => window.open("https://web.whatsapp.com", "_blank", "noopener");
   if (neko) return (<div className="app" style={{ flexDirection: "column" }}>
     <div className="proxy-bar"><Ic name="info" size={14} /> Escanea el código QR con tu celular (WhatsApp → Dispositivos vinculados). El navegador virtual es del servidor: lo comparte quien tenga acceso a él, así que en un servidor con varias personas cierra la sesión al terminar.</div>

@@ -31,6 +31,10 @@ const SECRET = process.env.WA_SECRET || "";
 const DATA = path.resolve(process.env.WA_DATA || path.join(here, "data"));
 if (SECRET.length < 24) { console.error("[wa] falta WA_SECRET (24+ caracteres)"); process.exit(1); }
 const logger = pino({ level: "silent" });
+// un error de Baileys o de una sesión no puede apagar el servicio de todas las cuentas: se registra y sigue
+const errLog = (where, e) => { try { const line = `${new Date().toISOString()} [${where}] ${e?.stack || e}\n`; console.error("[wa]", line.trim()); fs.mkdirSync(DATA, { recursive: true }); fs.appendFileSync(path.join(DATA, "errores.log"), line); } catch {} };
+process.on("uncaughtException", e => errLog("uncaughtException", e));
+process.on("unhandledRejection", e => errLog("unhandledRejection", e));
 const MAX_MEDIA = 64 * 1024 * 1024;
 let waVersion; fetchLatestBaileysVersion().then(v => { waVersion = v.version; }).catch(() => {});
 
@@ -104,8 +108,14 @@ function saveMessage(s, msg, { live = false } = {}) {
   if (live) emit(s, "message", out);
   return out;
 }
-async function start(user) {
+// un solo arranque a la vez por cuenta: dos sockets con las mismas credenciales se expulsan entre sí sin fin
+const starting = new Map();
+function start(user) { if (starting.has(user)) return starting.get(user); const p = startOnce(user).finally(() => starting.delete(user)); starting.set(user, p); return p; }
+// cada evento de Baileys corre protegido: un mensaje raro o una base cerrada no detiene la sesión
+const safe = (s, fn) => (...a) => { try { if (!s.db) return; const r = fn(...a); if (r && r.catch) r.catch(e => errLog("evento", e)); } catch (e) { errLog("evento", e); } };
+async function startOnce(user) {
   let s = sessions.get(user); if (s && s.sock && s.state !== "closed") return s;
+  if (s?.timer) { clearTimeout(s.timer); s.timer = null; }
   const dir = path.join(DATA, user); fs.mkdirSync(path.join(dir, "auth"), { recursive: true });
   s = s || { subs: new Set(), state: "connecting", qr: null, me: null, retries: 0 };
   if (!s.db) s.db = openStore(dir);
@@ -115,7 +125,7 @@ async function start(user) {
     getMessage: async (key) => { const r = s.db.prepare("SELECT raw FROM messages WHERE jid = ? AND id = ?").get(key.remoteJid, key.id); return r ? JSON.parse(r.raw, BufferJSON.reviver).message : undefined; } });
   s.sock = sock; s.state = "connecting"; emit(s, "status", { state: s.state });
   sock.ev.on("creds.update", saveCreds);
-  sock.ev.on("connection.update", async ({ connection, lastDisconnect, qr }) => {
+  sock.ev.on("connection.update", safe(s, async ({ connection, lastDisconnect, qr }) => {
     if (s.sock !== sock && connection !== "close") return; // eventos de un socket anterior
     if (connection === "close" && s.sock !== sock) return;
     if (qr) { s.state = "qr"; s.qr = await QRCode.toDataURL(qr, { margin: 1, width: 300 }); emit(s, "status", { state: "qr", qr: s.qr }); }
@@ -129,24 +139,27 @@ async function start(user) {
       s.sock = null;
       if (code === DisconnectReason.loggedOut) { s.state = "off"; s.me = null; fs.rmSync(path.join(dir, "auth"), { recursive: true, force: true }); emit(s, "status", { state: "off", reason: "Se cerró la sesión desde el celular" }); return; }
       if (s.stopping) { s.state = "off"; emit(s, "status", { state: "off" }); return; }
+      if (code === DisconnectReason.connectionReplaced) { s.state = "off"; emit(s, "status", { state: "off", reason: "WhatsApp se abrió en otra sesión de Sotos o de WhatsApp Web. Vuelve a vincular aquí si quieres usarlo en esta." }); return; }
+      if (code === DisconnectReason.badSession || code === DisconnectReason.multideviceMismatch) { // credenciales dañadas: no se reintenta en bucle, se pide vincular de nuevo
+        s.state = "off"; s.me = null; fs.rmSync(path.join(dir, "auth"), { recursive: true, force: true }); emit(s, "status", { state: "off", reason: "La sesión de WhatsApp se dañó. Vincúlalo de nuevo con el código QR." }); return; }
       s.state = "connecting"; emit(s, "status", { state: "connecting" });
-      const wait = Math.min(30000, 2000 * 2 ** s.retries++); setTimeout(() => start(user).catch(() => {}), wait);
+      const wait = Math.min(60000, 2000 * 2 ** Math.min(s.retries++, 5)); s.timer = setTimeout(() => { s.timer = null; if (!s.stopping) start(user).catch(e => errLog("reconexión", e)); }, wait);
     }
-  });
-  sock.ev.on("messaging-history.set", ({ chats = [], contacts = [], messages = [] }) => {
+  }));
+  sock.ev.on("messaging-history.set", safe(s, ({ chats = [], contacts = [], messages = [] }) => {
     for (const c of contacts) if (c.id && (c.name || c.notify || c.verifiedName)) s.db.prepare("INSERT OR REPLACE INTO contacts(jid,name) VALUES(?,?)").run(c.id, c.name || c.notify || c.verifiedName);
     for (const c of chats) if (okJid(c.id)) s.db.prepare("INSERT INTO chats(jid,name,unread,ts,archived) VALUES(?,?,?,?,?) ON CONFLICT(jid) DO UPDATE SET name = COALESCE(excluded.name, chats.name), unread = excluded.unread, ts = MAX(chats.ts, excluded.ts), archived = excluded.archived")
       .run(c.id, c.name || null, c.unreadCount || 0, Number(c.conversationTimestamp?.low ?? c.conversationTimestamp ?? 0) * 1000, c.archived ? 1 : 0);
     for (const m of messages) saveMessage(s, m);
     emit(s, "chats", {});
-  });
-  sock.ev.on("contacts.upsert", (cs) => { for (const c of cs) if (c.id && (c.name || c.notify)) s.db.prepare("INSERT OR REPLACE INTO contacts(jid,name) VALUES(?,?)").run(c.id, c.name || c.notify); });
-  sock.ev.on("contacts.update", (cs) => { for (const c of cs) if (c.id && (c.name || c.notify)) s.db.prepare("INSERT OR REPLACE INTO contacts(jid,name) VALUES(?,?)").run(c.id, c.name || c.notify); });
-  sock.ev.on("chats.upsert", (cs) => { for (const c of cs) if (okJid(c.id)) s.db.prepare("INSERT INTO chats(jid,name,unread) VALUES(?,?,?) ON CONFLICT(jid) DO UPDATE SET name = COALESCE(excluded.name, chats.name)").run(c.id, c.name || null, c.unreadCount || 0); emit(s, "chats", {}); });
-  sock.ev.on("chats.update", (cs) => { for (const c of cs) if (okJid(c.id)) { if (c.unreadCount != null) s.db.prepare("UPDATE chats SET unread = ? WHERE jid = ?").run(c.unreadCount, c.id); if (c.name) s.db.prepare("UPDATE chats SET name = ? WHERE jid = ?").run(c.name, c.id); } emit(s, "chats", {}); });
-  sock.ev.on("groups.update", (gs) => { for (const g of gs) if (g.id && g.subject) s.db.prepare("INSERT INTO chats(jid,name) VALUES(?,?) ON CONFLICT(jid) DO UPDATE SET name = excluded.name").run(g.id, g.subject); });
-  sock.ev.on("messages.upsert", ({ messages, type }) => { for (const m of messages) saveMessage(s, m, { live: type === "notify" }); });
-  sock.ev.on("messages.update", (ups) => { for (const u of ups) if (u.update?.status != null) emit(s, "ack", { jid: u.key.remoteJid, id: u.key.id, status: u.update.status }); });
+  }));
+  sock.ev.on("contacts.upsert", safe(s, (cs) => { for (const c of cs) if (c.id && (c.name || c.notify)) s.db.prepare("INSERT OR REPLACE INTO contacts(jid,name) VALUES(?,?)").run(c.id, c.name || c.notify); }));
+  sock.ev.on("contacts.update", safe(s, (cs) => { for (const c of cs) if (c.id && (c.name || c.notify)) s.db.prepare("INSERT OR REPLACE INTO contacts(jid,name) VALUES(?,?)").run(c.id, c.name || c.notify); }));
+  sock.ev.on("chats.upsert", safe(s, (cs) => { for (const c of cs) if (okJid(c.id)) s.db.prepare("INSERT INTO chats(jid,name,unread) VALUES(?,?,?) ON CONFLICT(jid) DO UPDATE SET name = COALESCE(excluded.name, chats.name)").run(c.id, c.name || null, c.unreadCount || 0); emit(s, "chats", {}); }));
+  sock.ev.on("chats.update", safe(s, (cs) => { for (const c of cs) if (okJid(c.id)) { if (c.unreadCount != null) s.db.prepare("UPDATE chats SET unread = ? WHERE jid = ?").run(c.unreadCount, c.id); if (c.name) s.db.prepare("UPDATE chats SET name = ? WHERE jid = ?").run(c.name, c.id); } emit(s, "chats", {}); }));
+  sock.ev.on("groups.update", safe(s, (gs) => { for (const g of gs) if (g.id && g.subject) s.db.prepare("INSERT INTO chats(jid,name) VALUES(?,?) ON CONFLICT(jid) DO UPDATE SET name = excluded.name").run(g.id, g.subject); }));
+  sock.ev.on("messages.upsert", safe(s, ({ messages, type }) => { for (const m of messages) saveMessage(s, m, { live: type === "notify" }); }));
+  sock.ev.on("messages.update", safe(s, (ups) => { for (const u of ups) if (u.update?.status != null) emit(s, "ack", { jid: u.key.remoteJid, id: u.key.id, status: u.update.status }); }));
   return s;
 }
 
@@ -180,8 +193,8 @@ http.createServer(async (req, res) => {
       if (!s) { s = { subs: new Set(), state: "off", qr: null, me: null }; sessions.set(user, s); }
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-store", connection: "keep-alive" });
       res.write(`event: status\ndata: ${JSON.stringify({ state: s.state, qr: s.state === "qr" ? s.qr : null, me: s.me })}\n\n`);
-      s.subs.add(res); const ping = setInterval(() => res.write(": ping\n\n"), 25000);
-      req.on("close", () => { clearInterval(ping); s.subs.delete(res); });
+      s.subs.add(res); const ping = setInterval(() => { try { res.write(": ping\n\n"); } catch {} }, 25000);
+      const bye = () => { clearInterval(ping); s.subs.delete(res); }; req.on("close", bye); res.on("error", bye); res.on("close", bye);
       return;
     }
     if (!s || !s.db) return send(res, 409, { error: "WhatsApp no está vinculado" });
@@ -202,6 +215,7 @@ http.createServer(async (req, res) => {
       const r = s.db.prepare("SELECT raw, kind FROM messages WHERE jid = ? AND id = ?").get(url.searchParams.get("jid"), url.searchParams.get("id"));
       if (!r) return send(res, 404, { error: "No encontrado" });
       const msg = JSON.parse(r.raw, BufferJSON.reviver); const d = describe(msg);
+      if (!d || !["image", "video", "audio", "document", "sticker"].includes(d.kind)) return send(res, 404, { error: "Ese mensaje no tiene archivo" });
       if (d.size && d.size > MAX_MEDIA) return send(res, 413, { error: "Archivo demasiado grande" });
       const buf = await downloadMediaMessage(msg, "buffer", {}, { logger, reuploadRequest: s.sock?.updateMediaMessage });
       res.writeHead(200, { "content-type": d.mime?.split(";")[0] || "application/octet-stream", "content-length": buf.length, "cache-control": "private, max-age=86400" });
@@ -242,5 +256,5 @@ http.createServer(async (req, res) => {
       return r?.exists ? send(res, 200, { jid: r.jid }) : send(res, 404, { error: "Ese número no tiene WhatsApp" });
     }
     return send(res, 404, { error: "No encontrado" });
-  } catch (e) { console.error("[wa]", e); try { send(res, 500, { error: e.message || "Error de WhatsApp" }); } catch {} }
+  } catch (e) { console.error("[wa]", e); try { if (!res.headersSent) send(res, 500, { error: e.message || "Error de WhatsApp" }); else res.destroy(); } catch {} }
 }).listen(PORT, "127.0.0.1", () => console.log(`[wa] servicio de WhatsApp en 127.0.0.1:${PORT}`));

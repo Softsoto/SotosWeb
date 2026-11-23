@@ -2469,3 +2469,6 @@ select.wg-input { padding: 0 4px; }
 .acct-ses b { color: var(--text); }
 
 .vault-guest { display: grid; justify-items: center; gap: 12px; max-width: 360px; text-align: center; }
+.app-crash { display: grid; place-items: center; padding: 20px; }
+.app-crash-card { display: grid; justify-items: center; gap: 8px; max-width: 420px; text-align: center; }
+.app-crash-card code { max-width: 100%; padding: 6px 10px; border-radius: 6px; background: var(--surface-2); font-size: 12px; overflow-wrap: anywhere; }

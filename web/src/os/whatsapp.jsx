@@ -84,21 +84,21 @@ function Bubble({ m, group, onSave }) {
 function Conversation({ chat, onBack }) {
   const [msgs, setMsgs] = useState(null), [text, setText] = useState(""), [busy, setBusy] = useState(false), [pick, setPick] = useState(false), [more, setMore] = useState(true);
   const box = useRef(null), stick = useRef(true);
-  const load = useCallback(async (before) => { const r = await api("GET", `wa/messages?jid=${encodeURIComponent(chat.jid)}${before ? "&before=" + before : ""}`); if (r.messages.length < 60) setMore(false); return r.messages; }, [chat.jid]);
+  const load = useCallback(async (before) => { const r = await api("GET", `wa/messages?jid=${encodeURIComponent(chat.jid)}${before ? "&before=" + before : ""}`); const list = Array.isArray(r?.messages) ? r.messages : []; if (list.length < 60) setMore(false); return list; }, [chat.jid]);
   useEffect(() => { let live = true; setMsgs(null); setMore(true); stick.current = true;
     load().then(m => live && setMsgs(m)).catch(e => toast(e.message, { error: true }));
     if (chat.unread) api("POST", "wa/read", { jid: chat.jid }).catch(() => {});
     return () => { live = false; }; }, [chat.jid]);
   // mensajes nuevos, acuses y reacciones en vivo
   useEffect(() => {
-    const on = (e) => { const { type, data } = e.detail; if (data.jid !== chat.jid) return;
+    const on = (e) => { const { type, data } = e.detail || {}; if (!data || data.jid !== chat.jid) return;
       if (type === "message") { setMsgs(l => l && !l.some(x => x.id === data.id) ? [...l, data] : l); if (!data.fromMe) api("POST", "wa/read", { jid: chat.jid }).catch(() => {}); }
       if (type === "ack") setMsgs(l => l?.map(x => x.id === data.id ? { ...x, status: data.status } : x));
       if (type === "reaction") setMsgs(l => l?.map(x => x.id === data.to ? { ...x, reaction: data.emoji } : x)); };
     window.addEventListener("sotos-wa", on); return () => window.removeEventListener("sotos-wa", on);
   }, [chat.jid]);
   useEffect(() => { if (stick.current && box.current) box.current.scrollTop = box.current.scrollHeight; }, [msgs]);
-  const older = async () => { const el = box.current, h = el.scrollHeight; stick.current = false; const m = await load(msgs[0]?.ts); setMsgs(l => [...m.filter(x => !l.some(y => y.id === x.id)), ...l]); requestAnimationFrame(() => { el.scrollTop = el.scrollHeight - h; }); };
+  const older = async () => { const el = box.current, h = el.scrollHeight; stick.current = false; const m = await load(msgs[0]?.ts).catch(e => { toast(e.message, { error: true }); return []; }); setMsgs(l => [...m.filter(x => !l.some(y => y.id === x.id)), ...l]); requestAnimationFrame(() => { el.scrollTop = el.scrollHeight - h; }); };
   const send = async (extra = {}) => { const t = text.trim(); if (!t && !extra.nodeId) return; setBusy(true); stick.current = true;
     try { const r = await api("POST", "wa/send", { jid: chat.jid, text: t, ...extra }); setText(""); if (r.message) setMsgs(l => l && !l.some(x => x.id === r.message.id) ? [...l, r.message] : l); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
   const save = async (m) => { try { const r = await fetch(mediaUrl(m)); if (!r.ok) throw new Error("No se pudo descargar"); const b = await r.blob(); const d = vfs.resolve("/Descargas") || vfs.getState().root; const name = vfs.uniqueName(d, m.file || m.text || "archivo de WhatsApp"); await vfs.create(d.id, name, b); toast(`“${name}” guardado en Descargas`, { icon: "download_done" }); } catch (e) { toast(e.message, { error: true }); } };
@@ -126,17 +126,18 @@ function Conversation({ chat, onBack }) {
 
 export function NativeWhatsApp() {
   const [st, setSt] = useState({ state: "loading" }), [chats, setChats] = useState(null), [sel, setSel] = useState(null), [q, setQ] = useState(""), [busy, setBusy] = useState(false), [newChat, setNewChat] = useState(null);
-  const loadChats = useCallback(() => api("GET", "wa/chats").then(r => setChats(r.chats)).catch(() => {}), []);
+  const loadChats = useCallback(() => api("GET", "wa/chats").then(r => setChats(Array.isArray(r?.chats) ? r.chats : [])).catch(() => {}), []);
   // estado inicial con una petición normal; los cambios en vivo llegan por la conexión que Sotos ya tiene
   // abierta (/api/fs/events → "wa"), así WhatsApp no ocupa conexiones extra del navegador
   useEffect(() => { let stop = false;
-    const poll = () => api("GET", "wa/status").then(s => { if (!stop) setSt(cur => cur.state === "loading" || cur.state === "reconnecting" || s.state !== cur.state ? { ...cur, ...s } : cur); }).catch(() => {});
-    poll(); const iv = setInterval(poll, 20000); // red de seguridad por si se pierde algún evento
+    const poll = () => api("GET", "wa/status").then(s => { if (!stop && s && s.state) setSt(cur => cur.state === "loading" || cur.state === "down" || cur.state === "reconnecting" || s.state !== cur.state ? { ...cur, ...s } : cur); })
+      .catch((e) => { if (!stop) setSt(cur => cur.state === "loading" || cur.state === "down" ? { state: "down", error: e.message } : cur); });
+    poll(); const iv = setInterval(poll, 10000); // red de seguridad por si se pierde algún evento
     return () => { stop = true; clearInterval(iv); }; }, []);
   useEffect(() => { let t = null;
     const off = onServer("wa", ({ type, data }) => {
       window.dispatchEvent(new CustomEvent("sotos-wa", { detail: { type, data } }));
-      if (type === "status") setSt(data);
+      if (type === "status" && data && data.state) setSt(data);
       if (type === "chats" || type === "message") { clearTimeout(t); t = setTimeout(loadChats, 400); } });
     return () => { off(); clearTimeout(t); };
   }, []);
@@ -144,6 +145,9 @@ export function NativeWhatsApp() {
   const start = async () => { setBusy(true); try { setSt(await api("POST", "wa/start")); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
   const logout = async () => { try { await api("POST", "wa/logout"); setSt({ state: "off" }); setChats(null); setSel(null); toast("WhatsApp desvinculado de Sotos", { icon: "link_off" }); } catch (e) { toast(e.message, { error: true }); } };
   if (st.state === "loading") return <div className="app"><EmptyState icon="hourglass_empty" text="Conectando con WhatsApp…" /></div>;
+  if (st.state === "down") return <div className="app"><div className="wa-intro"><div className="wa-intro-card"><Ic name="cloud_off" size={38} /><h2>WhatsApp no responde</h2>
+    <div className="muted" style={{ fontSize: 13.5 }}>El servicio de WhatsApp del servidor no está en marcha o se está reiniciando. Sotos lo vuelve a intentar solo cada pocos segundos; tus chats siguen guardados.</div>
+    <button className="tb-btn primary" onClick={() => api("GET", "wa/status").then(s => s?.state && setSt(s)).catch(e => toast(e.message, { error: true }))}><Ic name="refresh" size={18} /> Reintentar ahora</button></div></div></div>;
 
   if (st.state === "off") return <div className="app">{st.reason && <div className="proxy-bar"><Ic name="info" size={14} /> {st.reason}</div>}<Intro onStart={start} busy={busy} /></div>;
   if (st.state === "qr") return <div className="app"><Qr qr={st.qr} onCancel={logout} /></div>;

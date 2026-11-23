@@ -6,7 +6,7 @@ import React from "react";
 import { APPS, APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, DEFAULT_SHORTCUTS, appAllowed } from "./data.jsx";
 import { SotosLogo, SotosMark, BrandMark, setBrandLogo } from "./logo.jsx";
 import * as Vault from "./vault.jsx";
-import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, animateWinOut, animateWinGeometry } from "./ui.jsx";
+import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, animateWinOut, animateWinGeometry , AppGuard } from "./ui.jsx";
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, DESKTOP } from "./vfs.js";
@@ -868,7 +868,7 @@ function OS() {
           <Win key={win.id} win={{ ...win, title }} app={app} focused={top && top.id === win.id}
             onFocus={() => focus(win.id)} onClose={() => close(win.id)} onMin={() => min(win.id)} onMax={() => max(win.id)}
             onMove={(x, y) => setRect(win.id, { x, y })} onResize={(w, h) => setRect(win.id, { w, h })}>
-            {Comp ? <React.Suspense fallback={<div className="app app-loading"><Ic name="progress_activity" size={26} /></div>}><Comp {...extra} /></React.Suspense> : <EmptyState icon="error" text={"App no encontrada: " + app.comp} />}
+            {Comp ? <AppGuard name={app.name} onClose={() => close(win.id)}><React.Suspense fallback={<div className="app app-loading"><Ic name="progress_activity" size={26} /></div>}><Comp {...extra} /></React.Suspense></AppGuard> : <EmptyState icon="error" text={"App no encontrada: " + app.comp} />}
           </Win>
         );
       })}
