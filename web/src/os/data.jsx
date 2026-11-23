@@ -37,6 +37,8 @@ const APPS = [
   { id: "diagnostico", name: "Diagnóstico",       icon: "build",           color: "#1f7a78", comp: "WebApp", url: "apps/diagnostico/index.html", size: { w: 1100, h: 780 }, store: true, cat: "Herramientas",  desc: "Banco de pruebas del equipo: teclado, pantalla, sonido, cámara y ficha técnica." },
   { id: "panel",       name: "Panel personal",    icon: "space_dashboard", color: "#c9902a", comp: "WebApp", url: "apps/panel/index.html",       size: { w: 1100, h: 760 }, store: true, cat: "Productividad", desc: "Tareas, gastos del mes, notas y temporizador de enfoque en un solo tablero." },
   { id: "pinball",     name: "Páramo Pinball",    icon: "sports_esports",  color: "#4f7a3a", comp: "WebApp", url: "apps/pinball/index.html",     size: { w: 820, h: 940 },  store: true, cat: "Juegos",        desc: "Pinball con tres mesas originales, física propia y récords." },
+  { id: "descargas", name: "Descargas", icon: "cloud_download", color: "#2f5d8a", comp: "DownloadsApp", size: { w: 720, h: 520 } },
+  { id: "donar",   name: "Contribuir",   icon: "volunteer_activism", color: "#c4532f", comp: "ContributeApp", size: { w: 760, h: 620 } },
   { id: "admin",   name: "Administración", icon: "admin_panel_settings", color: "#3b4046", comp: "AdminApp", size: { w: 1080, h: 700 }, adminOnly: true },
   { id: "settings",name: "Ajustes",   icon: "settings",          color: "#6f6a60", comp: "SettingsApp",  size: { w: 720, h: 540 } },
   { id: "web",     name: "Web",       icon: "public",            color: "#2a7f8f", comp: "WebViewApp",   size: { w: 1000, h: 670 } },

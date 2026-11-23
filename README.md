@@ -10,7 +10,7 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 3.5.1 |
+| **Versión** | 3.6 |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
 | **Licencia** | [MIT](LICENSE) |
@@ -36,7 +36,9 @@ Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde 
 
 ## Novedades
 
-**Versión 3.5** ([historial completo](CHANGELOG.md)): **SDK para crear apps** de la Tienda, **calendario y contactos en el celular** (CalDAV/CardDAV), **recuperar la contraseña por correo**, **copias fuera del servidor** (otro disco, NAS o S3), enlaces con **contraseña, límite de descargas y carpetas para pedir archivos**, y un **selector de archivos** común a todas las apps.
+**Versión 3.6** ([historial completo](CHANGELOG.md)): **temas de época** (Prado, Cristal, Vidrio, Mosaico y Aluminio) con íconos, fondos y sonidos propios, **tu cuenta a un clic en tu foto**, **Contribuir y donaciones**, y **descargas al servidor**.
+
+**Versión 3.5**: **SDK para crear apps** de la Tienda, **calendario y contactos en el celular** (CalDAV/CardDAV), **recuperar la contraseña por correo**, **copias fuera del servidor** (otro disco, NAS o S3), enlaces con **contraseña, límite de descargas y carpetas para pedir archivos**, y un **selector de archivos** común a todas las apps.
 
 **Versión 3.4**: **paquetes de instalación** (instalador `.exe` para Windows, instalador de un solo archivo para Linux, hosting y NAS, paquete para Synology con Docker) y **actualizaciones con un clic** desde Administración.
 
@@ -304,6 +306,20 @@ Varias cuentas, alias para enviar desde otras direcciones y la elección de remi
 - **Multimedia de servidor**: Cine (Jellyfin) y Fotos (Immich), cada persona con su propia cuenta.
 - **En cualquier dispositivo**: app instalable, diseño para celular, avisos con Sotos cerrado y unidad de red (WebDAV).
 - **Idiomas**: español e inglés.
+
+## Temas de época
+
+Además de *Sotos* y *Grafito*, cinco escritorios completos que recuerdan otras épocas, con barra de tareas y menú Inicio (o barra de menú y dock), pantalla de inicio de sesión, fondos, íconos y sonidos propios. Arte original: ningún logo ni marca de otros sistemas. Se eligen en *Ajustes → Apariencia*.
+
+| | |
+|---|---|
+| ![Prado, 2001](docs/capturas/tema-prado.jpg) | ![Cristal, 2007](docs/capturas/tema-cristal.jpg) |
+| ![Vidrio, 2009](docs/capturas/tema-vidrio.jpg) | ![Mosaico, 2012](docs/capturas/tema-mosaico.jpg) |
+| ![Aluminio](docs/capturas/tema-aluminio.jpg) | |
+
+## Apoyar y contribuir
+
+La app **Contribuir** muestra los medios de donación que publique el administrador de cada Sotos (PayPal, Ko-fi, GitHub Sponsors, Nequi, Daviplata, transferencia…) y una página pública **/#/donar** para compartir. Para contribuir al proyecto: [reporta un error o propón una idea](https://github.com/Softsoto/SotosWeb/issues), aporta código o publica una app con el [SDK](sdk/README.md), o ayuda a traducir.
 
 ## Instalación
 

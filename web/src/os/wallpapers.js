@@ -17,6 +17,14 @@ export const WALLS = [
   { id: "papel",   name: "Papel",     hint: "Liso, con la marca de Sotos" },
   { id: "tinta",   name: "Tinta",     hint: "Oscuro, para el tema nocturno" },
 ];
+/* fondos de los temas de época (arte propio, dibujado por código) */
+export const ERA_WALLS = [
+  { id: "era-prado",    name: "Prado",    hint: "Colina verde y cielo de verano" },
+  { id: "era-cristal",  name: "Cristal",  hint: "Cintas de luz sobre la noche" },
+  { id: "era-vidrio",   name: "Vidrio",   hint: "Haces de luz turquesa" },
+  { id: "era-mosaico",  name: "Mosaico",  hint: "Facetas de color" },
+  { id: "era-aluminio", name: "Aluminio", hint: "Montañas al atardecer" },
+];
 
 /* Fotos (licencia CC0, Wikimedia Commons), en web/public/fondos. Combinan con el tema Grafito,
    que las pasa a blanco y negro. Autor y enlace se muestran en Ajustes como crédito. */
@@ -240,6 +248,56 @@ const SCENES = {
     k.sun(W * 0.82, H * 0.74, 210 * u, "#c4532f", 0);
     k.sun(W * 0.82, H * 0.74, 140 * u, "#d9a441", 0);
   },
+  /* ---------- épocas ---------- */
+  "era-prado"(g, k) {
+    const { W, H, u } = k; const lin = (y0, y1, stops) => { const gr = g.createLinearGradient(0, y0, 0, y1); stops.forEach(([o, c]) => gr.addColorStop(o, c)); return gr; };
+    g.fillStyle = lin(0, H * 0.7, [[0, "#1d5fd0"], [0.55, "#5d9be8"], [1, "#b9dcf6"]]); g.fillRect(0, 0, W, H);
+    // nubes: grupos de círculos suaves
+    g.save(); g.filter = `blur(${6 * u}px)`; g.fillStyle = "rgba(255,255,255,.86)";
+    const cloud = (x, y, s) => { for (const [dx, dy, r] of [[0, 0, 60], [55, -18, 50], [105, 2, 58], [160, -6, 44], [-50, 8, 40], [60, 22, 52]]) { g.beginPath(); g.arc(x + dx * s, y + dy * s, r * s, 0, Math.PI * 2); g.fill(); } };
+    cloud(W * 0.18, H * 0.2, 1.4 * u); cloud(W * 0.66, H * 0.12, 1.1 * u); cloud(W * 0.86, H * 0.32, 0.8 * u); cloud(W * 0.42, H * 0.36, 0.7 * u); g.restore();
+    // colina del fondo
+    g.fillStyle = lin(H * 0.55, H, [[0, "#5e9b3a"], [1, "#3f7a25"]]);
+    g.beginPath(); g.moveTo(-10, H * 0.72); g.bezierCurveTo(W * 0.3, H * 0.58, W * 0.55, H * 0.62, W + 10, H * 0.7); g.lineTo(W + 10, H); g.lineTo(-10, H); g.fill();
+    // colina principal, más clara arriba a la izquierda
+    const gr = g.createRadialGradient(W * 0.32, H * 0.62, 20 * u, W * 0.4, H * 0.9, W * 0.7); gr.addColorStop(0, "#9fd25a"); gr.addColorStop(0.45, "#5fa52c"); gr.addColorStop(1, "#2f6a17");
+    g.fillStyle = gr; g.beginPath(); g.moveTo(-10, H * 0.82); g.bezierCurveTo(W * 0.18, H * 0.6, W * 0.62, H * 0.6, W + 10, H * 0.86); g.lineTo(W + 10, H + 10); g.lineTo(-10, H + 10); g.fill();
+    // brillo de pasto
+    g.strokeStyle = "rgba(220,245,160,.10)"; g.lineWidth = 1.2 * u;
+    for (let i = 0; i < 900; i++) { const x = k.rand() * W, y = H * 0.7 + k.rand() * H * 0.3; g.beginPath(); g.moveTo(x, y); g.lineTo(x + (k.rand() - 0.5) * 6 * u, y - 10 * u * k.rand()); g.stroke(); }
+  },
+  "era-cristal"(g, k) {
+    const { W, H, u } = k; const bg = g.createLinearGradient(0, 0, W, H); bg.addColorStop(0, "#04121a"); bg.addColorStop(0.6, "#082833"); bg.addColorStop(1, "#04161b"); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.save(); g.globalCompositeOperation = "lighter";
+    const ribbon = (y, amp, col, width, phase) => { for (let s = 0; s < 26; s++) { g.strokeStyle = col.replace("A", (0.035 * (1 - s / 26)).toFixed(3)); g.lineWidth = width * (1 - s / 30) * u; g.beginPath();
+      for (let x = -50; x <= W + 50; x += 20 * u) { const yy = y + Math.sin(x / W * Math.PI * 2 + phase + s * 0.05) * amp + Math.sin(x / W * 7 + phase) * amp * 0.25 + s * 3 * u; x === -50 ? g.moveTo(x, yy) : g.lineTo(x, yy); } g.stroke(); } };
+    ribbon(H * 0.46, 110 * u, "rgba(90,230,190,A)", 9, 0.4); ribbon(H * 0.58, 80 * u, "rgba(60,190,230,A)", 7, 1.9); ribbon(H * 0.36, 60 * u, "rgba(170,240,140,A)", 5, 3.1);
+    g.fillStyle = "rgba(200,255,240,.5)"; for (let i = 0; i < 160; i++) { g.beginPath(); g.arc(k.rand() * W, H * 0.25 + k.rand() * H * 0.55, k.rand() * 1.6 * u, 0, Math.PI * 2); g.fill(); }
+    g.restore();
+  },
+  "era-vidrio"(g, k) {
+    const { W, H, u } = k; const bg = g.createRadialGradient(W * 0.5, H * 0.62, 10, W * 0.5, H * 0.62, Math.max(W, H) * 0.8); bg.addColorStop(0, "#7fe3f2"); bg.addColorStop(0.35, "#1f9bc2"); bg.addColorStop(1, "#06425f"); g.fillStyle = bg; g.fillRect(0, 0, W, H);
+    g.save(); g.globalCompositeOperation = "lighter";
+    for (let i = 0; i < 14; i++) { const a = -Math.PI / 2 + (i - 6.5) * 0.17 + (k.rand() - 0.5) * 0.06, w = 0.025 + k.rand() * 0.04, L = Math.max(W, H) * 1.2;
+      g.fillStyle = `rgba(255,255,255,${(0.025 + k.rand() * 0.04).toFixed(3)})`; g.beginPath(); g.moveTo(W * 0.5, H * 0.66); g.lineTo(W * 0.5 + Math.cos(a - w) * L, H * 0.66 + Math.sin(a - w) * L); g.lineTo(W * 0.5 + Math.cos(a + w) * L, H * 0.66 + Math.sin(a + w) * L); g.fill(); }
+    for (let i = 0; i < 40; i++) { const r = (8 + k.rand() * 50) * u, x = k.rand() * W, y = k.rand() * H; const b = g.createRadialGradient(x, y, 0, x, y, r); b.addColorStop(0, "rgba(255,255,255,.10)"); b.addColorStop(1, "rgba(255,255,255,0)"); g.fillStyle = b; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
+    g.restore();
+  },
+  "era-mosaico"(g, k) {
+    const { W, H, u } = k; g.fillStyle = "#1f5f4b"; g.fillRect(0, 0, W, H);
+    const cols = ["#246c55", "#1b5443", "#2b7a60", "#174a3b", "#2f8468", "#20614d"];
+    const pts = []; for (let i = 0; i < 14; i++) for (let j = 0; j < 9; j++) pts.push([W * 0.38 + i * W * 0.05 + (k.rand() - 0.5) * W * 0.03, j * H * 0.13 + (k.rand() - 0.5) * H * 0.05]);
+    for (let i = 0; i < 13; i++) for (let j = 0; j < 8; j++) { const p = (a, b) => pts[a * 9 + b]; const A = p(i, j), B = p(i + 1, j), C = p(i, j + 1), D = p(i + 1, j + 1);
+      for (const tri of [[A, B, C], [B, D, C]]) { g.fillStyle = cols[Math.floor(k.rand() * cols.length)]; g.globalAlpha = Math.min(1, 0.25 + (i / 13) * 0.9); g.beginPath(); g.moveTo(...tri[0]); g.lineTo(...tri[1]); g.lineTo(...tri[2]); g.fill(); } }
+    g.globalAlpha = 1;
+  },
+  "era-aluminio"(g, k) {
+    const { W, H, u } = k; const sky = g.createLinearGradient(0, 0, 0, H * 0.75); sky.addColorStop(0, "#14263f"); sky.addColorStop(0.45, "#3e5a78"); sky.addColorStop(0.8, "#d98a5c"); sky.addColorStop(1, "#f2c48d"); g.fillStyle = sky; g.fillRect(0, 0, W, H);
+    const ridge = (base, amp, col, seed) => { g.fillStyle = col; g.beginPath(); g.moveTo(-10, H); let y = base;
+      for (let x = -10; x <= W + 20; x += 18 * u) { y += (Math.sin(x * 0.004 + seed) + Math.sin(x * 0.011 + seed * 2)) * amp * 0.06 + (k.rand() - 0.5) * amp * 0.08; y = Math.max(base - amp, Math.min(base + amp * 0.4, y)); g.lineTo(x, y); } g.lineTo(W + 20, H); g.fill(); };
+    ridge(H * 0.62, 150 * u, "#5d6f86", 1); ridge(H * 0.7, 120 * u, "#3f5068", 4); ridge(H * 0.8, 90 * u, "#29374b", 7); ridge(H * 0.9, 60 * u, "#1a2433", 9);
+    g.fillStyle = "rgba(255,226,180,.08)"; g.fillRect(0, H * 0.55, W, H * 0.2);
+  },
   tinta(g, k) {
     const { W, H, u } = k;
     g.fillStyle = "#1c1b19"; g.fillRect(0, 0, W, H);
@@ -259,7 +317,7 @@ export function renderWall(id, w, h) {
   const rand = rng([...id].reduce((s, ch) => s * 31 + ch.charCodeAt(0), 7));
   const k = makeKit(g, w, h, rand);
   scene(g, k);
-  k.grain(id === "tinta" ? 0.06 : 0.1);
+  if (!id.startsWith("era-")) k.grain(id === "tinta" ? 0.06 : 0.1); // las épocas sin grano de papel
   return c;
 }
 /** URL (blob) del fondo a la resolución de la pantalla, cacheada */
@@ -270,4 +328,4 @@ export async function wallUrl(id, w = Math.min(2560, Math.round(screen.width * (
   const p = new Promise(res => { const c = renderWall(id, w, h); c.toBlob(b => res(URL.createObjectURL(b)), "image/jpeg", 0.9); });
   cache.set(key, p); return p;
 }
-export const isWall = (id) => WALLS.some(w => w.id === id) || !!photoOf(id);
+export const isWall = (id) => WALLS.some(w => w.id === id) || ERA_WALLS.some(w => w.id === id) || !!photoOf(id);

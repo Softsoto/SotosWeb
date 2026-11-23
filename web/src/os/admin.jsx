@@ -124,6 +124,9 @@ function UserEditor({ u, me, onClose, onFiles, patch, onPassword, onLogout, onDe
           })}
         </div>
         <div className="admin-sub">Seguridad</div>
+        <form className="admin-line" onSubmit={e => { e.preventDefault(); const v = e.currentTarget.elements.correo.value.trim(); if (v && v !== u.email) patch({ email: v }, "Correo actualizado"); }}>
+          <input className="sc-input" name="correo" type="email" defaultValue={u.email} key={u.email} aria-label="Correo de la cuenta" style={{ flex: 1, margin: 0 }} />
+          <button className="tb-btn"><Ic name="alternate_email" /> Cambiar correo</button></form>
         <div className="admin-line"><input className="sc-input" type="password" autoComplete="new-password" placeholder="Nueva contraseña (mín. 8)" value={pw} onChange={e => setPw(e.target.value)} style={{ flex: 1, margin: 0 }} />
           <button className="tb-btn" disabled={pw.length < 8} onClick={() => { onPassword(pw); setPw(""); }}><Ic name="key" /> Cambiar</button></div>
         <div className="admin-line"><button className="tb-btn" onClick={onLogout}><Ic name="logout" /> Cerrar todas sus sesiones</button>
@@ -179,6 +182,34 @@ function UserFiles({ u, onClose, onChanged }) {
       </Modal>}
     </Modal>
   );
+}
+
+/** donaciones: medios para recibir apoyo (app Contribuir y página pública /#/donar) */
+function DonationSettings() {
+  const [d, setD] = useState(null), [busy, setBusy] = useState(false);
+  useEffect(() => { api("GET", "admin/donaciones").then(setD).catch(() => {}); }, []);
+  if (!d) return null;
+  const upd = (i, k, v) => setD(s => ({ ...s, methods: s.methods.map((m, j) => j === i ? { ...m, [k]: v } : m) }));
+  const add = () => setD(s => ({ ...s, methods: [...s.methods, { kind: "paypal", label: "", value: "", note: "" }] }));
+  const del = (i) => setD(s => ({ ...s, methods: s.methods.filter((_, j) => j !== i) }));
+  const save = async (enabled = d.enabled) => { setBusy(true); try { const r = await api("PUT", "admin/donaciones", { ...d, enabled }); setD(s => ({ ...s, ...r })); toast(r.enabled ? "Donaciones publicadas" : "Donaciones guardadas (sin publicar)", { icon: "volunteer_activism" }); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
+  const link = location.origin + "/#/donar";
+  return <>
+    <div className="admin-sub">Donaciones</div>
+    <div className="faint" style={{ fontSize: 12.5, marginBottom: 8 }}>Cómo quieres recibir apoyo. Se muestra en la app Contribuir y en una página pública que puedes compartir. Sotos no cobra ni guarda pagos: cada medio lo procesa su servicio.</div>
+    <div className="admin-line"><span>Título</span><input className="sc-input" value={d.title} maxLength={80} onChange={e => setD({ ...d, title: e.target.value })} style={{ width: 300, margin: 0 }} /></div>
+    <div className="admin-line" style={{ alignItems: "flex-start" }}><span>Mensaje</span><textarea className="sc-input" rows={3} value={d.message} maxLength={600} onChange={e => setD({ ...d, message: e.target.value })} placeholder="Por qué apoyar este Sotos y en qué se usa el dinero" style={{ width: 420, margin: 0, height: "auto", padding: 8 }} /></div>
+    {d.methods.map((m, i) => <div key={i} className="admin-line don-edit">
+      <select className="sc-input" value={m.kind} onChange={e => upd(i, "kind", e.target.value)} style={{ width: 150, margin: 0 }}>{Object.entries(d.kinds).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}</select>
+      <input className="sc-input" value={m.value} onChange={e => upd(i, "value", e.target.value)} placeholder={d.kinds[m.kind]?.url ? "https://…" : "Número o cuenta"} style={{ width: 230, margin: 0 }} aria-label="Enlace o número" />
+      <input className="sc-input" value={m.note} onChange={e => upd(i, "note", e.target.value)} placeholder="Nota (opcional): a nombre de…" style={{ width: 200, margin: 0 }} aria-label="Nota" />
+      <button className="tb-btn icon" title="Quitar" aria-label="Quitar" onClick={() => del(i)}><Ic name="close" size={16} /></button></div>)}
+    <div className="admin-line"><span />
+      <button className="tb-btn" onClick={add} disabled={d.methods.length >= 12}><Ic name="add" /> Agregar medio</button>
+      <button className="tb-btn primary" disabled={busy || !d.methods.length} onClick={() => save(true)}>{d.enabled ? "Guardar" : "Publicar"}</button>
+      {d.enabled && <button className="tb-btn" disabled={busy} onClick={() => save(false)}>Dejar de publicar</button>}
+      {d.enabled && <a className="tb-btn" href={link} target="_blank" rel="noopener noreferrer"><Ic name="open_in_new" /> Ver página pública</a>}</div>
+  </>;
 }
 
 /** correo de envío del servidor: recuperar contraseñas por correo */
@@ -389,9 +420,13 @@ function ServerSettings({ stats, onSaved }) {
     <div className="admin-line"><span>Registro de cuentas nuevas</span>
       <button className={"chip" + (stats.settings.registration === "open" ? " on" : "")} onClick={() => save({ registration: "open" }, "Registro abierto")}>Abierto</button>
       <button className={"chip" + (stats.settings.registration === "closed" ? " on" : "")} onClick={() => save({ registration: "closed" }, "Registro cerrado: solo el administrador crea cuentas")}>Cerrado</button></div>
+    <div className="admin-line"><span>Datos de las cuentas</span>
+      <button className={"chip" + (stats.settings.accountEdit !== "admin" ? " on" : "")} onClick={() => save({ accountEdit: "self" }, "Cada persona puede cambiar su correo, contraseña, nombre y foto")}>Cada persona</button>
+      <button className={"chip" + (stats.settings.accountEdit === "admin" ? " on" : "")} onClick={() => save({ accountEdit: "admin" }, "Solo el administrador cambia los datos de las cuentas")}>Solo el administrador</button></div>
     <div className="admin-line"><span>Cuota para cuentas nuevas</span><input className="sc-input" type="number" min={10} value={quota} onChange={e => setQuota(e.target.value)} style={{ width: 110, margin: 0 }} /><span className="faint">MB</span>
       <button className="tb-btn" onClick={() => save({ defaultQuotaMb: +quota }, "Cuota por defecto actualizada")}>Guardar</button></div>
     <SysMailSettings />
+    <DonationSettings />
     <div className="admin-sub">Equipo</div>
     <div className="faint" style={{ fontSize: 13, lineHeight: 1.7 }}>{stats.server.platform} · {stats.server.cpus} núcleos · Node {stats.server.node}<br />Sotos usa {fmtSize(stats.server.memory)} de memoria · encendido hace {dur(stats.server.uptime)}</div>
   </>;

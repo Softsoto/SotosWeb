@@ -2,6 +2,9 @@
    Sotos OS — shared UI + Window manager
    ============================================================ */
 import React from "react";
+import { useEra, EraPlate, EraFolder } from "./iconos-epoca.jsx";
+import { EraObject, hasObject } from "./iconos-objetos.jsx";
+import { playUi } from "./sonidos.js";
 import ReactDOM from "react-dom";
 import { TYPE_META } from "./data.jsx";
 import { TileGlyph } from "./glyphs.jsx";
@@ -9,8 +12,12 @@ const { useState, useRef, useEffect, useCallback } = React;
 
 // App icon tile
 function Tile({ icon, color, size = 46, style, app }) {
+  const era = useEra(); // temas de época: Prado, Cristal y Vidrio dibujan un objeto; Mosaico y Aluminio, una placa
+  const obj = era && ["prado", "cristal", "vidrio", "aluminio"].includes(era) && hasObject(app);
   return (
-    <div className="tile" data-app={app} style={{ width: size, height: size, background: color, "--c": color, fontSize: size, ...style }}>
+    <div className={"tile" + (obj ? " has-object" : "")} data-app={app} style={{ width: size, height: size, background: era ? undefined : color, "--c": color, fontSize: size, ...style }}>
+      {obj && era === "aluminio" && <EraPlate era="aluminio-claro" />}
+      {obj ? <EraObject app={app} era={era} /> : era && <EraPlate era={era} />}
       <span className="material-symbols-rounded">{icon}</span>
       {app && <TileGlyph app={app} />}
     </div>
@@ -148,7 +155,7 @@ function Win({ win, app, focused, onFocus, onClose, onMin, onMax, onMove, onResi
   }, [onDrag]);
 
   const style = win.maximized
-    ? { left: "var(--desk-left, 0px)", top: 30, width: "calc(100% - var(--desk-left, 0px))", height: "calc(100% - 30px)", zIndex: win.z }
+    ? { left: "var(--desk-left, 0px)", top: "var(--max-top, 30px)", width: "calc(100% - var(--desk-left, 0px))", height: "calc(100% - var(--max-top, 30px) - var(--max-bottom, 0px))", zIndex: win.z }
     : { left: win.x, top: win.y, width: win.w, height: win.h, zIndex: win.z };
 
   return (
@@ -194,7 +201,8 @@ function EmptyState({ icon, text }) {
 
 /* -------------------- File glyph (realistic icons) -------------------- */
 function FileGlyph({ type, css, src, size = 46 }) {
-  const m = TYPE_META[type] || TYPE_META.txt;
+  const m = TYPE_META[type] || TYPE_META.txt; const era = useEra();
+  if (m.kind === "folder" && era) return <EraFolder era={era} size={size} />;
   if (m.kind === "folder")
     return <Ic name="folder" style={{ fontSize: size * 1.08, color: `var(--folder-color, ${m.color})`, fontVariationSettings: "'FILL' 1" }} />;
   if (m.kind === "icon")
@@ -262,6 +270,7 @@ function Avatar({ profile, size = 40 }) {
 const toastSubs = new Set();
 let toastSeq = 0;
 function toast(msg, opts = {}) {
+  if (opts.error) playUi("error");
   const t = { id: ++toastSeq, msg, icon: opts.icon || (opts.error ? "error" : "check_circle"), error: !!opts.error, action: opts.action };
   toastSubs.forEach(f => f(t));
   return t.id;

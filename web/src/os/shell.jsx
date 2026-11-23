@@ -13,6 +13,10 @@ import { useVfs, DESKTOP } from "./vfs.js";
 import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl, ShareDialog, VersionsDialog, MoveToDialog, DRAG_MIME } from "./files-ui.jsx";
 import { LoginScreen } from "./auth-ui.jsx";
 import { FilePickerHost } from "./filepicker.jsx";
+import { Taskbar, StartMenu, StartScreen } from "./taskbar.jsx";
+import { AccountPanel } from "./cuenta.jsx";
+import { eraOf, isWinSkin } from "./epocas.js";
+import { playEra, playUi } from "./sonidos.js";
 import { wallUrl, isWall } from "./wallpapers.js";
 import { GlobalContextMenu } from "./context-menu.jsx";
 import { DEMO, SHOWCASE_URL } from "./config.js";
@@ -45,6 +49,8 @@ function DemoWelcome({ onClose, onApp }) {
 import { api, hasServer } from "./api.js";
 import * as Worlds from "./worlds.jsx";
 import * as Contacts from "./contacts.jsx";
+import * as Donar from "./donar.jsx";
+import * as Descargas from "./descargas.jsx";
 import { NotificationBell } from "./notifications.jsx";
 import { SendToDialog, useInboxCount } from "./inbox.jsx";
 import { setRegion, tz as regionTz } from "./region.js";
@@ -69,7 +75,7 @@ const APP_LOADERS = {
 const COMP_MODULE = { CineApp: "media", FotosApp: "media", CodeApp: "creative", DiagramsApp: "creative", PaintApp: "creative", WhiteboardApp: "creative", EditorApp: "apps1", FilesApp: "apps1", GalleryApp: "apps1", SaveBadge: "apps1", SheetsApp: "apps1", MusicApp: "apps2", PdfApp: "apps2", VideoApp: "apps2", BrowserApp: "apps3", ChatApp: "apps3", MailApp: "apps3", WhatsAppApp: "apps3", SettingsApp: "apps4", StoreApp: "apps4", WebApp: "apps4", DocsApp: "apps5", LaunchpadApp: "apps5", SlidesApp: "apps5", TrashApp: "apps5", WebViewApp: "apps5", GamesApp: "games", TerminalApp: "terminal", AdminApp: "admin", CalendarApp: "calendar", TasksApp: "tasks" };
 const lazyCache = {};
 const lazyComp = (name) => lazyCache[name] || (lazyCache[name] = React.lazy(() => APP_LOADERS[COMP_MODULE[name]]().then(m => ({ default: m[name] }))));
-const APP_COMPONENTS = { ...Vault, ...Worlds, ...Contacts, ...Object.fromEntries(Object.keys(COMP_MODULE).map(k => [k, lazyComp(k)])) };
+const APP_COMPONENTS = { ...Vault, ...Worlds, ...Contacts, ...Donar, ...Descargas, ...Object.fromEntries(Object.keys(COMP_MODULE).map(k => [k, lazyComp(k)])) };
 const whenIdle = (fn, ms) => window.requestIdleCallback ? window.requestIdleCallback(() => fn(), { timeout: ms + 3000 }) : setTimeout(fn, ms);
 let prefetched = false;
 export const prefetchApps = () => { if (prefetched) return; prefetched = true; const ids = Object.keys(APP_LOADERS); const next = () => { const id = ids.shift(); if (!id) return; APP_LOADERS[id]().catch(() => {}).finally(() => whenIdle(next, 300)); }; setTimeout(() => whenIdle(next, 0), 1500); };
@@ -94,7 +100,7 @@ const WIN_STYLES = {
 };
 
 /* -------------------- Menu bar -------------------- */
-function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout, onSearch, onOpenLink }) {
+function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout, onSearch, onOpenLink, onAccount }) {
   const [now, setNow] = useSh(new Date());
   const [menu, setMenu] = useSh(null);
   const [cal, setCal] = useSh(false);
@@ -159,7 +165,7 @@ function MenuBar({ activeApp, settings, update, profile, onApp, onNew, onLogout,
         <SyncIndicator />
         <BatteryIndicator />
         <div className="ti" title="Cerrar sesión" onClick={onLogout}><Ic name="power_settings_new" /></div>
-        <div className="ti" title="Mi perfil" onClick={() => onApp("settings")} style={{ padding: "0 4px" }}><Avatar profile={profile} size={20} /></div>
+        <div className="ti acct-trigger" title="Tu cuenta" role="button" tabIndex={0} onClick={onAccount} onKeyDown={e => e.key === "Enter" && onAccount()} style={{ padding: "0 4px" }}><Avatar profile={profile} size={20} /></div>
         <div className="ti clock" onMouseDown={e => e.stopPropagation()} onClick={() => { setCal(c => !c); setMenu(null); }}>
           <span style={{ textTransform: "capitalize" }}>{date}</span> &nbsp;{time}
         </div>
@@ -579,6 +585,7 @@ function OS() {
         const isPhoto = String(s.wallpaper).startsWith("foto-");
         if (tema === "grafito" && !isPhoto && !String(s.wallpaper).startsWith("file:")) s.wallpaper = "foto-usaquen";
         if (tema === "sotos" && isPhoto) s.wallpaper = "paramo"; }
+      if (eraOf(tema)) { s.skin = tema; s.accent = eraOf(tema).accent; if (!String(s.wallpaper).startsWith("file:")) s.wallpaper = eraOf(tema).wall; } // ?tema=prado|cristal|vidrio|mosaico|aluminio
       if (modo === "oscuro" || modo === "claro") s.theme = modo === "oscuro" ? "dark" : "light";
       if (tema || modo) { try { localStorage.setItem("sotos", JSON.stringify(s)); } catch {} }
       return s;
@@ -617,6 +624,8 @@ function OS() {
   const user = useVfs(s => s.user);
   const lastUser = (() => { try { return JSON.parse(localStorage.getItem("sotos_last_user")); } catch { return null; } })();
   const [spot, setSpot] = useSh(false);
+  const [start, setStart] = useSh(false); // menú Inicio / pantalla de mosaicos (temas de época)
+  const [acct, setAcct] = useSh(null); // panel de la cuenta (clic en la foto): dónde se abre
   const [shareId, setShareId] = useSh(null);
   const [sendId, setSendId] = useSh(null), [versionsId, setVersionsId] = useSh(null);
   useEh(() => { const f = (e) => setVersionsId(e.detail); window.addEventListener("sotos-versions", f); return () => window.removeEventListener("sotos-versions", f); }, []);
@@ -653,7 +662,7 @@ function OS() {
     r.style.setProperty("--accent", settings.accent);
     r.style.setProperty("--ui", `"${settings.font}", system-ui, sans-serif`);
     Object.entries(WIN_STYLES[settings.winStyle]).forEach(([k, v]) => r.style.setProperty(k, v));
-    if (settings.skin === "grafito") ["--win-radius", "--win-shadow", "--win-border", "--ui"].forEach(k => r.style.removeProperty(k));
+    if (settings.skin === "grafito" || eraOf(settings.skin)) ["--win-radius", "--win-shadow", "--win-border", "--ui"].forEach(k => r.style.removeProperty(k)); // las épocas traen sus propias ventanas y letra
   }, [settings.theme, settings.accent, settings.font, settings.winStyle, settings.skin, settings.wallGray, settings.logo]);
 
   // fondo: degradado de la lista o imagen del usuario ("file:<id>")
@@ -679,7 +688,7 @@ function OS() {
 
   const focus = useCh((id) => setWins(ws => ws.map(w => w.id === id ? { ...w, z: ++zTop.current, minimized: false } : w)), []);
   const openApp = useCh((appId, payload) => {
-    if (!APP_BY_ID[appId]) return;
+    if (!APP_BY_ID[appId]) return; playUi("abrir");
     if (!appAllowed(appId, vfs.getState().user)) { toast(APP_BY_ID[appId].adminOnly ? "Solo para administradores" : "El administrador ocultó esta app para tu cuenta", { error: true }); return; }
     setWins(ws => {
       const key = appId + (payload && payload.fileId ? ":" + payload.fileId : "") + (payload && payload.url ? ":" + payload.url : "") + (payload && payload.sharedNode ? ":s" + payload.sharedNode.id : "");
@@ -696,9 +705,9 @@ function OS() {
   }, []);
   // cerrar: primero la animación de salida, luego se quita del estado
   const closing = useRh(new Set());
-  const close = id => { if (closing.current.has(id)) return; closing.current.add(id); animateWinOut(id).then(() => { closing.current.delete(id); setWins(ws => ws.filter(w => w.id !== id)); }); };
-  const min = id => setWins(ws => ws.map(w => w.id === id ? { ...w, minimized: true } : w));
-  const max = id => setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: !w.maximized } : w));
+  const close = id => { if (closing.current.has(id)) return; closing.current.add(id); playUi("cerrar"); animateWinOut(id).then(() => { closing.current.delete(id); setWins(ws => ws.filter(w => w.id !== id)); }); };
+  const min = id => { playUi("minimizar"); setWins(ws => ws.map(w => w.id === id ? { ...w, minimized: true } : w)); };
+  const max = id => { playUi("maximizar"); setWins(ws => ws.map(w => w.id === id ? { ...w, maximized: !w.maximized } : w)); };
   const setRect = (id, patch) => setWins(ws => ws.map(w => w.id === id ? { ...w, ...patch } : w));
   const winAction = useCh((id, a) => {
     if (a === "close") return close(id);
@@ -795,6 +804,28 @@ function OS() {
     localStorage.removeItem("sotos_in"); setWins([]); quickBoot.current = false; setStage("login");
   }, []);
 
+  // temas de época: sonido al entrar y al salir, mosaicos al entrar (Mosaico), Ctrl+Esc abre Inicio, «abrir» desde el menú Inicio
+  const prevStage = useRh(stage);
+  useEh(() => {
+    const era = eraOf(settings.skin);
+    if (era && stage === "desktop" && prevStage.current !== "desktop") { playEra(era.sound, "entrar"); if (era.start === "screen") setStart(true); }
+    if (era && stage === "login" && prevStage.current === "desktop") playEra(era.sound, "salir");
+    if (stage !== "desktop") setStart(false);
+    prevStage.current = stage;
+  }, [stage]);
+  useEh(() => { setStart(false); }, [settings.skin]);
+  useEh(() => {
+    const key = (e) => { if (e.ctrlKey && e.key === "Escape" && isWinSkin(document.documentElement.dataset.skin)) { e.preventDefault(); setStart(s => !s); } };
+    const open = (e) => openItem(e.detail);
+    document.addEventListener("keydown", key); window.addEventListener("sotos-open-item", open);
+    return () => { document.removeEventListener("keydown", key); window.removeEventListener("sotos-open-item", open); };
+  }, [openItem]);
+  const taskWin = useCh((a, id) => {
+    if (a === "desktop") return setWins(ws => ws.map(w => ({ ...w, minimized: true })));
+    if (a === "min") return min(id);
+    focus(id);
+  }, []);
+
   // gancho de automatización (capturas y pruebas de extremo a extremo); solo en desarrollo
   useEh(() => {
     if (!import.meta.env.DEV) return;
@@ -837,8 +868,17 @@ function OS() {
           </Win>
         );
       })}
-      <MenuBar activeApp={activeApp} settings={settings} update={update} profile={shownProfile} onApp={openApp} onNew={newDoc} onLogout={logout} onSearch={() => setSpot(true)} onOpenLink={openLink} />
-      <Dock position={settings.skin === "grafito" ? "left rail" : settings.dock} order={dockCfg} running={running} minimized={minimizedApps} badges={badges} onApp={openApp} dockApi={dockApi} />
+      {isWinSkin(settings.skin) ? <>
+        <Taskbar skin={settings.skin} wins={wins} topId={top?.id} order={dockCfg} running={running} badges={badges} profile={shownProfile} settings={settings}
+          startOpen={start} onStart={() => { if (!start) playUi("inicio"); setStart(s => !s); }} onApp={(id) => { setStart(false); openApp(id); }} onWin={taskWin} onLogout={logout} onSearch={() => setSpot(true)}
+          tray={<><NotificationBell onOpenLink={openLink} /><TransfersIndicator /><SyncIndicator /><BatteryIndicator /></>} />
+        {start && eraOf(settings.skin).start === "menu" && <StartMenu skin={settings.skin} profile={shownProfile} order={dockCfg} onApp={openApp} onOpenFolder={(id) => openApp("files", { folderId: id, nonce: Date.now() })} onLogout={logout} onClose={() => setStart(false)} onSearchAll={() => setSpot(true)} onAccount={() => { setStart(false); setAcct("bottom-left"); }} />}
+        {start && eraOf(settings.skin).start === "screen" && <StartScreen profile={shownProfile} order={dockCfg} badges={badges} wallSrc={wallSrc} onApp={(id) => { setStart(false); openApp(id); }} onDesktop={() => setStart(false)} onLogout={logout} onAccount={() => setAcct("top-right")} />}
+      </> : <>
+        <MenuBar activeApp={activeApp} settings={settings} update={update} profile={shownProfile} onApp={openApp} onNew={newDoc} onLogout={logout} onSearch={() => setSpot(true)} onOpenLink={openLink} onAccount={() => setAcct(a => a ? null : "top-right")} />
+        <Dock position={settings.skin === "grafito" ? "left rail" : settings.skin === "aluminio" ? "bottom shelf" : settings.dock} order={dockCfg} running={running} minimized={minimizedApps} badges={badges} onApp={openApp} dockApi={dockApi} />
+      </>}
+      {acct && <AccountPanel profile={shownProfile} anchor={acct} onClose={() => setAcct(null)} onApp={openApp} onLogout={logout} />}
       {spot && <Spotlight onOpen={openItem} onApp={openApp} onClose={() => setSpot(false)} />}
       {shareId && <ShareDialog id={shareId} onClose={() => setShareId(null)} />}
       {sendId && <SendToDialog nodeId={sendId} onClose={() => setSendId(null)} />}

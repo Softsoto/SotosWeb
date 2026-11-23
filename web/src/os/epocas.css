@@ -1,0 +1,750 @@
+/* Hallmark · v2.0.0 · shape: app screen · direction: custom (by request) · themes: prado, cristal, vidrio, mosaico, aluminio · signature: the era desktop itself (taskbar + Start, tile screen, menubar + dock)
+ * critique: each era must be recognisable from its chrome alone (bar, start, window frame, login), drawn with original art and Sotos marks, never another vendor's logo, wallpaper or name.
+ * note 47a: the window frames are the product's own window manager, not a drawn mockup; reported, not hidden.
+ * © 2026 Sebastian Sotomontes */
+/* Hallmark · waive 24b · padding 3px frames, 30px title bars and 2px task gaps on the era chrome · each era is rebuilt to the pixel sizes of its own period, which sit off the 4px grid by design */
+
+:root {
+  /* vistas previas en Ajustes → Apariencia */
+  --prev-prado: linear-gradient(180deg, #2c6fd6 0 50%, #7fb4ef 58%, #5ea12d 62% 100%);
+  --prev-cristal: linear-gradient(160deg, #04121a 0%, #0f3b47 45%, #1d6e70 60%, #04161b 100%);
+  --prev-vidrio: radial-gradient(circle at 50% 70%, #7fe3f2 0%, #1f9bc2 40%, #06425f 100%);
+  --prev-mosaico: #1f5f4b;
+  --prev-aluminio: linear-gradient(180deg, #14263f 0%, #3e5a78 45%, #d98a5c 75%, #29374b 76% 100%);
+  --prev-paper: #ffffff;
+  --prev-tile-a: #2f8468; --prev-tile-b: #c4532f; --prev-tile-c: #2f5d8a; --prev-tile-d: #c9902a;
+  /* vidrio: vetas de luz diagonales sobre marcos, barra y menú */
+  --aero-streaks: linear-gradient(115deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.16) 18%, rgba(255, 255, 255, 0) 26%, rgba(255, 255, 255, 0) 46%, rgba(255, 255, 255, 0.1) 54%, rgba(255, 255, 255, 0.02) 60%, rgba(255, 255, 255, 0) 72%, rgba(255, 255, 255, 0.08) 82%, rgba(255, 255, 255, 0) 90%);
+  --aero-edge: rgba(255, 255, 255, 0.42);
+  /* placa clara de los íconos de Aluminio */
+  --mac-plate-top: #ffffff; --mac-plate-bottom: #e3e4ea; --mac-plate-edge: rgba(0, 0, 0, 0.12);
+  /* íconos-objeto (Prado, Cristal, Vidrio) */
+  --obj-paper: #fbfbf7; --obj-paper-2: #d9e2ec; --obj-metal: #b7c1cb; --obj-ink: #2d3239; --obj-gold: #f0c24f; --obj-red: #d8432f;
+  --obj-green: #4dac3c; --obj-blue: #2f7fd8; --obj-sky: #8fd2f7; --obj-orange: #ef8a26; --obj-wood: #a8743c; --obj-glass: #c4e9f7;
+  /* carpetas de cada época */
+  --prado-fold-back: #d9a441; --prado-fold-back-hi: #f0cc72; --prado-fold-front: #f2c75c; --prado-fold-front-hi: #fde9a6; --prado-fold-edge: #9c7424;
+  --cristal-fold-back: #c99a3c; --cristal-fold-back-hi: #ecc877; --cristal-fold-front: #e8bc58; --cristal-fold-front-hi: #fbe7ad; --cristal-fold-edge: #8f6a22;
+  --vidrio-fold-back: #d3a64a; --vidrio-fold-back-hi: #f3d48a; --vidrio-fold-front: #efc96a; --vidrio-fold-front-hi: #fff0c4; --vidrio-fold-edge: #a07b2f;
+  --mosaico-fold-back: #e0a92e; --mosaico-fold-front: #f6c446;
+  --aluminio-fold-back: #4a95d8; --aluminio-fold-back-hi: #79b7ec; --aluminio-fold-front: #5aa6e6; --aluminio-fold-front-hi: #a3d2f7;
+  --fold-paper-light: #ffffff; --fold-paper-edge-light: #c9c9c9;
+  /* inicio de sesión de cada época */
+  --login-glass-dark: rgba(14, 30, 38, 0.62);
+  --login-glass-light: rgba(225, 242, 252, 0.34);
+  --login-flat: rgba(0, 0, 0, 0.5);
+  --login-field: #ffffff;
+  --login-field-ink: #1b1f24;
+  --login-field-edge: rgba(0, 0, 0, 0.28);
+  --login-go-prado: linear-gradient(#5fc35a, #2f8f2c);
+  --login-mac-field: rgba(255, 255, 255, 0.26);
+  --login-mac-edge: rgba(255, 255, 255, 0.42);
+  /* valores de cada época (los usan los bloques [data-skin] de abajo) */
+  --era-base-white: #ffffff;
+  --era-base-black: #000000;
+  --era-base-shade: rgba(0, 0, 0, 0.35);
+  --era-base-shade-soft: rgba(0, 0, 0, 0.18);
+  --era-base-light: rgba(255, 255, 255, 0.55);
+  --era-base-light-soft: rgba(255, 255, 255, 0.18);
+  --era-base-focus: #ffd75e;
+  --era-base-badge: #d7392b;
+  --prado-ui: Tahoma, "Segoe UI", Verdana, sans-serif;
+  --prado-bar: linear-gradient(#3178d5 0%, #4b95ea 7%, #2a76da 30%, #2473db 80%, #1956a5 100%);
+  --prado-bar-ink: #ffffff;
+  --prado-tray: linear-gradient(#0c59b9 0%, #139ee9 8%, #18b9f4 14%, #1484d9 45%, #1272d6 90%, #0f5fb6 100%);
+  --prado-tray-edge: #0b499b;
+  --prado-start: linear-gradient(#3c9a3c 0%, #69c561 12%, #3b9b39 45%, #379a35 85%, #2b7a2a 100%);
+  --prado-start-hover: linear-gradient(#47ad47 0%, #7dd774 12%, #46ad44 45%, #41a93f 85%, #308a2f 100%);
+  --prado-start-ink: #ffffff;
+  --prado-task: linear-gradient(#5aa0f8 0%, #3c8bf3 15%, #3283ec 85%, #2a75d6 100%);
+  --prado-task-active: linear-gradient(#1e63bd 0%, #256cc9 100%);
+  --prado-task-edge: #1b5eb6;
+  --prado-title: linear-gradient(#0a6ae8 0%, #3c8cf6 7%, #0b6ae6 35%, #0462dc 85%, #0a4ea8 100%);
+  --prado-title-blur: linear-gradient(#7ba8e4 0%, #a5c6f2 7%, #7daae6 35%, #74a4e3 85%, #6392cf 100%);
+  --prado-title-ink: #ffffff;
+  --prado-frame: #0b6ae6;
+  --prado-frame-blur: #7ba8e4;
+  --prado-ctl: linear-gradient(#5d9bf8 0%, #2d82f1 60%, #2579e6 100%);
+  --prado-ctl-hover: linear-gradient(#78b0ff 0%, #4391f7 60%, #3283ee 100%);
+  --prado-ctl-edge: #ffffff;
+  --prado-close: linear-gradient(#e98a68 0%, #df5a2f 50%, #c63816 100%);
+  --prado-close-hover: linear-gradient(#f3a283 0%, #ec6f42 50%, #d6461f 100%);
+  --prado-menu: #ffffff;
+  --prado-menu-left: #ffffff;
+  --prado-menu-right: #d3e5fa;
+  --prado-menu-ink: #0b1f3a;
+  --prado-menu-head: linear-gradient(#1867dd 0%, #3e8ff0 10%, #146ada 60%, #0d5cc4 100%);
+  --prado-menu-edge: #1b5cb0;
+  --prado-menu-hover: #3171c5;
+  --prado-menu-hover-ink: #ffffff;
+  --prado-menu-sep: #e3a24b;
+  --prado-desk-ink: #ffffff;
+  --cristal-ui: "Segoe UI", Tahoma, "Noto Sans", sans-serif;
+  --cristal-bar: linear-gradient(rgba(70, 88, 98, 0.62) 0%, rgba(30, 40, 46, 0.7) 48%, rgba(6, 9, 12, 0.8) 52%, rgba(10, 14, 18, 0.84) 100%);
+  --cristal-bar-ink: #ffffff;
+  --cristal-tray: transparent;
+  --cristal-tray-edge: rgba(255, 255, 255, 0.12);
+  --cristal-orb: radial-gradient(circle at 50% 30%, #6ed3e6 0%, #1f7f9c 32%, #0b3242 62%, #05161d 100%);
+  --cristal-orb-hover: radial-gradient(circle at 50% 30%, #a2f1ff 0%, #2ab4d6 34%, #0e4a5f 64%, #061c24 100%);
+  --cristal-start-ink: #ffffff;
+  --cristal-task: linear-gradient(rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0.04) 50%, rgba(0, 0, 0, 0.12) 51%, rgba(255, 255, 255, 0.06));
+  --cristal-task-active: linear-gradient(rgba(120, 220, 255, 0.34), rgba(70, 160, 200, 0.18) 50%, rgba(10, 60, 90, 0.4) 51%, rgba(80, 170, 210, 0.3));
+  --cristal-task-edge: rgba(255, 255, 255, 0.22);
+  --cristal-title: transparent;
+  --cristal-title-blur: linear-gradient(rgba(90, 104, 112, 0.5), rgba(60, 72, 80, 0.55));
+  --cristal-title-ink: #ffffff;
+  --cristal-frame: rgba(30, 70, 88, 0.34);
+  --cristal-frame-blur: rgba(90, 104, 112, 0.3);
+  --cristal-ctl: linear-gradient(rgba(255, 255, 255, 0.34), rgba(255, 255, 255, 0.1) 48%, rgba(0, 0, 0, 0.12) 52%, rgba(255, 255, 255, 0.16));
+  --cristal-ctl-hover: linear-gradient(rgba(140, 230, 255, 0.62), rgba(60, 170, 210, 0.4) 48%, rgba(10, 90, 130, 0.5) 52%, rgba(90, 200, 240, 0.5));
+  --cristal-ctl-edge: rgba(0, 0, 0, 0.45);
+  --cristal-close: linear-gradient(#e7a092 0%, #cf5a45 48%, #b0301d 52%, #d4583f 100%);
+  --cristal-close-hover: linear-gradient(#fbbcae 0%, #ea6c52 48%, #cc3a22 52%, #f06a4c 100%);
+  --cristal-menu: rgba(16, 30, 38, 0.5);
+  --cristal-menu-left: #ffffff;
+  --cristal-menu-right: transparent;
+  --cristal-menu-ink: #12202a;
+  --cristal-menu-right-ink: #ffffff;
+  --cristal-menu-edge: rgba(255, 255, 255, 0.28);
+  --cristal-menu-hover: #cfe8f3;
+  --cristal-menu-hover-ink: #0b2633;
+  --cristal-menu-place-hover: rgba(255, 255, 255, 0.16);
+  --cristal-menu-sep: rgba(0, 0, 0, 0.1);
+  --cristal-desk-ink: #ffffff;
+  --vidrio-ui: "Segoe UI", Tahoma, "Noto Sans", sans-serif;
+  --vidrio-bar: linear-gradient(rgba(200, 232, 246, 0.3), rgba(130, 180, 210, 0.22) 50%, rgba(70, 120, 150, 0.34));
+  --vidrio-bar-ink: #ffffff;
+  --vidrio-tray: transparent;
+  --vidrio-tray-edge: rgba(255, 255, 255, 0.3);
+  --vidrio-orb: radial-gradient(circle at 50% 28%, #c8f6ff 0%, #4fc3e8 30%, #146e98 62%, #07324a 100%);
+  --vidrio-orb-hover: radial-gradient(circle at 50% 28%, #ffffff 0%, #7fe0ff 32%, #1f8cc0 64%, #0a4462 100%);
+  --vidrio-start-ink: #ffffff;
+  --vidrio-task: transparent;
+  --vidrio-task-run: linear-gradient(rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.08));
+  --vidrio-task-active: linear-gradient(rgba(255, 255, 255, 0.5), rgba(170, 225, 255, 0.24));
+  --vidrio-task-edge: rgba(255, 255, 255, 0.42);
+  --vidrio-title: linear-gradient(rgba(150, 205, 235, 0.62), rgba(110, 175, 215, 0.58));
+  --vidrio-title-blur: linear-gradient(rgba(200, 214, 224, 0.6), rgba(175, 192, 205, 0.6));
+  --vidrio-title-ink: #0d1d2a;
+  --vidrio-frame: rgba(130, 192, 228, 0.36);
+  --vidrio-frame-blur: rgba(190, 205, 216, 0.34);
+  --vidrio-ctl: linear-gradient(rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.2) 48%, rgba(120, 160, 190, 0.2) 52%, rgba(255, 255, 255, 0.35));
+  --vidrio-ctl-hover: linear-gradient(rgba(220, 245, 255, 0.95), rgba(140, 210, 245, 0.6) 48%, rgba(60, 150, 210, 0.55) 52%, rgba(150, 220, 255, 0.7));
+  --vidrio-ctl-edge: rgba(40, 70, 90, 0.45);
+  --vidrio-close: linear-gradient(#eda396 0%, #d4604c 48%, #b9351f 52%, #da6248 100%);
+  --vidrio-close-hover: linear-gradient(#ffc6b8 0%, #f07a60 48%, #d4432a 52%, #f37a5c 100%);
+  --vidrio-menu: rgba(110, 165, 198, 0.42);
+  --vidrio-menu-left: #ffffff;
+  --vidrio-menu-right: transparent;
+  --vidrio-menu-ink: #0d1d2a;
+  --vidrio-menu-right-ink: #ffffff;
+  --vidrio-menu-edge: rgba(255, 255, 255, 0.5);
+  --vidrio-menu-hover: #dcefff;
+  --vidrio-menu-hover-ink: #0d1d2a;
+  --vidrio-menu-place-hover: rgba(255, 255, 255, 0.24);
+  --vidrio-menu-sep: rgba(0, 0, 0, 0.08);
+  --vidrio-desk-ink: #ffffff;
+  --mosaico-ui: "Segoe UI", "Selawik", "Noto Sans", sans-serif;
+  --mosaico-bar: color-mix(in srgb, var(--accent) 34%, #0d1714 66%);
+  --mosaico-bar-ink: #ffffff;
+  --mosaico-tray: transparent;
+  --mosaico-tray-edge: transparent;
+  --mosaico-start-ink: #ffffff;
+  --mosaico-task: transparent;
+  --mosaico-task-run: rgba(255, 255, 255, 0.1);
+  --mosaico-task-active: rgba(255, 255, 255, 0.24);
+  --mosaico-task-edge: transparent;
+  --mosaico-title-blur: color-mix(in srgb, var(--accent) 35%, #ebebeb 65%);
+  --mosaico-title-ink: #ffffff;
+  --mosaico-frame-blur: color-mix(in srgb, var(--accent) 35%, #ebebeb 65%);
+  --mosaico-ctl: transparent;
+  --mosaico-ctl-hover: rgba(255, 255, 255, 0.22);
+  --mosaico-ctl-edge: transparent;
+  --mosaico-close: #c7372f;
+  --mosaico-close-hover: #e04339;
+  --mosaico-ss-bg: color-mix(in srgb, var(--accent) 62%, #0b1612 38%);
+  --mosaico-tile-clock: color-mix(in srgb, var(--accent) 55%, #000000 45%);
+  --mosaico-desk-ink: #ffffff;
+  --aluminio-ui: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Inter", "Segoe UI", sans-serif;
+  --aluminio-menubar: rgba(246, 246, 246, 0.74);
+  --aluminio-menubar-ink: #1d1e1f;
+  --aluminio-title: linear-gradient(#ececec, #d9d9d9);
+  --aluminio-title-blur: #f2f2f2;
+  --aluminio-title-ink: #3b3b3b;
+  --aluminio-title-edge: #b9b9b9;
+  --aluminio-lights-close: #fe5f57;
+  --aluminio-lights-min: #febc2e;
+  --aluminio-lights-max: #28c840;
+  --aluminio-lights-edge: rgba(0, 0, 0, 0.16);
+  --aluminio-lights-off: #d6d6d6;
+  --aluminio-lights-glyph: rgba(0, 0, 0, 0.55);
+  --aluminio-shelf: rgba(255, 255, 255, 0.34);
+  --aluminio-shelf-edge: rgba(255, 255, 255, 0.5);
+  --aluminio-desk-ink: #ffffff;
+  --aluminio-oscuro-menubar: rgba(30, 30, 32, 0.7);
+  --aluminio-oscuro-menubar-ink: #f2f4f7;
+  --aluminio-oscuro-title: linear-gradient(#3a3b3c, #2c2d2e);
+  --aluminio-oscuro-title-blur: #2a2b2c;
+  --aluminio-oscuro-title-ink: #e5e7ea;
+  --aluminio-oscuro-title-edge: #1c1d1e;
+  --aluminio-oscuro-lights-off: #4a4b4c;
+  --aluminio-oscuro-shelf: rgba(40, 40, 44, 0.42);
+  --aluminio-oscuro-shelf-edge: rgba(255, 255, 255, 0.14);
+  --prado-login-line: linear-gradient(90deg, transparent, #f1a145 40%, #ffffff 50%, #f1a145 60%, transparent);
+  --prado-login-bg: linear-gradient(#00449c 0 11%, #5a92dc 11% 89%, #004299 89%);
+}
+
+/* ============================================================
+   Sotos — temas de época: tokens
+   Todo color y toda letra de estas pieles viven aquí; las reglas de abajo solo usan var().
+   ============================================================ */
+[data-skin="prado"], [data-skin="cristal"], [data-skin="vidrio"], [data-skin="mosaico"], [data-skin="aluminio"] {
+  --max-top: 0px;
+  --max-bottom: var(--era-bar-h);
+  --era-white: var(--era-base-white);
+  --era-black: var(--era-base-black);
+  --era-shade: var(--era-base-shade);
+  --era-shade-soft: var(--era-base-shade-soft);
+  --era-light: var(--era-base-light);
+  --era-light-soft: var(--era-base-light-soft);
+  --era-focus: var(--era-base-focus);
+  --era-badge: var(--era-base-badge);
+  --era-dur: 140ms;
+}
+
+/* ---- Prado (2001) ---- */
+[data-skin="prado"] {
+  --ui: var(--prado-ui);
+  --era-bar-h: 32px;
+  --era-bar: var(--prado-bar);
+  --era-bar-ink: var(--prado-bar-ink);
+  --era-tray: var(--prado-tray);
+  --era-tray-edge: var(--prado-tray-edge);
+  --era-start: var(--prado-start);
+  --era-start-hover: var(--prado-start-hover);
+  --era-start-ink: var(--prado-start-ink);
+  --era-task: var(--prado-task);
+  --era-task-active: var(--prado-task-active);
+  --era-task-edge: var(--prado-task-edge);
+  --era-title: var(--prado-title);
+  --era-title-blur: var(--prado-title-blur);
+  --era-title-ink: var(--prado-title-ink);
+  --era-frame: var(--prado-frame);
+  --era-frame-blur: var(--prado-frame-blur);
+  --era-frame-w: 3px;
+  --era-radius: 8px;
+  --era-ctl: var(--prado-ctl);
+  --era-ctl-hover: var(--prado-ctl-hover);
+  --era-ctl-edge: var(--prado-ctl-edge);
+  --era-close: var(--prado-close);
+  --era-close-hover: var(--prado-close-hover);
+  --era-menu: var(--prado-menu);
+  --era-menu-left: var(--prado-menu-left);
+  --era-menu-right: var(--prado-menu-right);
+  --era-menu-ink: var(--prado-menu-ink);
+  --era-menu-head: var(--prado-menu-head);
+  --era-menu-edge: var(--prado-menu-edge);
+  --era-menu-hover: var(--prado-menu-hover);
+  --era-menu-hover-ink: var(--prado-menu-hover-ink);
+  --era-menu-sep: var(--prado-menu-sep);
+  --era-desk-ink: var(--prado-desk-ink);
+}
+/* ---- Cristal (2007) ---- */
+[data-skin="cristal"] {
+  --ui: var(--cristal-ui);
+  --era-bar-h: 40px;
+  --era-bar: var(--cristal-bar);
+  --era-bar-ink: var(--cristal-bar-ink);
+  --era-tray: var(--cristal-tray);
+  --era-tray-edge: var(--cristal-tray-edge);
+  --era-orb: var(--cristal-orb);
+  --era-orb-hover: var(--cristal-orb-hover);
+  --era-start-ink: var(--cristal-start-ink);
+  --era-task: var(--cristal-task);
+  --era-task-active: var(--cristal-task-active);
+  --era-task-edge: var(--cristal-task-edge);
+  --era-title: var(--cristal-title);
+  --era-title-blur: var(--cristal-title-blur);
+  --era-title-ink: var(--cristal-title-ink);
+  --era-frame: var(--cristal-frame);
+  --era-frame-blur: var(--cristal-frame-blur);
+  --era-frame-w: 7px;
+  --era-radius: 8px;
+  --era-ctl: var(--cristal-ctl);
+  --era-ctl-hover: var(--cristal-ctl-hover);
+  --era-ctl-edge: var(--cristal-ctl-edge);
+  --era-close: var(--cristal-close);
+  --era-close-hover: var(--cristal-close-hover);
+  --era-menu: var(--cristal-menu);
+  --era-menu-left: var(--cristal-menu-left);
+  --era-menu-right: var(--cristal-menu-right);
+  --era-menu-ink: var(--cristal-menu-ink);
+  --era-menu-right-ink: var(--cristal-menu-right-ink);
+  --era-menu-edge: var(--cristal-menu-edge);
+  --era-menu-hover: var(--cristal-menu-hover);
+  --era-menu-hover-ink: var(--cristal-menu-hover-ink);
+  --era-menu-place-hover: var(--cristal-menu-place-hover);
+  --era-menu-sep: var(--cristal-menu-sep);
+  --era-desk-ink: var(--cristal-desk-ink);
+  --era-blur: blur(14px) saturate(140%);
+}
+/* ---- Vidrio (2009) ---- */
+[data-skin="vidrio"] {
+  --ui: var(--vidrio-ui);
+  --era-bar-h: 42px;
+  --era-bar: var(--vidrio-bar);
+  --era-bar-ink: var(--vidrio-bar-ink);
+  --era-tray: var(--vidrio-tray);
+  --era-tray-edge: var(--vidrio-tray-edge);
+  --era-orb: var(--vidrio-orb);
+  --era-orb-hover: var(--vidrio-orb-hover);
+  --era-start-ink: var(--vidrio-start-ink);
+  --era-task: var(--vidrio-task);
+  --era-task-run: var(--vidrio-task-run);
+  --era-task-active: var(--vidrio-task-active);
+  --era-task-edge: var(--vidrio-task-edge);
+  --era-title: var(--vidrio-title);
+  --era-title-blur: var(--vidrio-title-blur);
+  --era-title-ink: var(--vidrio-title-ink);
+  --era-frame: var(--vidrio-frame);
+  --era-frame-blur: var(--vidrio-frame-blur);
+  --era-frame-w: 7px;
+  --era-radius: 7px;
+  --era-ctl: var(--vidrio-ctl);
+  --era-ctl-hover: var(--vidrio-ctl-hover);
+  --era-ctl-edge: var(--vidrio-ctl-edge);
+  --era-close: var(--vidrio-close);
+  --era-close-hover: var(--vidrio-close-hover);
+  --era-menu: var(--vidrio-menu);
+  --era-menu-left: var(--vidrio-menu-left);
+  --era-menu-right: var(--vidrio-menu-right);
+  --era-menu-ink: var(--vidrio-menu-ink);
+  --era-menu-right-ink: var(--vidrio-menu-right-ink);
+  --era-menu-edge: var(--vidrio-menu-edge);
+  --era-menu-hover: var(--vidrio-menu-hover);
+  --era-menu-hover-ink: var(--vidrio-menu-hover-ink);
+  --era-menu-place-hover: var(--vidrio-menu-place-hover);
+  --era-menu-sep: var(--vidrio-menu-sep);
+  --era-desk-ink: var(--vidrio-desk-ink);
+  --era-blur: blur(12px) saturate(150%);
+}
+/* ---- Mosaico (2012) ---- */
+[data-skin="mosaico"] {
+  --ui: var(--mosaico-ui);
+  --era-bar-h: 40px;
+  --era-bar: var(--mosaico-bar);
+  --era-bar-ink: var(--mosaico-bar-ink);
+  --era-tray: var(--mosaico-tray);
+  --era-tray-edge: var(--mosaico-tray-edge);
+  --era-start-ink: var(--mosaico-start-ink);
+  --era-task: var(--mosaico-task);
+  --era-task-run: var(--mosaico-task-run);
+  --era-task-active: var(--mosaico-task-active);
+  --era-task-edge: var(--mosaico-task-edge);
+  --era-title: var(--accent);
+  --era-title-blur: var(--mosaico-title-blur);
+  --era-title-ink: var(--mosaico-title-ink);
+  --era-frame: var(--accent);
+  --era-frame-blur: var(--mosaico-frame-blur);
+  --era-frame-w: 1px;
+  --era-radius: 0px;
+  --era-ctl: var(--mosaico-ctl);
+  --era-ctl-hover: var(--mosaico-ctl-hover);
+  --era-ctl-edge: var(--mosaico-ctl-edge);
+  --era-close: var(--mosaico-close);
+  --era-close-hover: var(--mosaico-close-hover);
+  --era-ss-bg: var(--mosaico-ss-bg);
+  --era-tile-clock: var(--mosaico-tile-clock);
+  --era-desk-ink: var(--mosaico-desk-ink);
+}
+/* ---- Aluminio (Mac) ---- */
+[data-skin="aluminio"] {
+  --ui: var(--aluminio-ui);
+  --max-top: 26px;
+  --max-bottom: 0px;
+  --era-bar-h: 26px;
+  --era-menubar: var(--aluminio-menubar);
+  --era-menubar-ink: var(--aluminio-menubar-ink);
+  --era-title: var(--aluminio-title);
+  --era-title-blur: var(--aluminio-title-blur);
+  --era-title-ink: var(--aluminio-title-ink);
+  --era-title-edge: var(--aluminio-title-edge);
+  --era-radius: 10px;
+  --era-lights-close: var(--aluminio-lights-close);
+  --era-lights-min: var(--aluminio-lights-min);
+  --era-lights-max: var(--aluminio-lights-max);
+  --era-lights-edge: var(--aluminio-lights-edge);
+  --era-lights-off: var(--aluminio-lights-off);
+  --era-lights-glyph: var(--aluminio-lights-glyph);
+  --era-shelf: var(--aluminio-shelf);
+  --era-shelf-edge: var(--aluminio-shelf-edge);
+  --era-desk-ink: var(--aluminio-desk-ink);
+  --era-blur: blur(24px) saturate(180%);
+}
+[data-skin="aluminio"][data-theme="dark"] {
+  --era-menubar: var(--aluminio-oscuro-menubar);
+  --era-menubar-ink: var(--aluminio-oscuro-menubar-ink);
+  --era-title: var(--aluminio-oscuro-title);
+  --era-title-blur: var(--aluminio-oscuro-title-blur);
+  --era-title-ink: var(--aluminio-oscuro-title-ink);
+  --era-title-edge: var(--aluminio-oscuro-title-edge);
+  --era-lights-off: var(--aluminio-oscuro-lights-off);
+  --era-shelf: var(--aluminio-oscuro-shelf);
+  --era-shelf-edge: var(--aluminio-oscuro-shelf-edge);
+}
+
+/* ============================================================
+   Barra de tareas (Prado, Cristal, Vidrio, Mosaico)
+   ============================================================ */
+.taskbar {
+  position: absolute; left: 0; right: 0; bottom: 0; height: var(--era-bar-h); z-index: 9000;
+  display: flex; align-items: stretch; gap: 4px; padding: 0 0 0 0;
+  background: var(--era-bar); color: var(--era-bar-ink); font: 12px var(--ui);
+  -webkit-user-select: none; user-select: none;
+}
+.taskbar.era-cristal, .taskbar.era-vidrio { -webkit-backdrop-filter: var(--era-blur); backdrop-filter: var(--era-blur); border-top: 1px solid var(--era-task-edge); }
+.taskbar button { font: inherit; color: inherit; border: 0; background: none; cursor: default; }
+.taskbar button:focus-visible, .startmenu button:focus-visible, .startmenu input:focus-visible, .startscreen button:focus-visible { outline: 2px solid var(--era-focus); outline-offset: -2px; }
+.taskbar .tile { width: 24px; height: 24px; border-radius: 5px; flex: 0 0 auto; }
+
+/* botón Inicio */
+.tb-start { display: flex; align-items: center; gap: 6px; padding: 0 12px; }
+.era-prado .tb-start { background: var(--era-start); color: var(--era-start-ink); border-radius: 0 12px 12px 0 !important; padding: 0 20px 0 10px; box-shadow: inset -2px 0 2px var(--era-shade-soft); }
+.era-prado .tb-start:hover, .era-prado .tb-start.on { background: var(--era-start-hover); }
+.era-prado .tb-start-text { font-size: 17px; font-weight: 700; font-style: italic; text-shadow: 1px 1px 1px var(--era-shade); }
+.era-prado .tb-start-mark { color: var(--era-start-ink); filter: drop-shadow(1px 1px 0 var(--era-shade)); }
+.era-cristal .tb-start, .era-vidrio .tb-start { width: 54px; justify-content: center; padding: 0; }
+.era-cristal .tb-start-mark, .era-vidrio .tb-start-mark {
+  width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; color: var(--era-start-ink);
+  background: var(--era-orb); box-shadow: inset 0 1px 1px var(--era-light), 0 0 0 1px var(--era-shade), 0 2px 6px var(--era-shade);
+  transition: transform var(--era-dur) ease;
+}
+.era-cristal .tb-start:hover .tb-start-mark, .era-vidrio .tb-start:hover .tb-start-mark, .era-cristal .tb-start.on .tb-start-mark, .era-vidrio .tb-start.on .tb-start-mark { background: var(--era-orb-hover); }
+.era-mosaico .tb-start { width: 48px; justify-content: center; }
+.era-mosaico .tb-start:hover, .era-mosaico .tb-start.on { background: var(--era-task-active); }
+
+/* inicio rápido y tareas (Prado, Cristal) */
+.tb-quick { display: flex; align-items: center; gap: 2px; padding: 0 8px; border-right: 1px solid var(--era-light-soft); }
+.tb-q { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 3px; }
+.tb-q .tile { width: 20px; height: 20px; border-radius: 4px; }
+.tb-q:hover { background: var(--era-light-soft); }
+.tb-tasks { flex: 1; min-width: 0; display: flex; align-items: center; gap: 3px; padding: 0 4px; overflow: hidden; }
+.tb-task { display: flex; align-items: center; gap: 6px; height: calc(var(--era-bar-h) - 6px); min-width: 0; flex: 0 1 170px; padding: 0 8px; text-align: left; white-space: nowrap; }
+.tb-task .tile { width: 18px; height: 18px; border-radius: 4px; }
+.tb-task span { overflow: hidden; text-overflow: ellipsis; }
+.era-prado .tb-task { background: var(--era-task); border-radius: 3px; box-shadow: inset 0 0 0 1px var(--era-task-edge); }
+.era-prado .tb-task.active { background: var(--era-task-active); box-shadow: inset 1px 1px 2px var(--era-shade); }
+.era-cristal .tb-task { background: var(--era-task); border-radius: 3px; box-shadow: inset 0 0 0 1px var(--era-task-edge); }
+.era-cristal .tb-task.active, .era-cristal .tb-task:hover { background: var(--era-task-active); }
+
+/* íconos agrupados (Vidrio, Mosaico) */
+.tb-apps { flex: 1; min-width: 0; display: flex; align-items: stretch; gap: 2px; padding: 0 4px; }
+.tb-app { position: relative; width: 56px; display: grid; place-items: center; border-radius: 3px; }
+.tb-app .tile { width: 28px; height: 28px; }
+.era-vidrio .tb-app.running { background: var(--era-task-run); box-shadow: inset 0 0 0 1px var(--era-task-edge); }
+.era-vidrio .tb-app.active, .era-vidrio .tb-app:hover { background: var(--era-task-active); box-shadow: inset 0 0 0 1px var(--era-task-edge); }
+.era-mosaico .tb-app { border-radius: 0; width: 50px; }
+.era-mosaico .tb-app .tile { border-radius: 0; }
+.era-mosaico .tb-app.running { background: var(--era-task-run); border-bottom: 2px solid var(--era-white); }
+.era-mosaico .tb-app.active, .era-mosaico .tb-app:hover { background: var(--era-task-active); }
+.tb-stack { position: absolute; right: 4px; top: 4px; bottom: 4px; width: 3px; border-radius: 1px; background: var(--era-light-soft); }
+.tb-badge { position: absolute; top: 2px; right: 6px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; background: var(--era-badge); color: var(--era-white); font-size: 10px; font-weight: 700; display: grid; place-items: center; }
+
+/* bandeja y reloj */
+.tb-tray { display: flex; align-items: center; gap: 2px; padding: 0 0 0 10px; background: var(--era-tray); border-left: 1px solid var(--era-tray-edge); }
+.era-prado .tb-tray { box-shadow: inset 1px 0 1px var(--era-light-soft); }
+.tb-tray .ti, .tb-tray > div { color: var(--era-bar-ink); }
+.tb-tray .material-symbols-rounded { font-size: 17px; }
+.tb-clock { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 0 10px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.tb-clock-day { font-size: 11px; }
+.tb-clock:hover { background: var(--era-light-soft); }
+.tb-showdesk { width: 14px; align-self: stretch; margin-left: 4px; border-left: 1px solid var(--era-light-soft) !important; }
+.tb-showdesk:hover { background: var(--era-light-soft) !important; }
+
+/* ============================================================
+   Menú Inicio (Prado, Cristal, Vidrio)
+   ============================================================ */
+.startmenu {
+  position: absolute; left: 0; bottom: var(--era-bar-h); z-index: 9500; width: 440px; max-width: calc(100vw - 16px); max-height: calc(100vh - var(--era-bar-h) - 10px);
+  display: flex; flex-direction: column; font: 12.5px var(--ui); color: var(--era-menu-ink);
+  background: var(--era-menu); border: 1px solid var(--era-menu-edge); box-shadow: 4px 4px 18px var(--era-shade);
+  animation: era-pop var(--era-dur) ease-out;
+}
+.startmenu.era-prado { border-radius: 8px 8px 0 0; border: 2px solid var(--era-menu-edge); overflow: hidden; }
+.startmenu.era-cristal, .startmenu.era-vidrio { left: 4px; bottom: calc(var(--era-bar-h) + 4px); border-radius: 8px; padding: 8px; -webkit-backdrop-filter: var(--era-blur); backdrop-filter: var(--era-blur); }
+.sm-head { display: flex; align-items: center; gap: 10px; padding: 8px 10px; background: var(--era-menu-head); color: var(--era-white); font-size: 14px; text-shadow: 1px 1px 1px var(--era-shade); }
+.sm-head .avatar, .sm-head img { border: 2px solid var(--era-white); border-radius: 4px; }
+.sm-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.sm-left { display: flex; flex-direction: column; gap: 1px; padding: 6px; background: var(--era-menu-left); overflow: auto; min-height: 340px; }
+.era-cristal .sm-left, .era-vidrio .sm-left { border-radius: 5px; box-shadow: inset 0 0 0 1px var(--era-shade-soft); }
+.sm-right { display: flex; flex-direction: column; gap: 1px; padding: 6px; background: var(--era-menu-right); color: var(--era-menu-right-ink, var(--era-menu-ink)); }
+.era-prado .sm-right { border-left: 1px solid var(--era-menu-edge); }
+.sm-item, .sm-place, .sm-allbtn, .sm-back { display: flex; align-items: center; gap: 9px; width: 100%; padding: 5px 8px; border: 0; border-radius: 3px; background: none; color: inherit; font: inherit; text-align: left; }
+.sm-item .tile { width: 30px; height: 30px; border-radius: 6px; flex: 0 0 auto; }
+.sm-item.small .tile { width: 20px; height: 20px; border-radius: 4px; }
+.sm-item span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sm-item:hover, .sm-allbtn:hover, .sm-back:hover { background: var(--era-menu-hover); color: var(--era-menu-hover-ink); }
+.sm-place { font-weight: 600; }
+.era-prado .sm-place:hover { background: var(--era-menu-hover); color: var(--era-menu-hover-ink); }
+.era-cristal .sm-place:hover, .era-vidrio .sm-place:hover { background: var(--era-menu-place-hover); }
+.sm-allbtn { margin-top: auto; justify-content: center; font-weight: 700; }
+.sm-sep { height: 1px; margin: 4px 6px; background: var(--era-menu-sep); }
+.era-prado .sm-sep { background: linear-gradient(90deg, transparent, var(--era-menu-sep), transparent); }
+.sm-all { display: flex; flex-direction: column; gap: 1px; overflow: auto; }
+.sm-group { padding: 6px 8px 2px; font-weight: 700; font-size: 12px; opacity: .75; }
+.sm-empty { padding: 14px 8px; opacity: .7; }
+.sm-glyph { width: 30px; display: grid; place-items: center; }
+.sm-search { margin-top: 6px; height: 28px; padding: 0 10px; border: 1px solid var(--era-shade-soft); border-radius: 3px; background: var(--era-white); color: var(--era-menu-ink); font: inherit; }
+.sm-user { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 4px 0 10px; font-size: 14px; color: var(--era-menu-right-ink, inherit); }
+.sm-user .avatar, .sm-user img { border-radius: 6px; box-shadow: 0 0 0 2px var(--era-light), 0 2px 8px var(--era-shade); }
+.sm-foot { display: flex; align-items: center; justify-content: flex-end; gap: 8px; padding: 6px 8px; }
+.era-prado .sm-foot { background: var(--era-menu-head); }
+.era-prado .sm-foot .sm-search { flex: 1; margin: 0; }
+.sm-power { display: flex; align-items: center; gap: 6px; padding: 5px 12px; border: 1px solid var(--era-light-soft); border-radius: 3px; background: var(--era-light-soft); color: var(--era-white); font: inherit; font-weight: 600; }
+.era-prado .sm-power { background: transparent; border-color: transparent; }
+.sm-power:hover { background: var(--era-light); color: var(--era-black); }
+
+/* ============================================================
+   Pantalla de mosaicos (Mosaico)
+   ============================================================ */
+.startscreen {
+  position: absolute; inset: 0; z-index: 9800; display: flex; flex-direction: column; gap: 26px; padding: 34px 0 0 70px; overflow-x: auto; overflow-y: hidden;
+  background: var(--era-ss-bg); color: var(--era-white); font-family: var(--ui);
+  animation: era-tiles .32s cubic-bezier(.1, .8, .2, 1);
+}
+.ss-head { display: flex; align-items: center; padding-right: 50px; }
+.ss-head h1 { flex: 1; margin: 0; font-size: 44px; font-weight: 300; text-wrap: balance; overflow-wrap: break-word; min-width: 0; }
+.ss-user { display: flex; align-items: center; gap: 12px; font-size: 18px; font-weight: 300; }
+.ss-power { width: 38px; height: 38px; display: grid; place-items: center; border: 0; background: none; color: inherit; }
+.ss-power:hover { background: var(--era-light-soft); }
+.ss-groups { flex: 1; display: flex; gap: 56px; align-items: flex-start; padding-bottom: 40px; }
+.ss-group { display: grid; grid-template-columns: repeat(4, 120px); grid-auto-rows: 120px; grid-auto-flow: dense; gap: 8px; }
+.ss-group:last-child { grid-template-columns: repeat(6, 56px); grid-auto-rows: 56px; }
+.mt { position: relative; overflow: hidden; border: 0; padding: 0; background: var(--tile, var(--accent)); color: var(--era-white); font: inherit; text-align: left; transition: transform var(--era-dur) ease; }
+.mt.wide { grid-column: span 2; }
+.mt.small { grid-column: span 1; }
+.mt:hover { outline: 2px solid var(--era-light); outline-offset: -2px; }
+.mt:active { transform: scale(.97); }
+.mt-ic { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); }
+.mt.small .mt-ic { top: 50%; }
+.mt-name { position: absolute; left: 10px; bottom: 8px; font-size: 13px; }
+.mt-count { position: absolute; right: 10px; bottom: 8px; font-size: 22px; font-weight: 300; }
+.mt.desk { background-size: cover; background-position: center; }
+.tile-live { position: absolute; inset: 0; padding: 14px; display: flex; flex-direction: column; justify-content: center; }
+.tile-live b { font-weight: 300; font-size: 46px; line-height: 1; }
+.tile-live span { margin-top: 6px; font-size: 14px; text-transform: capitalize; }
+.tile-live.cal b { font-size: 54px; }
+.tile-photo { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.mt:has(.tile-photo) .mt-ic { display: none; }
+.mt:has(.tile-photo) .mt-name { text-shadow: 0 1px 3px var(--era-shade); }
+
+/* ============================================================
+   Ventanas
+   ============================================================ */
+[data-skin="prado"] .window, [data-skin="cristal"] .window, [data-skin="vidrio"] .window, [data-skin="mosaico"] .window {
+  border-radius: var(--era-radius) var(--era-radius) 0 0; border: var(--era-frame-w) solid var(--era-frame); border-top: 0; box-shadow: 2px 4px 18px var(--era-shade); background: var(--era-frame); font-family: var(--ui);
+}
+[data-skin="prado"] .window:not(.focused), [data-skin="cristal"] .window:not(.focused), [data-skin="vidrio"] .window:not(.focused), [data-skin="mosaico"] .window:not(.focused) { border-color: var(--era-frame-blur); background: var(--era-frame-blur); }
+[data-skin="cristal"] .window, [data-skin="vidrio"] .window { border-radius: var(--era-radius); border-top: 0; -webkit-backdrop-filter: var(--era-blur); backdrop-filter: var(--era-blur); box-shadow: 0 0 0 1px var(--era-shade), 0 10px 32px var(--era-shade); }
+[data-skin="mosaico"] .window { border-top: 0; box-shadow: 0 4px 16px var(--era-shade-soft); }
+[data-skin="prado"] .window.maximized, [data-skin="cristal"] .window.maximized, [data-skin="vidrio"] .window.maximized, [data-skin="mosaico"] .window.maximized { border-radius: 0; }
+[data-skin="prado"] .titlebar, [data-skin="cristal"] .titlebar, [data-skin="vidrio"] .titlebar, [data-skin="mosaico"] .titlebar {
+  height: 30px; flex-basis: 30px; padding: 0 4px 0 8px; border: 0; background: var(--era-title); color: var(--era-title-ink); border-radius: var(--era-radius) var(--era-radius) 0 0;
+}
+[data-skin="prado"] .titlebar::before, [data-skin="cristal"] .titlebar::before, [data-skin="vidrio"] .titlebar::before, [data-skin="mosaico"] .titlebar::before { display: none; }
+[data-skin="prado"] .window:not(.focused) .titlebar, [data-skin="cristal"] .window:not(.focused) .titlebar, [data-skin="vidrio"] .window:not(.focused) .titlebar, [data-skin="mosaico"] .window:not(.focused) .titlebar { background: var(--era-title-blur); color: var(--era-title-ink); }
+[data-skin="cristal"] .titlebar, [data-skin="vidrio"] .titlebar { background: transparent; }
+[data-skin="cristal"] .window:not(.focused) .titlebar, [data-skin="vidrio"] .window:not(.focused) .titlebar { background: transparent; opacity: .85; }
+[data-skin="prado"] .titlebar .title, [data-skin="cristal"] .titlebar .title, [data-skin="vidrio"] .titlebar .title, [data-skin="mosaico"] .titlebar .title { font: 700 13px var(--ui); color: var(--era-title-ink); }
+[data-skin="prado"] .titlebar .title { text-shadow: 1px 1px 1px var(--era-shade); }
+[data-skin="cristal"] .titlebar .title { font-weight: 400; text-shadow: 0 0 6px var(--era-black); }
+[data-skin="vidrio"] .titlebar .title { font-weight: 400; text-shadow: 0 0 8px var(--era-white), 0 0 2px var(--era-white); }
+[data-skin="mosaico"] .titlebar .title { font-weight: 400; text-align: center; }
+[data-skin="prado"] .win-app, [data-skin="cristal"] .win-app, [data-skin="vidrio"] .win-app, [data-skin="mosaico"] .win-app { color: var(--era-title-ink); }
+[data-skin="prado"] .win-body, [data-skin="cristal"] .win-body, [data-skin="vidrio"] .win-body, [data-skin="mosaico"] .win-body { background: var(--surface); }
+[data-skin="cristal"] .win-body, [data-skin="vidrio"] .win-body { box-shadow: 0 0 0 1px var(--era-shade); }
+
+/* vidrio de Cristal y Vidrio: el fondo se ve a través del marco, con vetas de luz y un borde de luz */
+[data-skin="cristal"] .window, [data-skin="vidrio"] .window { -webkit-backdrop-filter: blur(9px) saturate(160%); backdrop-filter: blur(9px) saturate(160%); }
+[data-skin="cristal"] .window::before, [data-skin="vidrio"] .window::before, .taskbar.era-cristal::before, .taskbar.era-vidrio::before, .startmenu.era-cristal::before, .startmenu.era-vidrio::before {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; background: var(--aero-streaks); box-shadow: inset 0 0 0 1px var(--aero-edge); pointer-events: none; z-index: 0;
+}
+[data-skin="cristal"] .window > :not(.resize-handle), [data-skin="vidrio"] .window > :not(.resize-handle), .taskbar.era-cristal > *, .taskbar.era-vidrio > *, .startmenu.era-cristal > *, .startmenu.era-vidrio > * { position: relative; z-index: 1; }
+[data-skin="cristal"] .resize-handle, [data-skin="vidrio"] .resize-handle { z-index: 2; }
+[data-skin="cristal"] .window.focused .titlebar .title, [data-skin="cristal"] .window .titlebar .title { color: var(--era-title-ink); }
+[data-skin="vidrio"] .window.focused .titlebar .title, [data-skin="vidrio"] .window .titlebar .title { color: var(--era-title-ink); }
+[data-skin="prado"] .window.focused .titlebar .title, [data-skin="mosaico"] .window.focused .titlebar .title, [data-skin="aluminio"] .window.focused .titlebar .title { color: var(--era-title-ink); }
+
+/* botones de la ventana */
+[data-skin="prado"] .win-ctrls, [data-skin="cristal"] .win-ctrls, [data-skin="vidrio"] .win-ctrls, [data-skin="mosaico"] .win-ctrls { display: flex; gap: 2px; align-self: flex-start; padding-top: 4px; }
+[data-skin="prado"] .win-ctrls button { width: 22px; height: 22px; border-radius: 3px; border: 1px solid var(--era-ctl-edge); background: var(--era-ctl); color: var(--era-white); display: grid; place-items: center; box-shadow: inset 0 0 1px var(--era-shade); }
+[data-skin="prado"] .win-ctrls button:hover { background: var(--era-ctl-hover); }
+[data-skin="prado"] .win-ctrls .wc-close { background: var(--era-close); }
+[data-skin="prado"] .win-ctrls .wc-close:hover { background: var(--era-close-hover); }
+[data-skin="cristal"] .win-ctrls, [data-skin="vidrio"] .win-ctrls { padding-top: 0; gap: 0; }
+[data-skin="cristal"] .win-ctrls button, [data-skin="vidrio"] .win-ctrls button { height: 19px; width: 26px; border: 1px solid var(--era-ctl-edge); border-left-width: 0; background: var(--era-ctl); color: var(--era-white); display: grid; place-items: center; }
+[data-skin="cristal"] .win-ctrls .wc-min, [data-skin="vidrio"] .win-ctrls .wc-min { border-left-width: 1px; border-radius: 0 0 0 5px; }
+[data-skin="cristal"] .win-ctrls .wc-close, [data-skin="vidrio"] .win-ctrls .wc-close { width: 44px; border-radius: 0 0 5px 0; background: var(--era-close); }
+[data-skin="cristal"] .win-ctrls button:hover, [data-skin="vidrio"] .win-ctrls button:hover { background: var(--era-ctl-hover); }
+[data-skin="cristal"] .win-ctrls .wc-close:hover, [data-skin="vidrio"] .win-ctrls .wc-close:hover { background: var(--era-close-hover); }
+[data-skin="vidrio"] .win-ctrls button { color: var(--era-title-ink); }
+[data-skin="vidrio"] .win-ctrls .wc-close { color: var(--era-white); }
+[data-skin="mosaico"] .win-ctrls { padding-top: 0; gap: 0; }
+[data-skin="mosaico"] .win-ctrls button { width: 34px; height: 24px; border: 0; background: var(--era-ctl); color: var(--era-title-ink); display: grid; place-items: center; }
+[data-skin="mosaico"] .win-ctrls button:hover { background: var(--era-ctl-hover); }
+[data-skin="mosaico"] .win-ctrls .wc-close { width: 46px; background: var(--era-close); }
+[data-skin="mosaico"] .win-ctrls .wc-close:hover { background: var(--era-close-hover); }
+[data-skin="prado"] .win-ctrls button:focus-visible, [data-skin="cristal"] .win-ctrls button:focus-visible, [data-skin="vidrio"] .win-ctrls button:focus-visible, [data-skin="mosaico"] .win-ctrls button:focus-visible, [data-skin="aluminio"] .win-ctrls button:focus-visible { outline: 2px solid var(--era-focus); outline-offset: 1px; }
+
+/* íconos de app */
+
+/* escritorio sin barra de menú arriba */
+[data-skin="prado"] .desk-icons, [data-skin="cristal"] .desk-icons, [data-skin="vidrio"] .desk-icons, [data-skin="mosaico"] .desk-icons { top: 10px; bottom: calc(var(--era-bar-h) + 8px); }
+[data-skin="prado"] .desk-icon .lbl, [data-skin="cristal"] .desk-icon .lbl, [data-skin="vidrio"] .desk-icon .lbl, [data-skin="mosaico"] .desk-icon .lbl { color: var(--era-desk-ink); font-family: var(--ui); text-shadow: 1px 1px 2px var(--era-black); }
+
+/* ============================================================
+   Aluminio (Mac): barra de menú, semáforos y dock con lupa
+   ============================================================ */
+[data-skin="aluminio"] .menubar { height: 26px; background: var(--era-menubar); color: var(--era-menubar-ink); font: 13px var(--ui); -webkit-backdrop-filter: var(--era-blur); backdrop-filter: var(--era-blur); border: 0; }
+[data-skin="aluminio"] .menubar .menu-item { padding: 2px 9px; border-radius: 4px; }
+[data-skin="aluminio"] .desk-icons { top: 36px; }
+[data-skin="aluminio"] .window { border-radius: var(--era-radius); border: 1px solid var(--era-title-edge); font-family: var(--ui); }
+[data-skin="aluminio"] .titlebar { height: 28px; flex-basis: 28px; padding: 0 10px; background: var(--era-title); border-bottom: 1px solid var(--era-title-edge); color: var(--era-title-ink); border-radius: var(--era-radius) var(--era-radius) 0 0; }
+[data-skin="aluminio"] .titlebar::before { display: none; }
+[data-skin="aluminio"] .window:not(.focused) .titlebar { background: var(--era-title-blur); }
+[data-skin="aluminio"] .titlebar .title { position: absolute; left: 80px; right: 80px; text-align: center; font: 600 13px var(--ui); color: var(--era-title-ink); }
+[data-skin="aluminio"] .win-app { display: none; }
+[data-skin="aluminio"] .window .titlebar .win-ctrls { order: -1; display: flex; align-items: center; gap: 8px; padding: 0; }
+[data-skin="aluminio"] .window .titlebar .win-ctrls button { width: 12px !important; height: 12px !important; min-width: 0; padding: 0 !important; margin: 0; border-radius: 50% !important; border: 0.5px solid var(--era-lights-edge); display: grid; place-items: center; color: transparent; box-shadow: none; }
+[data-skin="aluminio"] .win-ctrls button svg { width: 8px; height: 8px; }
+[data-skin="aluminio"] .win-ctrls .wc-close { order: 1; background: var(--era-lights-close); }
+[data-skin="aluminio"] .win-ctrls .wc-min { order: 2; background: var(--era-lights-min); }
+[data-skin="aluminio"] .win-ctrls .wc-max { order: 3; background: var(--era-lights-max); }
+[data-skin="aluminio"] .win-ctrls:hover button { color: var(--era-lights-glyph); }
+[data-skin="aluminio"] .window:not(.focused) .win-ctrls button { background: var(--era-lights-off); }
+[data-skin="aluminio"] .dock.bottom { bottom: 6px; padding: 6px 8px 4px; border-radius: 16px; background: var(--era-shelf); border: 1px solid var(--era-shelf-edge); -webkit-backdrop-filter: var(--era-blur); backdrop-filter: var(--era-blur); align-items: flex-end; }
+[data-skin="aluminio"] .dock-item { transition: transform var(--era-dur) ease; transform-origin: bottom center; }
+[data-skin="aluminio"] .dock.bottom .dock-item:hover { transform: translateY(-14px) scale(1.42); z-index: 2; }
+[data-skin="aluminio"] .dock.bottom .dock-item:hover + .dock-item, [data-skin="aluminio"] .dock.bottom .dock-item:has(+ .dock-item:hover) { transform: translateY(-6px) scale(1.18); }
+[data-skin="aluminio"] .dock-item .run-dot { background: var(--era-menubar-ink); }
+
+/* ============================================================
+   Inicio de sesión de cada época
+   ============================================================ */
+[data-skin="prado"] .login { background: var(--era-login-bg) !important; }
+[data-skin="prado"] { --era-login-line: var(--prado-login-line); --era-login-bg: var(--prado-login-bg); }
+[data-skin="prado"] .login-veil { background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-skin="prado"] .login-veil::before, [data-skin="prado"] .login-veil::after { content: ""; position: absolute; left: 0; right: 0; height: 2px; background: var(--era-login-line); }
+[data-skin="prado"] .login-veil::before { top: 11%; } [data-skin="prado"] .login-veil::after { bottom: 11%; }
+[data-skin="prado"] .login-clock { display: none; }
+
+[data-skin="cristal"] .login, [data-skin="vidrio"] .login, [data-skin="mosaico"] .login, [data-skin="aluminio"] .login { font-family: var(--ui); }
+[data-skin="cristal"] .login-veil, [data-skin="vidrio"] .login-veil { background: var(--era-shade-soft); -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-skin="cristal"] .login-clock, [data-skin="vidrio"] .login-clock { display: none; }
+[data-skin="cristal"] .login-avatar, [data-skin="vidrio"] .login-avatar, [data-skin="cristal"] .login-logo, [data-skin="vidrio"] .login-logo { border-radius: 10px; box-shadow: 0 0 0 4px var(--era-light-soft), 0 6px 20px var(--era-shade); }
+[data-skin="mosaico"] .login-veil { background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+[data-skin="mosaico"] .login-clock { top: auto; bottom: 9%; left: 70px; text-align: left; }
+[data-skin="mosaico"] .login-clock .lc-time { font-weight: 300; font-size: 96px; letter-spacing: 0; }
+[data-skin="mosaico"] .login-clock .lc-date { font-weight: 300; font-size: 28px; }
+
+[data-skin="aluminio"] .login-clock .lc-time { font-weight: 600; }
+[data-skin="aluminio"] .login-veil { background: var(--era-shade-soft); }
+
+/* formulario de cada época (sobre la tarjeta de papel del tema Sotos) */
+[data-skin="prado"] .login-card, [data-skin="cristal"] .login-card, [data-skin="vidrio"] .login-card, [data-skin="mosaico"] .login-card, [data-skin="aluminio"] .login-card { font-family: var(--ui); color: var(--era-white); box-shadow: none; border: 0; }
+[data-skin="prado"] .login-user, [data-skin="cristal"] .login-user, [data-skin="vidrio"] .login-user, [data-skin="mosaico"] .login-user, [data-skin="aluminio"] .login-user { color: var(--era-white); font-family: var(--ui); letter-spacing: 0; text-shadow: 0 1px 3px var(--era-shade); }
+[data-skin="prado"] .login-sub, [data-skin="cristal"] .login-sub, [data-skin="vidrio"] .login-sub, [data-skin="mosaico"] .login-sub, [data-skin="aluminio"] .login-sub,
+[data-skin="prado"] .login-alt, [data-skin="cristal"] .login-alt, [data-skin="vidrio"] .login-alt, [data-skin="mosaico"] .login-alt, [data-skin="aluminio"] .login-alt,
+[data-skin="prado"] .login-guest, [data-skin="cristal"] .login-guest, [data-skin="vidrio"] .login-guest, [data-skin="mosaico"] .login-guest, [data-skin="aluminio"] .login-guest { color: var(--era-white); }
+[data-skin="prado"] .login-input, [data-skin="cristal"] .login-input, [data-skin="vidrio"] .login-input, [data-skin="mosaico"] .login-input { background: var(--login-field); color: var(--login-field-ink); border: 1px solid var(--login-field-edge); }
+[data-skin="prado"] .login-card { background: transparent; margin-left: 44%; min-width: 300px; padding: 0; }
+[data-skin="prado"] .login-input { border-radius: 3px; }
+[data-skin="prado"] .login-enter { background: var(--login-go-prado); color: var(--era-white); border-radius: 3px; box-shadow: 0 0 0 1px var(--era-white); }
+[data-skin="prado"] .login::after { content: "Para comenzar, escribe tu contraseña"; position: absolute; right: 60%; top: 50%; transform: translateY(-50%); max-width: 30%; text-align: right; color: var(--era-white); font: 22px var(--ui); padding-right: 32px; border-right: 1px solid var(--era-light); z-index: 1; }
+[data-skin="cristal"] .login-card { background: var(--login-glass-dark); border-radius: 10px; -webkit-backdrop-filter: var(--era-blur); backdrop-filter: var(--era-blur); box-shadow: 0 0 0 1px var(--era-light-soft), 0 12px 40px var(--era-shade); }
+[data-skin="vidrio"] .login-card { background: var(--login-glass-light); border-radius: 10px; -webkit-backdrop-filter: var(--era-blur); backdrop-filter: var(--era-blur); box-shadow: 0 0 0 1px var(--era-light), 0 12px 40px var(--era-shade); }
+[data-skin="cristal"] .login-input, [data-skin="vidrio"] .login-input { border-radius: 4px; }
+[data-skin="cristal"] .login-enter, [data-skin="vidrio"] .login-enter { background: var(--era-orb); color: var(--era-white); border-radius: 999px; box-shadow: 0 0 0 1px var(--era-shade), inset 0 1px 1px var(--era-light); }
+[data-skin="mosaico"] .login-card { background: var(--login-flat); border-radius: 0; }
+[data-skin="mosaico"] .login-input, [data-skin="mosaico"] .login-enter { border-radius: 0; }
+[data-skin="mosaico"] .login-enter { background: var(--accent); color: var(--era-white); box-shadow: none; }
+[data-skin="aluminio"] .login-card { background: transparent; }
+[data-skin="aluminio"] .login-input { border-radius: 999px; background: var(--login-mac-field); border: 1px solid var(--login-mac-edge); color: var(--era-white); }
+[data-skin="aluminio"] .login-input::placeholder { color: var(--era-light); }
+[data-skin="aluminio"] .login-enter { border-radius: 999px; background: var(--login-mac-field); color: var(--era-white); box-shadow: 0 0 0 1px var(--login-mac-edge); }
+
+/* ============================================================
+   Íconos de época: placa (iconos-epoca.jsx) + pictograma encima
+   ============================================================ */
+[data-skin="vidrio"] { --fold-back: var(--vidrio-fold-back); --fold-back-hi: var(--vidrio-fold-back-hi); --fold-front: var(--vidrio-fold-front); --fold-front-hi: var(--vidrio-fold-front-hi); --fold-edge: var(--vidrio-fold-edge); --fold-paper: var(--fold-paper-light); --fold-paper-edge: var(--fold-paper-edge-light); }
+[data-skin="prado"] { --fold-back: var(--prado-fold-back); --fold-back-hi: var(--prado-fold-back-hi); --fold-front: var(--prado-fold-front); --fold-front-hi: var(--prado-fold-front-hi); --fold-edge: var(--prado-fold-edge); --fold-paper: var(--fold-paper-light); --fold-paper-edge: var(--fold-paper-edge-light); }
+[data-skin="mosaico"] { --fold-back: var(--mosaico-fold-back); --fold-front: var(--mosaico-fold-front); --fold-paper: var(--fold-paper-light); --fold-paper-edge: var(--fold-paper-edge-light); }
+[data-skin="cristal"] { --fold-back: var(--cristal-fold-back); --fold-back-hi: var(--cristal-fold-back-hi); --fold-front: var(--cristal-fold-front); --fold-front-hi: var(--cristal-fold-front-hi); --fold-edge: var(--cristal-fold-edge); --fold-paper: var(--fold-paper-light); --fold-paper-edge: var(--fold-paper-edge-light); }
+[data-skin="aluminio"] { --fold-back: var(--aluminio-fold-back); --fold-back-hi: var(--aluminio-fold-back-hi); --fold-front: var(--aluminio-fold-front); --fold-front-hi: var(--aluminio-fold-front-hi); --fold-paper: var(--fold-paper-light); --fold-paper-edge: var(--fold-paper-edge-light); }
+[data-skin="prado"] .tile, [data-skin="cristal"] .tile, [data-skin="vidrio"] .tile, [data-skin="mosaico"] .tile, [data-skin="aluminio"] .tile {
+  position: relative; display: grid; place-items: center; background: none; box-shadow: none; border-radius: 0; overflow: visible;
+  --g2: color-mix(in srgb, var(--c) 72%, var(--era-black));
+}
+.era-plate { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* el brillo de la ficha de Sotos (.tile::after) no aplica: el material lo pone la placa o el objeto */
+[data-skin="prado"] .tile::after, [data-skin="cristal"] .tile::after, [data-skin="vidrio"] .tile::after, [data-skin="mosaico"] .tile::after, [data-skin="aluminio"] .tile::after { display: none; }
+.era-object { position: absolute; inset: -4%; width: 108%; height: 108%; overflow: visible; }
+[data-skin="aluminio"] .tile.has-object .era-object { inset: 14%; width: 72%; height: 72%; }
+.tile.has-object > .material-symbols-rounded, .tile.has-object > .tile-glyph { display: none !important; }
+[data-skin="prado"] .era-object { filter: drop-shadow(1px 1px 1px var(--era-shade-soft)); }
+[data-skin="prado"] .tile-glyph, [data-skin="cristal"] .tile-glyph, [data-skin="vidrio"] .tile-glyph, [data-skin="mosaico"] .tile-glyph, [data-skin="aluminio"] .tile-glyph { display: block; position: relative; z-index: 1; width: 58%; height: 58%; color: var(--era-white); }
+[data-skin="prado"] .tile > .material-symbols-rounded, [data-skin="cristal"] .tile > .material-symbols-rounded, [data-skin="vidrio"] .tile > .material-symbols-rounded, [data-skin="mosaico"] .tile > .material-symbols-rounded, [data-skin="aluminio"] .tile > .material-symbols-rounded { position: relative; z-index: 1; color: var(--era-white); font-variation-settings: "FILL" 1; }
+[data-skin="prado"] .tile:has(.tile-glyph) > .material-symbols-rounded, [data-skin="cristal"] .tile:has(.tile-glyph) > .material-symbols-rounded, [data-skin="vidrio"] .tile:has(.tile-glyph) > .material-symbols-rounded, [data-skin="mosaico"] .tile:has(.tile-glyph) > .material-symbols-rounded, [data-skin="aluminio"] .tile:has(.tile-glyph) > .material-symbols-rounded { display: none; }
+[data-skin="prado"] .tile-glyph, [data-skin="prado"] .tile > .material-symbols-rounded { filter: drop-shadow(0 1px 0 var(--era-shade)) drop-shadow(0 0 1px var(--era-shade)); }
+[data-skin="cristal"] .tile-glyph, [data-skin="cristal"] .tile > .material-symbols-rounded { filter: drop-shadow(0 1px 2px var(--era-shade)); }
+[data-skin="vidrio"] .tile-glyph, [data-skin="vidrio"] .tile > .material-symbols-rounded { filter: drop-shadow(0 1px 1px var(--era-shade)); }
+[data-skin="aluminio"] .tile-glyph, [data-skin="aluminio"] .tile > .material-symbols-rounded { filter: drop-shadow(0 1px 1px var(--era-shade-soft)); }
+[data-skin="aluminio"] .tile { filter: drop-shadow(0 2px 3px var(--era-shade-soft)); }
+.era-folder { display: block; filter: drop-shadow(0 1px 2px var(--era-shade-soft)); }
+.era-folder-mosaico { filter: none; }
+.folder-glyph > .era-folder { grid-area: 1 / 1; }
+[data-skin="prado"] .folder-sym, [data-skin="cristal"] .folder-sym, [data-skin="vidrio"] .folder-sym { color: var(--fold-edge); text-shadow: 0 1px 0 var(--era-light); margin-top: 22%; }
+[data-skin="mosaico"] .folder-sym, [data-skin="aluminio"] .folder-sym { color: var(--era-white); text-shadow: none; margin-top: 18%; opacity: .9; }
+
+/* vistas previas de las épocas (Ajustes → Apariencia): i = ventana, b = barra, em = Inicio o dock */
+.skin-prev-prado { background: var(--prev-prado); }
+.skin-prev-cristal { background: var(--prev-cristal); }
+.skin-prev-vidrio { background: var(--prev-vidrio); }
+.skin-prev-mosaico { background: var(--prev-mosaico); }
+.skin-prev-aluminio { background: var(--prev-aluminio); }
+.skin-prev-prado i, .skin-prev-cristal i, .skin-prev-vidrio i, .skin-prev-mosaico i, .skin-prev-aluminio i { left: 24%; top: 16%; width: 52%; height: 56%; background: var(--prev-paper); }
+.skin-prev-prado i { border: 2px solid var(--prado-frame); border-top: 9px solid var(--prado-frame); border-radius: 5px 5px 0 0; }
+.skin-prev-cristal i { border: 4px solid var(--cristal-frame); border-top-width: 9px; border-radius: 5px; }
+.skin-prev-vidrio i { border: 4px solid var(--vidrio-frame); border-top-width: 9px; border-radius: 5px; }
+.skin-prev-mosaico i { border: 1px solid var(--prev-tile-a); border-top: 8px solid var(--prev-tile-a); }
+.skin-prev-aluminio i { top: 22%; border-radius: 4px; border-top: 7px solid var(--prev-paper); box-shadow: 0 4px 10px var(--era-shade); }
+.skin-prev-prado b, .skin-prev-cristal b, .skin-prev-vidrio b, .skin-prev-mosaico b { left: 0; right: 0; bottom: 0; height: 11%; }
+.skin-prev-prado b { background: var(--prado-bar); }
+.skin-prev-cristal b { background: var(--cristal-bar); }
+.skin-prev-vidrio b { background: var(--vidrio-bar); }
+.skin-prev-mosaico b { background: var(--mosaico-bar); }
+.skin-prev-aluminio b { left: 0; right: 0; top: 0; height: 7%; background: var(--aluminio-menubar); }
+.skin-prev-prado em { left: 0; bottom: 0; width: 17%; height: 11%; background: var(--prado-start); border-radius: 0 6px 6px 0; }
+.skin-prev-cristal em, .skin-prev-vidrio em { left: 2%; bottom: 1%; width: 9%; aspect-ratio: 1; border-radius: 50%; }
+.skin-prev-cristal em { background: var(--cristal-orb); }
+.skin-prev-vidrio em { background: var(--vidrio-orb); }
+.skin-prev-mosaico em { left: 8%; top: 12%; width: 13%; height: 22%; background: var(--prev-tile-b); box-shadow: 0 110% 0 var(--prev-tile-c), 110% 0 0 var(--prev-tile-d), 110% 110% 0 var(--prev-tile-a); }
+.skin-prev-aluminio em { left: 26%; right: 26%; bottom: 4%; height: 11%; border-radius: 4px; background: var(--aluminio-shelf); box-shadow: inset 0 0 0 1px var(--era-light); }
+.skin-year { margin-left: 6px; font-weight: 400; opacity: .6; }
+
+/* ============================================================
+   Movimiento
+   ============================================================ */
+@keyframes era-pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+@keyframes era-tiles { from { opacity: 0; transform: scale(1.04); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .startmenu, .startscreen { animation: none; }
+  .mt, [data-skin="aluminio"] .dock-item, .era-cristal .tb-start-mark, .era-vidrio .tb-start-mark { transition: none; }
+  [data-skin="aluminio"] .dock.bottom .dock-item:hover, [data-skin="aluminio"] .dock.bottom .dock-item:hover + .dock-item, [data-skin="aluminio"] .dock.bottom .dock-item:has(+ .dock-item:hover) { transform: none; }
+}
+@media (max-width: 640px) {
+  .startmenu { width: 100%; max-width: 100%; left: 0 !important; border-radius: 0 !important; }
+  .sm-body { grid-template-columns: minmax(0, 1fr); }
+  .sm-right { display: none; }
+  .tb-task { flex-basis: 44px; } .tb-task span { display: none; }
+  .startscreen { padding-left: 16px; }
+}

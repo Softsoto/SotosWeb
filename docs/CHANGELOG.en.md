@@ -2,6 +2,13 @@
 
 © 2026 Sebastian Sotomontes · MIT License. The Spanish [CHANGELOG](../CHANGELOG.md) is the reference.
 
+## 3.6 — 2026-11-23
+- Era themes: Prado (2001), Cristal (2007), Vidrio (2009), Mosaico (2012, live tile Start screen) and Aluminio (Mac) — full desktops with taskbar + Start menu or menubar + magnifying dock, era login screens, original wallpapers, illustrated object icons per app, era folders, translucent glass with light streaks, and synthesized era sounds (login, logout, windows, Start, errors, notifications, empty trash). No third-party logos or marks.
+- Account panel on your photo: change email and password, photo and name, 2FA, and open sessions (see and close them). Admin policy "account details: each person / admin only", enforced by the server; admins can now change a user's email.
+- Contribute app and public /#/donar page with donation methods published by the admin (PayPal, Ko-fi, GitHub Sponsors, Buy Me a Coffee, Nequi, Daviplata, Bancolombia, bank transfer, custom link), plus ways to contribute to the project.
+- Server-side downloads: paste a link and the server downloads it to your Downloads folder with live progress; internal addresses are blocked (SSRF protection).
+- Fixes: live contact refresh after CardDAV changes; 12 missing icons; icon subset size guard.
+
 ## 3.5.1 — 2026-11-21
 - Safer updates: the updater installs everything in the new package (no fixed list, so new folders are never missed), keeps the previous version, checks that the new one boots before restarting, and rolls back automatically if it does not.
 

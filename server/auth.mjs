@@ -14,6 +14,9 @@ import { sysMailConfig, sendSystemMail, publicUrl } from "./mail.mjs";
 
 // recuperar contraseña: enlace de un solo uso, 30 minutos; en la BD solo su SHA-256
 db.exec("CREATE TABLE IF NOT EXISTS password_resets (hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, created INTEGER NOT NULL, expires INTEGER NOT NULL)");
+/** ¿cada persona edita su correo, contraseña, nombre y foto, o solo el administrador? ("self" | "admin") */
+export const accountEdit = () => getSetting("accountEdit", "self") === "admin" ? "admin" : "self";
+const mayEditSelf = (u) => { if (accountEdit() === "admin" && u.role !== "admin") fail(403, "Solo el administrador puede modificar los datos de tu cuenta. Pídeselo a quien administra este Sotos."); };
 export const canRecover = () => !!(sysMailConfig() && publicUrl());
 const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;" })[c]);
 
@@ -62,10 +65,10 @@ export function requireUser(req) { const u = currentUser(req); if (!u) fail(401,
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/;
 export async function handleAuth(req, res, sub) {
-  if (sub === "me" && req.method === "GET") return json(res, 200, { user: publicUser(currentUser(req)), registration: registration(), canRecover: canRecover() });
+  if (sub === "me" && req.method === "GET") return json(res, 200, { user: publicUser(currentUser(req)), registration: registration(), canRecover: canRecover(), accountEdit: accountEdit() });
   if (sub === "2fa" && req.method === "GET") { const u = requireUser(req); return json(res, 200, { enabled: totpEnabled(u.id), recoveryLeft: totpEnabled(u.id) ? recoveryLeft(u.id) : 0 }); }
   if (sub === "avatar" && req.method === "PUT") {
-    const u = requireUser(req); const { avatar, password } = await readJson(req, 600 * 1024);
+    const u = requireUser(req); mayEditSelf(u); const { avatar, password } = await readJson(req, 600 * 1024);
     rateLimit("perfil:" + u.id, 10, 900_000);
     if (!(await verifyPassword(u.id, password))) fail(403, "Contraseña incorrecta"); // cambiar el perfil pide permiso
     const v = String(avatar || "");
@@ -74,11 +77,27 @@ export async function handleAuth(req, res, sub) {
     db.prepare("UPDATE users SET avatar = ? WHERE id = ?").run(v, u.id); return json(res, 200, { ok: true, avatar: v });
   }
   if (sub === "name" && req.method === "PUT") {
-    const u = requireUser(req); const { name, password } = await readJson(req, 4096);
+    const u = requireUser(req); mayEditSelf(u); const { name, password } = await readJson(req, 4096);
     rateLimit("perfil:" + u.id, 10, 900_000);
     if (!(await verifyPassword(u.id, password))) fail(403, "Contraseña incorrecta");
     const nm = String(name || "").replace(/\s+/g, " ").trim().slice(0, 60); if (!nm) fail(400, "Escribe tu nombre");
     db.prepare("UPDATE users SET name = ? WHERE id = ?").run(nm, u.id); return json(res, 200, { ok: true, name: nm });
+  }
+  if (sub === "sessions" && req.method === "GET") { // dónde está abierta tu cuenta
+    const u = requireUser(req); const mine = sha(cookies(req)[COOKIE] || "");
+    const rows = db.prepare("SELECT hash, created, expires, agent FROM sessions WHERE user_id = ? AND expires > ? ORDER BY created DESC").all(u.id, now());
+    return json(res, 200, { items: rows.map(r => ({ id: r.hash.slice(0, 16), created: r.created, expires: r.expires, agent: r.agent || "", current: r.hash === mine })) });
+  }
+  if (sub === "email" && req.method === "PUT") { // cambiar el correo de la cuenta (pide la contraseña)
+    const u = requireUser(req); mayEditSelf(u); const { email, password } = await readJson(req, 4096);
+    rateLimit("perfil:" + u.id, 10, 900_000);
+    if (!(await verifyPassword(u.id, password))) fail(403, "Contraseña incorrecta");
+    const em = String(email || "").trim().toLowerCase(); if (!EMAIL.test(em)) fail(400, "Correo no válido");
+    if (em === u.email) return json(res, 200, { ok: true, email: em });
+    if (db.prepare("SELECT 1 FROM users WHERE email = ?").get(em)) fail(409, "Ya existe una cuenta con ese correo");
+    db.prepare("UPDATE users SET email = ? WHERE id = ?").run(em, u.id);
+    if (sysMailConfig()) sendSystemMail({ to: u.email, subject: "Cambió el correo de tu cuenta", text: `Hola ${u.name}:\n\nEl correo de tu cuenta de ${getSetting("siteName", "Sotos")} ahora es ${em}. Si no fuiste tú, avisa al administrador.` }).catch(() => {});
+    return json(res, 200, { ok: true, email: em });
   }
   if (req.method !== "POST") fail(405, "Método no permitido");
   const ip = clientIp(req);
@@ -179,13 +198,20 @@ export async function handleAuth(req, res, sub) {
     if (!totpCheck(u.id, code)) fail(400, "Código incorrecto");
     totpDisable(u.id); return json(res, 200, { ok: true });
   }
+  if (sub === "sessions-close") { // cerrar una sesión (o todas las demás)
+    const u = requireUser(req); const { id, others } = await readJson(req, 1024); const mine = sha(cookies(req)[COOKIE] || "");
+    if (others) { const r = db.prepare("DELETE FROM sessions WHERE user_id = ? AND hash <> ?").run(u.id, mine); return json(res, 200, { closed: r.changes }); }
+    const s = db.prepare("SELECT hash FROM sessions WHERE user_id = ? AND substr(hash, 1, 16) = ?").get(u.id, String(id || ""));
+    if (!s) fail(404, "Esa sesión ya no existe"); if (s.hash === mine) fail(400, "Para cerrar esta sesión usa «Cerrar sesión»");
+    db.prepare("DELETE FROM sessions WHERE hash = ?").run(s.hash); return json(res, 200, { closed: 1 });
+  }
   if (sub === "logout") {
     const t = cookies(req)[COOKIE]; if (t) db.prepare("DELETE FROM sessions WHERE hash = ?").run(sha(t));
     res.setHeader("set-cookie", `${COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${isHttps(req) ? "; Secure" : ""}`);
     return json(res, 200, { ok: true });
   }
   if (sub === "password") {
-    const u = requireUser(req); const { current, next } = await readJson(req, 8192);
+    const u = requireUser(req); mayEditSelf(u); const { current, next } = await readJson(req, 8192);
     rateLimit("pw:" + u.id, 8, 900_000);
     if (!(await checkPassword(String(current || ""), u.pass))) fail(401, "La contraseña actual no es correcta");
     if (String(next || "").length < 8) fail(400, "La nueva contraseña debe tener al menos 8 caracteres");

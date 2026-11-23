@@ -9,7 +9,7 @@ import path from "node:path";
 import os from "node:os";
 import { db, now, rid, BLOB_DIR, DATA_DIR, getSetting, setSetting } from "./db.mjs";
 import { fail, json, readJson } from "./http.mjs";
-import { requireUser, hashPassword, registration, defaultQuota, verifyPassword, AVATARS } from "./auth.mjs";
+import { requireUser, hashPassword, registration, defaultQuota, verifyPassword, AVATARS, accountEdit } from "./auth.mjs";
 import { loadState, applyOps, blobPath } from "./fs.mjs";
 import { addNotification } from "./social.mjs";
 import { VAULT_DIR, vaultForAdmin, vaultAdminFile } from "./vault.mjs";
@@ -18,6 +18,7 @@ import { totpDisable } from "./totp.mjs";
 import { checkUpdate, applyUpdate, currentVersion, restart } from "./updates.mjs";
 import { sysMailConfig, saveSysMail, sendSystemMail, publicUrl } from "./mail.mjs";
 import { publicOffsite, saveOffsite, runOffsite, testOffsite } from "./offsite.mjs";
+import { donations, saveDonations, KINDS } from "./donaciones.mjs";
 
 // registro de lo que hace cada administrador (transparencia: quién vio, borró o cambió qué)
 db.exec(`CREATE TABLE IF NOT EXISTS admin_log (id INTEGER PRIMARY KEY AUTOINCREMENT, admin_id TEXT, user_id TEXT, action TEXT NOT NULL, detail TEXT, created INTEGER NOT NULL)`);
@@ -55,7 +56,7 @@ export async function handleAdmin(req, res, parts) {
       storage: n("SELECT COALESCE(SUM(used),0) n FROM fs_state") + n("SELECT COALESCE(SUM(used),0) n FROM world_fs"),
       worlds: n("SELECT COUNT(*) n FROM worlds"), shares: n("SELECT COUNT(*) n FROM shares"), inboxPending: n("SELECT COUNT(*) n FROM inbox WHERE status = 'pending'"),
       disk, server: { node: process.version, platform: `${os.type()} ${os.release()}`, uptime: Math.round(process.uptime()), memory: process.memoryUsage().rss, cpus: os.cpus().length },
-      settings: { registration: registration(), defaultQuotaMb: Math.round(defaultQuota() / MB) },
+      settings: { registration: registration(), defaultQuotaMb: Math.round(defaultQuota() / MB), accountEdit: accountEdit() },
     });
   }
 
@@ -74,6 +75,7 @@ export async function handleAdmin(req, res, parts) {
   }
   if (a === "settings" && req.method === "PUT") {
     const b = await readJson(req, 4096);
+    if (b.accountEdit !== undefined) { if (!["self", "admin"].includes(b.accountEdit)) fail(400, "Valor no válido"); setSetting("accountEdit", b.accountEdit); audit(me, null, "datos de las cuentas", b.accountEdit === "admin" ? "solo el administrador" : "cada persona"); }
     if (b.registration !== undefined) { if (!["open", "closed"].includes(b.registration)) fail(400, "Valor no válido"); setSetting("registration", b.registration); }
     if (b.defaultQuotaMb !== undefined) { const q = Math.round(Number(b.defaultQuotaMb)); if (!(q >= 10 && q <= 10_000_000)) fail(400, "Cuota no válida"); setSetting("defaultQuotaMb", q); }
     return json(res, 200, { registration: registration(), defaultQuotaMb: Math.round(defaultQuota() / MB) });
@@ -89,6 +91,10 @@ export async function handleAdmin(req, res, parts) {
       catch (e) { send({ error: e.message }); res.end(); }
       return;
     }
+  }
+  if (a === "donaciones") { // medios para recibir apoyo (app Contribuir y /#/donar)
+    if (req.method === "GET") return json(res, 200, { ...donations(), kinds: Object.fromEntries(Object.entries(KINDS).map(([k, v]) => [k, { label: v.label, url: v.url }])) });
+    if (req.method === "PUT") { const d = saveDonations(await readJson(req, 32768)); audit(me, null, "donaciones", d.enabled ? `${d.methods.length} medio(s)` : "desactivadas"); return json(res, 200, d); }
   }
   if (a === "offsite") { // copia fuera del servidor
     if (req.method === "GET") return json(res, 200, publicOffsite());
@@ -136,6 +142,8 @@ export async function handleAdmin(req, res, parts) {
       if (b.quotaMb !== undefined) { const q = Math.round(Number(b.quotaMb)); if (!(q >= 10 && q <= 10_000_000)) fail(400, "Cuota no válida"); db.prepare("UPDATE users SET quota = ? WHERE id = ?").run(q * MB, u.id); audit(me, u.id, "cuota", q + " MB"); }
       if (Array.isArray(b.hiddenApps)) db.prepare("UPDATE users SET hidden_apps = ? WHERE id = ?").run(JSON.stringify(b.hiddenApps.filter(x => /^[a-z0-9-]{2,30}$/.test(x)).slice(0, 60)), u.id);
       if (b.name !== undefined) { const nm = String(b.name).trim().slice(0, 60); if (!nm) fail(400, "Escribe el nombre"); db.prepare("UPDATE users SET name = ? WHERE id = ?").run(nm, u.id); }
+      if (b.email !== undefined) { const em = String(b.email).trim().toLowerCase(); if (!/^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/.test(em)) fail(400, "Correo no válido");
+        if (em !== u.email) { if (db.prepare("SELECT 1 FROM users WHERE email = ? AND id <> ?").get(em, u.id)) fail(409, "Ya existe una cuenta con ese correo"); db.prepare("UPDATE users SET email = ? WHERE id = ?").run(em, u.id); audit(me, u.id, "correo", em); } }
       return json(res, 200, { item: userRow(db.prepare("SELECT * FROM users WHERE id = ?").get(u.id)) });
     }
     if (sub === "2fa" && req.method === "DELETE") { // perdió el celular y los códigos de recuperación

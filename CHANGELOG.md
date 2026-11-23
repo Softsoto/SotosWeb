@@ -3,6 +3,25 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.6 — 23 de noviembre de 2026
+
+### Nuevo
+- **Temas de época**: cinco escritorios completos que recuerdan otras épocas, con arte, fondos, íconos y sonidos propios (sin logos ni marcas de nadie):
+  - **Prado** (2001): barra azul brillante, botón verde de Inicio, ventanas azules de esquinas redondas, menú Inicio de dos columnas e inicio de sesión «haga clic en su nombre».
+  - **Cristal** (2007) y **Vidrio** (2009): vidrio translúcido con desenfoque y vetas de luz en ventanas, barra y menú Inicio con buscador; Vidrio agrupa las apps en la barra.
+  - **Mosaico** (2012): pantalla de mosaicos vivos (hora, calendario, fotos que cambian, avisos) y escritorio plano de bordes rectos.
+  - **Aluminio** (Mac): barra de menú arriba, botones de semáforo y dock con lupa.
+  - **Íconos-objeto** dibujados para cada app (carpeta, globo, calendario de escritorio, portapapeles…) con el estilo de cada época, carpetas propias y vistas previas en Ajustes → Apariencia. Ctrl + Esc abre Inicio.
+- **Sonidos** sintetizados de cada época al entrar y salir, abrir, cerrar, minimizar y maximizar ventanas, abrir Inicio, errores, avisos y vaciar la papelera (se apagan en Apariencia).
+- **Tu cuenta a un clic en tu foto**: cambiar correo y contraseña, foto y nombre, verificación en dos pasos y **sesiones abiertas** (ver dónde está abierta tu cuenta y cerrarlas).
+- **Datos de las cuentas** (Administración → Servidor): *cada persona* o *solo el administrador*; en el segundo caso el panel lo avisa y el servidor lo hace cumplir. El administrador ahora también cambia el correo de una cuenta.
+- **Contribuir**: app para apoyar este Sotos con los medios que publique el administrador (PayPal, Ko-fi, GitHub Sponsors, Buy Me a Coffee, Nequi, Daviplata, Bancolombia, transferencia o un enlace propio), página pública **/#/donar** para compartir, y cómo contribuir al proyecto (errores, ideas, código, traducciones).
+- **Descargas al servidor**: pega un enlace y el servidor lo baja a tu carpeta Descargas con progreso en vivo, aunque cierres el navegador; bloquea direcciones internas para que nadie use el servidor como trampolín.
+
+### Arreglado
+- Los cambios de contactos hechos desde el celular (CardDAV) no se veían en vivo en la app Contactos.
+- 12 íconos que no existían en la fuente y aparecían como texto; el generador de íconos ya no se pasa del límite de Google.
+
 ## 3.5.1 — 21 de noviembre de 2026
 
 ### Arreglado

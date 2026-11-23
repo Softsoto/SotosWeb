@@ -10,8 +10,10 @@ import { Tile, Ic, SideItem, Avatar, Modal, toast, EmptyState, DEFAULT_AVATARS, 
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize, fmtDate } from "./vfs.js";
 import { getLang, setLang, LANGS } from "./i18n.js";
+import { ERAS } from "./epocas.js";
+import { playEra, eraSoundsOn, setEraSounds } from "./sonidos.js";
 import { api } from "./api.js";
-import { WALLS, PHOTO_WALLS, wallUrl } from "./wallpapers.js";
+import { WALLS, PHOTO_WALLS, ERA_WALLS, wallUrl } from "./wallpapers.js";
 const { useState: useS4, useRef: useR4, useEffect: useE4 } = React;
 
 function Row({ label, desc, children }) {
@@ -274,7 +276,7 @@ function RegionPanel({ settings, update }) {
 }
 
 function SettingsApp({ settings, update, profile, setProfile, user, env, onLogout, tab: openTab }) {
-  const [tab, setTab] = useS4(openTab || "perfil");
+  const [tab, setTab] = useS4(openTab || "perfil"); const [, tick4] = useS4(0);
   useE4(() => { if (openTab) setTab(openTab); }, [openTab]);
   const avatarInput = useR4(null);
   const tabs = [
@@ -351,7 +353,7 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
             <div className="muted" style={{ fontSize: 13, marginTop: -4 }}>Ilustraciones de Sotos inspiradas en paisajes de Colombia, dibujadas a la resolución de tu pantalla. También puedes usar una foto: clic derecho sobre una imagen → <b>Usar como fondo</b>.</div>
             <div className="wall-group">Ilustraciones</div>
             <div className="wall-grid">
-              {WALLS.map(w => <WallThumb key={w.id} w={w} on={settings.wallpaper === w.id} onPick={() => update("wallpaper", w.id)} />)}
+              {[...WALLS, ...ERA_WALLS].map(w => <WallThumb key={w.id} w={w} on={settings.wallpaper === w.id} onPick={() => update("wallpaper", w.id)} />)}
             </div>
             <div className="wall-group">Fotos <span className="faint">· de Colombia, libres de derechos (CC0). En el tema Grafito se ven en blanco y negro.</span></div>
             <div className="wall-grid">
@@ -363,17 +365,25 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>Apariencia</h2>
             <div className="skin-grid">
               {[{ v: "sotos", label: "Sotos", desc: "Papel, tinta y color plano", accent: "#c4532f" },
-                { v: "grafito", label: "Grafito", desc: "Gris y carbón, dock lateral, fondo en blanco y negro", accent: "#60b25e" }].map(k => (
+                { v: "grafito", label: "Grafito", desc: "Gris y carbón, dock lateral, fondo en blanco y negro", accent: "#60b25e" },
+                ...Object.entries(ERAS).map(([v, e]) => ({ v, label: e.name, year: e.year, desc: e.desc, accent: e.accent, wall: e.wall }))].map(k => (
                 <button key={k.v} className={"skin-card" + ((settings.skin || "sotos") === k.v ? " on" : "")}
-                  onClick={() => { update("skin", k.v); if (["#c4532f", "#60b25e"].includes(settings.accent)) update("accent", k.accent);
-                    const isPhoto = String(settings.wallpaper).startsWith("foto-");
-                    if (k.v === "grafito" && !isPhoto && !String(settings.wallpaper).startsWith("file:")) update("wallpaper", "foto-usaquen");
-                    if (k.v === "sotos" && isPhoto) update("wallpaper", "paramo"); }}>
+                  onClick={() => { update("skin", k.v);
+                    const known = ["#c4532f", "#60b25e", ...Object.values(ERAS).map(e => e.accent)]; if (known.includes(settings.accent)) update("accent", k.accent);
+                    const wp = String(settings.wallpaper), isPhoto = wp.startsWith("foto-"), isEra = wp.startsWith("era-"), own = wp.startsWith("file:");
+                    if (k.wall && !own) update("wallpaper", k.wall); // cada época trae su fondo
+                    if (k.v === "grafito" && !isPhoto && !own) update("wallpaper", "foto-usaquen");
+                    if (k.v === "sotos" && (isPhoto || isEra)) update("wallpaper", "paramo"); }}>
                   <span className={"skin-prev skin-prev-" + k.v + (settings.theme === "dark" ? " dark" : "")}><i /><b /><em /></span>
-                  <span className="skin-name">{k.label}{(settings.skin || "sotos") === k.v && <Ic name="check_circle" size={16} />}</span>
+                  <span className="skin-name">{k.label}{k.year && <span className="skin-year">{k.year}</span>}{(settings.skin || "sotos") === k.v && <Ic name="check_circle" size={16} />}</span>
                   <span className="skin-desc">{k.desc}</span>
                 </button>))}
             </div>
+            {ERAS[settings.skin] && <Row label="Sonidos del tema" desc="Al entrar, al salir y al abrir apps desde Inicio. Son propios de Sotos, sintetizados">
+              <Segmented value={eraSoundsOn() ? "y" : "n"} onChange={v => { setEraSounds(v === "y"); if (v === "y") playEra(ERAS[settings.skin].sound, "entrar"); tick4(x => x + 1); }}
+                options={[{ v: "y", label: "Sí", icon: "volume_up" }, { v: "n", label: "No", icon: "volume_off" }]} />
+            </Row>}
+            {ERAS[settings.skin]?.family === "win" && <div className="faint" style={{ fontSize: 12.5, margin: "-2px 0 10px" }}>Ctrl + Esc abre el menú Inicio{ERAS[settings.skin].start === "screen" ? " (la pantalla de mosaicos)" : ""}.</div>}
             {settings.skin === "grafito" && <Row label="Fondo en blanco y negro" desc="Como las fotos en grises del escritorio Grafito">
               <Segmented value={settings.wallGray === false ? "n" : "y"} onChange={v => update("wallGray", v === "y")}
                 options={[{ v: "y", label: "Sí" }, { v: "n", label: "Color" }]} />
@@ -397,7 +407,7 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
                 ))}
               </div>
             </Row>
-            {settings.skin !== "grafito" && <><Row label="Tipografía" desc="Fuente de la interfaz">
+            {settings.skin !== "grafito" && !ERAS[settings.skin] && <><Row label="Tipografía" desc="Fuente de la interfaz">
               <Segmented value={settings.font} onChange={v => update("font", v)} options={fonts} />
             </Row>
             <Row label="Estilo de ventana" desc="Esquinas y sombras">
@@ -407,7 +417,7 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
           </>}
           {tab === "escritorio" && <>
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>Escritorio y Dock</h2>
-            {settings.skin !== "grafito" && <Row label="Posición del dock" desc="Dónde aparece la barra de apps">
+            {settings.skin !== "grafito" && !ERAS[settings.skin] && <Row label="Posición del dock" desc="Dónde aparece la barra de apps">
               <Segmented value={settings.dock} onChange={v => update("dock", v)}
                 options={[{ v: "bottom", label: "Abajo", icon: "dock_to_bottom" }, { v: "left", label: "Izquierda", icon: "dock_to_right" }]} />
             </Row>}

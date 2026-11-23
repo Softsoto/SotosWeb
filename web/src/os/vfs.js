@@ -202,7 +202,7 @@ function listen() {
   events.addEventListener("fs", (e) => { const d = JSON.parse(e.data); if (d.origin !== ORIGIN && d.version > version) pull().catch(() => {}); else if (d.version > version) version = d.version; });
   events.addEventListener("hello", (e) => { const d = JSON.parse(e.data); if (d.version > version) pull().catch(() => {}); if (queue.length) pump(); });
   // resto de eventos (notificaciones, mundos, chat) → evento de ventana "sotos-server"
-  for (const type of ["notif", "notif-read", "world", "world-msg", "world-fs", "presence", "inbox", "calendar", "tasks", "store", "wa", "call"])
+  for (const type of ["notif", "notif-read", "world", "world-msg", "world-fs", "presence", "inbox", "calendar", "tasks", "store", "wa", "call", "contacts", "descargas"])
     events.addEventListener(type, (e) => window.dispatchEvent(new CustomEvent("sotos-server", { detail: { type, data: JSON.parse(e.data) } })));
   events.onerror = () => { if (state.sync.status === "ok") setSync({ status: "offline" }); };
   events.onopen = () => { if (state.sync.status === "offline") { setSync({ status: queue.length ? "syncing" : "ok" }); pump(); } };
@@ -316,7 +316,7 @@ export function restore(trashIds) {
   }
   exec({ t: "restore", ids: trashIds, names });
 }
-export async function destroy(trashIds) {
+export async function destroy(trashIds) { if (typeof document !== "undefined") import("./sonidos.js").then(s => s.playUi("vaciar")).catch(() => {});
   const fx = exec({ t: "destroy", ids: trashIds });
   await Promise.all(fx.deleteBlobs.map(id => idb.del("blobs", id).catch(() => {})));
 }

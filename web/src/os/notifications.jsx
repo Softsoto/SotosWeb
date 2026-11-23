@@ -5,6 +5,7 @@
 import React from "react";
 import { Ic, toast } from "./ui.jsx";
 import { api, onServer } from "./api.js";
+import { playUi } from "./sonidos.js";
 import { useVfs } from "./vfs.js";
 const { useState, useEffect, useRef } = React;
 
@@ -26,7 +27,7 @@ export function NotificationBell({ onOpenLink }) {
     if (mode !== "cloud") { setData({ items: [], unread: 0 }); return; }
     load();
     return onServer(["notif", "notif-read"], (d, type) => {
-      if (type === "notif") { setData(x => ({ items: [d, ...x.items.filter(i => i.id !== d.id)].slice(0, 60), unread: x.unread + 1 })); toast(d.title, { icon: (KIND[d.kind] || ["notifications"])[0], action: d.link ? { label: "Ver", run: () => onOpenLink(d.link) } : undefined }); }
+      if (type === "notif") { playUi("aviso"); setData(x => ({ items: [d, ...x.items.filter(i => i.id !== d.id)].slice(0, 60), unread: x.unread + 1 })); toast(d.title, { icon: (KIND[d.kind] || ["notifications"])[0], action: d.link ? { label: "Ver", run: () => onOpenLink(d.link) } : undefined }); }
       else load();
     });
   }, [mode]);

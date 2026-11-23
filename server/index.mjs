@@ -39,6 +39,8 @@ import { handleVault } from "./vault.mjs";
 import { handleDav, handleDavKeys } from "./dav.mjs";
 import { handleCalDav } from "./caldav.mjs";
 import { handleApps, serveExtApp, serveSdk } from "./apps.mjs";
+import { handlePublicDonations } from "./donaciones.mjs";
+import { handleDescargas } from "./descargas.mjs";
 import { handlePush } from "./push.mjs";
 import { handleJellyfin, proxyJellyfin, upgradeJellyfin } from "./jellyfin.mjs";
 import { handleImmich } from "./immich.mjs";
@@ -111,6 +113,8 @@ async function handleApi(req, res) {
     case "shares": return handleShares(req, res, rest);
     case "s": return handlePublicShare(req, res, rest);
     case "apps": return handleApps(req, res, rest);
+    case "donar": return handlePublicDonations(req, res);
+    case "descargas": return handleDescargas(req, res, rest);
     case "oo": return handleOO(req, res, rest);
     case "notifications": return handleNotifications(req, res, rest);
     case "contacts": return handleContacts(req, res, rest);

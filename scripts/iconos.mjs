@@ -8,7 +8,11 @@ const names = new Set([...fs.readFileSync(path.join(ROOT, "web/node_modules/mate
 const walk = (d, out = []) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory() && e.name !== "node_modules" && e.name !== "dist") walk(p, out); else if (/\.(jsx?|mjs|html)$/.test(e.name)) out.push(p); } return out; };
 const files = [...walk(path.join(ROOT, "web/src")), ...walk(path.join(ROOT, "server")), ...(fs.existsSync(path.join(ROOT, "web/public/apps")) ? walk(path.join(ROOT, "web/public/apps")) : [])];
 // palabras del código que coinciden con un ícono pero nunca se usan como tal (lenguajes, códecs, términos técnicos)
-const IGNORE = new Set(["sdk", "av1", "hevc", "2d", "eyebrow", "javascript", "php", "sql", "css", "html", "http", "iframe", "markdown", "toast", "uppercase", "lists", "csv", "api", "host", "domain", "script", "window", "input", "join", "post", "start", "step", "steps", "toolbar", "web"]);
+const IGNORE = new Set(["sdk", "av1", "hevc", "2d", "eyebrow", "javascript", "php", "sql", "css", "html", "http", "iframe", "markdown", "toast", "uppercase", "lists", "csv", "api", "host", "domain", "script", "window", "input", "join", "post", "start", "step", "steps", "toolbar", "web",
+  // nombres de apps, campos y palabras sueltas del código (comprobado: ninguna aparece como ícono)
+  "abc", "apartment", "artist", "chips", "details", "diamond", "face", "family_restroom", "flip", "height", "label", "light", "move", "orbit", "pets", "rectangle",
+  "reminder", "resize", "restaurant", "reviews", "rocket", "scan", "school", "score", "signature", "spa", "sports_soccer", "sports_tennis", "square", "stars",
+  "sticker", "store", "sweep", "target", "task", "tour", "unsubscribe", "upcoming", "wc", "work"]);
 const used = new Set();
 for (const f of files) for (const m of fs.readFileSync(f, "utf8").matchAll(/["'`]([a-z0-9_]{2,40})["'`]/g)) if (names.has(m[1]) && !IGNORE.has(m[1])) used.add(m[1]);
 const list = [...used].sort();
