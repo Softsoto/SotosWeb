@@ -3,6 +3,19 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.6.1 — 23 de noviembre de 2026
+
+### Arreglado
+- **WhatsApp ya no tumba el escritorio**: abrirlo sin el servicio de WhatsApp dejaba la pantalla en blanco. Además, cada ventana queda aislada: si una app falla, solo esa ventana muestra el aviso con «Volver a abrir» o «Cerrar ventana», y el resto de Sotos sigue.
+- **Servicio de WhatsApp más resistente**: el servidor ya no se cae si el servicio se corta a mitad de una respuesta; un doble clic en «Vincular» no abre dos sesiones; un mensaje raro no detiene la sesión; si la sesión se abre en otro lado o las credenciales se dañan lo explica en vez de reintentar sin fin; los errores quedan en `errores.log` y el script de arranque lo vuelve a levantar si se cierra. La app muestra «WhatsApp no responde» con «Reintentar ahora» en vez de quedarse cargando.
+- **Los temas de época llegan al interior de las apps**: barras laterales, barras de herramientas, botones, campos y selección con el estilo de cada época, íconos de época en las barras laterales y de título, y **modo oscuro** propio de cada época (antes usaba los colores cálidos del tema Sotos).
+- **Vidrio de verdad en Cristal y Vidrio**: la barra de tareas, el menú Inicio y las ventanas desenfocan y ondulan el fondo que tienen detrás.
+- `?tema=` y `?modo=` ya no se quedan pegados en la dirección después de aplicarse.
+- **Bóveda**: se abre también desde Inicio en los temas Grafito y de época; como invitado explica que necesita una cuenta y lleva a iniciar sesión.
+
+### SDK
+- `sotos.files.pickFolder()` y `sotos.files.saveIn(carpeta, archivo)` para que una app elija una carpeta y guarde varios archivos en ella.
+
 ## 3.6 — 23 de noviembre de 2026
 
 ### Nuevo
