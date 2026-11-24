@@ -697,7 +697,8 @@ button { font-family: inherit; cursor: pointer; }
 .dock-item:active { cursor: grabbing; }
 
 /* share + add-shortcut modal */
-.share-modal { position: absolute; inset: 0; z-index: 40; background: rgba(10,14,24,.4); display: grid; place-items: center; }
+/* los diálogos van siempre delante de las ventanas (su z-index sube con cada clic) y del Dock; debajo quedan solo avisos y menús */
+.share-modal { position: absolute; inset: 0; z-index: 9700; background: rgba(10,14,24,.4); display: grid; place-items: center; }
 .share-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 26px;
   width: 380px; max-width: 86%; text-align: center; box-shadow: 0 20px 60px -12px rgba(0,0,0,.4);
@@ -710,6 +711,10 @@ button { font-family: inherit; cursor: pointer; }
 .share-link > span, .share-link > input { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12.5px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .share-link input { background: transparent; border: 0; padding: 0; outline: none; cursor: text; width: auto; }
 .share-link .tb-btn { flex: none; width: auto; }
+.share-row-url { display: block; width: 100%; margin-top: 3px; padding: 2px 6px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); color: var(--accent); font: 11.5px var(--mono); text-overflow: ellipsis; outline: none; cursor: text; }
+.share-row-url:focus { border-color: var(--accent); }
+.share-lan { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border-radius: 8px; font-size: 12.5px; line-height: 1.4; color: var(--text); border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); background: color-mix(in srgb, var(--accent) 8%, var(--surface)); }
+.share-lan > .material-symbols-rounded { color: var(--accent); flex: none; margin-top: 1px; }
 .sc-input {
   width: 100%; margin-top: 12px; height: 38px; border: 1px solid var(--border); border-radius: 9px;
   background: var(--surface-2); padding: 0 12px; font: inherit; font-size: 14px; color: var(--text); outline: none;

@@ -692,6 +692,13 @@ function OS() {
   };
 
   const focus = useCh((id) => setWins(ws => ws.map(w => w.id === id ? { ...w, z: ++zTop.current, minimized: false } : w)), []);
+  // el orden de las ventanas sube con cada clic: se renumera antes de alcanzar el Dock y los diálogos (z-index 8000+)
+  useEh(() => {
+    if (zTop.current < 5000) return;
+    const order = [...wins].sort((a, b) => a.z - b.z).map(w => w.id);
+    zTop.current = 10 + order.length;
+    setWins(ws => ws.map(w => ({ ...w, z: 11 + order.indexOf(w.id) })));
+  }, [wins]);
   const openApp = useCh((appId, payload) => {
     if (!APP_BY_ID[appId]) return; playUi("abrir");
     if (!appAllowed(appId, vfs.getState().user)) { toast(APP_BY_ID[appId].adminOnly ? "Solo para administradores" : "El administrador ocultó esta app para tu cuenta", { error: true }); return; }

@@ -16,8 +16,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { handleProxy } from "./px.mjs";
 
-// si algo se escapa, queda escrito en data/errores.log y el servidor sigue en pie
-const errLog = (kind, e) => { const line = `[${new Date().toISOString()}] ${kind}: ${e?.stack || e}\n`; console.error(line); try { fs.mkdirSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "data"), { recursive: true }); fs.appendFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "data", "errores.log"), line); } catch {} };
+// si algo se escapa, queda escrito en errores.log de la carpeta de datos (en Docker, el volumen: sobrevive a reinicios)
+// y el servidor sigue en pie; cada arranque también se anota, para ver si Sotos se reinicia y cuándo
+const LOG_DIR = path.resolve(process.env.SOTOS_DATA || path.join(path.dirname(fileURLToPath(import.meta.url)), "data"));
+const errLog = (kind, e) => { const line = `[${new Date().toISOString()}] ${kind}: ${e?.stack || e}\n`; if (kind !== "inicio") console.error(line); try { fs.mkdirSync(LOG_DIR, { recursive: true }); const f = path.join(LOG_DIR, "errores.log"); try { if (fs.statSync(f).size > 2_000_000) fs.renameSync(f, f + ".1"); } catch {} fs.appendFileSync(f, line); } catch {} };
+if (process.env.SOTOS_SMOKE !== "1") errLog("inicio", `pid ${process.pid}`);
 process.on("uncaughtException", e => errLog("uncaughtException", e));
 process.on("unhandledRejection", e => errLog("unhandledRejection", e));
 process.on("exit", c => { if (c) errLog("exit", "código " + c); });
@@ -32,7 +35,7 @@ import { handleNas, nasEnabled } from "./nas.mjs";
 import { handleAdmin } from "./admin.mjs";
 import { handleCalendar, handleTasks } from "./agenda.mjs";
 import { handleStore } from "./store.mjs";
-import { handleMail } from "./mail.mjs";
+import { handleMail, publicUrl } from "./mail.mjs";
 import { handleNeko } from "./neko.mjs";
 import { handleWa } from "./wa.mjs";
 import { handleMedia } from "./media.mjs";
@@ -81,7 +84,7 @@ const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; cha
 const SEC = { "x-content-type-options": "nosniff", "referrer-policy": "strict-origin-when-cross-origin", "x-frame-options": "DENY", "permissions-policy": "geolocation=(), camera=(self), microphone=(self)" };
 
 // lo que el escritorio necesita saber del servidor sin iniciar sesión (servicios opcionales propios)
-const clientConfig = () => ({ drawio: (process.env.DRAWIO_URL || "").replace(/\/$/, "") || null, nas: nasEnabled() });
+const clientConfig = () => ({ drawio: (process.env.DRAWIO_URL || "").replace(/\/$/, "") || null, nas: nasEnabled(), publicUrl: publicUrl() || null });
 function serveStatic(req, res) {
   let rel = decodeURIComponent(new URL(req.url, "http://x").pathname);
   let file = path.join(WEB_DIR, rel);

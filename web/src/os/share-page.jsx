@@ -15,7 +15,9 @@ const keyOf = (token) => { try { return sessionStorage.getItem("sotos_share_" + 
 const blobUrl = (token, id, dl) => { const k = keyOf(token), q = [dl ? "dl=1" : "", k ? "k=" + encodeURIComponent(k) : ""].filter(Boolean).join("&"); return `/api/s/${token}/blob/${id}${q ? "?" + q : ""}`; };
 async function getShare(token) {
   const r = await fetch("/api/s/" + token, { headers: { "x-sotos": "1", "x-share-key": keyOf(token) } });
-  const j = await r.json().catch(() => ({})); if (!r.ok) throw Object.assign(new Error(j.error || "No disponible"), { status: r.status }); return j;
+  const j = await r.json().catch(() => null);
+  if (!r.ok || !j) throw Object.assign(new Error(j?.error || "No disponible"), { status: j ? r.status : 502 }); // sin JSON: un proxy o el servidor reiniciándose
+  return j;
 }
 
 function Preview({ token, n }) {
@@ -57,6 +59,12 @@ export function SharePage({ token }) {
   const [path, setPath] = useState([]);
   const load = () => getShare(token).then(d => { setErr(null); setData(d); }).catch(e => setErr(e));
   useEffect(() => { document.documentElement.setAttribute("data-theme", "light"); load(); }, [token]);
+  // sin respuesta del servidor (se está reiniciando, o el enlace es de una red a la que no estás conectado): reintenta solo
+  const offline = err && (!err.status || err.status >= 500);
+  useEffect(() => { if (!offline) return; const t = setInterval(load, 5000); return () => clearInterval(t); }, [offline, token]);
+  if (offline) return <div className="share-page"><Header /><div className="sp-card"><EmptyState icon="cloud_off" text="No se pudo conectar con el Sotos que compartió esto." />
+    <div className="faint" style={{ fontSize: 13, textAlign: "center", maxWidth: 460, margin: "0 auto 12px" }}>Puede que se esté reiniciando (se reintenta solo cada pocos segundos), o que el enlace sea de una red privada, como el Wi-Fi de una casa, a la que no estás conectado.</div>
+    <div style={{ textAlign: "center" }}><button className="tb-btn primary" onClick={load}><Ic name="refresh" /> Reintentar</button></div></div></div>;
   if (err?.status === 423) return <div className="share-page"><Header /><div className="sp-card"><Unlock token={token} onDone={load} /></div></div>;
   if (err) return <div className="share-page"><Header /><div className="sp-card"><EmptyState icon={err.status === 401 ? "lock" : "link_off"} text={err.message} />
     {err.status === 401 && <a className="tb-btn primary" href="/">Iniciar sesión en Sotos</a>}</div></div>;

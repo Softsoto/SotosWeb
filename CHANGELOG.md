@@ -3,6 +3,18 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.6.5 — 24 de noviembre de 2026
+
+### Arreglado
+- **Los enlaces compartidos no se veían**: en «Enlaces activos» solo aparecía «Lectura · cualquiera con el enlace». Ahora cada enlace muestra su dirección, que se puede seleccionar, junto con los botones para copiarlo, abrirlo y dejar de compartir.
+- **Enlaces que solo abren en casa**: si entras por una dirección de tu red (por ejemplo `http://192.168.x.x`), la ventana de compartir avisa que esos enlaces solo funcionan conectados a esa misma red.
+- **La página de un enlace se quedaba en error** si el servidor se estaba reiniciando. Ahora explica qué pasa y reintenta sola cada pocos segundos.
+- **La ventana de compartir (y los demás diálogos) quedaba detrás de las ventanas** después de un rato de uso: cada clic en una ventana la subía de capa hasta tapar los diálogos. Ahora los diálogos van siempre al frente, y el orden de las ventanas se renumera antes de alcanzar el Dock.
+
+### Nuevo
+- Los enlaces usan la **Dirección pública de Sotos** (Administración → Servidor) cuando está configurada, así sirven fuera de casa con un dominio o el DDNS del NAS.
+- `errores.log` se guarda en la carpeta de datos, así en Docker sobrevive a los reinicios. Además anota cada arranque, para saber si Sotos se reinicia y cuándo.
+
 ## 3.6.4 — 24 de noviembre de 2026
 
 ### Nuevo

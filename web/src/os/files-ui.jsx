@@ -250,7 +250,11 @@ export function PropertiesModal({ id, onClose, openItem }) {
 }
 
 /* ---------------- compartir ---------------- */
-export const shareUrl = (token) => `${location.origin}/#/s/${token}`;
+// la «Dirección pública de Sotos» (Administración → Servidor) manda: así los enlaces sirven fuera de casa
+const shareBase = () => String(globalThis.__SOTOS__?.publicUrl || location.origin).replace(/\/+$/, "");
+export const shareUrl = (token) => `${shareBase()}/#/s/${token}`;
+/** ¿la dirección solo funciona dentro de una red privada (Wi-Fi de casa, oficina)? */
+const privateHost = (url) => { try { const h = new URL(url).hostname.replace(/^\[|\]$/g, ""); return h === "localhost" || /\.local$/i.test(h) || /^(127\.|10\.|192\.168\.|169\.254\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h) || /^(::1|f[cd][0-9a-f]{2}:|fe80:)/i.test(h); } catch { return false; } };
 export function ShareDialog({ id, onClose }) {
   const n = vfs.useVfs(() => vfs.node(id));
   const mode = vfs.useVfs(s => s.mode);
@@ -296,6 +300,7 @@ export function ShareDialog({ id, onClose }) {
         {perm !== "upload" && <label className="field">Solo para estas personas (opcional)
           <input placeholder="correo@ejemplo.com, otro@ejemplo.com" value={emails} onChange={e => setEmails(e.target.value)} /></label>}
         <div className="faint" style={{ fontSize: 12 }}>{perm === "upload" ? "Quien tenga el enlace podrá subir archivos a esta carpeta, pero no verá lo que hay dentro. Te avisamos con cada archivo que llegue." : emails.trim() ? "Solo esas cuentas de Sotos podrán abrirlo y lo verán en “Compartido conmigo”." : "Cualquiera con el enlace podrá abrirlo, sin cuenta."}{pass ? " Pedirá la contraseña." : ""}{perm === "view" && Number(maxDl) ? " Con límite de descargas no se muestran vistas previas." : ""}</div>
+        {privateHost(shareBase()) && <div className="share-lan"><Ic name="wifi" size={18} /><span>Estos enlaces solo abren conectados a tu misma red ({new URL(shareBase()).host}). Para compartir fuera de casa, pon la dirección de internet de tu Sotos en Administración → Servidor → «Dirección pública de Sotos».</span></div>}
         {made && <div className="share-link"><input readOnly value={shareUrl(made)} aria-label="Enlace para compartir" onFocus={e => e.target.select()} onClick={e => e.target.select()} /><button className="tb-btn primary" onClick={() => copy(made)}><Ic name="content_copy" size={16} /> Copiar</button></div>}
         {list?.length > 0 && <div>
           <div className="side-label" style={{ padding: "6px 0" }}>Enlaces activos</div>
@@ -305,8 +310,10 @@ export function ShareDialog({ id, onClose }) {
               <span style={{ flex: 1, minWidth: 0 }}>{s.perm === "upload" ? "Pedir archivos" : s.perm === "edit" ? "Edición" : "Lectura"} · {s.people.length ? s.people.map(p => p.name).join(", ") : "cualquiera con el enlace"}
                 {s.hasPassword && <Ic name="lock" size={14} style={{ marginLeft: 4, verticalAlign: -2 }} title="Con contraseña" />}
                 <span className="faint"> · {s.expires ? "caduca " + fmtDate(s.expires) : "sin caducidad"}</span>
-                <div className="faint" style={{ fontSize: 11.5 }}>{s.perm === "upload" ? `${s.uploads} archivo(s) recibido(s)` : `${s.views} visita(s) · ${s.downloads}${s.maxDownloads ? ` de ${s.maxDownloads}` : ""} descarga(s)`}</div></span>
+                <div className="faint" style={{ fontSize: 11.5 }}>{s.perm === "upload" ? `${s.uploads} archivo(s) recibido(s)` : `${s.views} visita(s) · ${s.downloads}${s.maxDownloads ? ` de ${s.maxDownloads}` : ""} descarga(s)`}</div>
+                <input readOnly className="share-row-url" value={shareUrl(s.token)} aria-label="Enlace" onFocus={e => e.target.select()} onClick={e => e.target.select()} /></span>
               <button className="tb-btn icon" title="Copiar" onClick={() => copy(s.token)}><Ic name="content_copy" size={16} /></button>
+              <a className="tb-btn icon" title="Abrir el enlace" href={shareUrl(s.token)} target="_blank" rel="noopener noreferrer"><Ic name="open_in_new" size={16} /></a>
               <button className="tb-btn icon" title="Dejar de compartir" onClick={() => revoke(s.token)}><Ic name="link_off" size={16} /></button>
             </div>
           ))}
