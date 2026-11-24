@@ -123,9 +123,11 @@ const SERVICES = {
     for (const f of ["docker-compose.yml", "example.env"]) { log(`Descargando ${f} de Immich ${v}…`); const r = await fetch(`https://github.com/immich-app/immich/releases/download/${v}/${f}`); if (!r.ok) throw new Error(`No se pudo descargar ${f}`); fs.writeFileSync(path.join(dir, f), Buffer.from(await r.arrayBuffer())); }
     const envf = path.join(dir, ".env");
     if (!fs.existsSync(envf)) fs.writeFileSync(envf, `UPLOAD_LOCATION=./library\nDB_DATA_LOCATION=./postgres\nTZ=${o.tz || "UTC"}\nIMMICH_VERSION=${v}\nDB_PASSWORD=${crypto.randomBytes(18).toString("hex")}\nDB_USERNAME=postgres\nDB_DATABASE_NAME=immich\n`);
-    fs.writeFileSync(path.join(dir, "docker-compose.override.yml"), `services:\n  immich-server:\n    ports: !override\n      - '127.0.0.1:${o.ports.immich}:2283'\n    volumes:\n      - ${bib.replace(/\\/g, "/")}:/mnt/sotos:ro\n` +
+    fs.writeFileSync(path.join(dir, "docker-compose.override.yml"), `services:\n  immich-server:\n    ports: !override\n      - '${NET ? "" : "127.0.0.1:"}${o.ports.immich}:2283'\n    volumes:\n      - ${bib.replace(/\\/g, "/")}:/mnt/sotos:ro\n` +
       (NET ? `    networks:\n      - default\n      - sotos\n` : "") +
       `  database:\n    volumes: !override\n      - immich-db:/var/lib/postgresql/data\nvolumes:\n  immich-db:\n` + (NET ? `networks:\n  sotos:\n    external: true\n    name: ${NET}\n` : ""));
+    // Docker de Synology no crea las carpetas de un bind mount: créalas antes (las de UPLOAD_LOCATION y DB_DATA_LOCATION del .env)
+    for (const l of fs.readFileSync(envf, "utf8").split(/\r?\n/)) { const m = /^(UPLOAD_LOCATION|DB_DATA_LOCATION)=(.+)$/.exec(l.trim()); if (m) fs.mkdirSync(path.resolve(dir, m[2].trim()), { recursive: true }); }
     log("Arrancando Immich (servidor, aprendizaje automático, Redis y Postgres; la primera vez descarga varios GB)…");
     await new Promise((ok, bad) => { const p = spawn("docker", ["compose", "-p", `${PREFIX}-immich`, "up", "-d"], { cwd: dir, windowsHide: true }); let last = 0, err = "";
       p.stderr.on("data", d => { err += d; const l = String(d).trim().split("\n").pop(); if (Date.now() - last > 2000) { last = Date.now(); log(l.slice(0, 120)); } }); p.on("close", c => c === 0 ? ok() : bad(new Error(err.trim().split("\n").pop() || "docker compose falló"))); });

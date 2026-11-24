@@ -12,7 +12,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const V = fs.readFileSync(path.join(ROOT, "VERSION"), "utf8").trim();
 const OUT = path.join(ROOT, "dist-paquetes"), NAME = `sotos-${V}`, STAGE = path.join(OUT, "stage", NAME);
 const log = (m) => console.log("  " + m);
-fs.rmSync(OUT, { recursive: true, force: true }); fs.mkdirSync(STAGE, { recursive: true });
+// se vacía (no se borra la carpeta: en Windows falla si alguna ventana la tiene abierta)
+fs.mkdirSync(OUT, { recursive: true }); for (const e of fs.readdirSync(OUT)) fs.rmSync(path.join(OUT, e), { recursive: true, force: true });
+fs.mkdirSync(STAGE, { recursive: true });
 
 if (!process.argv.includes("--sin-compilar")) { log("Compilando el escritorio…"); execFileSync(process.platform === "win32" ? "npm.cmd" : "npm", ["run", "build", "--silent"], { cwd: path.join(ROOT, "web"), stdio: "inherit", shell: process.platform === "win32" }); }
 if (!fs.existsSync(path.join(ROOT, "web/dist/index.html"))) throw new Error("Falta web/dist: compila el escritorio");

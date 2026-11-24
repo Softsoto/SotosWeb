@@ -19,7 +19,10 @@
    ============================================================ */
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
+import { execFile } from "node:child_process";
 import { pipeline } from "node:stream/promises";
+import { DATA_DIR } from "./db.mjs";
 import { fail, json, readJson, rateLimit } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
 import { loadState, blobPath, applyOps, userNode } from "./fs.mjs";
@@ -99,6 +102,36 @@ function sendFile(req, res, abs, name, download) {
   fs.createReadStream(abs).on("error", () => res.destroy()).pipe(res);
 }
 
+/* miniaturas: primero las que Synology ya generó (@eaDir), si no una propia con ffmpeg, en caché.
+   Sin esto cada icono descargaba la foto entera y las 6 conexiones del navegador se quedaban
+   ocupadas: la carpeta siguiente no cargaba hasta que bajaran todas. */
+const THUMB_DIR = path.join(DATA_DIR, "nas-miniaturas");
+const SYNO_THUMBS = ["SYNOPHOTO_THUMB_M.jpg", "SYNOFILE_THUMB_M.jpg", "SYNOPHOTO_THUMB_SM.jpg", "SYNOPHOTO_THUMB_S.jpg", "SYNOFILE_THUMB_S.jpg"];
+const THUMB_TYPES = new Set(["img", "video"]);
+let running = 0; const waiting = [];
+const slot = () => running < 2 ? (running++, Promise.resolve()) : new Promise(ok => waiting.push(ok));
+const release = () => { const next = waiting.shift(); if (next) next(); else running--; };
+const making = new Map(); // misma miniatura pedida dos veces a la vez: un solo ffmpeg
+async function makeThumb(abs, st, type) {
+  const key = crypto.createHash("sha1").update(`${abs}|${st.size}|${st.mtimeMs}`).digest("hex");
+  const out = path.join(THUMB_DIR, key.slice(0, 2), key + ".jpg");
+  if (fs.existsSync(out)) return out;
+  if (making.has(out)) return making.get(out);
+  const job = (async () => {
+    await slot();
+    try {
+      fs.mkdirSync(path.dirname(out), { recursive: true });
+      const tmp = out + ".tmp.jpg";
+      const args = ["-y", "-loglevel", "error", ...(type === "video" ? ["-ss", "3"] : []), "-i", abs, "-frames:v", "1", "-vf", "scale=320:320:force_original_aspect_ratio=decrease", "-q:v", "6", tmp];
+      let ok = await new Promise(r => execFile(process.env.FFMPEG_PATH || "ffmpeg", args, { timeout: 20_000, windowsHide: true }, e => r(!e && fs.existsSync(tmp))));
+      if (!ok && type === "video") ok = await new Promise(r => execFile(process.env.FFMPEG_PATH || "ffmpeg", args.filter((a, i) => !(a === "-ss" || args[i - 1] === "-ss")), { timeout: 20_000, windowsHide: true }, e => r(!e && fs.existsSync(tmp)))); // videos de menos de 3 s
+      if (!ok) { fs.rmSync(tmp, { force: true }); return null; }
+      fs.renameSync(tmp, out); return out;
+    } finally { release(); }
+  })().finally(() => making.delete(out));
+  making.set(out, job); return job;
+}
+
 export async function handleNas(req, res, parts) {
   const [a] = parts;
   const q = new URL(req.url, "http://x").searchParams;
@@ -129,6 +162,24 @@ export async function handleNas(req, res, parts) {
     who(req);
     const { abs, segs } = resolve(q.get("p"));
     return sendFile(req, res, abs, segs[segs.length - 1], q.get("dl") === "1");
+  }
+
+  if (a === "thumb" && req.method === "GET") {
+    who(req);
+    const { abs, segs } = resolve(q.get("p"));
+    const name = segs[segs.length - 1], type = typeOf(name);
+    if (!THUMB_TYPES.has(type)) fail(404, "Sin miniatura");
+    const st = guard(() => fs.statSync(abs)); if (!st.isFile()) fail(404, "Sin miniatura");
+    const etag = `"${st.size.toString(36)}-${Math.round(st.mtimeMs).toString(36)}"`;
+    const headers = { "content-type": "image/jpeg", "cache-control": "private, max-age=604800", etag, "x-content-type-options": "nosniff" };
+    if (req.headers["if-none-match"] === etag) { res.writeHead(304, headers); return res.end(); }
+    let file = null;
+    const ea = path.join(path.dirname(abs), "@eaDir", name);
+    for (const t of SYNO_THUMBS) { const f = path.join(ea, t); if (fs.existsSync(f)) { file = f; break; } }
+    if (!file) file = await makeThumb(abs, st, type);
+    if (!file) fail(404, "Sin miniatura");
+    res.writeHead(200, headers);
+    return fs.createReadStream(file).on("error", () => res.destroy()).pipe(res);
   }
 
   if (a === "import" && req.method === "POST") { // NAS → mis archivos

@@ -9,6 +9,7 @@
    ============================================================ */
 import React from "react";
 import { Ic, Modal, toast, Avatar, EmptyState, Tile, copyText } from "./ui.jsx";
+import { openUpdate } from "./actualizar.jsx";
 import { EraObject, ICON_OBJECT } from "./iconos-objetos.jsx";
 import { useEra } from "./iconos-epoca.jsx";
 import { APPS, ROUTE, ACCENTS, appAllowed } from "./data.jsx";
@@ -300,7 +301,7 @@ function Sistema({ me, openApp }) {
     <div className="cp-sys-head"><div><Head title="Información básica de tu Sotos" /></div><SotosMark size={64} variant="tile" /></div>
     {groups.map(([g, rows]) => <section key={g} className="cp-sys"><h3>{g}</h3>{rows.map(([k, v]) => <div key={k} className="cp-kv"><span>{k}</span><b>{v}</b></div>)}</section>)}
     {upd && <div className={"cp-alert " + (upd.error ? "info" : upd.newer ? "warn" : "ok")}><Ic name={upd.newer ? "system_update_alt" : upd.error ? "cloud_off" : "check_circle"} />
-      <div>{upd.error || (upd.newer ? <>Sotos <b>{upd.latest}</b> está disponible. <Link onClick={() => openApp("admin", { tab: "servidor", nonce: Date.now() })}>Instalarla</Link></> : `Sotos ${upd.current} es la última versión.`)}</div></div>}
+      <div>{upd.error || (upd.newer ? <>Sotos <b>{upd.latest}</b> está disponible. <Link onClick={openUpdate}>Actualizar</Link></> : `Sotos ${upd.current} es la última versión.`)}</div></div>}
     <div className="cp-actions">
       <button className="tb-btn" onClick={() => copyText(report()).then(() => toast("Informe del sistema copiado", { icon: "content_copy" })).catch(() => toast("No se pudo copiar", { error: true }))}><Ic name="content_copy" /> Copiar informe</button>
       {admin && <button className="tb-btn" disabled={checking} onClick={check}><Ic name="system_update_alt" /> {checking ? "Buscando…" : "Buscar actualizaciones"}</button>}
@@ -333,7 +334,7 @@ function Seguridad({ me, go, openApp }) {
     { sev: pct > 90 ? "bad" : pct > 75 ? "warn" : "ok", title: "Espacio", text: quota ? `${fmtSize(used)} de ${fmtSize(quota)} (${pct} %).` : `${fmtSize(used)} en este navegador.`, act: pct > 75 && ["Liberar espacio", () => go("almacenamiento")] },
     { sev: trashBytes > 100 * 1048576 ? "info" : "ok", title: "Papelera", text: trash.length ? `${trash.length} elemento(s) que ocupan ${fmtSize(trashBytes)}.` : "Vacía.", act: trash.length > 0 && ["Abrir la papelera", () => openApp("trash")] },
     { sev: !lastLocal ? "info" : Date.now() - lastLocal > 30 * DAY ? "warn" : "ok", title: "Tu copia de seguridad", text: lastLocal ? `Última copia descargada en este equipo: ${fmtDate(lastLocal)}.` : "Aún no has descargado una copia de tus archivos desde este equipo.", act: ["Hacer una copia", () => go("copias")] },
-    upd && { sev: upd.error ? "info" : upd.newer ? "warn" : "ok", title: "Actualizaciones de Sotos", text: upd.error || (upd.newer ? `Sotos ${upd.latest} está disponible (este servidor tiene la ${upd.current}).` : `Sotos ${upd.current} está al día.`), act: upd.newer && ["Instalar", () => openApp("admin", { tab: "servidor", nonce: Date.now() })] },
+    upd && { sev: upd.error ? "info" : upd.newer ? "warn" : "ok", title: "Actualizaciones de Sotos", text: upd.error || (upd.newer ? `Sotos ${upd.latest} está disponible (este servidor tiene la ${upd.current}).` : `Sotos ${upd.current} está al día.`), act: upd.newer && ["Actualizar", openUpdate] },
     bk && { sev: !lastSrv ? "warn" : Date.now() - lastSrv.finished > 2 * DAY ? "warn" : "ok", title: "Copias del servidor", text: lastSrv ? `Última copia completa: ${fmtDate(lastSrv.finished)}.` : "El servidor todavía no tiene copias de seguridad.", act: ["Ver copias", () => openApp("admin", { tab: "copias", nonce: Date.now() })] },
   ].filter(Boolean);
   const issues = checks.filter(c => c.sev === "warn" || c.sev === "bad").length;

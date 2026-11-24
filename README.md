@@ -10,7 +10,7 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 3.6.3 |
+| **Versión** | 3.6.4 |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
 | **Licencia** | [MIT](LICENSE) |
@@ -36,7 +36,7 @@ Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde 
 
 ## Novedades
 
-**Versión 3.6.3** ([historial completo](CHANGELOG.md)): los enlaces para compartir se copian también entrando por la IP (Docker, NAS, red local), **Carpetas del NAS** (ver, reproducir, copiar y guardar archivos en las carpetas compartidas del NAS) y **Administración → Servicios** para instalar Office, Diagramas, Cine, Fotos o el navegador virtual después de instalar Sotos. Antes, en 3.6.2: Panel de control y los temas Núcleo y Circuito.
+**Versión 3.6.4** ([historial completo](CHANGELOG.md)): **actualizar con un botón**, también en Docker y en NAS: cuando sale una versión nueva el administrador ve «Actualizar», la toca y Sotos se instala, se reinicia y la página se recarga sola. En 3.6.3: los enlaces para compartir se copian también entrando por la IP (Docker, NAS, red local), **Carpetas del NAS** (ver, reproducir, copiar y guardar archivos en las carpetas compartidas del NAS) y **Administración → Servicios** para instalar Office, Diagramas, Cine, Fotos o el navegador virtual después de instalar Sotos. Antes, en 3.6.2: Panel de control y los temas Núcleo y Circuito.
 
 **Versión 3.6**: **temas de época** (Prado, Cristal, Vidrio, Mosaico y Aluminio) con íconos, fondos y sonidos propios, **tu cuenta a un clic en tu foto**, **Contribuir y donaciones**, y **descargas al servidor**.
 

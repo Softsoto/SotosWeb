@@ -29,4 +29,5 @@ VOLUME ["/data"]
 EXPOSE 8787
 HEALTHCHECK --interval=30s --timeout=5s CMD wget -qO- http://127.0.0.1:8787/api/health || exit 1
 # la configuración que escribe el asistente vive en /data (persiste al recrear el contenedor)
-CMD ["sh", "-c", "chown -R node:node /data 2>/dev/null; exec su-exec node node --env-file-if-exists=/data/sotos.env server/index.mjs"]
+# el lanzador usa la versión más nueva: la de la imagen o la que instaló el botón «Actualizar» en /data/app
+CMD ["sh", "-c", "chown -R node:node /data 2>/dev/null; exec su-exec node node --env-file-if-exists=/data/sotos.env server/lanzador.mjs"]

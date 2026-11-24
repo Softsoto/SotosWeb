@@ -14,6 +14,16 @@ import { pickFiles } from "./filepicker.jsx";
 const { useState, useEffect, useRef, useCallback } = React;
 
 const fileUrl = (p, dl) => "/api/nas/file?p=" + encodeURIComponent(p) + (dl ? "&dl=1" : "");
+const thumbUrl = (p, mtime) => "/api/nas/thumb?p=" + encodeURIComponent(p) + "&v=" + Math.round(mtime || 0);
+/** miniatura liviana del servidor (nunca la foto entera); se pide solo cuando el icono está a la vista */
+function NasThumb({ entry, path, size }) {
+  const [failed, setFailed] = useState(false);
+  if (failed || !(entry.type === "img" || entry.type === "video")) return <FileGlyph type={entry.dir ? "folder" : entry.type} size={size} />;
+  return <span className="nas-thumb" style={{ width: size * 1.15, height: size * 0.82 }}>
+    <img src={thumbUrl(path, entry.mtime)} alt="" loading="lazy" decoding="async" onError={() => setFailed(true)} />
+    {entry.type === "video" && size > 30 && <Ic name="play_arrow" size={size * 0.36} />}
+  </span>;
+}
 const join = (dir, name) => dir.replace(/\/$/, "") + "/" + name;
 const ROOT_ICON = (n) => /m[uú]sica|music/i.test(n) ? "music_note" : /foto|photo|imag/i.test(n) ? "image" : /v[ií]deo|video|pel/i.test(n) ? "movie" : /famil|home|casa/i.test(n) ? "home" : "folder_shared";
 const PREVIEW = { img: "img", video: "video", audio: "audio", pdf: "pdf", txt: "txt", md: "txt" };
@@ -109,7 +119,7 @@ export function NasApp({ openItem }) {
   const cell = (e) => ({ key: e.name, tabIndex: 0, className: (view === "list" ? "file-row" : "file-cell") + (sel === e.name ? " sel" : ""),
     onClick: () => setSel(e.name), onDoubleClick: () => open(e), onFocus: () => setSel(e.name),
     onContextMenu: (ev) => { ev.preventDefault(); setSel(e.name); setCtx({ x: ev.clientX, y: ev.clientY, e }); } });
-  const glyph = (e, size) => <FileGlyph type={e.dir ? "folder" : e.type} size={size} src={e.type === "img" && e.size < 8 * 1024 * 1024 ? fileUrl(pathOf(e)) : undefined} />;
+  const glyph = (e, size) => <NasThumb entry={e} path={pathOf(e)} size={size} />;
 
   return <div className="app nas-app" onKeyDown={onKey}>
     <input ref={upInput} type="file" multiple hidden onChange={ev => { const f = [...ev.target.files]; ev.target.value = ""; upload(f); }} />

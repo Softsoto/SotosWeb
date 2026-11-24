@@ -7,6 +7,7 @@ import { APPS, APP_BY_ID, DOCK_IDS, ROUTE, WALLPAPERS, DEFAULT_SHORTCUTS, appAll
 import { SotosLogo, SotosMark, BrandMark, setBrandLogo } from "./logo.jsx";
 import * as Vault from "./vault.jsx";
 import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, animateWinOut, animateWinGeometry , AppGuard } from "./ui.jsx";
+import { UpdateDialog, UpdatePrompt, openUpdate } from "./actualizar.jsx";
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, DESKTOP } from "./vfs.js";
@@ -739,6 +740,7 @@ function OS() {
   // abrir el destino de una notificación: un mundo (y pestaña) o algo compartido conmigo
   const openLink = useCh((link) => {
     if (!link) return;
+    if (link.update) return openUpdate();
     if (link.inbox) return openApp("files", { place: "inbox", nonce: Date.now() });
     if (link.app === "calendar") return openApp("calendar", { date: link.date, nonce: Date.now() });
     if (link.app === "tasks") return openApp("tasks", { list: link.list, nonce: Date.now() });
@@ -750,6 +752,9 @@ function OS() {
       window.open(`${location.origin}${location.pathname}#/s/${link.share}`, "_blank", "noopener");
     }
   }, [openApp]);
+  // «Actualizar Sotos» se abre desde cualquier parte con openUpdate()
+  const [updOpen, setUpdOpen] = useSh(false);
+  useEh(() => { const f = () => setUpdOpen(true); window.addEventListener("sotos-update", f); return () => window.removeEventListener("sotos-update", f); }, []);
   // tocar un aviso del celular o del computador (service worker) abre el lugar del aviso
   useEh(() => {
     const f = (e) => openLink(e.detail); window.addEventListener("sotos-open-link", f);
@@ -897,6 +902,8 @@ function OS() {
       {versionsId && <VersionsDialog id={versionsId} onClose={() => setVersionsId(null)} />}
       <GlobalContextMenu openApp={openApp} winAction={winAction} />
       {DEMO && demoWelcome && <DemoWelcome onApp={openApp} onClose={() => { setDemoWelcome(false); try { localStorage.setItem("sotos_demo_seen", "1"); } catch {} }} />}
+      {updOpen && <UpdateDialog onClose={() => setUpdOpen(false)} />}
+      <UpdatePrompt user={user} />
       <Toasts />
       <FilePickerHost />
     </div>

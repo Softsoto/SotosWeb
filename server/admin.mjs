@@ -85,10 +85,12 @@ export async function handleAdmin(req, res, parts) {
     if (req.method === "GET") { try { return json(res, 200, await checkUpdate(new URL(req.url, "http://x").searchParams.has("force"))); } catch (e) { return json(res, 200, { current: currentVersion(), error: "No se pudo consultar GitHub: " + e.message }); } }
     if (req.method === "POST") {
       audit(me, null, "actualizar Sotos");
-      res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store" });
-      const send = (o) => res.write(JSON.stringify(o) + "\n");
+      res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store", "x-accel-buffering": "no" });
+      const send = (o) => { if (!res.writableEnded) res.write(JSON.stringify(o) + "\n"); };
+      const beat = setInterval(() => send({ tick: 1 }), 10_000); // pasos largos (descarga, compilar): que ningún proxy corte la conexión
       try { const v = await applyUpdate((m) => send({ log: m })); send({ done: true, version: v }); res.end(); restart(); }
       catch (e) { send({ error: e.message }); res.end(); }
+      finally { clearInterval(beat); }
       return;
     }
   }

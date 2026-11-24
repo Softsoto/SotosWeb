@@ -3,6 +3,16 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.6.4 — 24 de noviembre de 2026
+
+### Nuevo
+- **Actualizar con un botón.** Cuando hay una versión nueva, el administrador ve al entrar el aviso «Sotos X está disponible» con **Actualizar** y **Más tarde**. Al tocar Actualizar se abre una ventana con el avance: copia de seguridad, descarga, verificación, instalación y reinicio. Cuando Sotos vuelve con la versión nueva, la página se recarga sola. La notificación diaria, el Panel de control y Administración → Servidor abren esa misma ventana.
+- **Docker y NAS se actualizan solos.** La versión nueva se instala en la carpeta de datos (`/data/app`), así sobrevive a reinicios y a recrear el contenedor. Al arrancar se usa la más nueva entre la de la imagen y la instalada. Las imágenes anteriores a esta versión hay que reconstruirlas una sola vez (`docker compose up -d --build`).
+- **Copias con git** (desarrollo): el botón hace `git pull` y vuelve a compilar el escritorio.
+
+### Arreglado
+- El aviso de versión nueva no decía qué hacer en Docker ni en copias con git, y no había botón.
+
 ## 3.6.3 — 24 de noviembre de 2026
 
 ### Nuevo

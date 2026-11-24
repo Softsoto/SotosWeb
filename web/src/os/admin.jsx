@@ -6,6 +6,7 @@
    ============================================================ */
 import React from "react";
 import { Ic, Modal, EmptyState, Tile, toast } from "./ui.jsx";
+import { openUpdate } from "./actualizar.jsx";
 import { api } from "./api.js";
 import * as vfs from "./vfs.js";
 import { fmtSize, fmtDate, useVfs } from "./vfs.js";
@@ -246,34 +247,21 @@ function SysMailSettings() {
 
 /** actualizaciones de Sotos (versiones publicadas en GitHub) */
 function UpdatesCard() {
-  const [u, setU] = useState(null), [busy, setBusy] = useState(false), [log, setLog] = useState([]), [showNotes, setShowNotes] = useState(false);
-  const load = (force) => api("GET", "admin/update" + (force ? "?force=1" : "")).then(setU).catch(e => setU({ error: e.message }));
+  const [u, setU] = useState(null), [busy, setBusy] = useState(false);
+  const load = (force) => { setBusy(true); api("GET", "admin/update" + (force ? "?force=1" : "")).then(setU).catch(e => setU({ error: e.message })).finally(() => setBusy(false)); };
   useEffect(() => { load(); }, []);
-  const update = async () => {
-    setBusy(true); setLog([]);
-    try {
-      const r = await fetch("/api/admin/update", { method: "POST", headers: { "x-sotos": "1" } }); const rd = r.body.getReader(), dec = new TextDecoder(); let buf = "", done = false;
-      while (true) { const { value, done: d } = await rd.read(); if (d) break; buf += dec.decode(value, { stream: true }); let i;
-        while ((i = buf.indexOf("\n")) >= 0) { const m = JSON.parse(buf.slice(0, i)); buf = buf.slice(i + 1); if (m.log) setLog(l => [...l, m.log]); if (m.error) throw new Error(m.error); if (m.done) done = true; } }
-      if (done) { setLog(l => [...l, "Esperando a que Sotos vuelva…"]); for (let k = 0; k < 60; k++) { await new Promise(r => setTimeout(r, 2000)); try { const h = await fetch("/api/health"); if (h.ok) { location.reload(); return; } } catch {} } }
-    } catch (e) { toast(e.message, { error: true }); }
-    setBusy(false);
-  };
   if (!u) return null;
   return <div className="admin-update">
     <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
       <Ic name={u.newer ? "release_alert" : "verified"} size={26} style={{ color: u.newer ? "var(--accent)" : "#4f7a3a" }} />
       <div style={{ flex: 1, minWidth: 200 }}>
-        <b>{u.error ? "Actualizaciones" : u.newer ? `Sotos ${u.latest} está disponible` : "Sotos está al día"}</b>
-        <div className="faint" style={{ fontSize: 12.5 }}>{u.error || `Versión instalada: ${u.current}${u.latest && !u.newer ? "" : ` · nueva: ${u.latest}`}`}{u.newer && !u.ok ? " · " + u.reason : ""}</div>
+        <b>{u.error ? "Actualizaciones" : u.newer ? `Sotos ${u.latest} está disponible` : `Sotos ${u.current} está al día`}</b>
+        <div className="faint" style={{ fontSize: 12.5 }}>{u.error || (u.newer ? `Tienes la ${u.current}.` : "Se busca una versión nueva cada día.")}</div>
       </div>
-      <button className="tb-btn" disabled={busy} onClick={() => load(true)}><Ic name="refresh" /> Buscar</button>
-      {u.newer && u.ok && <button className="tb-btn primary" disabled={busy} onClick={update}><Ic name="system_update_alt" /> {busy ? "Actualizando…" : "Actualizar ahora"}</button>}
+      {u.newer && u.ok ? <button className="tb-btn primary" onClick={openUpdate}><Ic name="system_update_alt" /> Actualizar</button>
+        : <button className="tb-btn" disabled={busy} onClick={() => load(true)}><Ic name="refresh" /> {busy ? "Buscando…" : "Buscar"}</button>}
     </div>
-    {u.newer && u.notes && <><button className="login-alt" style={{ padding: 0, fontSize: 12.5, marginTop: 6 }} onClick={() => setShowNotes(s => !s)}>{showNotes ? "Ocultar novedades" : "Ver qué trae"}</button>
-      {showNotes && <pre className="admin-update-notes">{u.notes}</pre>}</>}
-    {!!log.length && <pre className="admin-update-log">{log.join("\n")}</pre>}
-    {u.newer && u.ok && !busy && <div className="faint" style={{ fontSize: 12, marginTop: 6 }}>Antes de actualizar se hace una copia de seguridad. Tus archivos, cuentas y configuración no se tocan.</div>}
+    {u.newer && !u.ok && <div className="upd-warn" style={{ marginTop: 10 }}><Ic name="info" size={18} /><span>{u.reason}</span></div>}
   </div>;
 }
 
