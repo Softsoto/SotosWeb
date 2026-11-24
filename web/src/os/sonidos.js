@@ -24,6 +24,21 @@ function voice(a, { note, at = 0, dur = 0.6, type = "sine", gain = 0.12, detune 
 const bell = (a, note, at, gain = 0.09, dur = 1.4) => { voice(a, { note, at, dur, gain }); voice(a, { note: note + 19.02, at, dur: dur * 0.5, gain: gain * 0.35 }); voice(a, { note: note + 28, at, dur: dur * 0.3, gain: gain * 0.15 }); };
 
 const SETS = {
+  // 2002 (Núcleo): zumbido grave que sube como un arranque, soplo y destello metálico
+  nucleo: {
+    entrar: (a) => { voice(a, { note: 31, dur: 2.6, type: "sawtooth", gain: 0.025, attack: 0.7, glide: 12 }); voice(a, { note: 43, dur: 2.2, gain: 0.08, attack: 0.5, glide: 7 }); noise(a, { at: 0.2, dur: 1.2, gain: 0.03, hp: 2500 });
+      [67, 74, 79].forEach((n, i) => voice(a, { note: n, at: 1.0 + i * 0.09, dur: 1.4, type: "triangle", gain: 0.05, attack: 0.01, detune: 8 })); bell(a, 91, 1.3, 0.04, 1.2); },
+    salir: (a) => { voice(a, { note: 55, dur: 1.6, type: "sawtooth", gain: 0.02, attack: 0.05, glide: -19 }); voice(a, { note: 67, dur: 1.1, type: "triangle", gain: 0.06, glide: -12 }); },
+    aviso: (a) => { voice(a, { note: 88, dur: 0.12, type: "triangle", gain: 0.07, attack: 0.003 }); voice(a, { note: 95, at: 0.08, dur: 0.3, type: "triangle", gain: 0.06, attack: 0.003 }); },
+    abrir: (a) => voice(a, { note: 84, dur: 0.07, type: "square", gain: 0.018, attack: 0.002, glide: 5 }),
+  },
+  // Circuito: barridos de sintetizador fríos, como una red que se enciende
+  circuito: {
+    entrar: (a) => { voice(a, { note: 38, dur: 2.4, type: "sawtooth", gain: 0.03, attack: 0.4, glide: 24 }); [50, 57, 62, 69].forEach((n, i) => voice(a, { note: n, at: 0.5 + i * 0.12, dur: 1.6, type: "square", gain: 0.018, attack: 0.02, detune: 6 })); bell(a, 86, 1.1, 0.035, 1.4); },
+    salir: (a) => { voice(a, { note: 62, dur: 1.4, type: "sawtooth", gain: 0.025, attack: 0.02, glide: -24 }); },
+    aviso: (a) => { voice(a, { note: 81, dur: 0.18, type: "square", gain: 0.03, attack: 0.003, glide: 7 }); voice(a, { note: 93, at: 0.1, dur: 0.25, type: "sine", gain: 0.05 }); },
+    abrir: (a) => voice(a, { note: 76, dur: 0.09, type: "sawtooth", gain: 0.015, attack: 0.002, glide: 12 }),
+  },
   // 2001: acorde mayor cálido y ascendente, con un brillo de campana al final
   prado: {
     entrar: (a) => { [60, 64, 67, 72].forEach((n, i) => voice(a, { note: n, at: i * 0.16, dur: 1.6 - i * 0.2, type: "triangle", gain: 0.09, detune: 6 })); bell(a, 84, 0.62, 0.05); },
@@ -67,8 +82,8 @@ const noise = (a, { at = 0, dur = 0.12, gain = 0.05, hp = 1200 }) => { // soplo 
   const src = a.createBufferSource(), f = a.createBiquadFilter(), g = a.createGain(); src.buffer = buf; f.type = "highpass"; f.frequency.value = hp; g.gain.value = gain;
   src.connect(f); f.connect(g); g.connect(a.destination); src.start(t);
 };
-const TIMBRE = { prado: "triangle", cristal: "sine", vidrio: "sine", mosaico: "sine", aluminio: "triangle" };
-const BASE = { prado: 72, cristal: 69, vidrio: 71, mosaico: 76, aluminio: 74 };
+const TIMBRE = { prado: "triangle", cristal: "sine", vidrio: "sine", mosaico: "sine", aluminio: "triangle", nucleo: "triangle", circuito: "sawtooth" };
+const BASE = { prado: 72, cristal: 69, vidrio: 71, mosaico: 76, aluminio: 74, nucleo: 67, circuito: 62 };
 for (const [set, ev] of Object.entries(SETS)) {
   const ty = TIMBRE[set], b = BASE[set];
   ev.cerrar ||= (a) => { voice(a, { note: b, dur: 0.12, type: ty, gain: 0.04, attack: 0.003, glide: -5 }); };
@@ -80,10 +95,10 @@ for (const [set, ev] of Object.entries(SETS)) {
 }
 
 /** sonido de la interfaz según el tema actual (data-skin en <html>); solo suena en los temas de época */
-const ERA_SOUND = { prado: "prado", cristal: "cristal", vidrio: "vidrio", mosaico: "mosaico", aluminio: "aluminio" };
+const ERA_SOUND = { prado: "prado", cristal: "cristal", vidrio: "vidrio", mosaico: "mosaico", aluminio: "aluminio", nucleo: "nucleo", circuito: "circuito" };
 let last = 0;
 export function playUi(event) {
-  const set = ERA_SOUND[document.documentElement.dataset.skin]; if (!set) return;
+  const d = document.documentElement.dataset, set = ERA_SOUND[d.variant] || ERA_SOUND[d.skin]; if (!set) return;
   const now = performance.now(); if (event !== "error" && event !== "aviso" && now - last < 60) return; last = now; // sin metralla al abrir muchas ventanas
   playEra(set, event);
 }

@@ -12,8 +12,13 @@ export const ERAS = {
   vidrio:   { name: "Vidrio",   year: "2009", family: "win", start: "menu",   wall: "era-vidrio",   accent: "#1f8fb3", desc: "Vidrio claro, barra de íconos agrupados y menú Inicio con buscador", group: true, sound: "vidrio" },
   mosaico:  { name: "Mosaico",  year: "2012", family: "win", start: "screen", wall: "era-mosaico",  accent: "#2a7f62", desc: "Pantalla de mosaicos vivos y un escritorio plano de bordes rectos", group: true, sound: "mosaico" },
   aluminio: { name: "Aluminio", year: "Mac",  family: "mac", start: null,     wall: "era-aluminio", accent: "#3478c6", desc: "Barra de menú arriba, botones de semáforo y dock con lupa", group: false, sound: "aluminio" },
+  // variante: usa la estructura de otra época (base) con su propio arte (data-variant en <html>)
+  nucleo:   { name: "Núcleo",   year: "2002", family: "win", start: "menu",   wall: "era-nucleo",   accent: "#47a10d", desc: "Metal plateado, píldoras de gel verde y orbes, con un núcleo de energía de fondo", group: false, sound: "nucleo", base: "prado" },
+  circuito: { name: "Circuito", year: "2010", family: "win", start: "menu",   wall: "era-circuito", accent: "#19b7d9", desc: "Negro brillante con líneas de luz cian, rejilla en perspectiva y estelas de luz", group: false, sound: "circuito", base: "prado" },
 };
 export const eraOf = (skin) => ERAS[skin] || null;
+/** época cuya estructura usa un tema (las variantes usan la de su base) */
+export const baseSkin = (skin) => ERAS[skin]?.base || skin;
 export const isWinSkin = (skin) => ERAS[skin]?.family === "win";
 export const isMacSkin = (skin) => ERAS[skin]?.family === "mac";
 export const ERA_WALL_IDS = Object.values(ERAS).map(e => e.wall);

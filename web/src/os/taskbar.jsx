@@ -75,7 +75,7 @@ export function StartMenu({ skin, profile, order, onApp, onOpenFolder, onLogout,
   }, []);
   const apps = useMemo(visibleApps, []);
   const pinned = order.filter(id => APP_BY_ID[id] && apps.some(a => a.id === id)).slice(0, 9);
-  const go = (id) => { playEra(skin, "abrir"); onApp(id); onClose(); };
+  const go = (id) => { playEra(document.documentElement.dataset.variant || skin, "abrir"); onApp(id); onClose(); };
   const ql = q.trim().toLowerCase();
   const hits = ql ? { apps: apps.filter(a => a.name.toLowerCase().includes(ql)).slice(0, 8), files: vfs.search(ql, 8) } : null;
   const user = vfs.getState().user;

@@ -5,6 +5,78 @@
 /* Hallmark · waive 24b · padding 3px frames, 30px title bars and 2px task gaps on the era chrome · each era is rebuilt to the pixel sizes of its own period, which sit off the 4px grid by design */
 
 :root {
+  /* ---- Variantes sobre la estructura de Prado (data-variant): mismas piezas, otro arte ----
+     Núcleo (2002): metal plateado, píldoras de gel verde iluminadas desde abajo, orbes verde-amarillo.
+     Circuito: negro brillante con líneas de luz cian y acentos naranja. */
+  --nu-gel: linear-gradient(#3a3a3b 0%, #80a275 10%, #39751d 25%, #358407 40%, #47a10d 55%, #74c41b 68%, #afd74e 80%, #5fb70a 92%, #2b4a12 100%);
+  --nu-bar: linear-gradient(#797979 0%, #e8e6ea 10%, #bfbdc2 20%, #a4a1a6 30%, #898689 40%, #727274 50%, #686969 62%, #605f60 80%, #595959 100%);
+  --nu-bar-ink: #ffffff; --nu-tray-edge: #3a3a3b;
+  --nu-start: linear-gradient(#3b3b3c 0%, #e6eee3 10%, #79a06a 22%, #438a26 40%, #43a020 52%, #8bd53a 66%, #d1fd59 78%, #68b22c 90%, #3f5a2c 100%);
+  --nu-start-hover: linear-gradient(#3b3b3c 0%, #f4fbef 10%, #8cb87b 22%, #4f9d2e 40%, #4fb226 52%, #9fe64c 66%, #e0ff7c 78%, #78c437 90%, #3f5a2c 100%);
+  --nu-start-ink: #ffffff;
+  --nu-task: linear-gradient(#3a3a3b 0%, #f5f5f5 8%, #5e5e5e 20%, #2f2f2f 35%, #0b0b0a 50%, #000000 100%);
+  --nu-edge: #0b0b0b;
+  --nu-title: linear-gradient(#7b7b7b 0%, #c2c0c4 18%, #a3a2a5 32%, #848486 45%, #5e5e5e 62%, #4a4a4a 80%, #595959 100%);
+  --nu-title-blur: linear-gradient(#8a8a8a 0%, #b5b4b7 20%, #8f8f91 45%, #6a6a6a 75%, #666666 100%);
+  --nu-title-ink: #ffffff; --nu-title-shadow: rgba(0, 0, 0, 0.6);
+  --nu-frame: #595959; --nu-frame-blur: #7b7b7b;
+  --nu-ctl: radial-gradient(circle at 50% 72%, #f3f0bd 0%, #dae128 26%, #c3d20a 44%, #89b607 66%, #628534 84%, #454445 100%);
+  --nu-ctl-hover: radial-gradient(circle at 50% 72%, #ffffe0 0%, #eef24a 26%, #d4e41c 44%, #9bc90f 66%, #6f9a3a 84%, #454445 100%);
+  --nu-ctl-edge: #282828; --nu-ctl-ink: #1d2a05;
+  --nu-menu: #164202;
+  --nu-menu-left: linear-gradient(180deg, #13260a 0%, #1f450f 10%, #164202 55%, #184603 92%, #163f03 100%);
+  --nu-menu-right: linear-gradient(180deg, #243912 0%, #4c7b22 10%, #4e851c 60%, #4c831b 90%, #3b6814 100%);
+  --nu-menu-ink: #ffffff;
+  --nu-menu-head: linear-gradient(#a7a5a7 0%, #c4c2c7 12%, #a09ea2 24%, #6f6e72 50%, #494849 72%, #3a3a3a 100%);
+  --nu-menu-foot: linear-gradient(#484849 0%, #7a7a7b 10%, #696a6a 25%, #5c5c5c 45%, #52524f 65%, #aeaeae 72%, #464646 80%, #404040 100%);
+  --nu-menu-edge: #9a999a; --nu-menu-hover: #47a10d; --nu-menu-hover-ink: #ffffff; --nu-menu-sep: #74c41b;
+  --nu-orb: radial-gradient(circle at 50% 66%, #f3f0bd 0%, #dae128 22%, #9cc40a 45%, #4f8a07 66%, #1f2a10 84%, #8a8a8a 92%, #3a3a3a 100%);
+  --nu-grille: repeating-linear-gradient(90deg, #1a1a1a 0 2px, #6a6a6a 2px 4px);
+  --nu-login-bg: linear-gradient(#0b0b0b 0 11%, #163f03 11% 89%, #0b0b0b 89%);
+  --nu-login-line: linear-gradient(90deg, transparent, #74c41b 40%, #e8ffc8 50%, #74c41b 60%, transparent);
+  --nu-pane: linear-gradient(180deg, #5f5f61 0%, #3f3f41 100%); --nu-pane-ink: #ffffff; --nu-pane-item: rgba(255, 255, 255, 0.08); --nu-pane-hot: #d1fd59; --nu-sel: #47a10d;
+  --nu-btn-hot: #d1fd59;
+  --nu-in-surface: #ffffff; --nu-in-surface-2: #d6d6d8; --nu-in-surface-3: #bdbdc0; --nu-in-text: #000000; --nu-in-strong: #6d6d70; --nu-in-hover: rgba(116, 196, 27, 0.16);
+  --nu-dk-surface: #1c1d1c; --nu-dk-surface-2: #141514; --nu-dk-surface-3: #2a2b2a; --nu-dk-text: #eef2ea; --nu-dk-dim: #b0b6ab; --nu-dk-faint: #7c8277;
+  --nu-dk-border: rgba(180, 230, 120, 0.12); --nu-dk-strong: rgba(180, 230, 120, 0.28); --nu-dk-hover: rgba(116, 196, 27, 0.16);
+  --nu-dk-pane: linear-gradient(180deg, #2a2b2a 0%, #161716 100%); --nu-dk-link: #b6ec6a; --nu-link: #2f7a08;
+  --prev-nucleo: radial-gradient(circle at 50% 38%, #d1fd59 0%, #47a10d 12%, #0f2a06 30%, #050805 62%);
+
+  --ci-gel: linear-gradient(#02090d 0%, #06303d 30%, #0a5c73 60%, #19b7d9 88%, #8ff2ff 100%);
+  --ci-bar: linear-gradient(#5fe6ff 0, #5fe6ff 1px, #0b1820 1px, #05080b 50%, #020304 100%);
+  --ci-bar-ink: #dff8ff; --ci-tray-edge: #19d3ff;
+  --ci-start: linear-gradient(#a8f6ff 0%, #2fd0f2 15%, #0a6f88 50%, #043746 85%, #19d3ff 100%);
+  --ci-start-hover: linear-gradient(#d8fbff 0%, #5fe6ff 15%, #0f88a6 50%, #05475a 85%, #5fe6ff 100%);
+  --ci-start-ink: #ffffff;
+  --ci-task: linear-gradient(#0e1a22 0%, #05090c 100%);
+  --ci-edge: #19d3ff;
+  --ci-title: linear-gradient(#0f1c24 0%, #070d11 60%, #04080a 100%);
+  --ci-title-blur: linear-gradient(#0b1216 0%, #05080a 100%);
+  --ci-title-ink: #dff8ff; --ci-title-shadow: rgba(25, 211, 255, 0.7);
+  --ci-frame: #19d3ff; --ci-frame-blur: #155a6b;
+  --ci-ctl: radial-gradient(circle, #031015 0 50%, #19d3ff 56%, #0a5c73 74%, #031015 100%);
+  --ci-ctl-hover: radial-gradient(circle, #19d3ff 0%, #0a5c73 50%, #8ff2ff 56%, #19d3ff 74%, #031015 100%);
+  --ci-ctl-edge: #19d3ff; --ci-ctl-ink: #dff8ff;
+  --ci-close: radial-gradient(circle, #1a0b02 0 50%, #ff8a1f 56%, #7a3a06 74%, #1a0b02 100%);
+  --ci-close-hover: radial-gradient(circle, #ff8a1f 0%, #7a3a06 50%, #ffc27a 56%, #ff8a1f 74%, #1a0b02 100%);
+  --ci-menu: #05080b;
+  --ci-menu-left: linear-gradient(180deg, #071118 0%, #04080b 100%);
+  --ci-menu-right: linear-gradient(180deg, #0a1d26 0%, #06121a 100%);
+  --ci-menu-ink: #dff8ff;
+  --ci-menu-head: linear-gradient(#0f1c24 0%, #05080b 100%);
+  --ci-menu-foot: linear-gradient(#19d3ff 0, #19d3ff 1px, #0b1820 1px, #05080b 100%);
+  --ci-menu-edge: #19d3ff; --ci-menu-hover: #0a6f88; --ci-menu-hover-ink: #ffffff; --ci-menu-sep: #19d3ff;
+  --ci-orb: radial-gradient(circle, #dff8ff 0%, #19d3ff 18%, #0a5c73 40%, #031015 60%, #19d3ff 66%, #031015 74%);
+  --ci-grille: repeating-linear-gradient(90deg, #19d3ff 0 1px, transparent 1px 4px);
+  --ci-login-bg: linear-gradient(#000000 0 11%, #04121a 11% 89%, #000000 89%);
+  --ci-login-line: linear-gradient(90deg, transparent, #19d3ff 40%, #dff8ff 50%, #19d3ff 60%, transparent);
+  --ci-pane: linear-gradient(180deg, #0b161d 0%, #05090c 100%); --ci-pane-ink: #dff8ff; --ci-pane-item: rgba(25, 211, 255, 0.06); --ci-pane-hot: #8ff2ff; --ci-sel: #0a6f88;
+  --ci-btn-hot: #8ff2ff;
+  --ci-in-surface: #0a0f13; --ci-in-surface-2: #070b0e; --ci-in-surface-3: #111a20; --ci-in-text: #dff8ff; --ci-in-strong: rgba(25, 211, 255, 0.35); --ci-in-hover: rgba(25, 211, 255, 0.1);
+  --ci-dk-surface: #0a0f13; --ci-dk-surface-2: #070b0e; --ci-dk-surface-3: #111a20; --ci-dk-text: #dff8ff; --ci-dk-dim: #8fb4c0; --ci-dk-faint: #5d7c86;
+  --ci-dk-border: rgba(25, 211, 255, 0.14); --ci-dk-strong: rgba(25, 211, 255, 0.35); --ci-dk-hover: rgba(25, 211, 255, 0.1);
+  --ci-dk-pane: linear-gradient(180deg, #0b161d 0%, #05090c 100%); --ci-dk-link: #5fe6ff; --ci-link: #5fe6ff;
+  --prev-circuito: linear-gradient(180deg, #000000 0 46%, #19d3ff 46.5%, #04121a 48%, #020608 100%);
   /* Panel de control: títulos y enlaces de cada época */
   --cp-xp-head: #1b4fb8; --cp-xp-link: #1f55c4; --cp-xp-dk-head: #9cc0ff; --cp-xp-dk-link: #a9c8ff;
   --cp-7-head: #1d6b2c; --cp-7-link: #1a5fb4; --cp-7-dk-head: #8fd19a; --cp-7-dk-link: #8cbcf0;
@@ -277,6 +349,69 @@
   --era-menu-sep: var(--prado-menu-sep);
   --era-desk-ink: var(--prado-desk-ink);
 }
+/* ---- Variantes de Prado (Núcleo, Circuito): misma estructura (data-skin="prado") con su propio arte (data-variant).
+   Van antes de los bloques claro/oscuro de Prado para que el modo oscuro tome los tonos --prado-dk-* de aquí. ---- */
+[data-skin="prado"][data-variant="nucleo"] {
+  --prado-bar: var(--nu-bar); --prado-bar-ink: var(--nu-bar-ink); --prado-tray: var(--nu-gel); --prado-tray-edge: var(--nu-tray-edge);
+  --prado-start: var(--nu-start); --prado-start-hover: var(--nu-start-hover); --prado-start-ink: var(--nu-start-ink);
+  --prado-task: var(--nu-task); --prado-task-active: var(--nu-gel); --prado-task-edge: var(--nu-edge);
+  --prado-title: var(--nu-title); --prado-title-blur: var(--nu-title-blur); --prado-title-ink: var(--nu-title-ink); --prado-frame: var(--nu-frame); --prado-frame-blur: var(--nu-frame-blur);
+  --prado-ctl: var(--nu-ctl); --prado-ctl-hover: var(--nu-ctl-hover); --prado-ctl-edge: var(--nu-ctl-edge); --prado-close: var(--nu-close, var(--nu-ctl)); --prado-close-hover: var(--nu-close-hover, var(--nu-ctl-hover));
+  --prado-menu: var(--nu-menu); --prado-menu-left: var(--nu-menu-left); --prado-menu-right: var(--nu-menu-right); --prado-menu-ink: var(--nu-menu-ink); --prado-menu-head: var(--nu-menu-head);
+  --prado-menu-edge: var(--nu-menu-edge); --prado-menu-hover: var(--nu-menu-hover); --prado-menu-hover-ink: var(--nu-menu-hover-ink); --prado-menu-sep: var(--nu-menu-sep);
+  --era-menu-right-ink: var(--nu-menu-ink);
+  --prado-login-bg: var(--nu-login-bg); --prado-login-line: var(--nu-login-line);
+  --prado-pane: var(--nu-pane); --prado-pane-head: var(--nu-gel); --prado-pane-ink: var(--nu-pane-ink); --prado-pane-item: var(--nu-pane-item); --prado-pane-hot: var(--nu-pane-hot); --prado-sel: var(--nu-sel);
+  --prado-btn: var(--nu-gel); --prado-btn-edge: var(--nu-edge); --prado-btn-hot: var(--nu-btn-hot);
+  --prado-in-surface: var(--nu-in-surface); --prado-in-surface-2: var(--nu-in-surface-2); --prado-in-surface-3: var(--nu-in-surface-3); --prado-in-text: var(--nu-in-text); --prado-in-strong: var(--nu-in-strong); --prado-in-hover: var(--nu-in-hover);
+  --prado-dk-surface: var(--nu-dk-surface); --prado-dk-surface-2: var(--nu-dk-surface-2); --prado-dk-surface-3: var(--nu-dk-surface-3); --prado-dk-text: var(--nu-dk-text); --prado-dk-dim: var(--nu-dk-dim); --prado-dk-faint: var(--nu-dk-faint);
+  --prado-dk-border: var(--nu-dk-border); --prado-dk-strong: var(--nu-dk-strong); --prado-dk-hover: var(--nu-dk-hover);
+  --prado-dk-pane: var(--nu-dk-pane); --prado-dk-pane-head: var(--nu-gel); --prado-dk-pane-ink: var(--nu-pane-ink); --prado-dk-pane-hot: var(--nu-pane-hot); --prado-dk-btn: var(--nu-gel); --prado-dk-btn-edge: var(--nu-edge);
+  --cp-xp-head: var(--nu-link); --cp-xp-link: var(--nu-link); --cp-xp-dk-head: var(--nu-dk-link); --cp-xp-dk-link: var(--nu-dk-link);
+  --va-gel: var(--nu-gel); --va-pill-off: var(--nu-task); --va-edge: var(--nu-edge); --va-ink: var(--nu-title-ink); --va-shadow: var(--nu-title-shadow);
+  --va-orb: var(--nu-orb); --va-grille: var(--nu-grille); --va-foot: var(--nu-menu-foot); --va-ctl-ink: var(--nu-ctl-ink); --va-hot: var(--nu-btn-hot);
+}[data-skin="prado"][data-variant="circuito"] {
+  --prado-bar: var(--ci-bar); --prado-bar-ink: var(--ci-bar-ink); --prado-tray: var(--ci-gel); --prado-tray-edge: var(--ci-tray-edge);
+  --prado-start: var(--ci-start); --prado-start-hover: var(--ci-start-hover); --prado-start-ink: var(--ci-start-ink);
+  --prado-task: var(--ci-task); --prado-task-active: var(--ci-gel); --prado-task-edge: var(--ci-edge);
+  --prado-title: var(--ci-title); --prado-title-blur: var(--ci-title-blur); --prado-title-ink: var(--ci-title-ink); --prado-frame: var(--ci-frame); --prado-frame-blur: var(--ci-frame-blur);
+  --prado-ctl: var(--ci-ctl); --prado-ctl-hover: var(--ci-ctl-hover); --prado-ctl-edge: var(--ci-ctl-edge); --prado-close: var(--ci-close, var(--ci-ctl)); --prado-close-hover: var(--ci-close-hover, var(--ci-ctl-hover));
+  --prado-menu: var(--ci-menu); --prado-menu-left: var(--ci-menu-left); --prado-menu-right: var(--ci-menu-right); --prado-menu-ink: var(--ci-menu-ink); --prado-menu-head: var(--ci-menu-head);
+  --prado-menu-edge: var(--ci-menu-edge); --prado-menu-hover: var(--ci-menu-hover); --prado-menu-hover-ink: var(--ci-menu-hover-ink); --prado-menu-sep: var(--ci-menu-sep);
+  --era-menu-right-ink: var(--ci-menu-ink);
+  --prado-login-bg: var(--ci-login-bg); --prado-login-line: var(--ci-login-line);
+  --prado-pane: var(--ci-pane); --prado-pane-head: var(--ci-gel); --prado-pane-ink: var(--ci-pane-ink); --prado-pane-item: var(--ci-pane-item); --prado-pane-hot: var(--ci-pane-hot); --prado-sel: var(--ci-sel);
+  --prado-btn: var(--ci-gel); --prado-btn-edge: var(--ci-edge); --prado-btn-hot: var(--ci-btn-hot);
+  --prado-in-surface: var(--ci-in-surface); --prado-in-surface-2: var(--ci-in-surface-2); --prado-in-surface-3: var(--ci-in-surface-3); --prado-in-text: var(--ci-in-text); --prado-in-strong: var(--ci-in-strong); --prado-in-hover: var(--ci-in-hover);
+  --prado-dk-surface: var(--ci-dk-surface); --prado-dk-surface-2: var(--ci-dk-surface-2); --prado-dk-surface-3: var(--ci-dk-surface-3); --prado-dk-text: var(--ci-dk-text); --prado-dk-dim: var(--ci-dk-dim); --prado-dk-faint: var(--ci-dk-faint);
+  --prado-dk-border: var(--ci-dk-border); --prado-dk-strong: var(--ci-dk-strong); --prado-dk-hover: var(--ci-dk-hover);
+  --prado-dk-pane: var(--ci-dk-pane); --prado-dk-pane-head: var(--ci-gel); --prado-dk-pane-ink: var(--ci-pane-ink); --prado-dk-pane-hot: var(--ci-pane-hot); --prado-dk-btn: var(--ci-gel); --prado-dk-btn-edge: var(--ci-edge);
+  --cp-xp-head: var(--ci-link); --cp-xp-link: var(--ci-link); --cp-xp-dk-head: var(--ci-dk-link); --cp-xp-dk-link: var(--ci-dk-link);
+  --va-gel: var(--ci-gel); --va-pill-off: var(--ci-task); --va-edge: var(--ci-edge); --va-ink: var(--ci-title-ink); --va-shadow: var(--ci-title-shadow);
+  --va-orb: var(--ci-orb); --va-grille: var(--ci-grille); --va-foot: var(--ci-menu-foot); --va-ctl-ink: var(--ci-ctl-ink); --va-hot: var(--ci-btn-hot);
+}/* Circuito es oscuro siempre: el interior no se aclara en el modo claro */
+[data-skin="prado"][data-variant="circuito"][data-theme="light"] { --prado-in-dim: var(--ci-dk-dim); --prado-in-faint: var(--ci-dk-faint); --prado-in-border: var(--ci-dk-border); --prado-pane: var(--ci-pane); color-scheme: dark; }
+/* el título va dentro de una píldora hundida: de gel en la ventana activa, oscura en las demás */
+[data-skin="prado"][data-variant] .window .titlebar .title { flex: 0 1 auto; min-width: 0; margin: 0 auto; padding: 1px 22px 2px; border: 1px solid var(--va-edge); border-radius: 4px; background: var(--va-pill-off); color: var(--va-ink); text-align: center; text-shadow: 0 0 4px var(--va-shadow); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+[data-skin="prado"][data-variant] .window.focused .titlebar .title { background: var(--va-gel); color: var(--va-ink); }
+/* botones de la ventana: orbes redondos */
+[data-skin="prado"][data-variant] .window .win-ctrls { gap: 3px; padding-top: 3px; }
+[data-skin="prado"][data-variant] .window .win-ctrls button { width: 21px !important; height: 21px !important; border-radius: 50% !important; color: var(--va-ctl-ink); box-shadow: 0 1px 2px var(--era-shade); }
+/* Inicio: una píldora de gel, sin texto */
+[data-skin="prado"][data-variant] .era-prado .tb-start { width: 86px; margin: 2px 6px 2px 4px; padding: 0; justify-content: center; border-radius: 14px !important; border: 1px solid var(--va-edge); }
+[data-skin="prado"][data-variant] .era-prado .tb-start-text { display: none; }
+[data-skin="prado"][data-variant] .era-prado .tb-task { border-radius: 4px; color: var(--va-ink); }
+/* cabecera del menú Inicio: foto en su marco, nombre en una barra de gel, rejilla y orbe */
+[data-skin="prado"][data-variant] .startmenu .sm-head { gap: 10px; padding: 8px 10px; }
+[data-skin="prado"][data-variant] .startmenu .sm-head b { flex: 1; padding: 3px 10px; border: 1px solid var(--va-edge); border-radius: 3px; background: var(--va-gel); color: var(--va-ink); }
+[data-skin="prado"][data-variant] .startmenu .sm-head::before { content: ""; order: 2; width: 46px; height: 16px; background: var(--va-grille); border-radius: 2px; }
+[data-skin="prado"][data-variant] .startmenu .sm-head::after { content: ""; order: 3; width: 48px; height: 48px; flex: 0 0 auto; border-radius: 50%; background: var(--va-orb); box-shadow: 0 2px 6px var(--era-shade); }
+[data-skin="prado"][data-variant] .startmenu .sm-head b { order: 1; }
+[data-skin="prado"][data-variant] .startmenu .sm-left, [data-skin="prado"][data-variant] .startmenu .sm-right { font-weight: 700; }
+[data-skin="prado"][data-variant] .era-prado .sm-foot { background: var(--va-foot); }
+/* barras de desplazamiento de gel */
+[data-skin="prado"][data-variant] ::-webkit-scrollbar-thumb { background: var(--va-gel); border: 1px solid var(--va-edge); border-radius: 6px; }
+[data-skin="prado"][data-variant] ::-webkit-scrollbar-thumb:hover { background: var(--va-gel); border-color: var(--va-hot); }
 /* ---- Cristal (2007) ---- */
 [data-skin="cristal"] {
   --ui: var(--cristal-ui);
@@ -736,6 +871,14 @@
 
 /* vistas previas de las épocas (Ajustes → Apariencia): i = ventana, b = barra, em = Inicio o dock */
 .skin-prev-prado { background: var(--prev-prado); }
+.skin-prev-nucleo { background: var(--prev-nucleo); }
+.skin-prev-nucleo i { left: 24%; top: 16%; width: 52%; height: 56%; background: var(--prev-paper); border: 2px solid var(--nu-frame); border-top: 9px solid var(--nu-frame); border-radius: 5px 5px 0 0; }
+.skin-prev-nucleo b { left: 0; right: 0; bottom: 0; height: 11%; background: var(--nu-bar); }
+.skin-prev-nucleo em { left: 3%; bottom: 1%; width: 17%; height: 9%; background: var(--nu-start); border-radius: 6px; }
+.skin-prev-circuito { background: var(--prev-circuito); }
+.skin-prev-circuito i { left: 24%; top: 12%; width: 52%; height: 56%; background: var(--ci-in-surface); border: 1px solid var(--ci-frame); border-top: 9px solid var(--ci-in-surface-3); border-radius: 4px 4px 0 0; }
+.skin-prev-circuito b { left: 0; right: 0; bottom: 0; height: 11%; background: var(--ci-bar); }
+.skin-prev-circuito em { left: 3%; bottom: 1%; width: 17%; height: 9%; background: var(--ci-start); border-radius: 6px; }
 .skin-prev-cristal { background: var(--prev-cristal); }
 .skin-prev-vidrio { background: var(--prev-vidrio); }
 .skin-prev-mosaico { background: var(--prev-mosaico); }

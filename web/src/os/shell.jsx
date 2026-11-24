@@ -15,7 +15,7 @@ import { LoginScreen } from "./auth-ui.jsx";
 import { FilePickerHost } from "./filepicker.jsx";
 import { Taskbar, StartMenu, StartScreen } from "./taskbar.jsx";
 import { AccountPanel } from "./cuenta.jsx";
-import { eraOf, isWinSkin } from "./epocas.js";
+import { eraOf, isWinSkin, baseSkin } from "./epocas.js";
 import { playEra, playUi } from "./sonidos.js";
 import { wallUrl, isWall } from "./wallpapers.js";
 import { GlobalContextMenu } from "./context-menu.jsx";
@@ -658,7 +658,8 @@ function OS() {
   useEh(() => {
     const r = document.documentElement;
     r.setAttribute("data-theme", settings.theme);
-    r.setAttribute("data-skin", settings.skin || "sotos");
+    r.setAttribute("data-skin", baseSkin(settings.skin || "sotos"));
+    if (eraOf(settings.skin)?.base) r.setAttribute("data-variant", settings.skin); else r.removeAttribute("data-variant"); // Núcleo: estructura de Prado con su arte
     setBrandLogo(settings.logo);
     r.setAttribute("data-wallgray", settings.skin === "grafito" && settings.wallGray !== false ? "1" : "0");
     r.style.setProperty("--accent", settings.accent);
@@ -878,10 +879,10 @@ function OS() {
         );
       })}
       {isWinSkin(settings.skin) ? <>
-        <Taskbar skin={settings.skin} wins={wins} topId={top?.id} order={dockCfg} running={running} badges={badges} profile={shownProfile} settings={settings}
+        <Taskbar skin={baseSkin(settings.skin)} wins={wins} topId={top?.id} order={dockCfg} running={running} badges={badges} profile={shownProfile} settings={settings}
           startOpen={start} onStart={() => { if (!start) playUi("inicio"); setStart(s => !s); }} onApp={(id) => { setStart(false); openApp(id); }} onWin={taskWin} onLogout={logout} onSearch={() => setSpot(true)}
           tray={<><NotificationBell onOpenLink={openLink} /><TransfersIndicator /><SyncIndicator /><BatteryIndicator /></>} />
-        {start && eraOf(settings.skin).start === "menu" && <StartMenu skin={settings.skin} profile={shownProfile} order={dockCfg} onApp={openApp} onOpenFolder={(id) => openApp("files", { folderId: id, nonce: Date.now() })} onLogout={logout} onClose={() => setStart(false)} onSearchAll={() => setSpot(true)} onAccount={() => { setStart(false); setAcct("bottom-left"); }} />}
+        {start && eraOf(settings.skin).start === "menu" && <StartMenu skin={baseSkin(settings.skin)} profile={shownProfile} order={dockCfg} onApp={openApp} onOpenFolder={(id) => openApp("files", { folderId: id, nonce: Date.now() })} onLogout={logout} onClose={() => setStart(false)} onSearchAll={() => setSpot(true)} onAccount={() => { setStart(false); setAcct("bottom-left"); }} />}
         {start && eraOf(settings.skin).start === "screen" && <StartScreen profile={shownProfile} order={dockCfg} badges={badges} wallSrc={wallSrc} onApp={(id) => { setStart(false); openApp(id); }} onDesktop={() => setStart(false)} onLogout={logout} onAccount={() => setAcct("top-right")} />}
       </> : <>
         <MenuBar activeApp={activeApp} settings={settings} update={update} profile={shownProfile} onApp={openApp} onNew={newDoc} onLogout={logout} onSearch={() => setSpot(true)} onOpenLink={openLink} onAccount={() => setAcct(a => a ? null : "top-right")} />

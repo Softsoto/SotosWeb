@@ -24,6 +24,8 @@ export const ERA_WALLS = [
   { id: "era-vidrio",   name: "Vidrio",   hint: "Haces de luz turquesa" },
   { id: "era-mosaico",  name: "Mosaico",  hint: "Facetas de color" },
   { id: "era-aluminio", name: "Aluminio", hint: "Montañas al atardecer" },
+  { id: "era-nucleo",   name: "Núcleo",   hint: "Núcleo verde sobre una rejilla" },
+  { id: "era-circuito", name: "Circuito", hint: "Rejilla de luz y estelas" },
 ];
 
 /* Fotos (licencia CC0, Wikimedia Commons), en web/public/fondos. Combinan con el tema Grafito,
@@ -291,7 +293,50 @@ const SCENES = {
       for (const tri of [[A, B, C], [B, D, C]]) { g.fillStyle = cols[Math.floor(k.rand() * cols.length)]; g.globalAlpha = Math.min(1, 0.25 + (i / 13) * 0.9); g.beginPath(); g.moveTo(...tri[0]); g.lineTo(...tri[1]); g.lineTo(...tri[2]); g.fill(); } }
     g.globalAlpha = 1;
   },
-  "era-aluminio"(g, k) {
+  /* suelo de rejilla en perspectiva (Núcleo y Circuito) */
+  "era-nucleo"(g, k) {
+    const { W, H, u } = k, hz = H * 0.62, cx = W * 0.5, cy = H * 0.34, R = Math.min(W, H) * 0.17;
+    g.fillStyle = "#020402"; g.fillRect(0, 0, W, H);
+    // estrellas
+    for (let i = 0; i < 420; i++) { g.fillStyle = `rgba(220,255,200,${(0.1 + k.rand() * 0.6).toFixed(2)})`; g.fillRect(k.rand() * W, k.rand() * hz, k.rand() < 0.1 ? 2 * u : 1, k.rand() < 0.1 ? 2 * u : 1); }
+    g.save(); g.globalCompositeOperation = "lighter";
+    // gran resplandor verde detrás del núcleo y sobre el horizonte
+    const glow = g.createRadialGradient(cx, cy, R * 0.3, cx, cy, Math.max(W, H) * 0.7); glow.addColorStop(0, "rgba(150,240,40,.55)"); glow.addColorStop(0.25, "rgba(70,160,13,.32)"); glow.addColorStop(1, "rgba(20,60,5,0)"); g.fillStyle = glow; g.fillRect(0, 0, W, H);
+    const hzGlow = g.createLinearGradient(0, hz - 90 * u, 0, hz + 40 * u); hzGlow.addColorStop(0, "rgba(120,220,30,0)"); hzGlow.addColorStop(0.7, "rgba(160,250,60,.45)"); hzGlow.addColorStop(1, "rgba(120,220,30,0)"); g.fillStyle = hzGlow; g.fillRect(0, hz - 90 * u, W, 130 * u);
+    // suelo de rejilla en perspectiva
+    g.strokeStyle = "rgba(150,240,60,.55)"; g.lineWidth = 1.4 * u;
+    for (let i = -24; i <= 24; i++) { g.beginPath(); g.moveTo(cx + i * 6 * u, hz); g.lineTo(cx + i * W * 0.14, H); g.stroke(); }
+    for (let j = 1; j < 22; j++) { const y = hz + (H - hz) * Math.pow(j / 21, 2.2); g.globalAlpha = 0.25 + j / 30; g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
+    g.globalAlpha = 1;
+    // el núcleo: esfera de gel con anillo metálico
+    g.restore();
+    const ring = g.createLinearGradient(cx, cy - R * 1.3, cx, cy + R * 1.3); ring.addColorStop(0, "#e8e6ea"); ring.addColorStop(0.45, "#6f6e72"); ring.addColorStop(0.55, "#2a2a2a"); ring.addColorStop(1, "#9a999a");
+    g.fillStyle = ring; g.beginPath(); g.arc(cx, cy, R * 1.28, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "#0b0b0b"; g.beginPath(); g.arc(cx, cy, R * 1.08, 0, Math.PI * 2); g.fill();
+    const core = g.createRadialGradient(cx, cy + R * 0.45, R * 0.05, cx, cy, R); core.addColorStop(0, "#f3f0bd"); core.addColorStop(0.3, "#d1fd59"); core.addColorStop(0.65, "#47a10d"); core.addColorStop(1, "#163f03");
+    g.fillStyle = core; g.beginPath(); g.arc(cx, cy, R, 0, Math.PI * 2); g.fill();
+    g.fillStyle = "rgba(255,255,255,.35)"; g.beginPath(); g.ellipse(cx, cy - R * 0.55, R * 0.6, R * 0.28, 0, 0, Math.PI * 2); g.fill();
+  },
+  "era-circuito"(g, k) {
+    const { W, H, u } = k, hz = H * 0.5, cx = W * 0.5;
+    const sky = g.createLinearGradient(0, 0, 0, hz); sky.addColorStop(0, "#000000"); sky.addColorStop(1, "#04121a"); g.fillStyle = sky; g.fillRect(0, 0, W, hz);
+    g.fillStyle = "#010406"; g.fillRect(0, hz, W, H - hz);
+    // montañas en contorno sobre el horizonte
+    g.strokeStyle = "rgba(25,211,255,.35)"; g.lineWidth = 1.2 * u; g.beginPath(); g.moveTo(0, hz); let y = hz;
+    for (let x = 0; x <= W; x += 30 * u) { y = hz - Math.abs(Math.sin(x * 0.006) * 70 * u + Math.sin(x * 0.017) * 30 * u) - k.rand() * 10 * u; g.lineTo(x, y); } g.lineTo(W, hz); g.stroke();
+    g.save(); g.globalCompositeOperation = "lighter";
+    const line = g.createLinearGradient(0, hz - 40 * u, 0, hz + 40 * u); line.addColorStop(0, "rgba(25,211,255,0)"); line.addColorStop(0.5, "rgba(95,230,255,.7)"); line.addColorStop(1, "rgba(25,211,255,0)"); g.fillStyle = line; g.fillRect(0, hz - 40 * u, W, 80 * u);
+    // rejilla del suelo
+    g.strokeStyle = "rgba(25,211,255,.5)"; g.lineWidth = 1.2 * u;
+    for (let i = -30; i <= 30; i++) { g.beginPath(); g.moveTo(cx + i * 4 * u, hz); g.lineTo(cx + i * W * 0.12, H); g.stroke(); }
+    for (let j = 1; j < 26; j++) { const yy = hz + (H - hz) * Math.pow(j / 25, 2.4); g.globalAlpha = 0.2 + j / 32; g.beginPath(); g.moveTo(0, yy); g.lineTo(W, yy); g.stroke(); }
+    g.globalAlpha = 1;
+    // estelas de luz que giran en ángulo recto (cian y naranja)
+    const trail = (pts, col) => { for (const [w, a] of [[10, 0.08], [5, 0.18], [2, 0.9]]) { g.strokeStyle = col.replace("A", a); g.lineWidth = w * u; g.lineJoin = "miter"; g.beginPath(); pts.forEach(([x, yy], i) => i ? g.lineTo(x * W, yy * H) : g.moveTo(x * W, yy * H)); g.stroke(); } };
+    trail([[0, 0.82], [0.3, 0.82], [0.3, 0.66], [0.58, 0.66], [0.58, 0.74], [0.8, 0.74]], "rgba(95,230,255,A)");
+    trail([[1, 0.9], [0.72, 0.9], [0.72, 0.6], [0.46, 0.6], [0.46, 0.56]], "rgba(255,150,40,A)");
+    g.restore();
+  },  "era-aluminio"(g, k) {
     const { W, H, u } = k; const sky = g.createLinearGradient(0, 0, 0, H * 0.75); sky.addColorStop(0, "#14263f"); sky.addColorStop(0.45, "#3e5a78"); sky.addColorStop(0.8, "#d98a5c"); sky.addColorStop(1, "#f2c48d"); g.fillStyle = sky; g.fillRect(0, 0, W, H);
     const ridge = (base, amp, col, seed) => { g.fillStyle = col; g.beginPath(); g.moveTo(-10, H); let y = base;
       for (let x = -10; x <= W + 20; x += 18 * u) { y += (Math.sin(x * 0.004 + seed) + Math.sin(x * 0.011 + seed * 2)) * amp * 0.06 + (k.rand() - 0.5) * amp * 0.08; y = Math.max(base - amp, Math.min(base + amp * 0.4, y)); g.lineTo(x, y); } g.lineTo(W + 20, H); g.fill(); };
