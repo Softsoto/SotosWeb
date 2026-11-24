@@ -59,7 +59,8 @@
   .req i { font-style: normal; width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; color: #fff; font-weight: 800; font-size: 13px; }
   .req .y { background: var(--ok); } .req .n { background: var(--bad); } .req .w { background: var(--warn); }
   .req small { display: block; color: var(--muted); word-break: break-all; }
-  .opt { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--field); margin-bottom: 8px; cursor: pointer; }
+  [hidden] { display: none !important; }
+.opt { display: flex; gap: 12px; align-items: flex-start; padding: 12px; border: 1.5px solid var(--line); border-radius: 8px; background: var(--field); margin-bottom: 8px; cursor: pointer; }
   .opt input { margin-top: 3px; accent-color: var(--accent); width: 17px; height: 17px; }
   .opt b { display: block; } .opt small { color: var(--muted); }
   .opt.disabled { opacity: .55; cursor: not-allowed; }
@@ -339,11 +340,13 @@ function renderTargets() {
   $("tips").innerHTML = TARGETS[target].tips[lang === "en" ? "en" : "es"].map(x => `<div>${esc(x)}</div>`).join("");
   document.querySelectorAll("[data-target]").forEach(el => el.onclick = () => { target = el.dataset.target; applyTarget(); renderTargets(); });
 }
-let detected = null;
+let detected = null, container = false;
 function applyTarget() {
   $("autostartBox").hidden = !(target === "computer" && platform === "win32");
   const hostIn = $("host");
-  if (!hostIn.dataset.touched) hostIn.value = target === "hosting" ? "" : target === "computer" ? "localhost" : (ips[0] || "localhost");
+  // en un contenedor sus IP son internas: se sugiere la dirección con la que este navegador llegó al asistente
+  const seen = /^(localhost|127\.|\[?::1)/.test(location.hostname) ? null : location.hostname;
+  if (!hostIn.dataset.touched) hostIn.value = target === "hosting" ? (container && seen && !/^\d+\.\d+\.\d+\.\d+$/.test(seen) ? seen : "") : target === "computer" ? "localhost" : (container ? (seen || "localhost") : (ips[0] || seen || "localhost"));
   hostIn.placeholder = target === "hosting" ? "sotos.midominio.com" : "";
   // servicios recomendados según la memoria del equipo
   if (!servicesTouched) document.querySelectorAll("#services input").forEach(i => { i.checked = (i.value === "drawio") || (i.value === "jellyfin" && target !== "hosting") || (memGb >= 6 && (i.value === "office" || (i.value === "immich" && target !== "hosting"))); });
@@ -383,7 +386,7 @@ function nav() {
 }
 let demo = false;
 async function loadReqs() {
-  try { const r = await api("GET", "requirements"); reqs = r.items; demo = r.demo; platform = r.platform; memGb = r.memGb; ips = r.ips || []; if (!detected) { detected = r.target; target = r.target; applyTarget(); renderTargets(); } renderReqs(); if (!$("host").value) $("host").value = r.host || "localhost"; $("dbEngine").textContent = r.db.engine; $("dbFile").value = r.db.file; $("dbBlobs").value = r.db.blobs; $("demoNote").hidden = !demo; }
+  try { const r = await api("GET", "requirements"); reqs = r.items; demo = r.demo; platform = r.platform; memGb = r.memGb; ips = r.ips || []; container = !!r.container; if (!detected) { detected = r.target; target = r.target; applyTarget(); renderTargets(); } renderReqs(); if (!$("host").value) $("host").value = r.host || "localhost"; $("dbEngine").textContent = r.db.engine; $("dbFile").value = r.db.file; $("dbBlobs").value = r.db.blobs; $("demoNote").hidden = !demo; }
   catch (e) { sections[step].querySelector("[data-err]") && (sections[step].querySelector("[data-err]").textContent = e.message); }
   nav();
 }

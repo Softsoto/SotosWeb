@@ -142,7 +142,7 @@ export async function handleSetup(req, res, parts) {
   if (a === "status" && req.method === "GET") return json(res, 200, { installed: isInstalled(), local: isLocal(req), site: getSetting("siteName", "Sotos") });
   guard(req);
   if (a === "check" && req.method === "POST") return json(res, 200, { ok: true });
-  if (a === "requirements" && req.method === "GET") return json(res, 200, { target: detectTarget(), platform: process.platform, memGb: Math.round(os.totalmem() / 1073741824), ips: lanIps(), demo: DEMO, db: { engine: "SQLite " + (process.versions.sqlite || ""), file: path.join(DATA_DIR, "sotos.db"), blobs: path.join(DATA_DIR, "blobs") }, items: await requirements(), env: envFile(), data: DATA_DIR, port: Number(process.env.PORT || 8787), host: String(req.headers.host || "").split(":")[0], tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
+  if (a === "requirements" && req.method === "GET") return json(res, 200, { target: detectTarget(), platform: process.platform, memGb: Math.round(os.totalmem() / 1073741824), ips: lanIps(), container: fs.existsSync("/.dockerenv"), demo: DEMO, db: { engine: "SQLite " + (process.versions.sqlite || ""), file: path.join(DATA_DIR, "sotos.db"), blobs: path.join(DATA_DIR, "blobs") }, items: await requirements(), env: envFile(), data: DATA_DIR, port: Number(process.env.PORT || 8787), host: String(req.headers.host || "").split(":")[0], tz: Intl.DateTimeFormat().resolvedOptions().timeZone });
   if (a === "install" && req.method === "POST") {
     const b = await readJson(req, 64 * 1024);
     const name = String(b.adminName || "").trim().slice(0, 60), email = String(b.adminEmail || "").trim().toLowerCase(), pw = String(b.adminPassword || "");

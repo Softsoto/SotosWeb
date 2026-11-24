@@ -1,6 +1,12 @@
 **/node_modules
 web/dist
 server/data
+server/sotos.env
+services/whatsapp/data
+services/**/media-cache
+dist-paquetes
+demo-dist
 .git
 .env
+**/.env
 *.log

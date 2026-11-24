@@ -10,7 +10,7 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 3.6 |
+| **Versión** | 3.6.2 |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
 | **Licencia** | [MIT](LICENSE) |
@@ -36,7 +36,9 @@ Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde 
 
 ## Novedades
 
-**Versión 3.6** ([historial completo](CHANGELOG.md)): **temas de época** (Prado, Cristal, Vidrio, Mosaico y Aluminio) con íconos, fondos y sonidos propios, **tu cuenta a un clic en tu foto**, **Contribuir y donaciones**, y **descargas al servidor**.
+**Versión 3.6.2** ([historial completo](CHANGELOG.md)): **Panel de control** (desinstalar programas, programas predeterminados, seguridad y mantenimiento, sonido, dispositivos, fecha y hora, almacenamiento y más), dos temas nuevos, **Núcleo** (metal y gel verde) y **Circuito** (negro con líneas de luz), y arreglos: los PDF vuelven a abrirse y la imagen de Docker arranca completa.
+
+**Versión 3.6**: **temas de época** (Prado, Cristal, Vidrio, Mosaico y Aluminio) con íconos, fondos y sonidos propios, **tu cuenta a un clic en tu foto**, **Contribuir y donaciones**, y **descargas al servidor**.
 
 **Versión 3.5**: **SDK para crear apps** de la Tienda, **calendario y contactos en el celular** (CalDAV/CardDAV), **recuperar la contraseña por correo**, **copias fuera del servidor** (otro disco, NAS o S3), enlaces con **contraseña, límite de descargas y carpetas para pedir archivos**, y un **selector de archivos** común a todas las apps.
 
@@ -361,6 +363,16 @@ En cada [versión publicada](https://github.com/Softsoto/SotosWeb/releases/lates
 # Linux / VPS
 curl -fsSLO https://github.com/Softsoto/SotosWeb/releases/latest/download/instalar-sotos.sh && bash instalar-sotos.sh --servicio
 ```
+
+```bash
+# Docker (cualquier equipo, VPS o NAS)
+# desde el paquete descomprimido (ya compilado, rápido):
+docker compose -f docker-compose.nas.yml up -d --build
+# o desde el código:
+docker build -t sotos . && docker run -d --name sotos --restart unless-stopped -p 8787:8787 -v sotos-datos:/data sotos
+```
+
+Después abre `http://IP-DEL-EQUIPO:8787` y termina en el asistente. Los datos y la configuración quedan en el volumen `/data`, así que recrear o actualizar el contenedor no los toca.
 
 La aplicación y tus datos viven en carpetas separadas: actualizar o desinstalar nunca toca tus archivos, cuentas ni configuración.
 

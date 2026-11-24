@@ -3,6 +3,23 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.6.2 — 23 de noviembre de 2026
+
+### Nuevo
+- **Panel de control** (en Inicio y al tocar el reloj): vista por categorías o por íconos, atrás/adelante y buscador.
+  - **Programas y características**: lo instalado con su editor, fecha, tamaño y versión; desinstalar (con opción de borrar los datos de la app) y, para el administrador, quitar apps del servidor.
+  - **Programas predeterminados**: qué app abre cada tipo de archivo; el doble clic lo respeta y los archivos sin app propia se abren con la app del SDK que los admite.
+  - **Seguridad y mantenimiento**: dos pasos, sesiones, conexión, sincronización, espacio, papelera, copias y actualizaciones, cada uno con su botón para arreglarlo.
+  - **Sistema** (con informe para copiar), **Copias de seguridad**, **Herramientas administrativas**, **Cuentas** y **Sesiones**, **Personalización** y **Fondo**.
+  - **Sonido** (prueba de altavoz izquierdo y derecho, medidor del micrófono, esquemas de sonido), **Dispositivos** (pantalla, cámaras, micrófonos, batería, red, mandos), **Fecha y hora** (reloj, relojes de otras zonas, comparar la hora con el servidor), **Región** y **Almacenamiento** (uso por tipo, archivos más grandes, vaciar la papelera, borrar la copia local del navegador).
+- **Temas Núcleo y Circuito**: Núcleo con metal plateado, título en píldora de gel verde, orbes y menú Inicio de metal; Circuito en negro brillante con líneas de luz cian, rejilla en perspectiva y estelas. Con fondos y sonidos propios.
+
+### Arreglado
+- **Los PDF no se abrían**: el servidor mandaba los archivos `.mjs` (y el `.wasm` del abridor de comprimidos) con un tipo equivocado y el navegador se negaba a usarlos.
+- **Imagen de Docker**: el `Dockerfile` principal no copiaba `sdk/` ni `VERSION`, así que el contenedor no arrancaba. Ahora trae ffmpeg, guarda la configuración del asistente en `/data` y ajusta los permisos de la carpeta de datos.
+- Íconos que salían como texto (el rectángulo de Paint, íconos de Mundos, Juegos y Contactos, la noche en el clima).
+- Ajustes → Acerca de muestra la versión real.
+
 ## 3.6.1 — 23 de noviembre de 2026
 
 ### Arreglado
