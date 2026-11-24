@@ -5,7 +5,7 @@
 import React from "react";
 import * as vfs from "./vfs.js";
 import { fmtSize, fmtDate } from "./vfs.js";
-import { FileGlyph, Modal, toast, Ic } from "./ui.jsx";
+import { FileGlyph, Modal, toast, Ic, copyText } from "./ui.jsx";
 import { api } from "./api.js";
 import { APPS } from "./data.jsx";
 import { isInstalled } from "./installed.js";
@@ -269,7 +269,7 @@ export function ShareDialog({ id, onClose }) {
       <div className="muted" style={{ fontSize: 13.5 }}>Estás como invitado: tus archivos solo existen en este navegador. Inicia sesión con una cuenta de Sotos para compartir enlaces.</div>
     </Modal>
   );
-  const copy = (t) => { navigator.clipboard?.writeText(shareUrl(t)).then(() => toast("Enlace copiado", { icon: "content_copy" })).catch(() => {}); };
+  const copy = (t) => { copyText(shareUrl(t)).then(() => toast("Enlace copiado", { icon: "content_copy" })).catch(() => toast("No se pudo copiar", { error: true })); };
   const create = async () => {
     setBusy(true);
     try {
@@ -296,7 +296,7 @@ export function ShareDialog({ id, onClose }) {
         {perm !== "upload" && <label className="field">Solo para estas personas (opcional)
           <input placeholder="correo@ejemplo.com, otro@ejemplo.com" value={emails} onChange={e => setEmails(e.target.value)} /></label>}
         <div className="faint" style={{ fontSize: 12 }}>{perm === "upload" ? "Quien tenga el enlace podrá subir archivos a esta carpeta, pero no verá lo que hay dentro. Te avisamos con cada archivo que llegue." : emails.trim() ? "Solo esas cuentas de Sotos podrán abrirlo y lo verán en “Compartido conmigo”." : "Cualquiera con el enlace podrá abrirlo, sin cuenta."}{pass ? " Pedirá la contraseña." : ""}{perm === "view" && Number(maxDl) ? " Con límite de descargas no se muestran vistas previas." : ""}</div>
-        {made && <div className="share-link"><span>{shareUrl(made)}</span><button className="tb-btn primary" onClick={() => copy(made)}><Ic name="content_copy" size={16} /> Copiar</button></div>}
+        {made && <div className="share-link"><input readOnly value={shareUrl(made)} aria-label="Enlace para compartir" onFocus={e => e.target.select()} onClick={e => e.target.select()} /><button className="tb-btn primary" onClick={() => copy(made)}><Ic name="content_copy" size={16} /> Copiar</button></div>}
         {list?.length > 0 && <div>
           <div className="side-label" style={{ padding: "6px 0" }}>Enlaces activos</div>
           {list.map(s => (

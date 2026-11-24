@@ -37,7 +37,7 @@ export function AdminApp({ tab: openTab, nonce }) {
     <div className="app admin-app">
       <div className="app-side">
         <div className="side-label">Administración</div>
-        {[["resumen", "monitoring", "Resumen"], ["usuarios", "group", "Usuarios"], ["registro", "history", "Registro"], ["copias", "backup", "Copias"], ["apps", "extension", "Apps"], ["servidor", "dns", "Servidor"]].map(([id, icon, label]) =>
+        {[["resumen", "monitoring", "Resumen"], ["usuarios", "group", "Usuarios"], ["registro", "history", "Registro"], ["copias", "backup", "Copias"], ["apps", "extension", "Apps"], ["servicios", "widgets", "Servicios"], ["servidor", "dns", "Servidor"]].map(([id, icon, label]) =>
           <div key={id} className={"side-item" + (tab === id ? " active" : "")} onClick={() => setTab(id)}><Ic name={icon} /><span>{label}</span></div>)}
       </div>
       <div className="app-main scroll" style={{ padding: "18px 22px", display: "block" }}>
@@ -76,6 +76,7 @@ export function AdminApp({ tab: openTab, nonce }) {
         {tab === "registro" && <AuditLog />}
         {tab === "copias" && <Backups />}
         {tab === "apps" && <ServerApps />}
+        {tab === "servicios" && <ServerServices />}
       </div>
 
       {files && <UserFiles u={files} onClose={() => setFiles(null)} onChanged={() => { loadUsers(); loadStats(); }} />}
@@ -303,6 +304,62 @@ function Backups() {
 }
 
 /** apps del SDK instaladas en el servidor: subir un .zip, ver permisos y quitar */
+/* servicios opcionales en Docker, después de instalar Sotos (antes solo desde el asistente o scripts/) */
+const SERVICE_INFO = [
+  ["office", "description", "Office completo", "Word, Excel y PowerPoint con coedición (Euro-Office u ONLYOFFICE). Unos 3 GB."],
+  ["drawio", "account_tree", "Diagramas", "draw.io propio en el servidor. Unos 600 MB."],
+  ["neko", "language", "Navegador virtual", "Firefox en el servidor para sitios que no se dejan abrir en una ventana, y WhatsApp. Usa 2 GB de memoria compartida."],
+  ["jellyfin", "live_tv", "Cine", "Jellyfin con tus películas y series de Sotos. Unos 800 MB."],
+  ["immich", "photo_library", "Fotos", "Immich con reconocimiento de caras y lugares. La primera vez descarga varios GB y usa bastante memoria."],
+];
+function ServerServices() {
+  const [d, setD] = useState(null), [pick, setPick] = useState([]), [engine, setEngine] = useState("eurooffice"), [lines, setLines] = useState([]), [busy, setBusy] = useState(false), [state, setState] = useState({});
+  const load = () => api("GET", "services").then(setD).catch(e => setD({ error: e.message }));
+  useEffect(() => { load(); }, []);
+  const install = async () => {
+    setBusy(true); setLines([]); setState({});
+    try {
+      const r = await fetch("/api/services", { method: "POST", headers: { "x-sotos": "1", "content-type": "application/json" }, body: JSON.stringify({ services: pick, officeEngine: engine }) });
+      if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(j.error || "No se pudo empezar"); }
+      const rd = r.body.getReader(), dec = new TextDecoder(); let buf = "", restart = false;
+      for (;;) { const { done, value } = await rd.read(); if (done) break; buf += dec.decode(value, { stream: true }); let i;
+        while ((i = buf.indexOf("\n")) >= 0) { const line = buf.slice(0, i); buf = buf.slice(i + 1); if (!line.trim()) continue; const m = JSON.parse(line);
+          if (m.service && (m.done || m.error)) setState(s => ({ ...s, [m.service]: m.done ? "ok" : m.error }));
+          if (m.log || m.msg) setLines(l => [...l.slice(-200), m.log || m.msg]);
+          if (m.restart) restart = true; } }
+      if (restart) { toast("Sotos se está reiniciando con los servicios nuevos. Recarga en unos segundos.", { icon: "restart_alt" }); setTimeout(() => location.reload(), 8000); }
+      else load();
+    } catch (e) { toast(e.message, { error: true }); }
+    setBusy(false); setPick([]);
+  };
+  if (!d) return <div className="faint">Cargando…</div>;
+  if (d.error) return <div className="admin-warn soft"><Ic name="error" /><div>{d.error}</div></div>;
+  return <>
+    <h2 style={{ fontSize: 19, fontWeight: 800, marginTop: 0 }}>Servicios opcionales</h2>
+    <div className="muted" style={{ fontSize: 13, marginBottom: 12 }}>Sotos funciona sin ellos. Cada uno corre en su propio contenedor de Docker en este servidor.</div>
+    {d.docker
+      ? <div className="admin-warn soft" style={{ marginBottom: 12 }}><Ic name="check_circle" /><div>Docker {d.docker} disponible{d.container ? `. Sotos corre en un contenedor${d.network ? ` y los servicios irán en la red ${d.network}` : ""}.` : "."}</div></div>
+      : <div className="admin-warn" style={{ marginBottom: 12 }}><Ic name="error" /><div>Sotos no puede usar Docker en este servidor{d.dockerError ? ` (${d.dockerError})` : ""}. {d.container ? "En un NAS, monta /var/run/docker.sock en el contenedor de Sotos y arráncalo con SOTOS_UID=0 (ver docker-compose.nas.yml)." : "Instala Docker y vuelve a abrir esta pestaña."}</div></div>}
+    <div className="admin-files">
+      {SERVICE_INFO.map(([id, icon, name, desc]) => { const on = d.services[id], st = state[id];
+        return <label key={id} className="admin-file" style={{ gridTemplateColumns: "auto 1fr auto", alignItems: "center", cursor: on || !d.docker ? "default" : "pointer" }}>
+          <input type="checkbox" disabled={on || !d.docker || busy} checked={on || pick.includes(id)} onChange={e => setPick(p => e.target.checked ? [...p, id] : p.filter(x => x !== id))} aria-label={name} />
+          <span className="admin-file-name" style={{ flexDirection: "row", alignItems: "center", gap: 10 }}><Ic name={icon} size={24} />
+            <span style={{ display: "flex", flexDirection: "column" }}><b>{name}{id === "office" && d.engine ? <span className="faint" style={{ fontWeight: 400 }}> ({d.engine === "onlyoffice" ? "ONLYOFFICE" : "Euro-Office"})</span> : null}</b><span className="faint">{desc}</span></span></span>
+          <span className="faint">{st === "ok" ? "Instalado" : st ? <span style={{ color: "var(--danger, #b3412b)" }}>Falló: {st}</span> : on ? "Activo" : ""}</span>
+        </label>; })}
+    </div>
+    {pick.includes("office") && <div style={{ display: "flex", gap: 14, alignItems: "center", marginTop: 12, fontSize: 13 }}><span className="faint">Motor de Office:</span>
+      <label><input type="radio" name="oo-engine" checked={engine === "eurooffice"} onChange={() => setEngine("eurooffice")} /> Euro-Office</label>
+      <label><input type="radio" name="oo-engine" checked={engine === "onlyoffice"} onChange={() => setEngine("onlyoffice")} /> ONLYOFFICE</label></div>}
+    <div style={{ marginTop: 14, display: "flex", gap: 10, alignItems: "center" }}>
+      <button className="tb-btn primary" disabled={!pick.length || busy || !d.docker} onClick={install}><Ic name={busy ? "progress_activity" : "download"} className={busy ? "spin" : ""} /> {busy ? "Instalando…" : `Instalar ${pick.length ? pick.length : ""} servicio${pick.length === 1 ? "" : "s"}`}</button>
+      {d.installing && !busy && <span className="faint">Otra instalación está en curso.</span>}
+    </div>
+    {lines.length > 0 && <pre className="admin-log" style={{ marginTop: 12, maxHeight: 220, overflow: "auto", fontSize: 12, padding: 10, background: "var(--surface-2)", borderRadius: 8, whiteSpace: "pre-wrap" }}>{lines.join("\n")}</pre>}
+  </>;
+}
+
 function ServerApps() {
   const [d, setD] = useState(null), [busy, setBusy] = useState(false), [del, setDel] = useState(null); const inp = React.useRef(null);
   const load = () => api("GET", "apps").then(setD).catch(e => toast(e.message, { error: true }));

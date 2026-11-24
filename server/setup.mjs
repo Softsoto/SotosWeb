@@ -22,6 +22,9 @@ const ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const PAGE = fileURLToPath(new URL("./instalador.html", import.meta.url));
 const PREFIX = process.env.SOTOS_DOCKER_PREFIX || "sotos"; // nombre de los contenedores
 const DEMO = process.env.SOTOS_SETUP_DEMO === "1"; // demostración: los servicios de Docker se simulan
+// Sotos dentro de Docker (NAS): los servicios van en la misma red y se llaman por nombre; 127.0.0.1 sería el propio contenedor
+const NET = process.env.SOTOS_DOCKER_NETWORK || "";
+const SELF = process.env.SOTOS_CONTAINER_NAME || "sotos";
 const TOUR_DIR = path.join(ROOT, "docs", "capturas");
 // instalaciones que ya existían (con cuentas) se dan por instaladas: el asistente no aparece
 if (getSetting("installed") === null && db.prepare("SELECT 1 FROM users LIMIT 1").get()) setSetting("installed", { at: now(), by: "existente" });
@@ -84,7 +87,7 @@ function dockerRun(name, args, log) {
   return new Promise((ok, bad) => {
     log(`docker run ${name}…`);
     const rm = spawn("docker", ["rm", "-f", name], { windowsHide: true }); rm.on("close", () => {
-      const p = spawn("docker", ["run", "-d", "--name", name, "--restart", "unless-stopped", ...args], { windowsHide: true });
+      const p = spawn("docker", ["run", "-d", "--name", name, "--restart", "unless-stopped", ...(NET ? ["--network", NET] : []), ...args], { windowsHide: true });
       let err = ""; p.stderr.on("data", d => { err += d; const l = String(d).trim().split("\n").pop(); if (/Pulling|Download|Extract|Pull complete|Status/i.test(l)) log(l.slice(0, 120)); });
       p.on("close", c => c === 0 ? ok() : bad(new Error(err.trim().split("\n").pop() || "docker run falló")));
     });
@@ -97,7 +100,7 @@ const SERVICES = {
     const image = o.officeEngine === "onlyoffice" ? "onlyoffice/documentserver:9.1.0" : "ghcr.io/euro-office/documentserver:v9.3.1";
     await pull(image, log);
     await dockerRun(`${PREFIX}-docs`, ["-p", `${o.ports.office}:80`, "--add-host=host.docker.internal:host-gateway", "-e", "JWT_ENABLED=true", "-e", `JWT_SECRET=${secret("oo_jwt")}`, "-e", "JWT_HEADER=Authorization", "-e", "ALLOW_PRIVATE_IP_ADDRESS=true", "-e", "ALLOW_META_IP_ADDRESS=true", image], log);
-    return { OO_URL: `${o.base}:${o.ports.office}`, SOTOS_INTERNAL: `http://host.docker.internal:${o.port}`, OO_ENGINE: o.officeEngine === "onlyoffice" ? "onlyoffice" : "eurooffice" };
+    return { OO_URL: `${o.base}:${o.ports.office}`, SOTOS_INTERNAL: NET ? `http://${SELF}:${o.port}` : `http://host.docker.internal:${o.port}`, OO_ENGINE: o.officeEngine === "onlyoffice" ? "onlyoffice" : "eurooffice" };
   },
   drawio: async (o, log) => { const image = "jgraph/drawio:32.6.9"; await pull(image, log); await dockerRun(`${PREFIX}-drawio`, ["-p", `${o.ports.drawio}:8080`, image], log); return { DRAWIO_URL: `${o.base}:${o.ports.drawio}` }; },
   neko: async (o, log) => {
@@ -112,19 +115,21 @@ const SERVICES = {
     const net = path.join(cfg, "config", "network.xml");
     if (!fs.existsSync(net)) fs.writeFileSync(net, `<?xml version="1.0" encoding="utf-8"?>\n<NetworkConfiguration xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n  <BaseUrl>/jellyfin</BaseUrl>\n</NetworkConfiguration>\n`);
     await pull(image, log);
-    await dockerRun(`${PREFIX}-jellyfin`, ["-p", `127.0.0.1:${o.ports.jellyfin}:8096`, "-v", `${cfg}:/config`, "-v", `${cache}:/cache`, "-v", `${bib}:/media:ro`, image], log);
-    return { JELLYFIN_URL: `http://127.0.0.1:${o.ports.jellyfin}` };
+    await dockerRun(`${PREFIX}-jellyfin`, [...(NET ? [] : ["-p", `127.0.0.1:${o.ports.jellyfin}:8096`]), "-v", `${cfg}:/config`, "-v", `${cache}:/cache`, "-v", `${bib}:/media:ro`, image], log);
+    return { JELLYFIN_URL: NET ? `http://${PREFIX}-jellyfin:8096` : `http://127.0.0.1:${o.ports.jellyfin}` };
   },
   immich: async (o, log) => {
     const v = "v3.4.1", dir = path.join(DATA_DIR, "servicios", "immich"), bib = path.join(DATA_DIR, "biblioteca"); fs.mkdirSync(dir, { recursive: true }); fs.mkdirSync(bib, { recursive: true });
     for (const f of ["docker-compose.yml", "example.env"]) { log(`Descargando ${f} de Immich ${v}…`); const r = await fetch(`https://github.com/immich-app/immich/releases/download/${v}/${f}`); if (!r.ok) throw new Error(`No se pudo descargar ${f}`); fs.writeFileSync(path.join(dir, f), Buffer.from(await r.arrayBuffer())); }
     const envf = path.join(dir, ".env");
     if (!fs.existsSync(envf)) fs.writeFileSync(envf, `UPLOAD_LOCATION=./library\nDB_DATA_LOCATION=./postgres\nTZ=${o.tz || "UTC"}\nIMMICH_VERSION=${v}\nDB_PASSWORD=${crypto.randomBytes(18).toString("hex")}\nDB_USERNAME=postgres\nDB_DATABASE_NAME=immich\n`);
-    fs.writeFileSync(path.join(dir, "docker-compose.override.yml"), `services:\n  immich-server:\n    ports: !override\n      - '127.0.0.1:${o.ports.immich}:2283'\n    volumes:\n      - ${bib.replace(/\\/g, "/")}:/mnt/sotos:ro\n  database:\n    volumes: !override\n      - immich-db:/var/lib/postgresql/data\nvolumes:\n  immich-db:\n`);
+    fs.writeFileSync(path.join(dir, "docker-compose.override.yml"), `services:\n  immich-server:\n    ports: !override\n      - '127.0.0.1:${o.ports.immich}:2283'\n    volumes:\n      - ${bib.replace(/\\/g, "/")}:/mnt/sotos:ro\n` +
+      (NET ? `    networks:\n      - default\n      - sotos\n` : "") +
+      `  database:\n    volumes: !override\n      - immich-db:/var/lib/postgresql/data\nvolumes:\n  immich-db:\n` + (NET ? `networks:\n  sotos:\n    external: true\n    name: ${NET}\n` : ""));
     log("Arrancando Immich (servidor, aprendizaje automático, Redis y Postgres; la primera vez descarga varios GB)…");
     await new Promise((ok, bad) => { const p = spawn("docker", ["compose", "-p", `${PREFIX}-immich`, "up", "-d"], { cwd: dir, windowsHide: true }); let last = 0, err = "";
       p.stderr.on("data", d => { err += d; const l = String(d).trim().split("\n").pop(); if (Date.now() - last > 2000) { last = Date.now(); log(l.slice(0, 120)); } }); p.on("close", c => c === 0 ? ok() : bad(new Error(err.trim().split("\n").pop() || "docker compose falló"))); });
-    return { IMMICH_URL: `http://127.0.0.1:${o.ports.immich}` };
+    return { IMMICH_URL: NET ? "http://immich_server:2283" : `http://127.0.0.1:${o.ports.immich}` };
   },
 };
 
@@ -189,6 +194,47 @@ export async function handleSetup(req, res, parts) {
       send({ step: "listo", msg: "Sotos está instalado", restart: true });
       res.end(); if (!DEMO) restart();
     } catch (e) { send({ error: e.message }); res.end(); }
+    return;
+  }
+  fail(404, "No encontrado");
+}
+
+/* ---------------- servicios después de instalar (Administración → Servicios) ----------------
+   GET  /api/services          Docker, red y qué servicios están activos
+   POST /api/services { services: [...], officeEngine }   instala con avance en vivo y reinicia Sotos */
+const SERVICE_ENV = { office: "OO_URL", drawio: "DRAWIO_URL", neko: "NEKO_URL", jellyfin: "JELLYFIN_URL", immich: "IMMICH_URL" };
+let installingServices = false;
+export async function handleServices(req, res, parts, user) {
+  if (user.role !== "admin") fail(403, "Solo para administradores");
+  if (!parts[0] && req.method === "GET") {
+    const docker = DEMO ? { ok: true, out: "demostración" } : await run("docker", ["info", "--format", "{{.ServerVersion}}"]);
+    return json(res, 200, { docker: docker.ok ? docker.out.trim() : null, dockerError: docker.ok ? null : (docker.err.split("\n").find(Boolean) || "").slice(0, 200),
+      container: fs.existsSync("/.dockerenv"), network: NET || null, installing: installingServices,
+      services: Object.fromEntries(Object.entries(SERVICE_ENV).map(([k, v]) => [k, !!process.env[v]])), engine: process.env.OO_ENGINE || null });
+  }
+  if (!parts[0] && req.method === "POST") {
+    if (installingServices) fail(409, "Ya se están instalando servicios");
+    const b = await readJson(req, 16 * 1024);
+    const services = [...new Set((b.services || []).map(String))].filter(s => SERVICES[s]);
+    if (!services.length) fail(400, "Elige al menos un servicio");
+    if (!DEMO && !(await run("docker", ["info", "--format", "{{.ServerVersion}}"])).ok) fail(409, "Sotos no puede usar Docker en este servidor");
+    installingServices = true;
+    res.writeHead(200, { "content-type": "application/x-ndjson; charset=utf-8", "cache-control": "no-store", "x-accel-buffering": "no" });
+    const send = (o) => res.write(JSON.stringify(o) + "\n"); const log = (msg) => send({ log: msg });
+    const host = String(req.headers["x-forwarded-host"] || req.headers.host || "localhost").split(":")[0].replace(/^\[|\]$/g, "");
+    const o = { ...b, host, port: Number(process.env.PORT || 8787), base: `http://${host}`, tz: process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone, ports: { office: 8099, drawio: 8097, neko: 8098, jellyfin: 8096, immich: 2283 } };
+    const env = {}; let okCount = 0;
+    try {
+      for (const s of services) {
+        send({ step: "servicio", service: s, msg: `Instalando ${s}` });
+        if (DEMO) { log("[demostración] listo"); send({ service: s, done: true }); okCount++; continue; }
+        try { Object.assign(env, await SERVICES[s](o, log)); send({ service: s, done: true }); okCount++; }
+        catch (e) { send({ service: s, error: e.message }); }
+      }
+      if (okCount) { const f = writeEnv(env); log(`Configuración guardada en ${f}`); }
+      send({ step: "listo", msg: okCount ? "Listo: Sotos se reinicia para usar los servicios nuevos" : "No se instaló ningún servicio", restart: okCount > 0 });
+    } finally { installingServices = false; res.end(); }
+    if (okCount && !DEMO) restart();
     return;
   }
   fail(404, "No encontrado");

@@ -10,7 +10,7 @@
    Mayús + clic derecho deja el menú nativo del navegador.
    ============================================================ */
 import React from "react";
-import { ContextMenu, toast } from "./ui.jsx";
+import { ContextMenu, toast, copyText } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 const { useState, useEffect } = React;
 
@@ -37,7 +37,7 @@ async function copyImage(src) {
   await navigator.clipboard.write([new ClipboardItem({ "image/png": png })]);
   toast("Imagen copiada", { icon: "content_copy" });
 }
-const clip = (text, msg = "Copiado") => navigator.clipboard.writeText(text).then(() => toast(msg, { icon: "content_copy" })).catch(() => toast("Permite el acceso al portapapeles", { error: true }));
+const clip = (text, msg = "Copiado") => copyText(text).then(() => toast(msg, { icon: "content_copy" })).catch(() => toast("Permite el acceso al portapapeles", { error: true }));
 
 function buildItems(target, { openApp, winAction }) {
   const groups = [];

@@ -312,7 +312,22 @@ function Modal({ title, icon, onClose, children, actions, width = 380 }) {
   );
 }
 
-export { Tile, Ic, Win, SideItem, Toolbar, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, Modal };
+/** Copia texto al portapapeles. navigator.clipboard solo existe con HTTPS o localhost; entrando por
+    http://IP (Docker, NAS, red local) se usa una copia clásica con un textarea temporal. */
+function copyText(text) {
+  text = String(text ?? "");
+  const legacy = () => {
+    const ta = document.createElement("textarea"); ta.value = text; ta.setAttribute("readonly", "");
+    ta.style.cssText = "position:fixed;top:0;left:0;width:1px;height:1px;opacity:0;pointer-events:none";
+    const prev = document.activeElement; document.body.appendChild(ta); ta.select(); ta.setSelectionRange(0, text.length);
+    let ok = false; try { ok = document.execCommand("copy"); } catch {} ta.remove(); try { prev?.focus?.({ preventScroll: true }); } catch {}
+    return ok ? Promise.resolve() : Promise.reject(new Error("No se pudo copiar"));
+  };
+  if (navigator.clipboard && window.isSecureContext) return navigator.clipboard.writeText(text).catch(legacy);
+  return legacy();
+}
+
+export { Tile, Ic, Win, SideItem, Toolbar, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, Modal, copyText };
 
 /** Barrera de errores: si una app falla al dibujarse, solo esa ventana muestra el aviso (el resto de Sotos sigue) */
 export class AppGuard extends React.Component {

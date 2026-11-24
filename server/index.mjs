@@ -22,12 +22,13 @@ process.on("uncaughtException", e => errLog("uncaughtException", e));
 process.on("unhandledRejection", e => errLog("unhandledRejection", e));
 process.on("exit", c => { if (c) errLog("exit", "código " + c); });
 import { HttpError, json } from "./http.mjs";
-import { handleAuth } from "./auth.mjs";
+import { handleAuth, requireUser } from "./auth.mjs";
 import { handleFs } from "./fs.mjs";
 import { handleShares, handlePublicShare } from "./shares.mjs";
 import { handleOO } from "./oo.mjs";
 import { handleNotifications, handleContacts, handlePresence } from "./social.mjs";
 import { handleInbox } from "./inbox.mjs";
+import { handleNas, nasEnabled } from "./nas.mjs";
 import { handleAdmin } from "./admin.mjs";
 import { handleCalendar, handleTasks } from "./agenda.mjs";
 import { handleStore } from "./store.mjs";
@@ -44,7 +45,7 @@ import { handleDescargas } from "./descargas.mjs";
 import { handlePush } from "./push.mjs";
 import { handleJellyfin, proxyJellyfin, upgradeJellyfin } from "./jellyfin.mjs";
 import { handleImmich } from "./immich.mjs";
-import { handleSetup, serveInstaller, serveTourImage, isInstalled } from "./setup.mjs";
+import { handleSetup, handleServices, serveInstaller, serveTourImage, isInstalled } from "./setup.mjs";
 import "./backup.mjs";      // copias de seguridad diarias
 import "./maintenance.mjs"; // papelera automática y avisos de espacio
 import { handleWorlds } from "./worlds.mjs";
@@ -80,7 +81,7 @@ const MIME = { ".html": "text/html; charset=utf-8", ".js": "text/javascript; cha
 const SEC = { "x-content-type-options": "nosniff", "referrer-policy": "strict-origin-when-cross-origin", "x-frame-options": "DENY", "permissions-policy": "geolocation=(), camera=(self), microphone=(self)" };
 
 // lo que el escritorio necesita saber del servidor sin iniciar sesión (servicios opcionales propios)
-const clientConfig = () => ({ drawio: (process.env.DRAWIO_URL || "").replace(/\/$/, "") || null });
+const clientConfig = () => ({ drawio: (process.env.DRAWIO_URL || "").replace(/\/$/, "") || null, nas: nasEnabled() });
 function serveStatic(req, res) {
   let rel = decodeURIComponent(new URL(req.url, "http://x").pathname);
   let file = path.join(WEB_DIR, rel);
@@ -89,6 +90,8 @@ function serveStatic(req, res) {
   if (!fs.existsSync(file)) { res.writeHead(404, { "content-type": "text/plain" }); return res.end("Compila primero el escritorio: cd web && npm run build"); }
   const ext = path.extname(file);
   const headers = { "content-type": MIME[ext] || "application/octet-stream", "cache-control": rel.startsWith("/assets/") ? "public, max-age=31536000, immutable" : "no-cache", ...SEC };
+  // el escritorio nunca va dentro de otro sitio; juegos y apps de la Tienda sí van en ventanas del propio Sotos
+  if (file !== path.join(WEB_DIR, "index.html")) headers["x-frame-options"] = "SAMEORIGIN";
   if (path.basename(file) === "index.html") {
     const cfg = JSON.stringify({ pxOrigin: pxOriginFor(req), ...clientConfig() }).replace(/</g, "\\u003c");
     const html = fs.readFileSync(file, "utf8").replace("<head>", `<head><script>window.__SOTOS__=${cfg}</script>`);
@@ -121,6 +124,7 @@ async function handleApi(req, res) {
     case "contacts": return handleContacts(req, res, rest);
     case "worlds": return handleWorlds(req, res, rest);
     case "inbox": return handleInbox(req, res, rest);
+    case "nas": return handleNas(req, res, rest);
     case "presence": return handlePresence(req, res);
     case "admin": return handleAdmin(req, res, rest);
     case "calendar": return handleCalendar(req, res, rest);
@@ -136,6 +140,7 @@ async function handleApi(req, res) {
     case "jellyfin": return handleJellyfin(req, res, rest);
     case "immich": return handleImmich(req, res, rest);
     case "install": return handleSetup(req, res, rest);
+    case "services": return handleServices(req, res, rest, requireUser(req));
   }
   return json(res, 404, { error: "No encontrado" });
 }

@@ -6,7 +6,7 @@
    ============================================================ */
 import React from "react";
 import { pickAsFiles } from "./filepicker.jsx";
-import { Ic, EmptyState, Modal, toast, ContextMenu } from "./ui.jsx";
+import { Ic, EmptyState, Modal, toast, ContextMenu, copyText } from "./ui.jsx";
 import { avatarUrl, avatarFor } from "./ui.jsx";
 import { api, onServer } from "./api.js";
 import { useVfs } from "./vfs.js";
@@ -179,8 +179,8 @@ export function ContactsApp({ contactId }) {
               <button key={g.id} className={"chip" + (inGroup(g.id, cur.id) ? " on" : "")} style={{ "--chip": g.color }} onClick={() => toggleGroup(g, cur.id)}>
                 <Ic name={inGroup(g.id, cur.id) ? "check" : "add"} size={14} /> {g.name}</button>))}</div>}
             <div className="contact-fields">
-              {cur.email && <div className="contact-field"><Ic name="mail" /><a href={`mailto:${cur.email}`}>{cur.email}</a><button className="tb-btn icon" title="Copiar" onClick={() => navigator.clipboard?.writeText(cur.email).then(() => toast("Correo copiado"))}><Ic name="content_copy" size={16} /></button></div>}
-              {cur.phone && <div className="contact-field"><Ic name="call" /><a href={`tel:${cur.phone.replace(/\s/g, "")}`}>{cur.phone}</a><button className="tb-btn icon" title="Copiar" onClick={() => navigator.clipboard?.writeText(cur.phone).then(() => toast("Teléfono copiado"))}><Ic name="content_copy" size={16} /></button></div>}
+              {cur.email && <div className="contact-field"><Ic name="mail" /><a href={`mailto:${cur.email}`}>{cur.email}</a><button className="tb-btn icon" title="Copiar" onClick={() => copyText(cur.email).then(() => toast("Correo copiado"))}><Ic name="content_copy" size={16} /></button></div>}
+              {cur.phone && <div className="contact-field"><Ic name="call" /><a href={`tel:${cur.phone.replace(/\s/g, "")}`}>{cur.phone}</a><button className="tb-btn icon" title="Copiar" onClick={() => copyText(cur.phone).then(() => toast("Teléfono copiado"))}><Ic name="content_copy" size={16} /></button></div>}
               {cur.notes && <div className="contact-field notes"><Ic name="notes" /><span>{cur.notes}</span></div>}
             </div>
             <div className="wl-btns">

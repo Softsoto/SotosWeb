@@ -5,7 +5,7 @@
    © 2026 Sebastian Sotomontes
    ============================================================ */
 import React from "react";
-import { Ic, toast, EmptyState } from "./ui.jsx";
+import { Ic, toast, EmptyState, copyText } from "./ui.jsx";
 import { SotosMark } from "./logo.jsx";
 const { useState, useEffect } = React;
 
@@ -14,7 +14,7 @@ const ICON = { paypal: "account_balance_wallet", kofi: "local_cafe", github: "fa
 const load = () => fetch("/api/donar", { headers: { "x-sotos": "1" } }).then(r => r.json());
 
 export function DonationMethods({ data }) {
-  const copy = (t) => navigator.clipboard?.writeText(t).then(() => toast("Copiado", { icon: "content_copy" })).catch(() => {});
+  const copy = (t) => copyText(t).then(() => toast("Copiado", { icon: "content_copy" })).catch(() => toast("No se pudo copiar", { error: true }));
   return <div className="don-methods">
     {data.methods.map((m, i) => { const isUrl = data.kinds?.[m.kind]?.url;
       return <div key={i} className="don-method">
@@ -38,7 +38,7 @@ export function ContributeApp({ openApp, user }) {
         {d.message && <p className="don-msg">{d.message}</p>}
         <DonationMethods data={d} />
         <div className="don-share"><span>Enlace para compartir:</span><code>{share}</code>
-          <button className="tb-btn" onClick={() => navigator.clipboard?.writeText(share).then(() => toast("Enlace copiado", { icon: "link" }))}><Ic name="content_copy" size={16} /> Copiar</button></div>
+          <button className="tb-btn" onClick={() => copyText(share).then(() => toast("Enlace copiado", { icon: "link" }))}><Ic name="content_copy" size={16} /> Copiar</button></div>
       </> : <p className="faint">{user?.role === "admin" ? "Todavía no publicaste cómo recibir apoyo. Agrega tus medios (PayPal, Ko-fi, Nequi, transferencia…) en Administración → Servidor → Donaciones." : "Quien administra este Sotos todavía no publicó cómo apoyarlo."}
         {user?.role === "admin" && <><br /><button className="tb-btn primary" style={{ marginTop: 10 }} onClick={() => openApp?.("admin")}><Ic name="admin_panel_settings" size={16} /> Configurar donaciones</button></>}</p>}
     </section>

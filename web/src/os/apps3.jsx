@@ -6,7 +6,7 @@ import { RealMail } from "./mail.jsx";
 import { NativeWhatsApp, useNativeWa } from "./whatsapp.jsx";
 import { useVfs } from "./vfs.js";
 import { APPS, APP_BY_ID, WEB_SERVICES, MAIL, CHATS } from "./data.jsx";
-import { Ic, SideItem, Toolbar, EmptyState } from "./ui.jsx";
+import { Ic, SideItem, Toolbar, EmptyState, copyText } from "./ui.jsx";
 import { PX_ORIGIN, pxUrl, DEMO, SHOWCASE_URL } from "./config.js";
 import { toast } from "./ui.jsx";
 import { showMenu, saveImageFromUrl } from "./context-menu.jsx";
@@ -329,7 +329,7 @@ function BrowserApp({ shortcuts = [], url, scName }) {
   const ctxRef = React.useRef(); ctxRef.current = { back, fwd, go, t, newTabWith: (u) => setTabs(ts => { const n = [...ts, { id: tabSeq++, addr: u, input: u, title: u.replace(/^https?:\/\//, "").split("/")[0], hist: ["inicio", u], hi: 1, fresh: true }]; setActive(n.length - 1); return n; }) };
   const onPageCtx = React.useCallback(({ link, img, text, editable }, x, y, send) => {
     const c = ctxRef.current; const items = [];
-    const copy = (s, m) => navigator.clipboard.writeText(s).then(() => toast(m || "Copiado", { icon: "content_copy" })).catch(() => {});
+    const copy = (s, m) => copyText(s).then(() => toast(m || "Copiado", { icon: "content_copy" })).catch(() => toast("No se pudo copiar", { error: true }));
     if (link) items.push(
       { label: "Abrir enlace en una pestaña nueva", icon: "tab", run: () => c.newTabWith(link) },
       { label: "Abrir enlace aquí", icon: "arrow_forward", run: () => c.go(link) },

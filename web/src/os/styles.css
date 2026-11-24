@@ -707,7 +707,9 @@ button { font-family: inherit; cursor: pointer; }
   display: flex; align-items: center; gap: 8px; margin-top: 16px; width: 100%;
   background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 6px 6px 6px 12px;
 }
-.share-link span { flex: 1; font-family: var(--mono); font-size: 12.5px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-link > span, .share-link > input { flex: 1; min-width: 0; font-family: var(--mono); font-size: 12.5px; color: var(--accent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.share-link input { background: transparent; border: 0; padding: 0; outline: none; cursor: text; width: auto; }
+.share-link .tb-btn { flex: none; width: auto; }
 .sc-input {
   width: 100%; margin-top: 12px; height: 38px; border: 1px solid var(--border); border-radius: 9px;
   background: var(--surface-2); padding: 0 12px; font: inherit; font-size: 14px; color: var(--text); outline: none;
@@ -2447,6 +2449,23 @@ select.wg-input { padding: 0 4px; }
 .don-edit { flex-wrap: wrap; }
 
 /* descargas al servidor y sesiones */
+/* Carpetas del NAS */
+.nas-body { flex: 1; min-height: 0; display: flex; }
+.nas-body > .files-body { flex: 1; min-width: 0; }
+.nas-note { font-size: 11.5px; padding: 4px 10px; line-height: 1.45; }
+.nas-input { height: 36px; padding: 0 10px; border: 1px solid var(--border-strong); border-radius: 8px; background: var(--surface-2); color: var(--text); font: inherit; }
+.nas-input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+.nas-app .file-cell:focus-visible, .nas-app .file-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.nas-preview { width: min(46%, 520px); flex: none; display: flex; flex-direction: column; border-left: 1px solid var(--border); background: var(--surface-2); min-height: 0; }
+.nas-preview-bar { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--border); }
+.nas-preview-bar a.tb-btn { text-decoration: none; }
+.nas-preview-bar b { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nas-preview-body { flex: 1; min-height: 0; display: grid; place-items: center; overflow: auto; background: var(--surface-3); }
+.nas-preview-body img, .nas-preview-body video { max-width: 100%; max-height: 100%; object-fit: contain; }
+.nas-preview-body iframe { width: 100%; height: 100%; border: 0; background: #fff; }
+.nas-preview-body pre { align-self: stretch; justify-self: stretch; margin: 0; padding: 14px; font-size: 12.5px; white-space: pre-wrap; overflow: auto; }
+.nas-audio { display: grid; gap: 18px; justify-items: center; color: var(--text-2, var(--text)); }
+@media (max-width: 760px) { .nas-body { flex-direction: column; } .nas-preview { width: 100%; height: 55%; border-left: 0; border-top: 1px solid var(--border); } }
 .dl-app { padding: 18px 22px; }
 .dl-new { display: flex; align-items: center; gap: 8px; padding: 6px 6px 6px 12px; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--surface-2); }
 .dl-new input { flex: 1; min-width: 0; height: 34px; border: 0; background: none; color: var(--text); font: inherit; outline: none; }

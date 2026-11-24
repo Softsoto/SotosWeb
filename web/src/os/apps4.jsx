@@ -6,7 +6,7 @@ import { pickFiles } from "./filepicker.jsx";
 import { APPS, WALLPAPERS, ACCENTS, STORE_APPS } from "./data.jsx";
 import { SotosLogo, SotosMark } from "./logo.jsx";
 import { isInstalled, setInstalled, loadInstalled, subscribeInstalled, getRatings, permissionNames } from "./installed.js";
-import { Tile, Ic, SideItem, Avatar, Modal, toast, EmptyState, DEFAULT_AVATARS, avatarUrl } from "./ui.jsx";
+import { Tile, Ic, SideItem, Avatar, Modal, toast, EmptyState, DEFAULT_AVATARS, avatarUrl, copyText } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, fmtSize, fmtDate } from "./vfs.js";
 import { getLang, setLang, LANGS } from "./i18n.js";
@@ -51,7 +51,7 @@ function LanInfo() {
     <div className="lan-box">
       <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}><Ic name="devices" size={18} /> Entrar desde otros equipos de tu red</div>
       <div className="muted" style={{ fontSize: 12.5, margin: "4px 0 8px" }}>Abre una de estas direcciones en el navegador del celular o de otro computador conectado al mismo Wi-Fi:</div>
-      {lan.map(u => <div key={u} className="lan-url"><code>{u}</code><button className="tb-btn icon" title="Copiar" onClick={() => navigator.clipboard?.writeText(u).then(() => toast("Dirección copiada"))}><Ic name="content_copy" size={16} /></button></div>)}
+      {lan.map(u => <div key={u} className="lan-url"><code>{u}</code><button className="tb-btn icon" title="Copiar" onClick={() => copyText(u).then(() => toast("Dirección copiada"))}><Ic name="content_copy" size={16} /></button></div>)}
     </div>
   );
 }
@@ -164,7 +164,7 @@ function DavPanel({ user }) {
   React.useEffect(() => { load(); }, []);
   const addr = location.origin + "/dav/";
   const create = async () => { setBusy(true); try { const r = await api("POST", "dav-keys", { name: name || "Mi dispositivo", password: pw }); setMade(r.password); setAsk(false); setPw(""); setName(""); load(); } catch (e) { toast(e.message, { error: true }); } setBusy(false); };
-  const copy = (t) => { navigator.clipboard?.writeText(t).then(() => toast("Copiado", { icon: "content_copy" })).catch(() => {}); };
+  const copy = (t) => { copyText(t).then(() => toast("Copiado", { icon: "content_copy" })).catch(() => toast("No se pudo copiar", { error: true })); };
   if (!items) return null;
   return <div style={{ padding: "16px 0", borderBottom: "1px solid var(--border)" }}>
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>

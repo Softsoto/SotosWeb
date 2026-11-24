@@ -3,6 +3,17 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.6.3 — 24 de noviembre de 2026
+
+### Nuevo
+- **Carpetas del NAS**: en un NAS (Synology u otro) Sotos muestra las carpetas compartidas montadas en `/nas` tal como están en el disco, sin copiarlas. Se pueden ver fotos y PDF, reproducir video y música (con avance), copiar archivos a tus archivos, guardar los tuyos en el NAS, subir, crear carpetas y renombrar. Borrar los manda a la papelera de la carpeta compartida. Por defecto solo el administrador las ve (`SOTOS_NAS_USERS=todos` para todos) y `SOTOS_NAS_WRITE=0` las deja en solo lectura.
+- **Administración → Servicios**: instala después de la instalación los servicios opcionales (Office, Diagramas, Cine, Fotos, navegador virtual) con el avance en vivo; Sotos se reinicia solo para usarlos.
+- **Docker en NAS**: la imagen trae el cliente de Docker para instalar esos servicios en el Docker del propio NAS (montando `/var/run/docker.sock`), `SOTOS_UID`/`SOTOS_GID` para correr con los permisos de un usuario de DSM, `SOTOS_DATA_ANTES` para traer los datos de una instalación anterior y una red propia (`sotos-red`) donde los servicios se llaman por nombre. `docker-compose.nas.yml` viene listo y comentado.
+
+### Arreglado
+- **Compartir enlaces no copiaba nada** entrando por `http://IP` (Docker, NAS, red local): el navegador solo da acceso al portapapeles con HTTPS o en el propio equipo, y el botón «Copiar» fallaba sin avisar. Ahora copia también por HTTP, avisa si de verdad no se puede y el enlace queda en un campo que se selecciona al tocarlo. Lo mismo para copiar direcciones, correos, teléfonos, el informe del sistema y el enlace de donaciones.
+- El ícono del botón «Copiar» del enlace salía como texto invisible y lo dejaba enorme.
+
 ## 3.6.2 — 23 de noviembre de 2026
 
 ### Nuevo

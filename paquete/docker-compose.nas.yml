@@ -5,7 +5,16 @@
 #   Por terminal:  docker compose -f docker-compose.nas.yml up -d --build
 #
 #   Luego abre http://IP-DEL-NAS:8787 y termina la configuración en el asistente.
+#   El código de instalación sale en el registro del contenedor (Container Manager → Contenedor → sotos → Registro).
 #   Para HTTPS en Synology: Panel de control → Portal de inicio de sesión → Avanzado → Proxy inverso.
+#
+#   Datos: la carpeta se monta con la MISMA ruta dentro y fuera del contenedor, porque los
+#   servicios opcionales (Cine, Fotos) se crean en el Docker del NAS y sus carpetas se
+#   resuelven en el NAS. Cambia /volume1/docker/sotos/datos en las tres líneas si la mueves.
+#   SOTOS_UID=0: Sotos corre como root dentro del contenedor para leer carpetas con permisos
+#   de Synology y usar el Docker del NAS (docker.sock es de root). Quien controla Sotos
+#   controla el Docker del NAS: no lo publiques en internet sin HTTPS y contraseñas fuertes.
+#   Sin Docker ni carpetas del NAS, quita docker.sock y /nas y usa SOTOS_UID=node.
 # © 2026 Sebastian Sotomontes
 services:
   sotos:
@@ -16,5 +25,21 @@ services:
     ports: ["8787:8787"]
     environment:
       TZ: ${TZ:-America/Bogota}
+      SOTOS_UID: "0"
+      SOTOS_DATA: /volume1/docker/sotos/datos
+      SOTOS_DOCKER_NETWORK: sotos-red      # los servicios opcionales se unen a esta red
+      SOTOS_CONTAINER_NAME: sotos
+      SOTOS_NAS_DIR: /nas                  # Carpetas del NAS: una subcarpeta por carpeta compartida
+      SOTOS_NAS_USERS: admin               # admin (por defecto) o todos
+      TRUST_PROXY: "1"                     # detrás del proxy inverso de DSM (HTTPS)
     volumes:
-      - ./datos:/data
+      - /volume1/docker/sotos/datos:/volume1/docker/sotos/datos
+      - /var/run/docker.sock:/var/run/docker.sock
+      # carpetas compartidas que Sotos muestra en «Carpetas del NAS» (cambia o quita las que no tengas)
+      - /volume1/music:/nas/Música
+      - /volume1/photo:/nas/Fotos
+      - /volume1/video:/nas/Vídeos
+    networks: [sotos-red]
+networks:
+  sotos-red:
+    name: sotos-red

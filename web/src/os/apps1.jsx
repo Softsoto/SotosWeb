@@ -4,7 +4,7 @@
    ============================================================ */
 import React from "react";
 import { OFFICE_WEB } from "./data.jsx";
-import { Ic, SideItem, Toolbar, EmptyState, ContextMenu, toast } from "./ui.jsx";
+import { Ic, SideItem, Toolbar, EmptyState, ContextMenu, toast, copyText } from "./ui.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, ROOT, DESKTOP, fmtSize, fmtDate } from "./vfs.js";
 import { NodeGlyph, dragIds, dropTarget, itemMenu, runItemAction, PropertiesModal, useObjectUrl } from "./files-ui.jsx";
@@ -488,7 +488,7 @@ function SheetsApp({ fileId, newDoc }) {
   };
   const copySel = async (cut) => {
     const rows = []; for (let r = rng.r1; r <= rng.r2; r++) { const row = []; for (let c = rng.c1; c <= rng.c2; c++) row.push(sheet.cells[refName(c, r)] ?? ""); rows.push(row.join("\t")); }
-    try { await navigator.clipboard.writeText(rows.join("\n")); } catch {}
+    try { await copyText(rows.join("\n")); } catch {}
     if (cut) mutateSheet(s => rangeRefs().forEach(r => delete s.cells[r]));
   };
   const pasteSel = async () => {

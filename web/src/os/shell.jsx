@@ -51,6 +51,7 @@ import * as Worlds from "./worlds.jsx";
 import * as Contacts from "./contacts.jsx";
 import * as Donar from "./donar.jsx";
 import * as Descargas from "./descargas.jsx";
+import * as Nas from "./nas.jsx";
 import { NotificationBell } from "./notifications.jsx";
 import { SendToDialog, useInboxCount } from "./inbox.jsx";
 import { setRegion, tz as regionTz } from "./region.js";
@@ -76,7 +77,7 @@ const APP_LOADERS = {
 const COMP_MODULE = { CineApp: "media", FotosApp: "media", CodeApp: "creative", DiagramsApp: "creative", PaintApp: "creative", WhiteboardApp: "creative", EditorApp: "apps1", FilesApp: "apps1", GalleryApp: "apps1", SaveBadge: "apps1", SheetsApp: "apps1", MusicApp: "apps2", PdfApp: "apps2", VideoApp: "apps2", BrowserApp: "apps3", ChatApp: "apps3", MailApp: "apps3", WhatsAppApp: "apps3", SettingsApp: "apps4", StoreApp: "apps4", WebApp: "apps4", DocsApp: "apps5", LaunchpadApp: "apps5", SlidesApp: "apps5", TrashApp: "apps5", WebViewApp: "apps5", GamesApp: "games", TerminalApp: "terminal", AdminApp: "admin", CalendarApp: "calendar", TasksApp: "tasks", ControlPanelApp: "panel" };
 const lazyCache = {};
 const lazyComp = (name) => lazyCache[name] || (lazyCache[name] = React.lazy(() => APP_LOADERS[COMP_MODULE[name]]().then(m => ({ default: m[name] }))));
-const APP_COMPONENTS = { ...Vault, ...Worlds, ...Contacts, ...Donar, ...Descargas, ...Object.fromEntries(Object.keys(COMP_MODULE).map(k => [k, lazyComp(k)])) };
+const APP_COMPONENTS = { ...Vault, ...Worlds, ...Contacts, ...Donar, ...Descargas, ...Nas, ...Object.fromEntries(Object.keys(COMP_MODULE).map(k => [k, lazyComp(k)])) };
 const whenIdle = (fn, ms) => window.requestIdleCallback ? window.requestIdleCallback(() => fn(), { timeout: ms + 3000 }) : setTimeout(fn, ms);
 let prefetched = false;
 export const prefetchApps = () => { if (prefetched) return; prefetched = true; const ids = Object.keys(APP_LOADERS); const next = () => { const id = ids.shift(); if (!id) return; APP_LOADERS[id]().catch(() => {}).finally(() => whenIdle(next, 300)); }; setTimeout(() => whenIdle(next, 0), 1500); };

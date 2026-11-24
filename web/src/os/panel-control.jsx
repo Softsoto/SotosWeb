@@ -8,7 +8,7 @@
    © 2026 Sebastian Sotomontes
    ============================================================ */
 import React from "react";
-import { Ic, Modal, toast, Avatar, EmptyState, Tile } from "./ui.jsx";
+import { Ic, Modal, toast, Avatar, EmptyState, Tile, copyText } from "./ui.jsx";
 import { EraObject, ICON_OBJECT } from "./iconos-objetos.jsx";
 import { useEra } from "./iconos-epoca.jsx";
 import { APPS, ROUTE, ACCENTS, appAllowed } from "./data.jsx";
@@ -302,7 +302,7 @@ function Sistema({ me, openApp }) {
     {upd && <div className={"cp-alert " + (upd.error ? "info" : upd.newer ? "warn" : "ok")}><Ic name={upd.newer ? "system_update_alt" : upd.error ? "cloud_off" : "check_circle"} />
       <div>{upd.error || (upd.newer ? <>Sotos <b>{upd.latest}</b> está disponible. <Link onClick={() => openApp("admin", { tab: "servidor", nonce: Date.now() })}>Instalarla</Link></> : `Sotos ${upd.current} es la última versión.`)}</div></div>}
     <div className="cp-actions">
-      <button className="tb-btn" onClick={() => navigator.clipboard?.writeText(report()).then(() => toast("Informe del sistema copiado", { icon: "content_copy" })).catch(() => toast("No se pudo copiar", { error: true }))}><Ic name="content_copy" /> Copiar informe</button>
+      <button className="tb-btn" onClick={() => copyText(report()).then(() => toast("Informe del sistema copiado", { icon: "content_copy" })).catch(() => toast("No se pudo copiar", { error: true }))}><Ic name="content_copy" /> Copiar informe</button>
       {admin && <button className="tb-btn" disabled={checking} onClick={check}><Ic name="system_update_alt" /> {checking ? "Buscando…" : "Buscar actualizaciones"}</button>}
     </div>
   </>;

@@ -38,6 +38,7 @@ const APPS = [
   { id: "panel",       name: "Panel personal",    icon: "space_dashboard", color: "#c9902a", comp: "WebApp", url: "apps/panel/index.html",       size: { w: 1100, h: 760 }, store: true, cat: "Productividad", desc: "Tareas, gastos del mes, notas y temporizador de enfoque en un solo tablero." },
   { id: "pinball",     name: "Páramo Pinball",    icon: "sports_esports",  color: "#4f7a3a", comp: "WebApp", url: "apps/pinball/index.html",     size: { w: 820, h: 940 },  store: true, cat: "Juegos",        desc: "Pinball con tres mesas originales, física propia y récords." },
   { id: "descargas", name: "Descargas", icon: "cloud_download", color: "#2f5d8a", comp: "DownloadsApp", size: { w: 720, h: 520 } },
+  { id: "nas",     name: "Carpetas del NAS", icon: "dns",     color: "#3b4046", comp: "NasApp",       size: { w: 1000, h: 640 }, needsNas: true }, // solo si el servidor tiene carpetas montadas
   { id: "donar",   name: "Contribuir",   icon: "volunteer_activism", color: "#c4532f", comp: "ContributeApp", size: { w: 760, h: 620 } },
   { id: "control", name: "Panel de control", icon: "tune",     color: "#3b6e8f", comp: "ControlPanelApp", size: { w: 980, h: 660 } },
   { id: "admin",   name: "Administración", icon: "admin_panel_settings", color: "#3b4046", comp: "AdminApp", size: { w: 1080, h: 700 }, adminOnly: true },
@@ -279,6 +280,7 @@ import { isInstalled } from "./installed.js";
 export function appAllowed(id, user) {
   const a = APPS.find(x => x.id === id); if (!a) return false;
   if (a.adminOnly && user?.role !== "admin") return false;
+  if (a.needsNas && !(globalThis.__SOTOS__ || {}).nas) return false; // Carpetas del NAS: solo con carpetas montadas
   if (a.store && !isInstalled(id)) return false; // las apps de la Tienda se ven al instalarlas
   if (user?.hiddenApps?.includes(id)) return false;
   return true;
