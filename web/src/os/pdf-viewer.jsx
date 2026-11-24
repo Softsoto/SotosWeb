@@ -15,7 +15,7 @@ import { fmtSize } from "./vfs.js";
 const { useState, useEffect, useRef, useCallback } = React;
 
 let pdfjsP = null;
-const loadPdfjs = () => pdfjsP || (pdfjsP = import("pdfjs-dist").then(m => { m.GlobalWorkerOptions.workerSrc = workerUrl; return m; }));
+const loadPdfjs = () => pdfjsP || (pdfjsP = import("pdfjs-dist").then(m => { m.GlobalWorkerOptions.workerSrc = workerUrl + "?t=js"; /* ?t=js: dirección nueva; hasta la 3.6.1 el servidor mandaba los .mjs con un tipo equivocado y los navegadores guardaron esa respuesta para siempre */ return m; }));
 
 /* una página: canvas + capa de texto, dibujada cuando entra en pantalla */
 function PdfPage({ doc, num, size, scale, rotation, pdfjs, query, active, onVisible, registerRef }) {

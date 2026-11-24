@@ -44,7 +44,7 @@
 
   --ci-gel: linear-gradient(#02090d 0%, #06303d 30%, #0a5c73 60%, #19b7d9 88%, #8ff2ff 100%);
   --ci-bar: linear-gradient(#5fe6ff 0, #5fe6ff 1px, #0b1820 1px, #05080b 50%, #020304 100%);
-  --ci-bar-ink: #dff8ff; --ci-tray-edge: #19d3ff;
+  --ci-bar-ink: #dff8ff; --ci-tray-edge: #19d3ff; --ci-glow: rgba(25, 211, 255, 0.45);
   --ci-start: linear-gradient(#a8f6ff 0%, #2fd0f2 15%, #0a6f88 50%, #043746 85%, #19d3ff 100%);
   --ci-start-hover: linear-gradient(#d8fbff 0%, #5fe6ff 15%, #0f88a6 50%, #05475a 85%, #5fe6ff 100%);
   --ci-start-ink: #ffffff;
@@ -396,6 +396,16 @@
 [data-skin="prado"][data-variant] .window.focused .titlebar .title { background: var(--va-gel); color: var(--va-ink); }
 /* botones de la ventana: orbes redondos */
 [data-skin="prado"][data-variant] .window .win-ctrls { gap: 3px; padding-top: 3px; }
+/* marco: plateado y grueso en Núcleo, un filo de luz en Circuito; siempre con un filo oscuro hacia adentro */
+[data-skin="prado"][data-variant="nucleo"] { --era-frame-w: 5px; --era-radius: 7px; }
+[data-skin="prado"][data-variant="circuito"] { --era-frame-w: 2px; --era-radius: 5px; }
+[data-skin="prado"][data-variant] .window .win-body { box-shadow: 0 0 0 1px var(--va-edge); }
+[data-skin="prado"][data-variant="nucleo"] .window .win-body { box-shadow: 0 0 0 1px var(--nu-edge); }
+/* Circuito: la luz se derrama alrededor de lo activo */
+[data-skin="prado"][data-variant="circuito"] .window.focused { box-shadow: 0 0 14px var(--ci-glow), 2px 4px 18px var(--era-shade); }
+[data-skin="prado"][data-variant="circuito"] .window.focused .titlebar .title { box-shadow: 0 0 10px var(--ci-glow); }
+[data-skin="prado"][data-variant="circuito"] .taskbar { box-shadow: 0 -2px 14px var(--ci-glow); }
+[data-skin="prado"][data-variant="circuito"] .startmenu { box-shadow: 0 0 16px var(--ci-glow); }
 [data-skin="prado"][data-variant] .window .win-ctrls button { width: 21px !important; height: 21px !important; border-radius: 50% !important; color: var(--va-ctl-ink); box-shadow: 0 1px 2px var(--era-shade); }
 /* Inicio: una píldora de gel, sin texto */
 [data-skin="prado"][data-variant] .era-prado .tb-start { width: 86px; margin: 2px 6px 2px 4px; padding: 0; justify-content: center; border-radius: 14px !important; border: 1px solid var(--va-edge); }
