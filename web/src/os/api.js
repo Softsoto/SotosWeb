@@ -29,3 +29,6 @@ export function onServer(types, fn) {
 /** ¿hay servidor de Sotos detrás? (en una web estática sin backend, no) */
 let serverP = null;
 export const hasServer = () => serverP || (serverP = fetch("/api/health", { cache: "no-store" }).then(r => r.ok && r.headers.get("content-type")?.includes("json")).catch(() => false));
+/** versión de Sotos que corre el servidor (null sin servidor) */
+let versionP = null;
+export const sotosVersion = () => versionP || (versionP = fetch("/api/health", { cache: "no-store" }).then(r => r.ok ? r.json() : null).then(d => d?.version || null).catch(() => null));

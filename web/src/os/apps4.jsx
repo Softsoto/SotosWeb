@@ -12,7 +12,7 @@ import { useVfs, fmtSize, fmtDate } from "./vfs.js";
 import { getLang, setLang, LANGS } from "./i18n.js";
 import { ERAS } from "./epocas.js";
 import { playEra, eraSoundsOn, setEraSounds } from "./sonidos.js";
-import { api } from "./api.js";
+import { api, sotosVersion } from "./api.js";
 import { WALLS, PHOTO_WALLS, ERA_WALLS, wallUrl } from "./wallpapers.js";
 const { useState: useS4, useRef: useR4, useEffect: useE4 } = React;
 
@@ -77,7 +77,7 @@ function BackupRows() {
     <input ref={inp} type="file" accept=".zip" style={{ display: "none" }} onChange={e => { const f = e.target.files[0]; e.target.value = ""; if (f) run("Importando", async (p) => { const { importBackup } = await import("./backup.js"); const r = await importBackup(f, p); toast(`Copia importada: ${r.files} archivo(s), ${r.contacts} contacto(s), ${r.events} evento(s), ${r.tasks} tarea(s)`, { icon: "settings_backup_restore" }); }); }} />
     <Row label="Copia de seguridad" desc={busy || "Todos tus archivos, contactos, calendario, tareas y ajustes en un .zip"}>
       <div className="wl-btns" style={{ margin: 0 }}>
-        <button className="tb-btn" disabled={!!busy} onClick={() => run("Preparando", async (p) => { const { downloadBackup } = await import("./backup.js"); const size = await downloadBackup(p); toast(`Copia descargada (${fmtSize(size)})`, { icon: "download_done" }); })}><Ic name="cloud_download" /> Descargar copia</button>
+        <button className="tb-btn" disabled={!!busy} onClick={() => run("Preparando", async (p) => { const { downloadBackup } = await import("./backup.js"); const size = await downloadBackup(p); try { localStorage.setItem("sotos_last_backup", String(Date.now())); } catch {} toast(`Copia descargada (${fmtSize(size)})`, { icon: "download_done" }); })}><Ic name="cloud_download" /> Descargar copia</button>
         <button className="tb-btn" disabled={!!busy} onClick={() => inp.current.click()}><Ic name="settings_backup_restore" /> Importar copia</button>
       </div>
     </Row>
@@ -275,10 +275,25 @@ function RegionPanel({ settings, update }) {
   </>;
 }
 
+/** cambia el tema del escritorio con su acento y su fondo (Ajustes → Apariencia y Panel de control → Personalización) */
+export const SKINS = () => [{ v: "sotos", label: "Sotos", desc: "Papel, tinta y color plano", accent: "#c4532f" },
+  { v: "grafito", label: "Grafito", desc: "Gris y carbón, dock lateral, fondo en blanco y negro", accent: "#60b25e" },
+  ...Object.entries(ERAS).map(([v, e]) => ({ v, label: e.name, year: e.year, desc: e.desc, accent: e.accent, wall: e.wall }))];
+export function applySkin(settings, update, v) {
+  const k = SKINS().find(s => s.v === v); if (!k) return;
+  update("skin", k.v);
+  const known = ["#c4532f", "#60b25e", ...Object.values(ERAS).map(e => e.accent)]; if (known.includes(settings.accent)) update("accent", k.accent);
+  const wp = String(settings.wallpaper), isPhoto = wp.startsWith("foto-"), isEra = wp.startsWith("era-"), own = wp.startsWith("file:");
+  if (k.wall && !own) update("wallpaper", k.wall); // cada época trae su fondo
+  if (k.v === "grafito" && !isPhoto && !own) update("wallpaper", "foto-usaquen");
+  if (k.v === "sotos" && (isPhoto || isEra)) update("wallpaper", "paramo");
+}
+
 function SettingsApp({ settings, update, profile, setProfile, user, env, onLogout, tab: openTab }) {
   const [tab, setTab] = useS4(openTab || "perfil"); const [, tick4] = useS4(0);
   useE4(() => { if (openTab) setTab(openTab); }, [openTab]);
   const avatarInput = useR4(null);
+  const [ver, setVer] = useS4(null); useE4(() => { sotosVersion().then(setVer); }, []);
   const tabs = [
     { id: "perfil", icon: "account_circle", label: "Perfil" },
     { id: "cuenta", icon: user ? "cloud_done" : "cloud_off", label: "Cuenta" },
@@ -364,16 +379,9 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
           {tab === "apariencia" && <>
             <h2 style={{ fontSize: 19, fontWeight: 800 }}>Apariencia</h2>
             <div className="skin-grid">
-              {[{ v: "sotos", label: "Sotos", desc: "Papel, tinta y color plano", accent: "#c4532f" },
-                { v: "grafito", label: "Grafito", desc: "Gris y carbón, dock lateral, fondo en blanco y negro", accent: "#60b25e" },
-                ...Object.entries(ERAS).map(([v, e]) => ({ v, label: e.name, year: e.year, desc: e.desc, accent: e.accent, wall: e.wall }))].map(k => (
+              {SKINS().map(k => (
                 <button key={k.v} className={"skin-card" + ((settings.skin || "sotos") === k.v ? " on" : "")}
-                  onClick={() => { update("skin", k.v);
-                    const known = ["#c4532f", "#60b25e", ...Object.values(ERAS).map(e => e.accent)]; if (known.includes(settings.accent)) update("accent", k.accent);
-                    const wp = String(settings.wallpaper), isPhoto = wp.startsWith("foto-"), isEra = wp.startsWith("era-"), own = wp.startsWith("file:");
-                    if (k.wall && !own) update("wallpaper", k.wall); // cada época trae su fondo
-                    if (k.v === "grafito" && !isPhoto && !own) update("wallpaper", "foto-usaquen");
-                    if (k.v === "sotos" && (isPhoto || isEra)) update("wallpaper", "paramo"); }}>
+                  onClick={() => applySkin(settings, update, k.v)}>
                   <span className={"skin-prev skin-prev-" + k.v + (settings.theme === "dark" ? " dark" : "")}><i /><b /><em /></span>
                   <span className="skin-name">{k.label}{k.year && <span className="skin-year">{k.year}</span>}{(settings.skin || "sotos") === k.v && <Ic name="check_circle" size={16} />}</span>
                   <span className="skin-desc">{k.desc}</span>
@@ -431,7 +439,7 @@ function SettingsApp({ settings, update, profile, setProfile, user, env, onLogou
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", padding: "24px 0", gap: 12 }}>
               <div className="about-logo"><SotosMark size={96} variant="tile" spin /></div>
               <div style={{ fontSize: 24, fontWeight: 800, letterSpacing: "-.02em" }}>Sotos OS</div>
-              <div className="muted" style={{ fontSize: 14 }}>Tu ordenador en la nube · Versión 2.2</div>
+              <div className="muted" style={{ fontSize: 14 }}>Tu ordenador en la nube{ver ? ` · Versión ${ver}` : ""}</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 0, width: 320, marginTop: 8, border: "1px solid var(--border)", borderRadius: 12, overflow: "hidden" }}>
                 {[["Usuario", profile.name], ["Modo", user ? "Cuenta en la nube" : "Invitado (este navegador)"], ["Almacenamiento", fmtSize(vfs.usedBytes()) + " usados"], ["Apps", (APPS.length - 1) + " instaladas"]].map(([k, v], i) => (
                   <React.Fragment key={i}>
@@ -589,4 +597,4 @@ function StoreDetail({ a, cloud, onClose, onToggle, onOpen }) {
     </Modal>
   );
 }
-export { SettingsApp, StoreApp, WebApp };
+export { SettingsApp, StoreApp, WebApp, Row, Segmented, RegionPanel, AccountPanel, BackupRows, WallThumb };

@@ -48,6 +48,7 @@ import { handleSetup, serveInstaller, serveTourImage, isInstalled } from "./setu
 import "./backup.mjs";      // copias de seguridad diarias
 import "./maintenance.mjs"; // papelera automática y avisos de espacio
 import { handleWorlds } from "./worlds.mjs";
+import { currentVersion } from "./updates.mjs";
 
 // prueba de arranque del actualizador: todos los módulos cargaron bien → salir sin abrir puertos
 if (process.env.SOTOS_SMOKE === "1") { console.log("[sotos] arranque comprobado"); process.exit(0); }
@@ -104,7 +105,7 @@ async function handleApi(req, res) {
   const signedByOO = area === "oo" && (rest[0] === "callback" || rest[0] === "file");
   if (!["GET", "HEAD"].includes(req.method) && !signedByOO && req.headers["x-sotos"] !== "1") return json(res, 403, { error: "Petición no permitida" });
   switch (area) {
-    case "health": return json(res, 200, { ok: true, name: "Sotos OS", by: "Sebastian Sotomontes" });
+    case "health": return json(res, 200, { ok: true, name: "Sotos OS", by: "Sebastian Sotomontes", version: currentVersion() });
     case "client-config": return json(res, 200, clientConfig());
     case "info": // direcciones para entrar desde otros equipos de la red (solo en el modo "este equipo")
       return json(res, 200, { port: PORT, lan: process.env.SOTOS_SHOW_LAN === "1" ? lanAddresses().map(ip => `http://${ip}:${PORT}`) : [] });

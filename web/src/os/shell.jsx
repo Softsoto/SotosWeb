@@ -71,8 +71,9 @@ const APP_LOADERS = {
   admin: () => import("./admin.jsx"),
   calendar: () => import("./calendar.jsx"),
   tasks: () => import("./tasks.jsx"),
+  panel: () => import("./panel-control.jsx"),
 };
-const COMP_MODULE = { CineApp: "media", FotosApp: "media", CodeApp: "creative", DiagramsApp: "creative", PaintApp: "creative", WhiteboardApp: "creative", EditorApp: "apps1", FilesApp: "apps1", GalleryApp: "apps1", SaveBadge: "apps1", SheetsApp: "apps1", MusicApp: "apps2", PdfApp: "apps2", VideoApp: "apps2", BrowserApp: "apps3", ChatApp: "apps3", MailApp: "apps3", WhatsAppApp: "apps3", SettingsApp: "apps4", StoreApp: "apps4", WebApp: "apps4", DocsApp: "apps5", LaunchpadApp: "apps5", SlidesApp: "apps5", TrashApp: "apps5", WebViewApp: "apps5", GamesApp: "games", TerminalApp: "terminal", AdminApp: "admin", CalendarApp: "calendar", TasksApp: "tasks" };
+const COMP_MODULE = { CineApp: "media", FotosApp: "media", CodeApp: "creative", DiagramsApp: "creative", PaintApp: "creative", WhiteboardApp: "creative", EditorApp: "apps1", FilesApp: "apps1", GalleryApp: "apps1", SaveBadge: "apps1", SheetsApp: "apps1", MusicApp: "apps2", PdfApp: "apps2", VideoApp: "apps2", BrowserApp: "apps3", ChatApp: "apps3", MailApp: "apps3", WhatsAppApp: "apps3", SettingsApp: "apps4", StoreApp: "apps4", WebApp: "apps4", DocsApp: "apps5", LaunchpadApp: "apps5", SlidesApp: "apps5", TrashApp: "apps5", WebViewApp: "apps5", GamesApp: "games", TerminalApp: "terminal", AdminApp: "admin", CalendarApp: "calendar", TasksApp: "tasks", ControlPanelApp: "panel" };
 const lazyCache = {};
 const lazyComp = (name) => lazyCache[name] || (lazyCache[name] = React.lazy(() => APP_LOADERS[COMP_MODULE[name]]().then(m => ({ default: m[name] }))));
 const APP_COMPONENTS = { ...Vault, ...Worlds, ...Contacts, ...Donar, ...Descargas, ...Object.fromEntries(Object.keys(COMP_MODULE).map(k => [k, lazyComp(k)])) };
@@ -722,10 +723,14 @@ function OS() {
 
   // abrir un nodo del sistema de archivos con la app adecuada
   Vault.useVaultGesture(openApp); // 5 pulsaciones al logo de Aplicaciones abren la bóveda secreta
+  const defaultsRef = useRh({}); defaultsRef.current = settings.defaults || {}; // Panel de control → Programas predeterminados
   const openItem = useCh((n) => {
     if (!n) return;
     if (n.type === "folder") return openApp("files", { folderId: n.id });
-    const app = ROUTE[n.type];
+    const ext = vfs.extOf(n.name), usable = (id) => APP_BY_ID[id] && appAllowed(id, vfs.getState().user);
+    const pref = defaultsRef.current[ext];
+    if (pref && usable(pref)) return openApp(pref, { fileId: n.id });
+    const app = ROUTE[n.type] || APPS.find(a => a.ext && a.opens?.includes(ext) && usable(a.id))?.id; // sin app propia: la primera app del SDK que lo abre
     if (app) return openApp(app, { fileId: n.id });
     toast(`No hay una app para abrir “${n.name}”`, { icon: "help", action: { label: "Descargar", run: () => vfs.download(n.id) } });
   }, [openApp]);

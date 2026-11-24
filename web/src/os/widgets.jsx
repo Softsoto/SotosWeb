@@ -228,7 +228,7 @@ function WeatherWidget({ id }) {
   const cur = data?.current; const [desc, icon, col] = cur ? WMO(cur.weather_code) : ["", "cloud_off", "#8a929c"];
   return (
     <div className="wg-body" style={{ alignItems: "center", justifyContent: "center", textAlign: "center", cursor: "pointer" }} title="Clic para cambiar de ciudad" onClick={() => setEditing(true)}>
-      <Ic name={cur && !cur.is_day && cur.weather_code <= 2 ? "clear_night" : icon} size={46} style={{ color: col }} />
+      <Ic name={cur && !cur.is_day && cur.weather_code <= 2 ? "bedtime" : icon} size={46} style={{ color: col }} />
       <div style={{ fontSize: 30, fontWeight: 800, marginTop: 4 }}>{cur ? Math.round(cur.temperature_2m) + "°" : "—"}</div>
       <div className="faint" style={{ fontSize: 12.5 }}>{city.name}{desc ? " · " + desc : ""}</div>
       <div className="faint" style={{ fontSize: 11.5, marginTop: 2 }}>{err || (data ? `Máx ${Math.round(data.daily.temperature_2m_max[0])}° · Mín ${Math.round(data.daily.temperature_2m_min[0])}°` : "Cargando…")}</div>

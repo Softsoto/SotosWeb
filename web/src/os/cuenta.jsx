@@ -75,7 +75,7 @@ export function AccountPanel({ profile, anchor = "top-right", onClose, onApp, on
 /** dónde está abierta la cuenta; se puede cerrar cada sesión o todas las demás */
 const agentName = (ua) => { const b = /Edg\//.test(ua) ? "Edge" : /OPR\//.test(ua) ? "Opera" : /Firefox\//.test(ua) ? "Firefox" : /Chrome\//.test(ua) ? "Chrome" : /Safari\//.test(ua) ? "Safari" : "Navegador";
   const s = /Android/.test(ua) ? "Android" : /iPhone|iPad/.test(ua) ? "iPhone o iPad" : /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "Mac" : /Linux/.test(ua) ? "Linux" : ua ? "otro sistema" : "dispositivo desconocido"; return `${b} en ${s}`; };
-function Sessions({ onBack }) {
+export function Sessions({ onBack }) {
   const [items, setItems] = useState(null);
   const load = () => api("GET", "auth/sessions").then(r => setItems(r.items)).catch(e => toast(e.message, { error: true }));
   useEffect(() => { load(); }, []);

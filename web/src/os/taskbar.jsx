@@ -80,7 +80,7 @@ export function StartMenu({ skin, profile, order, onApp, onOpenFolder, onLogout,
   const hits = ql ? { apps: apps.filter(a => a.name.toLowerCase().includes(ql)).slice(0, 8), files: vfs.search(ql, 8) } : null;
   const user = vfs.getState().user;
   const right = [...PLACES.map(([n, ic]) => ({ label: n, icon: ic, act: () => { const f = topFolder(n); f ? onOpenFolder(f.id) : onApp("files"); } })),
-    { sep: true }, { label: "Panel de control", icon: "tune", act: () => onApp("settings") }, ...(user?.role === "admin" ? [{ label: "Administración", icon: "admin_panel_settings", act: () => onApp("admin") }] : []),
+    { sep: true }, { label: "Panel de control", icon: "tune", act: () => onApp("control") }, ...(user?.role === "admin" ? [{ label: "Administración", icon: "admin_panel_settings", act: () => onApp("admin") }] : []),
     { label: "Tienda", icon: "shopping_bag", act: () => onApp("store") }, { label: "Buscar", icon: "search", act: onSearchAll }];
   return (
     <div ref={ref} className={"startmenu era-" + skin} role="dialog" aria-label="Menú Inicio">
@@ -145,7 +145,7 @@ export function StartScreen({ profile, order, badges, wallSrc, onApp, onDesktop,
       <div className="ss-groups">
         <div className="ss-group">
           <button className="mt wide desk" onClick={onDesktop} aria-label="Escritorio" style={wallSrc ? { backgroundImage: `url("${wallSrc}")` } : undefined}><span className="mt-name">Escritorio</span></button>
-          <button className="mt wide" style={{ "--tile": "var(--era-tile-clock)" }} aria-label="Reloj" onClick={() => onApp("settings")}><LiveClock /></button>
+          <button className="mt wide" style={{ "--tile": "var(--era-tile-clock)" }} aria-label="Reloj" onClick={() => onApp("control", { applet: "reloj", nonce: Date.now() })}><LiveClock /></button>
           {pinned.slice(0, 8).map(id => tile(APP_BY_ID[id]))}
         </div>
         <div className="ss-group">{rest.map(a => tile(a, "small"))}</div>

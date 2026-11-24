@@ -225,6 +225,16 @@ export async function dropCache(id) {
   await idb.del("blobs", id).catch(() => {});
   const c = urlCache.get(id); if (c) { URL.revokeObjectURL(c.url); urlCache.delete(id); }
 }
+/** copia local de la nube en este navegador: cuánto ocupa y vaciarla (Panel de control → Almacenamiento) */
+export async function cacheBytes() {
+  if (state.mode !== "cloud") return 0; const d = await db();
+  return new Promise((res) => { let n = 0; const c = d.transaction("blobs").objectStore("blobs").openCursor(); c.onsuccess = () => { const cur = c.result; if (!cur) return res(n); n += cur.value?.size || 0; cur.continue(); }; c.onerror = () => res(n); });
+}
+export async function clearCache() {
+  if (state.mode !== "cloud") throw new Error("Como invitado tus archivos viven solo en este navegador: no hay copia que borrar");
+  if (queue.length) throw new Error("Aún hay cambios por subir; espera a que termine la sincronización");
+  await tx("blobs", "readwrite", st => st.clear()); urlCache.forEach(v => URL.revokeObjectURL(v.url)); urlCache.clear();
+}
 export async function read(id) {
   const n = findAny(id);
   if (!n) throw new Error("No existe");

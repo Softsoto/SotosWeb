@@ -35,8 +35,10 @@ db.exec(`CREATE TABLE IF NOT EXISTS app_storage (user_id TEXT NOT NULL REFERENCE
 
 export function listApps() {
   if (!fs.existsSync(APPS_DIR)) return [];
-  return fs.readdirSync(APPS_DIR).filter(d => ID.test(d)).map(d => { try { return { ...validateManifest(JSON.parse(fs.readFileSync(path.join(APPS_DIR, d, "sotos-app.json"), "utf8"))), installed: fs.statSync(path.join(APPS_DIR, d, "sotos-app.json")).mtimeMs }; } catch { return null; } }).filter(Boolean);
+  return fs.readdirSync(APPS_DIR).filter(d => ID.test(d)).map(d => { try { return { ...validateManifest(JSON.parse(fs.readFileSync(path.join(APPS_DIR, d, "sotos-app.json"), "utf8"))), installed: fs.statSync(path.join(APPS_DIR, d, "sotos-app.json")).mtimeMs, bytes: dirBytes(path.join(APPS_DIR, d)) }; } catch { return null; } }).filter(Boolean);
 }
+// tamaño en disco de una app (para «Programas y características»)
+const dirBytes = (dir) => { let n = 0; for (const e of fs.readdirSync(dir, { withFileTypes: true })) { const p = path.join(dir, e.name); n += e.isDirectory() ? dirBytes(p) : fs.statSync(p).size; } return n; };
 
 /* ---------------- .zip (lector propio: almacenado o deflate) ---------------- */
 export function readZip(buf) {

@@ -5,6 +5,9 @@
 /* Hallmark · waive 24b · padding 3px frames, 30px title bars and 2px task gaps on the era chrome · each era is rebuilt to the pixel sizes of its own period, which sit off the 4px grid by design */
 
 :root {
+  /* Panel de control: títulos y enlaces de cada época */
+  --cp-xp-head: #1b4fb8; --cp-xp-link: #1f55c4; --cp-xp-dk-head: #9cc0ff; --cp-xp-dk-link: #a9c8ff;
+  --cp-7-head: #1d6b2c; --cp-7-link: #1a5fb4; --cp-7-dk-head: #8fd19a; --cp-7-dk-link: #8cbcf0;
   /* vistas previas en Ajustes → Apariencia */
   --prev-prado: linear-gradient(180deg, #2c6fd6 0 50%, #7fb4ef 58%, #5ea12d 62% 100%);
   --prev-cristal: linear-gradient(160deg, #04121a 0%, #0f3b47 45%, #1d6e70 60%, #04161b 100%);
@@ -849,6 +852,14 @@
 /* íconos de época dentro del panel lateral y en el título de la ventana */
 .side-obj { position: relative; width: 20px; height: 20px; flex: 0 0 auto; display: inline-block; }
 .win-app .tile { border-radius: 0; }
+/* Panel de control: títulos y enlaces con los colores de cada época */
+[data-skin="prado"][data-theme="light"] .cp { --cp-head: var(--cp-xp-head); --cp-link: var(--cp-xp-link); }
+[data-skin="prado"][data-theme="light"] .cp-side .cp-side-link { color: var(--prado-pane-ink); }
+[data-skin="prado"] .cp-side-sep { margin: 14px 0 4px; padding: 4px 8px; border-radius: 3px 3px 0 0; background: var(--prado-pane-head); color: var(--prado-pane-ink); font-weight: 700; }
+[data-skin="cristal"][data-theme="light"] .cp, [data-skin="vidrio"][data-theme="light"] .cp { --cp-head: var(--cp-7-head); --cp-link: var(--cp-7-link); }
+[data-skin="prado"][data-theme="dark"] .cp { --cp-head: var(--cp-xp-dk-head); --cp-link: var(--cp-xp-dk-link); }
+[data-skin="cristal"][data-theme="dark"] .cp, [data-skin="vidrio"][data-theme="dark"] .cp { --cp-head: var(--cp-7-dk-head); --cp-link: var(--cp-7-dk-link); }
+[data-skin="mosaico"] .cp-crumbs, [data-skin="mosaico"] .cp-table, [data-skin="mosaico"] .cp-tool, [data-skin="mosaico"] .cp-checks { border-radius: 0; }
 /* ============================================================
    Movimiento
    ============================================================ */

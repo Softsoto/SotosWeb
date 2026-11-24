@@ -39,6 +39,7 @@ const APPS = [
   { id: "pinball",     name: "Páramo Pinball",    icon: "sports_esports",  color: "#4f7a3a", comp: "WebApp", url: "apps/pinball/index.html",     size: { w: 820, h: 940 },  store: true, cat: "Juegos",        desc: "Pinball con tres mesas originales, física propia y récords." },
   { id: "descargas", name: "Descargas", icon: "cloud_download", color: "#2f5d8a", comp: "DownloadsApp", size: { w: 720, h: 520 } },
   { id: "donar",   name: "Contribuir",   icon: "volunteer_activism", color: "#c4532f", comp: "ContributeApp", size: { w: 760, h: 620 } },
+  { id: "control", name: "Panel de control", icon: "tune",     color: "#3b6e8f", comp: "ControlPanelApp", size: { w: 980, h: 660 } },
   { id: "admin",   name: "Administración", icon: "admin_panel_settings", color: "#3b4046", comp: "AdminApp", size: { w: 1080, h: 700 }, adminOnly: true },
   { id: "settings",name: "Ajustes",   icon: "settings",          color: "#6f6a60", comp: "SettingsApp",  size: { w: 720, h: 540 } },
   { id: "web",     name: "Web",       icon: "public",            color: "#2a7f8f", comp: "WebViewApp",   size: { w: 1000, h: 670 } },
@@ -51,7 +52,7 @@ const APP_BY_ID = Object.fromEntries(APPS.map(a => [a.id, a]));
 export function registerExtApps(list) {
   for (let i = APPS.length - 1; i >= 0; i--) if (APPS[i].ext && !list.some(m => m.id === APPS[i].id)) { delete APP_BY_ID[APPS[i].id]; APPS.splice(i, 1); }
   for (const m of list) {
-    const a = { id: m.id, name: m.name, icon: m.icon, color: m.color, comp: "WebApp", ext: true, url: `ext-apps/${m.id}/${m.entry}`, size: m.size, store: true, cat: m.category, desc: m.description, author: m.author, version: m.version, permissions: m.permissions, opens: m.opens, homepage: m.homepage };
+    const a = { id: m.id, name: m.name, icon: m.icon, color: m.color, comp: "WebApp", ext: true, url: `ext-apps/${m.id}/${m.entry}`, size: m.size, store: true, cat: m.category, desc: m.description, author: m.author, version: m.version, permissions: m.permissions, opens: m.opens, homepage: m.homepage, bytes: m.bytes, serverInstalled: m.installed };
     const at = APPS.findIndex(x => x.id === m.id); if (at >= 0) APPS[at] = a; else APPS.splice(APPS.findIndex(x => x.id === "admin"), 0, a);
     APP_BY_ID[m.id] = a;
   }

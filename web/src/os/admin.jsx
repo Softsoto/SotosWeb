@@ -15,11 +15,12 @@ import { PersonAvatar } from "./contacts.jsx";
 const { useState, useEffect } = React;
 
 const dur = (s) => s < 3600 ? `${Math.round(s / 60)} min` : s < 86400 ? `${Math.round(s / 3600)} h` : `${Math.round(s / 86400)} días`;
-const MANAGEABLE = () => APPS.filter(a => !a.hidden && !["launchpad", "web", "settings", "files", "admin", "trash"].includes(a.id));
+const MANAGEABLE = () => APPS.filter(a => !a.hidden && !["launchpad", "web", "settings", "control", "files", "admin", "trash"].includes(a.id));
 
-export function AdminApp() {
+export function AdminApp({ tab: openTab, nonce }) {
   const user = useVfs(s => s.user);
-  const [tab, setTab] = useState("resumen");
+  const [tab, setTab] = useState(openTab || "resumen");
+  useEffect(() => { if (openTab) setTab(openTab); }, [openTab, nonce]); // abierto desde el Panel de control
   const [stats, setStats] = useState(null), [users, setUsers] = useState(null);
   const [q, setQ] = useState(""), [edit, setEdit] = useState(null), [files, setFiles] = useState(null), [creating, setCreating] = useState(false), [confirm, setConfirm] = useState(null);
   // si el servidor se está reiniciando, se reintenta solo unas veces antes de mostrar el error

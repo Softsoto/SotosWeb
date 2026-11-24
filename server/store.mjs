@@ -22,9 +22,9 @@ export async function handleStore(req, res, parts) {
   const u = requireUser(req);
   const [app, action] = parts;
   if (!app && req.method === "GET") {
-    const installed = db.prepare("SELECT app_id FROM app_installs WHERE user_id = ?").all(u.id).map(r => r.app_id);
+    const rows = db.prepare("SELECT app_id, installed FROM app_installs WHERE user_id = ?").all(u.id);
     const ratings = Object.fromEntries(db.prepare("SELECT app_id, AVG(stars) avg, COUNT(*) n FROM app_reviews GROUP BY app_id").all().map(r => [r.app_id, { avg: Math.round(r.avg * 10) / 10, count: r.n }]));
-    return json(res, 200, { installed, ratings });
+    return json(res, 200, { installed: rows.map(r => r.app_id), dates: Object.fromEntries(rows.map(r => [r.app_id, r.installed])), ratings });
   }
   if (!APP_ID.test(app || "")) fail(400, "App no válida");
   if (action === "install" && req.method === "POST") { db.prepare("INSERT OR IGNORE INTO app_installs(user_id,app_id,installed) VALUES(?,?,?)").run(u.id, app, now()); notify(u.id, "store", {}); return json(res, 200, { ok: true }); }
