@@ -26,6 +26,7 @@ import { DATA_DIR } from "./db.mjs";
 import { fail, json, readJson, rateLimit } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
 import { loadState, blobPath, applyOps, userNode } from "./fs.mjs";
+import { guardLocked } from "./candados.mjs";
 import { typeOf, newId, quotaOf, MAX_FILE } from "./dav.mjs";
 
 const BASE = path.resolve(process.env.SOTOS_NAS_DIR || "/nas");
@@ -198,6 +199,7 @@ export async function handleNas(req, res, parts) {
     catch (e) { fs.rmSync(dest + ".part", { force: true }); throw e; }
     const root = loadState(u.id).state.root, ops = [], t = Date.now();
     let dir = (root.children || []).find(c => c.children && c.name === "Del NAS");
+    if (dir) guardLocked(u.id, dir.id, req);
     if (!dir) { dir = { id: newId(), name: "Del NAS", type: "folder", children: [], ctime: t, mtime: t }; ops.push({ t: "create", parent: root.id, node: dir }); }
     const taken = new Set((dir.children || []).map(c => c.name.toLowerCase())), orig = segs[segs.length - 1];
     const ext = path.extname(orig), base = orig.slice(0, orig.length - ext.length);
@@ -212,6 +214,7 @@ export async function handleNas(req, res, parts) {
     const body = await readJson(req, 8192);
     const n = userNode(u.id, String(body.nodeId || ""));
     if (!n || n.children || n.type === "folder") fail(404, "Elige un archivo de tus archivos");
+    guardLocked(u.id, n.id, req);
     const src = blobPath(u.id, n.id);
     if (!fs.existsSync(src)) fail(409, "Ese archivo no tiene contenido en el servidor (puede que aún se esté subiendo)");
     const { abs } = resolve(body.p);

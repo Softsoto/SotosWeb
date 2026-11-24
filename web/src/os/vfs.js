@@ -114,7 +114,10 @@ export function migrateSampleVideos() {
   olds.forEach(([id, name]) => { try { rename(id, name); } catch {} });
   return olds.length;
 }
-export function walk(fn, from) { const go = (n) => { fn(n); (n.children || []).forEach(go); }; if (state.root) go(from || state.root); }
+// carpetas con contraseña cerradas: los recorridos (búsqueda, recientes, adjuntar, widgets…) no entran en ellas
+let walkHide = () => false;
+export const setWalkHide = (fn) => { walkHide = fn; };
+export function walk(fn, from, { all = false } = {}) { const go = (n) => { fn(n); if (!all && n.children && walkHide(n)) return; (n.children || []).forEach(go); }; if (state.root) go(from || state.root); }
 export function search(q, limit = 30) { const out = []; const ql = q.toLowerCase(); walk(n => { if (n.id !== ROOT && n.name.toLowerCase().includes(ql) && out.length < limit) out.push(n); }); return out; }
 export const allOfType = (types) => { const out = []; walk(n => { if (types.includes(n.type)) out.push(n); }); return out; };
 export const usedBytes = () => state.root ? fSize(state.root) + state.trash.reduce((s, t) => s + fSize(t.node), 0) : 0;
@@ -189,7 +192,7 @@ async function pull() {
   version = r.version;
   // contenidos que cambiaron en otro dispositivo (o al restaurar una versión): se descarta la copia local vieja
   if (state.root) {
-    const before = new Map(); walk(n => { if (!n.children) before.set(n.id, n.mtime); });
+    const before = new Map(); walk(n => { if (!n.children) before.set(n.id, n.mtime); }, null, { all: true });
     const changed = []; const go = (n) => { if (n.children) n.children.forEach(go); else if (before.has(n.id) && before.get(n.id) !== n.mtime) changed.push(n.id); }; go(s.root);
     for (const id of changed) await dropCache(id);
   }

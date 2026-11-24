@@ -9,6 +9,7 @@ import { db, BLOB_DIR } from "./db.mjs";
 import { fail, json, readJson } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
 import { applyOp, folderSize, findNode, ROOT, DESKTOP } from "../web/src/os/tree-ops.js";
+import { guardLocked, handleLocks } from "./candados.mjs";
 
 const SAFE_ID = /^[a-z0-9]{6,40}$/i;
 const MAX_FILE = Number(process.env.SOTOS_MAX_FILE_MB || 512) * 1024 * 1024;
@@ -91,11 +92,22 @@ export function applyOps(userId, ops, origin) {
   return version;
 }
 
+/** ninguna operación puede tocar lo que hay dentro de una carpeta con contraseña cerrada */
+function guardOps(uid, ops, req) {
+  for (const op of ops) {
+    if (op.t === "replace") { if (db.prepare("SELECT 1 FROM folder_locks WHERE user_id = ? LIMIT 1").get(uid)) fail(423, "Tienes carpetas con contraseña: no se puede reemplazar todo el Drive"); continue; }
+    const ids = [op.parent, op.id, op.dest, ...(op.ids || []), ...(op.blobs || []).map(b => b && b.from)].filter(x => typeof x === "string");
+    for (const id of ids) guardLocked(uid, id, req);
+  }
+}
+
 export async function handleFs(req, res, parts) {
   const user = requireUser(req);
   const [kind, id] = parts;
 
   if (kind === "events") return events(req, res, user);
+  if (kind === "locks") return handleLocks(req, res, parts.slice(1), user);
+  if ((kind === "blob" || kind === "versions") && id) guardLocked(user.id, id, req);
 
   if (kind === "state" && req.method === "GET") {
     const { version, state, fresh } = loadState(user.id);
@@ -105,6 +117,7 @@ export async function handleFs(req, res, parts) {
   if (kind === "ops" && req.method === "POST") {
     const { ops, origin } = await readJson(req, 8 * 1024 * 1024);
     if (!Array.isArray(ops) || ops.length > 500) fail(400, "Operaciones no válidas");
+    guardOps(user.id, ops, req);
     let version;
     try { version = applyOps(user.id, ops, String(origin || "").slice(0, 40)); }
     catch (e) { fail(400, e.message); }

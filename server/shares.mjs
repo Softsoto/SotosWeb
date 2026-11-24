@@ -9,6 +9,7 @@ import { db, now, rid, secret } from "./db.mjs";
 import { fail, json, readJson, rateLimit, clientIp, jwtSign, jwtVerify } from "./http.mjs";
 import { requireUser, currentUser, hashPassword, checkPassword } from "./auth.mjs";
 import { loadState, blobPath, applyOps } from "./fs.mjs";
+import { guardLocked, lockedFolder } from "./candados.mjs";
 import { typeOf, newId, quotaOf, MAX_FILE } from "./dav.mjs";
 
 // enlaces con contraseña, límite de descargas, contadores y carpetas «solo subir» (pedir archivos)
@@ -48,6 +49,11 @@ function shareRow(token) {
   if (!node) fail(404, "El archivo compartido ya no existe");
   return { s, node };
 }
+/** lo que está en una carpeta con contraseña no se entrega por enlace mientras esa carpeta esté cerrada */
+function notLocked(s, nodeId, req) {
+  const f = lockedFolder(s.user_id, nodeId, req);
+  if (f) fail(403, "Este contenido está en una carpeta con contraseña");
+}
 /** acceso a un recurso compartido: público por enlace, o restringido a destinatarios */
 function canSee(s, req) {
   const me = currentUser(req); if (me && me.id === s.user_id) return true; // el dueño siempre entra
@@ -59,7 +65,7 @@ function canSee(s, req) {
   if (!db.prepare("SELECT 1 FROM share_users WHERE token = ? AND user_id = ?").get(s.token, u.id)) fail(403, "No tienes acceso a este elemento");
   return true;
 }
-export function resolveShare(token, req) { const r = shareRow(token); canSee(r.s, req); return r; }
+export function resolveShare(token, req) { const r = shareRow(token); canSee(r.s, req); notLocked(r.s, r.s.node_id, req); return r; }
 
 export async function handleShares(req, res, parts) {
   const u = requireUser(req);
@@ -74,6 +80,7 @@ export async function handleShares(req, res, parts) {
     const { nodeId, perm, days, emails, password, maxDownloads } = await readJson(req, 16384);
     if (nodeId === ROOT) fail(400, "No se puede compartir todo el Drive");
     const target = findNode({ root: loadState(u.id).state.root, trash: [] }, nodeId); if (!target) fail(404, "No existe");
+    guardLocked(u.id, target.id, req);
     const p = perm === "edit" ? "edit" : perm === "upload" ? "upload" : "view";
     if (p === "upload" && !target.children) fail(400, "Solo se pueden pedir archivos en una carpeta");
     const exp = Number(days) > 0 ? now() + Math.min(365, Number(days)) * 86400_000 : null;
@@ -128,7 +135,8 @@ export async function handlePublicShare(req, res, parts) {
     if (s.perm === "upload") fail(403, "Esta carpeta solo recibe archivos");
     const inner = index(node).get(id)?.node; // solo archivos dentro de lo compartido
     if (!inner || inner.children) fail(404, "No encontrado");
-    const dl = new URL(req.url, "http://x").searchParams.has("dl");
+    notLocked(s, inner.id, req); // una subcarpeta con contraseña dentro de lo compartido
+    const dl =new URL(req.url, "http://x").searchParams.has("dl");
     if (s.max_downloads && !owner) { // con límite: nada de vistas previas, y cada descarga cuenta
       if (!dl) fail(403, "Este enlace solo permite descargar");
       const r = db.prepare("UPDATE shares SET downloads = downloads + 1 WHERE token = ? AND downloads < max_downloads").run(token);

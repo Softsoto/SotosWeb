@@ -14,6 +14,7 @@ import { db, now, rid } from "./db.mjs";
 import { rateLimit, clientIp, json, readJson, fail } from "./http.mjs";
 import { requireUser, verifyPassword } from "./auth.mjs";
 import { loadState, applyOps, blobPath, snapshotVersion } from "./fs.mjs";
+import { lockedFolder } from "./candados.mjs";
 import { index, ROOT, DESKTOP, folderSize } from "../web/src/os/tree-ops.js";
 
 db.exec(`CREATE TABLE IF NOT EXISTS app_passwords (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, name TEXT NOT NULL, hash TEXT NOT NULL UNIQUE, created INTEGER NOT NULL, last_used INTEGER);
@@ -120,6 +121,8 @@ export async function handleDav(req, res) {
   if (!u) { rateLimit("dav-fail:" + clientIp(req), 30, 900_000); await drain(req); return send(res, 401, "Usa tu correo y una contraseña de aplicación de Sotos", { ...base, "WWW-Authenticate": 'Basic realm="Sotos", charset="UTF-8"' }); }
   const url = new URL(req.url, "http://x"); const parts = segs(url.pathname);
   const { state } = loadState(u.id); const at = resolve(state, parts);
+  // carpetas con contraseña: por WebDAV se ven en la lista pero su contenido no se abre ni se cambia
+  if (req.method !== "PROPFIND" && req.method !== "OPTIONS") { const tgt = at.node || at.parent; const f = tgt && lockedFolder(u.id, tgt.id, req); if (f) { await drain(req); return send(res, 423, `La carpeta «${f.name}» tiene contraseña: ábrela desde Sotos`, base); } }
 
   switch (req.method) {
     case "PROPFIND": {

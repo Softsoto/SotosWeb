@@ -10,6 +10,7 @@ import { db, BLOB_DIR, now, rid } from "./db.mjs";
 import { fail, json, readJson, rateLimit } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
 import { blobPath, userNode, loadState, applyOps, notify } from "./fs.mjs";
+import { guardLocked } from "./candados.mjs";
 import { addNotification, isBlocked } from "./social.mjs";
 import { ROOT } from "../web/src/os/tree-ops.js";
 
@@ -46,6 +47,7 @@ export async function handleInbox(req, res, parts) {
     if (!ids.length) fail(400, "Elige qué archivos enviar");
     const nodes = ids.map(id => userNode(u.id, id)).filter(Boolean);
     if (!nodes.length) fail(404, "Los archivos no existen");
+    for (const n of nodes) guardLocked(u.id, n.id, req);
     if (nodes.some(n => n.type === "folder" || n.children)) fail(400, "Las carpetas se envían comprimidas: Sotos las convierte en .zip antes de enviarlas");
     const list = (Array.isArray(body.to) ? body.to : [body.to]).map(x => String(x || "").trim().toLowerCase()).filter(Boolean).slice(0, 20);
     if (!list.length) fail(400, "Elige a quién enviarlo");

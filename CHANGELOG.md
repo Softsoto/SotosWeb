@@ -3,6 +3,18 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.6.6 — 24 de noviembre de 2026
+
+### Nuevo
+- **Carpetas con contraseña en Archivos** (clic derecho → «Poner contraseña…»). Sin la contraseña, el servidor no entrega ni deja cambiar nada de lo que hay dentro: no se puede abrir, descargar, borrar, mover, compartir, enviar, editar en Office ni leer por WebDAV. Los enlaces compartidos que ya existían también dejan de entregarlo. La carpeta muestra un candado y, al entrar, pide la contraseña. Queda abierta 15 minutos en ese navegador y se cierra sola, o al momento con «Cerrar con contraseña ahora». La contraseña se puede cambiar o quitar. Mientras está cerrada, su contenido no sale en la búsqueda, en recientes ni en los adjuntos. Una carpeta dentro de otra con contraseña necesita las dos. No es cifrado: para eso está la Bóveda.
+- **La Bóveda guarda carpetas enteras.** Al subir o arrastrar una carpeta, desde el computador o desde Archivos, se guarda con sus subcarpetas en vez de solo los archivos sueltos. También tiene botón «Subir carpeta», nueva carpeta, renombrar, mover arrastrando sobre una carpeta o sobre la ruta, borrar carpetas con todo su contenido y buscar en toda la bóveda. Los nombres de las carpetas también van cifrados.
+- **Carpetas con contraseña dentro de la Bóveda**: además de la clave de la bóveda, una carpeta puede pedir la suya. Mientras está cerrada, su contenido no se lista ni se entrega.
+- **Seleccionar varios elementos arrastrando un recuadro con el mouse**, en Archivos y en la Bóveda. Con Ctrl o Mayús el recuadro se suma a lo que ya estaba seleccionado. Cerca del borde, la lista se desplaza sola.
+- La Bóveda tiene clic derecho (abrir, descargar, renombrar, contraseña, eliminar), Ctrl+A, Supr para eliminar lo seleccionado y Retroceso para subir de carpeta.
+
+### Arreglado
+- **No se podían eliminar fotos en la Bóveda**: con una foto alta, los botones del visor (Eliminar incluido) quedaban fuera de la ventana. Ahora los diálogos nunca son más altos que la ventana donde se abren. Además se puede eliminar directo desde la cuadrícula, uno o varios a la vez.
+
 ## 3.6.5 — 24 de noviembre de 2026
 
 ### Arreglado

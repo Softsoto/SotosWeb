@@ -14,6 +14,7 @@ import { useTrackInfo } from "./id3.js";
 import { coverOf } from "./cover-art.js";
 import { extract, isArchive, ARCHIVE_RE } from "./decompress.js";
 import { tz as regionTz } from "./region.js";
+import { lockMenuItems, runLockAction } from "./candados.jsx";
 
 // carpetas del sistema con su símbolo encima (como una carpeta con cámara para Imágenes)
 const SPECIAL = { "Imágenes": "photo_camera", "Música": "music_note", "Vídeos": "movie", "Documentos": "description", "Descargas": "download", "Escritorio": "desktop_windows", "Proyectos": "rocket_launch", "Papelera": "delete" };
@@ -123,6 +124,7 @@ export function itemMenu(nodes, { canPaste } = {}) {
   if (one && isArchive(one)) items.push({ id: "unzip", label: "Extraer aquí", icon: "unarchive" });
   items.push({ id: "compress", label: nodes.length > 1 ? `Comprimir ${nodes.length} elementos en .zip` : "Comprimir en .zip", icon: "folder_zip" });
   items.push({ sep: true });
+  items.push(...lockMenuItems(nodes)); // carpetas con contraseña
   if (one) items.push({ id: "rename", label: "Renombrar", icon: "drive_file_rename" });
   if (one && one.type !== "folder" && vfs.getState().mode === "cloud") items.push({ id: "versions", label: "Versiones anteriores…", icon: "history" });
   if (one) items.push({ id: "props", label: "Propiedades", icon: "info" });
@@ -133,6 +135,7 @@ export function itemMenu(nodes, { canPaste } = {}) {
 export async function runItemAction(id, nodes, { openItem, update, startRename, showProps, showShare, parentId }) {
   const ids = nodes.map(n => n.id);
   const one = nodes[0];
+  if (id.startsWith("lock:")) return runLockAction(id, one);
   switch (id) {
     case "open": openItem(one); return true;
     case "with:paint": case "with:code": case "with:editor": default: if (!id.startsWith("with:")) break; window.dispatchEvent(new CustomEvent("sotos-open-with", { detail: { app: id.slice(5), fileId: one.id } })); return true;

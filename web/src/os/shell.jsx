@@ -8,6 +8,7 @@ import { SotosLogo, SotosMark, BrandMark, setBrandLogo } from "./logo.jsx";
 import * as Vault from "./vault.jsx";
 import { Tile, Ic, Win, EmptyState, FileGlyph, ContextMenu, Avatar, toast, Toasts, animateWinOut, animateWinGeometry , AppGuard } from "./ui.jsx";
 import { UpdateDialog, UpdatePrompt, openUpdate } from "./actualizar.jsx";
+import { LockDialogs, refreshLocks } from "./candados.jsx";
 import { WIDGET_TYPES, Widget } from "./widgets.jsx";
 import * as vfs from "./vfs.js";
 import { useVfs, DESKTOP } from "./vfs.js";
@@ -761,6 +762,7 @@ function OS() {
   }, [openApp]);
   // «Actualizar Sotos» se abre desde cualquier parte con openUpdate()
   const [updOpen, setUpdOpen] = useSh(false);
+  useEh(() => { refreshLocks(); }, [user?.id]); // carpetas con contraseña de esta cuenta
   useEh(() => { const f = () => setUpdOpen(true); window.addEventListener("sotos-update", f); return () => window.removeEventListener("sotos-update", f); }, []);
   // tocar un aviso del celular o del computador (service worker) abre el lugar del aviso
   useEh(() => {
@@ -911,6 +913,7 @@ function OS() {
       {DEMO && demoWelcome && <DemoWelcome onApp={openApp} onClose={() => { setDemoWelcome(false); try { localStorage.setItem("sotos_demo_seen", "1"); } catch {} }} />}
       {updOpen && <UpdateDialog onClose={() => setUpdOpen(false)} />}
       <UpdatePrompt user={user} />
+      <LockDialogs />
       <Toasts />
       <FilePickerHost />
     </div>

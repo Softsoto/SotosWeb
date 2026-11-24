@@ -15,6 +15,7 @@ import { secret } from "./db.mjs";
 import { fail, json, readJson, jwtSign, jwtVerify } from "./http.mjs";
 import { requireUser } from "./auth.mjs";
 import { loadState, blobPath, applyOps, userNode, snapshotVersion } from "./fs.mjs";
+import { guardLocked } from "./candados.mjs";
 import { resolveShare } from "./shares.mjs";
 import { worldDoc, worldDocSaved } from "./worlds.mjs";
 import { index } from "../web/src/os/tree-ops.js";
@@ -44,7 +45,7 @@ export async function handleOO(req, res, parts) {
     else if (share) {
       const r = resolveShare(String(share), req);
       node = index(r.node).get(nodeId)?.node; owner = r.s.user_id; canEdit = r.s.perm === "edit";
-    } else node = userNode(user.id, nodeId);
+    } else { node = userNode(user.id, nodeId); if (node) guardLocked(user.id, node.id, req); }
     if (!node || node.children) fail(404, "No existe");
     const ext = extOf(node.name); const documentType = DOC_TYPE[ext];
     if (!documentType) fail(415, "ONLYOFFICE no abre este tipo de archivo");

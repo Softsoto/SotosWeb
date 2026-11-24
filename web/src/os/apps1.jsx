@@ -13,6 +13,8 @@ import { api } from "./api.js";
 import { withOnlyOffice } from "./onlyoffice.jsx";
 import { InboxView, useInboxCount } from "./inbox.jsx";
 import { shownName } from "./region.js";
+import { useMarquee } from "./seleccion.jsx";
+import { useLocks, LockGate } from "./candados.jsx";
 const { useState: useS1, useRef: useR1, useEffect: useE1, useMemo: useM1, useCallback: useC1 } = React;
 const TOUCH = () => window.matchMedia?.("(pointer: coarse)").matches;
 
@@ -72,7 +74,8 @@ function FilesApp({ openApp, openItem, update, folderId, select, place }) {
   const [special, setSpecial] = useS1(place || null); // "shared" | "inbox"
   useE1(() => { if (place) setSpecial(place); }, [place]);
   const mode = useVfs(s => s.mode), sync = useVfs(s => s.sync);
-  const fileInput = useR1(null), dirInput = useR1(null), rootRef = useR1(null);
+  const fileInput = useR1(null), dirInput = useR1(null), rootRef = useR1(null), bodyRef = useR1(null);
+  const mq = useMarquee({ box: bodyRef, items: ".file-cell,.file-row", idOf: el => el.dataset.id, sel, setSel }); // seleccionar arrastrando un recuadro
 
   useE1(() => { if (folderId && vfs.node(folderId)) go(folderId); }, [folderId]);
   useE1(() => { localStorage.setItem("sotos_files_view", view); }, [view]);
@@ -83,8 +86,11 @@ function FilesApp({ openApp, openItem, update, folderId, select, place }) {
   if (node.id !== cur) setTimeout(() => setCur(node.id));
   const used = vfs.usedBytes();
 
+  // carpetas con contraseña: cerrada → se pide la contraseña y no se muestra ni se busca lo de dentro
+  const lk = useLocks();
+  const gate = lk.closedAbove(node.id);
   // contenido: carpeta actual o búsqueda recursiva
-  let items = q.trim()
+  let items = gate ? [] : q.trim()
     ? (() => { const out = []; const ql = q.toLowerCase(); vfs.walk(n => { if (n.id !== node.id && n.name.toLowerCase().includes(ql)) out.push(n); }, node); return out; })()
     : (node.children || []);
   const cmp = {
@@ -148,6 +154,7 @@ function FilesApp({ openApp, openItem, update, folderId, select, place }) {
         onKeyDown={e => { e.stopPropagation(); if (e.key === "Enter") commitRename(); if (e.key === "Escape") { setRenaming(null); rootRef.current?.focus(); } }} />
     : <div className="fname" title={n.name}>{shownName(n)}</div>;
   const cellProps = (n, i) => ({
+    "data-id": n.id,
     className: (view === "list" ? "file-row" : "file-cell") + (sel.includes(n.id) ? " sel" : "") + (hot === n.id ? " drop-hot" : "") + (cutIds.includes(n.id) ? " cut" : ""),
     draggable: renaming !== n.id,
     onMouseDown: (e) => { if (e.button === 0 && !sel.includes(n.id)) click(e, n, i); },
@@ -215,14 +222,14 @@ function FilesApp({ openApp, openItem, update, folderId, select, place }) {
             {q && <Ic name="close" size={15} style={{ cursor: "pointer" }} onClick={() => setQ("")} />}</div>
         </Toolbar>
         {special === "inbox" ? <InboxView openItem={openItem} /> : special === "shared" ? <SharedWithMe openApp={openApp} /> :
-        <div className="files-body" {...dropTarget(cur)}
-          onMouseDown={e => { if (e.target === e.currentTarget || e.target.classList.contains("file-grid")) { setSel([]); rootRef.current?.focus(); } }}
+        <div className="files-body" ref={bodyRef} {...dropTarget(cur)}
+          onMouseDown={e => { if (!e.target.closest(".file-cell,.file-row,input,button")) { rootRef.current?.focus(); mq.start(e); } }}
           onContextMenu={e => { if (e.target.closest(".file-cell,.file-row")) return; e.preventDefault(); setSel([]); setCtx({ x: e.clientX, y: e.clientY, nodes: null }); }}>
-          {view === "grid" ? (
+          {gate ? <LockGate folder={gate} /> : view === "grid" ? (
             <div className="file-grid">
               {items.map((n, i) => (
                 <div key={n.id} {...cellProps(n, i)}>
-                  <div className="ic"><NodeGlyph node={n} size={46} /></div>
+                  <div className="ic"><NodeGlyph node={n} size={46} />{lk.hasLock(n.id) && <Ic name={lk.isOpen(n.id) ? "lock_open" : "lock"} size={16} className="lock-badge" />}</div>
                   {nameCell(n)}
                   {renaming !== n.id && <div className="fmeta">{q ? vfs.pathOf(n.id).slice(-2, -1).map(p => p.name)[0] || "Sotos Drive" : n.type === "folder" ? `${(n.children || []).length} elementos` : n.online && !n.size ? "en línea" : fmtSize(n.size)}</div>}
                 </div>
@@ -236,14 +243,15 @@ function FilesApp({ openApp, openItem, update, folderId, select, place }) {
               </div>
               {items.map((n, i) => (
                 <div key={n.id} {...cellProps(n, i)}>
-                  <span className="fl-name"><NodeGlyph node={n} size={20} />{nameCell(n)}</span>
+                  <span className="fl-name"><NodeGlyph node={n} size={20} />{nameCell(n)}{lk.hasLock(n.id) && <Ic name={lk.isOpen(n.id) ? "lock_open" : "lock"} size={14} className="lock-inline" />}</span>
                   <span>{fmtDate(n.mtime)}</span><span>{TYPE_NAME[n.type] || n.type}</span>
                   <span style={{ textAlign: "right" }}>{n.type === "folder" ? `${(n.children || []).length} el.` : n.online && !n.size ? "en línea" : fmtSize(n.size)}</span>
                 </div>
               ))}
             </div>
           )}
-          {!items.length && <EmptyState icon={q ? "search_off" : "folder_open"} text={q ? "Sin resultados" : "Carpeta vacía · arrastra archivos o carpetas desde tu PC"} />}
+          {!items.length && !gate && <EmptyState icon={q ? "search_off" : "folder_open"} text={q ? "Sin resultados" : "Carpeta vacía · arrastra archivos o carpetas desde tu PC"} />}
+          {mq.box}
         </div>}
         <div className="files-status">
           <span>{items.length} elemento(s){sel.length ? ` · ${sel.length} seleccionado(s) · ${fmtSize(selSize)}` : ""}</span>
