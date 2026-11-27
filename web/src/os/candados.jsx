@@ -52,7 +52,7 @@ export function lockMenuItems(nodes) {
   return [
     ...(isOpen(n.id) ? [{ id: "lock:now", label: "Cerrar con contraseña ahora", icon: "lock" }] : [{ id: "lock:open", label: "Abrir con contraseña…", icon: "lock_open" }]),
     { id: "lock:change", label: "Cambiar contraseña…", icon: "password" },
-    { id: "lock:remove", label: "Quitar contraseña…", icon: "no_encryption" },
+    { id: "lock:remove", label: "Quitar contraseña…", icon: "lock_open" },
   ];
 }
 let dialog = null; const dsubs = new Set();
@@ -72,7 +72,7 @@ export function LockDialogs() {
   if (!dialog) return null;
   const { kind, node, done } = dialog;
   const close = (ok) => { setDialog(null); done?.(!!ok); };
-  const T = { set: ["Poner contraseña", "lock"], open: ["Carpeta con contraseña", "lock"], change: ["Cambiar contraseña", "password"], remove: ["Quitar contraseña", "no_encryption"] }[kind];
+  const T = { set: ["Poner contraseña", "lock"], open: ["Carpeta con contraseña", "lock"], change: ["Cambiar contraseña", "password"], remove: ["Quitar contraseña", "lock_open"] }[kind];
   const valid = kind === "set" ? pw.length >= 4 && pw === pw2 : kind === "change" ? cur && pw.length >= 4 && pw === pw2 : !!pw;
   const go = async () => {
     if (!valid || busy) return; setBusy(true);
@@ -80,7 +80,7 @@ export function LockDialogs() {
       if (kind === "set") { await api("POST", "fs/locks", { nodeId: node.id, password: pw }); dropLocalCopies(node.id); await refreshLocks(); toast(`«${node.name}» ahora pide contraseña`, { icon: "lock" }); }
       else if (kind === "open") { await unlock(node.id, pw); toast(`«${node.name}» abierta por 15 minutos`, { icon: "lock_open" }); }
       else if (kind === "change") { await api("PUT", `fs/locks/${node.id}`, { password: cur, next: pw }); toast("Contraseña cambiada", { icon: "password" }); }
-      else if (kind === "remove") { await api("DELETE", `fs/locks/${node.id}`, { password: pw }); await refreshLocks(); toast(`«${node.name}» ya no pide contraseña`, { icon: "no_encryption" }); }
+      else if (kind === "remove") { await api("DELETE", `fs/locks/${node.id}`, { password: pw }); await refreshLocks(); toast(`«${node.name}» ya no pide contraseña`, { icon: "lock_open" }); }
       close(true);
     } catch (e) { toast(e.message, { error: true }); }
     setBusy(false);

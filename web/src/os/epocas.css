@@ -1002,6 +1002,9 @@
 @supports (backdrop-filter: url(#vidrio-onda) blur(1px)) {
   .taskbar.era-cristal, .taskbar.era-vidrio, .startmenu.era-cristal, .startmenu.era-vidrio, [data-skin="cristal"] .window, [data-skin="vidrio"] .window { backdrop-filter: var(--aero-glass-wave); }
 }
+/* Chrome desenfoca también el contenido de un iframe dentro de un elemento con backdrop-filter:
+   las ventanas con apps en marco (Tienda, juegos, Office) van sin el vidrio para verse nítidas */
+[data-skin="cristal"] .window:has(iframe), [data-skin="vidrio"] .window:has(iframe) { -webkit-backdrop-filter: none; backdrop-filter: none; }
 /* íconos de época dentro del panel lateral y en el título de la ventana */
 .side-obj { position: relative; width: 20px; height: 20px; flex: 0 0 auto; display: inline-block; }
 .win-app .tile { border-radius: 0; }

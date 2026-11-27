@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Películas y series</title>
+<!-- Sotos — Películas y series · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .tabs button { position: relative; } .tabs .n { font-size: 11px; opacity: .7; margin-left: 4px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 20px 16px; padding: 18px; }
+  .it { cursor: pointer; display: grid; gap: 6px; }
+  .poster { aspect-ratio: 2 / 3; border-radius: 8px; overflow: hidden; position: relative; padding: 12px 11px; display: grid; align-content: space-between; color: #fff8ee; box-shadow: 0 10px 18px -12px rgba(0,0,0,.6); transition: transform .15s; }
+  .it:hover .poster { transform: translateY(-3px); }
+  .poster b { font: 800 17px/1.08 var(--font); text-transform: uppercase; letter-spacing: .01em; word-break: break-word; }
+  .poster .yr { font: 600 11px var(--mono); opacity: .8; } .poster .kind { position: absolute; top: 8px; right: 8px; font: 700 9.5px var(--mono); background: rgba(0,0,0,.35); padding: 2px 6px; border-radius: 4px; text-transform: uppercase; }
+  .poster .big { position: absolute; right: -6px; bottom: -22px; font: 900 110px/1 Georgia, serif; opacity: .18; }
+  .poster .st { position: absolute; left: 0; bottom: 0; right: 0; height: 4px; }
+  .tt { font-weight: 600; font-size: 13px; line-height: 1.25; } .sub { font-size: 12px; color: var(--ink-3); }
+  .stars { color: #d9a43a; letter-spacing: 1px; font-size: 13px; } .stars .off { color: var(--line-2); }
+  .stats { padding: 18px; display: grid; gap: 16px; max-width: 980px; }
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  .kpi { padding: 14px; } .kpi b { display: block; font: 800 30px var(--font); } .kpi span { font-size: 12.5px; color: var(--ink-2); }
+  .bars { display: grid; grid-template-columns: repeat(12, 1fr); gap: 6px; align-items: end; height: 140px; padding: 14px 14px 0; }
+  .bars div { display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 4px; font-size: 11px; color: var(--ink-3); height: 100%; min-height: 0; }
+  .bars div > span:first-child { min-height: 14px; }
+  .bars .col { flex: 1; width: 100%; display: flex; align-items: flex-end; justify-content: center; min-height: 0; }
+  .bars i { width: 100%; max-width: 30px; background: var(--accent); border-radius: 4px 4px 0 0; min-height: 2px; }
+  .list { padding: 14px; display: grid; gap: 6px; } .list div { display: flex; justify-content: space-between; font-size: 13px; }
+  .form { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; } .form .full { grid-column: 1 / -1; }
+  .starpick button { border: 0; background: none; font-size: 24px; cursor: pointer; color: var(--line-2); padding: 0 1px; } .starpick button.on { color: #d9a43a; }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar">
+    <h1>Películas y series</h1>
+    <div class="ap-seg tabs" id="tabs"></div>
+    <input class="ap-in" id="q" placeholder="Buscar" style="width:170px">
+    <select class="ap-in" id="sort"><option value="fecha">Recientes</option><option value="nota">Mejor nota</option><option value="titulo">Título</option><option value="anio">Año</option></select>
+    <span class="sp"></span>
+    <button class="ap-btn" id="csv">Exportar</button>
+    <button class="ap-btn primary" id="add">+ Agregar</button>
+  </div>
+  <div class="ap-main" id="main"></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const ESTADOS = [["vista", "Vistas", "#4f8f4a"], ["viendo", "Viendo", "#3a6ea5"], ["quiero", "Quiero ver", "#c9902a"], ["dejada", "Abandonadas", "#8a817a"]];
+const TIPOS = ["Película", "Serie", "Documental", "Anime"];
+const GENEROS = ["Acción", "Animación", "Comedia", "Crimen", "Drama", "Fantasía", "Terror", "Musical", "Romance", "Ciencia ficción", "Suspenso", "Familiar", "Historia", "Deportes"];
+let items = [], tab = "vista", q = "", sort = "fecha";
+const hue = (s) => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
+const stars = (n) => n ? `<span class="stars">${"★".repeat(n)}<span class="off">${"★".repeat(5 - n)}</span></span>` : "";
+const poster = (it) => { const h = hue(it.titulo), st = ESTADOS.find(e => e[0] === it.estado);
+  return `<div class="poster" style="background:linear-gradient(165deg,hsl(${h} 42% 38%),hsl(${(h + 35) % 360} 48% 18%))"><span class="kind">${it.tipo}</span><b>${ap.esc(it.titulo)}</b><span class="yr">${it.anio || ""}${it.temp ? " · T" + it.temp : ""}</span><span class="big">${ap.esc(it.titulo.trim()[0] || "?")}</span><span class="st" style="background:${st[2]}"></span></div>`; };
+const save = () => ap.store.set("items", items);
+function render() {
+  $("#tabs").innerHTML = [...ESTADOS.map(e => [e[0], e[1]]), ["stats", "Estadísticas"]].map(([k, t]) => `<button data-t="${k}" class="${tab === k ? "on" : ""}">${t}${k !== "stats" ? `<span class="n">${items.filter(i => i.estado === k).length}</span>` : ""}</button>`).join("");
+  if (tab === "stats") return renderStats();
+  const ql = q.toLowerCase();
+  let list = items.filter(i => i.estado === tab && (!ql || i.titulo.toLowerCase().includes(ql) || (i.generos || []).join(" ").toLowerCase().includes(ql)));
+  list.sort(sort === "nota" ? (a, b) => (b.nota || 0) - (a.nota || 0) : sort === "titulo" ? (a, b) => a.titulo.localeCompare(b.titulo, "es") : sort === "anio" ? (a, b) => (b.anio || 0) - (a.anio || 0) : (a, b) => (b.fecha || b.creado || "").localeCompare(a.fecha || a.creado || ""));
+  $("#main").innerHTML = list.length ? `<div class="grid">${list.map(i => `<div class="it" data-id="${i.id}">${poster(i)}<div class="tt">${ap.esc(i.titulo)}</div><div class="sub">${stars(i.nota)} ${i.fecha && i.estado === "vista" ? new Date(i.fecha + "T12:00").toLocaleDateString("es", { day: "numeric", month: "short", year: "numeric" }) : i.plataforma ? ap.esc(i.plataforma) : ""}</div></div>`).join("")}</div>`
+    : `<div class="ap-empty"><div><div class="big">&#127916;</div><b>${q ? "Sin resultados" : { vista: "Todavía no anotas nada visto", viendo: "No estás viendo nada", quiero: "Tu lista para ver está vacía", dejada: "No has abandonado nada" }[tab]}</b><p class="ap-muted">Agrega películas y series para llevar la cuenta y ver tus estadísticas del año.</p><button class="ap-btn primary" onclick="edit()">+ Agregar</button></div></div>`;
+}
+function renderStats() {
+  const y = new Date().getFullYear(), years = [...new Set(items.filter(i => i.fecha).map(i => +i.fecha.slice(0, 4)))].sort((a, b) => b - a); if (!years.includes(y)) years.unshift(y);
+  const sy = +($("#main").dataset.year || y), seen = items.filter(i => i.estado === "vista" && i.fecha?.startsWith(String(sy)));
+  const pel = seen.filter(i => i.tipo === "Película").length, ser = seen.filter(i => i.tipo !== "Película").length, notas = seen.filter(i => i.nota), prom = notas.length ? (notas.reduce((a, b) => a + b.nota, 0) / notas.length).toFixed(1) : "—";
+  const byM = Array(12).fill(0); seen.forEach(i => byM[+i.fecha.slice(5, 7) - 1]++); const mx = Math.max(1, ...byM);
+  const gen = {}; seen.forEach(i => (i.generos || []).forEach(g => gen[g] = (gen[g] || 0) + 1)); const topG = Object.entries(gen).sort((a, b) => b[1] - a[1]).slice(0, 6);
+  const top = [...seen].filter(i => i.nota).sort((a, b) => b.nota - a.nota).slice(0, 6);
+  $("#main").innerHTML = `<div class="stats"><div style="display:flex;gap:10px;align-items:center"><h2 style="margin:0">Tu ${sy}</h2><select class="ap-in" id="yr">${years.map(v => `<option ${v === sy ? "selected" : ""}>${v}</option>`).join("")}</select></div>
+    <div class="kpis"><div class="ap-card kpi"><b>${seen.length}</b><span>títulos vistos</span></div><div class="ap-card kpi"><b>${pel}</b><span>películas</span></div><div class="ap-card kpi"><b>${ser}</b><span>series, documentales y anime</span></div><div class="ap-card kpi"><b>${prom}</b><span>nota promedio</span></div></div>
+    <div class="ap-card"><div class="bars">${byM.map((n, k) => `<div><span>${n || ""}</span><span class="col"><i style="height:${n / mx * 100}%"></i></span><span>${"EFMAMJJASOND"[k]}</span></div>`).join("")}</div><div class="ap-faint" style="padding:6px 14px 12px">Vistos por mes</div></div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px"><div class="ap-card"><div class="list"><b>Géneros</b>${topG.length ? topG.map(([g, n]) => `<div><span>${g}</span><span>${n}</span></div>`).join("") : '<span class="ap-faint">Sin géneros anotados</span>'}</div></div>
+    <div class="ap-card"><div class="list"><b>Mejor calificadas</b>${top.length ? top.map(i => `<div><span>${ap.esc(i.titulo)}</span>${stars(i.nota)}</div>`).join("") : '<span class="ap-faint">Sin notas este año</span>'}</div></div></div>
+    <div class="ap-faint">Quieres ver ${items.filter(i => i.estado === "quiero").length} · estás viendo ${items.filter(i => i.estado === "viendo").length}</div></div>`;
+  $("#yr").onchange = (e) => { $("#main").dataset.year = e.target.value; renderStats(); };
+}
+async function edit(it) {
+  const isNew = !it; it = it || { estado: tab === "stats" ? "vista" : tab, tipo: "Película", nota: 0, generos: [], fecha: new Date().toISOString().slice(0, 10) };
+  const m = document.createElement("div"); m.className = "ap-modal";
+  m.innerHTML = `<div class="ap-card" style="width:min(560px,100%)"><h2>${isNew ? "Agregar" : "Editar"}</h2><div class="form">
+    <label class="ap-field full">Título<input class="ap-in" id="f-t" value="${ap.esc(it.titulo || "")}" placeholder="El nombre de la película o serie"></label>
+    <label class="ap-field">Tipo<select class="ap-in" id="f-k">${TIPOS.map(t => `<option ${t === it.tipo ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+    <label class="ap-field">Año de estreno<input class="ap-in" id="f-y" type="number" min="1890" max="2100" value="${it.anio || ""}"></label>
+    <label class="ap-field">Estado<select class="ap-in" id="f-s">${ESTADOS.map(e => `<option value="${e[0]}" ${e[0] === it.estado ? "selected" : ""}>${e[1].replace(/s$/, "").replace("Vista", "Vista").replace("Quiero ver", "Quiero verla")}</option>`).join("")}</select></label>
+    <label class="ap-field">Fecha en que la viste<input class="ap-in" id="f-d" type="date" value="${it.fecha || ""}"></label>
+    <label class="ap-field">Dónde (opcional)<input class="ap-in" id="f-p" value="${ap.esc(it.plataforma || "")}" placeholder="Cine, TV, una plataforma…"></label>
+    <label class="ap-field">Temporada (series)<input class="ap-in" id="f-temp" type="number" min="1" value="${it.temp || ""}"></label>
+    <div class="ap-field full">Tu nota<div class="starpick" id="f-n">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-n="${n}" class="${n <= (it.nota || 0) ? "on" : ""}">★</button>`).join("")}</div></div>
+    <div class="ap-field full">Géneros<div style="display:flex;flex-wrap:wrap;gap:6px" id="f-g">${GENEROS.map(g => `<button type="button" class="ap-btn ${it.generos?.includes(g) ? "on" : ""}" style="height:26px;font-size:12px" data-g="${g}">${g}</button>`).join("")}</div></div>
+    <label class="ap-field full">Comentario<textarea class="ap-in" id="f-c" rows="3">${ap.esc(it.nota_txt || "")}</textarea></label></div>
+    <div class="row">${isNew ? "" : '<button class="ap-btn" id="f-del" style="margin-right:auto;color:var(--bad)">Eliminar</button>'}<button class="ap-btn" id="f-x">Cancelar</button><button class="ap-btn primary" id="f-ok">Guardar</button></div></div>`;
+  document.body.appendChild(m); $("#f-t").focus();
+  let nota = it.nota || 0; const gens = new Set(it.generos || []);
+  m.querySelectorAll("[data-n]").forEach(b => b.onclick = () => { nota = nota === +b.dataset.n ? 0 : +b.dataset.n; m.querySelectorAll("[data-n]").forEach(x => x.classList.toggle("on", +x.dataset.n <= nota)); });
+  m.querySelectorAll("[data-g]").forEach(b => b.onclick = () => { gens.has(b.dataset.g) ? gens.delete(b.dataset.g) : gens.add(b.dataset.g); b.classList.toggle("on"); });
+  const close = () => m.remove(); $("#f-x").onclick = close; m.addEventListener("mousedown", (e) => { if (e.target === m) close(); });
+  if (!isNew) $("#f-del").onclick = async () => { if (!(await ap.confirm(`¿Eliminar «${it.titulo}»?`))) return; items = items.filter(x => x.id !== it.id); save(); close(); render(); };
+  $("#f-ok").onclick = () => { const t = $("#f-t").value.trim(); if (!t) return ap.toast("Escribe el título");
+    const n = { ...it, id: it.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 6), titulo: t.slice(0, 120), tipo: $("#f-k").value, anio: +$("#f-y").value || null, estado: $("#f-s").value, fecha: $("#f-d").value || null,
+      plataforma: $("#f-p").value.trim().slice(0, 60), temp: +$("#f-temp").value || null, nota, generos: [...gens], nota_txt: $("#f-c").value.trim().slice(0, 1000), creado: it.creado || new Date().toISOString() };
+    if (isNew) items.push(n); else items = items.map(x => x.id === n.id ? n : x); save(); close(); tab = n.estado; render(); };
+}
+window.edit = edit;
+$("#main").addEventListener("click", (e) => { const c = e.target.closest(".it"); if (c) edit(items.find(i => i.id === c.dataset.id)); });
+$("#tabs").onclick = (e) => { const b = e.target.closest("[data-t]"); if (b) { tab = b.dataset.t; render(); } };
+$("#q").oninput = (e) => { q = e.target.value; if (tab === "stats") tab = "vista"; render(); };
+$("#sort").onchange = (e) => { sort = e.target.value; render(); };
+$("#add").onclick = () => edit();
+$("#csv").onclick = () => { const cols = ["titulo", "tipo", "anio", "estado", "fecha", "nota", "plataforma", "temp", "generos", "nota_txt"];
+  const csv = "﻿" + ["Título;Tipo;Año;Estado;Fecha;Nota;Dónde;Temporada;Géneros;Comentario", ...items.map(i => cols.map(c => { const v = c === "generos" ? (i.generos || []).join(", ") : i[c] ?? ""; return '"' + String(v).replace(/"/g, '""') + '"'; }).join(";"))].join("\r\n");
+  ap.save("Peliculas y series.csv", new Blob([csv], { type: "text/csv" })); };
+(async () => { await ap.ready; items = (await ap.store.get("items")) || []; render(); })();
+</script>
+</body>
+</html>

@@ -481,11 +481,17 @@ function SdkHost({ app, fileId, setWinTitle, closeWin }) {
   const can = (p) => app.permissions?.includes(p);
   const send = (msg) => frame.current?.contentWindow?.postMessage({ sotos: "event", ...msg }, "*");
   const theme = () => ({ dark: document.documentElement.getAttribute("data-theme") === "dark", accent: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || "#c4532f" });
-  const grant = (n) => { if (n instanceof File) { n.__sdkId = n.__sdkId || "local-" + Math.random().toString(36).slice(2, 10); grants.current.set(n.__sdkId, n); } else grants.current.set(n.id, n); return meta(n); };
+  // archivos que la persona ya le dio a esta app (en este navegador): la app puede volver a abrirlos con files.recent
+  const RKEY = "sotos_sdk_recent_" + app.id;
+  const recentIds = () => { try { return JSON.parse(localStorage.getItem(RKEY)) || []; } catch { return []; } };
+  const remember = (id) => { try { localStorage.setItem(RKEY, JSON.stringify([id, ...recentIds().filter(x => x !== id)].slice(0, 40))); } catch {} };
+  const grant = (n) => { if (n instanceof File) { n.__sdkId = n.__sdkId || "local-" + Math.random().toString(36).slice(2, 10); grants.current.set(n.__sdkId, n); } else { grants.current.set(n.id, n); if (n.type !== "folder") remember(n.id); } return meta(n); };
   const toBlob = (d, type) => d instanceof Blob ? d : new Blob([d ?? ""], { type: type || (typeof d === "string" ? "text/plain;charset=utf-8" : "application/octet-stream") });
   React.useEffect(() => {
     const need = (p) => { if (!can(p)) throw Object.assign(new Error(`La app no tiene el permiso «${p}»`), { code: "permission" }); };
-    const own = (id) => { const g = grants.current.get(id); if (!g) throw Object.assign(new Error("Ese archivo no se le dio a la app"), { code: "not-granted" }); return g; };
+    const own = (id) => { let g = grants.current.get(id);
+      if (!g && recentIds().includes(id) && vfs.node(id)) { g = vfs.node(id); grants.current.set(id, g); } // lo eligió antes en esta app
+      if (!g) throw Object.assign(new Error("Ese archivo no se le dio a la app"), { code: "not-granted" }); return g; };
     const api_ = (m, k, b) => api(m, `apps/${app.id}/storage${k != null ? "/" + encodeURIComponent(k) : ""}`, b);
     const methods = {
       hello: () => { greeted.current = true; const f = fileId && vfs.node(fileId); if (f && can("files.read") && sent.current !== fileId) { sent.current = fileId; setTimeout(() => send({ name: "open", data: grant(f) }), 0); }
@@ -493,6 +499,8 @@ function SdkHost({ app, fileId, setWinTitle, closeWin }) {
       user: () => { need("user"); const u = vfs.getState().user; return { name: u?.name || "Invitado", lang: getLang(), avatar: u?.avatar && !String(u.avatar).startsWith("data:") ? u.avatar : null }; },
       "files.pick": async (o) => { need("files.read"); const r = await pickFiles({ title: o.title || `${app.name}: elegir archivo`, types: o.types || null, exts: o.exts || null, multiple: !!o.multiple }); return (r || []).map(grant); },
       "files.read": async ({ id }) => { need("files.read"); const g = own(id); return g instanceof File ? g : await vfs.read(g.id); },
+      "files.recent": async () => { need("files.read"); const out = []; for (const id of recentIds()) { const n = vfs.node(id); if (n && n.type !== "folder") out.push(meta(n)); } return out; },
+      "files.forget": async ({ id }) => { need("files.read"); try { localStorage.setItem(RKEY, JSON.stringify(recentIds().filter(x => x !== id))); } catch {} grants.current.delete(id); return true; },
       "files.save": async (o) => { need("files.write"); const r = await pickFiles({ mode: "save", title: o.title || `${app.name}: guardar como`, name: String(o.name || "archivo") }); if (!r) return null;
         const blob = toBlob(o.data, o.type); let id; if (r.replaceId) { await vfs.write(r.replaceId, blob); id = r.replaceId; } else id = await vfs.create(r.folderId, vfs.uniqueName(vfs.node(r.folderId), r.name), blob);
         return grant(vfs.node(id)); },

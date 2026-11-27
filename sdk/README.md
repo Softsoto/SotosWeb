@@ -80,6 +80,8 @@ const nuevo = await sotos.files.save({ name: "nota.md", data: texto });       //
 await sotos.files.write(nuevo, "contenido nuevo");                            // reescribe uno que ya te dieron
 const carpeta = await sotos.files.pickFolder();                               // la persona elige una carpeta
 await sotos.files.saveIn(carpeta, { name: "foto.webp", data: blob });         // varios archivos sin preguntar cada vez
+const recientes = await sotos.files.recent();                                 // los que ya le dieron a tu app antes: se leen sin volver a elegirlos
+await sotos.files.forget(recientes[0]);                                       // y se pueden sacar de esa lista
 
 // datos de la app (por persona)
 await sotos.storage.set("ajustes", { fuente: 16 });

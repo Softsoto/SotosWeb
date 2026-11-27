@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Solitario</title>
+<!-- Sotos — Solitario (Klondike) con baraja propia · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  :root { --felt-a: #6b4a2e; --felt-b: #4f3520; --cw: 86px; --ch: 120px; }
+  .table { position: relative; flex: 1; overflow: hidden; user-select: none; touch-action: none;
+    background: radial-gradient(ellipse at 50% 20%, color-mix(in srgb, var(--felt-a) 100%, #fff 6%), var(--felt-b) 75%),
+      repeating-linear-gradient(92deg, rgba(0,0,0,.05) 0 2px, transparent 2px 9px); background-blend-mode: multiply; }
+  .slot { position: absolute; width: var(--cw); height: var(--ch); border-radius: 9px; border: 2px dashed rgba(255,235,205,.28); display: grid; place-items: center; color: rgba(255,235,205,.35); font: 700 26px Georgia, serif; }
+  .card { position: absolute; width: var(--cw); height: var(--ch); border-radius: 9px; transition: left .16s ease, top .16s ease; cursor: pointer; }
+  .card.drag { transition: none; z-index: 1000 !important; filter: drop-shadow(0 12px 14px rgba(0,0,0,.45)); }
+  .face { position: absolute; inset: 0; border-radius: 9px; background: #fffaf0; border: 1px solid #c9b89c; box-shadow: 0 1px 2px rgba(0,0,0,.35); overflow: hidden; color: #262019; }
+  .face.red { color: #b3322a; }
+  .face .ix { position: absolute; top: 5px; left: 6px; display: grid; justify-items: center; font: 700 calc(var(--cw) * .2)/1 Georgia, serif; }
+  .face .ix.b { top: auto; left: auto; bottom: 5px; right: 6px; transform: rotate(180deg); }
+  .face .ix small { font-size: .82em; margin-top: 1px; }
+  .face .mid { position: absolute; inset: 22% 18%; display: grid; place-items: center; font-size: calc(var(--cw) * .5); line-height: 1; }
+  .face .court { position: absolute; inset: 18% 16%; border: 1.5px solid currentColor; border-radius: 6px; display: grid; place-items: center; background:
+     repeating-linear-gradient(45deg, color-mix(in srgb, currentColor 10%, transparent) 0 3px, transparent 3px 7px); }
+  .face .court b { font: 700 calc(var(--cw) * .42)/1 Georgia, serif; } .face .court i { position: absolute; font-style: normal; font-size: calc(var(--cw) * .2); }
+  .face .court i.t { top: 3px; left: 5px; } .face .court i.u { bottom: 3px; right: 5px; transform: rotate(180deg); }
+  .back { position: absolute; inset: 0; border-radius: 9px; border: 1px solid #2c1d10; box-shadow: 0 1px 2px rgba(0,0,0,.35);
+    background: radial-gradient(circle at 50% 50%, transparent 30%, rgba(0,0,0,.18) 31% 33%, transparent 34%) center / 100% 100%,
+      repeating-linear-gradient(45deg, var(--accent) 0 5px, color-mix(in srgb, var(--accent) 70%, #000) 5px 10px); }
+  .back::after { content: ""; position: absolute; inset: 6px; border: 1.5px solid rgba(255,245,225,.65); border-radius: 6px; }
+  .card.hint .face { outline: 3px solid #f2c14e; outline-offset: 1px; }
+  .stats { color: var(--ink-2); font-size: 12.5px; display: flex; gap: 14px; }
+  .stats b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .win { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(30,18,8,.45); z-index: 2000; }
+  .win .ap-card { padding: 22px 26px; text-align: center; display: grid; gap: 10px; min-width: 280px; }
+  .win h2 { margin: 0; font: 700 26px Georgia, serif; }
+  .burst { position: absolute; font-size: 26px; pointer-events: none; animation: fall 2.4s ease-in forwards; z-index: 1500; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(540deg); opacity: .3; } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar">
+    <h1>Solitario</h1>
+    <button class="ap-btn primary" id="new">Nueva partida</button>
+    <button class="ap-btn" id="undo" title="Deshacer (Ctrl+Z)">&#8630; Deshacer</button>
+    <button class="ap-btn" id="hint" title="Pista (H)">Pista</button>
+    <button class="ap-btn" id="auto" hidden>Terminar solo</button>
+    <div class="ap-seg" id="draw" title="Cartas que se roban"><button data-d="1">Robar 1</button><button data-d="3">Robar 3</button></div>
+    <span class="sp"></span>
+    <div class="stats"><span>Tiempo <b id="time">0:00</b></span><span>Movidas <b id="moves">0</b></span><span>Ganadas <b id="won">0</b></span><span>Racha <b id="streak">0</b></span></div>
+  </div>
+  <div class="table" id="t"></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const SUITS = ["♠", "♥", "♦", "♣"], RANKS = [, "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+const red = (c) => c.s === 1 || c.s === 2;
+const T = document.getElementById("t");
+let G, history = [], stats = { played: 0, won: 0, streak: 0, best: null, draw: 1 }, timer = null, started = 0;
+let L = {}; // medidas
+const els = new Map(); // id → elemento
+
+function deal() {
+  const deck = []; for (let s = 0; s < 4; s++) for (let r = 1; r <= 13; r++) deck.push({ id: s * 13 + r, s, r, up: false });
+  for (let i = deck.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [deck[i], deck[j]] = [deck[j], deck[i]]; }
+  const tab = []; for (let c = 0; c < 7; c++) { tab.push(deck.splice(0, c + 1)); tab[c][c].up = true; }
+  G = { stock: deck, waste: [], found: [[], [], [], []], tab, moves: 0, time: 0, done: false, counted: false };
+  history = []; started = 0; clearInterval(timer); timer = null; tick(); render();
+}
+const snap = () => JSON.stringify({ stock: G.stock, waste: G.waste, found: G.found, tab: G.tab, moves: G.moves });
+function push() { history.push(snap()); if (history.length > 300) history.shift(); }
+function startClock() { if (timer || G.done) return; if (!started) started = Date.now() - G.time * 1000; timer = setInterval(() => { G.time = Math.floor((Date.now() - started) / 1000); tick(); }, 1000);
+  if (!G.counted) { G.counted = true; stats.played++; saveStats(); } }
+function tick() { const t = G.time; document.getElementById("time").textContent = Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0"); document.getElementById("moves").textContent = G.moves;
+  document.getElementById("won").textContent = stats.won; document.getElementById("streak").textContent = stats.streak; }
+
+/* ---------- reglas ---------- */
+const canFound = (c, f) => f.length ? f[f.length - 1].s === c.s && f[f.length - 1].r === c.r - 1 : c.r === 1;
+const canTab = (c, col) => col.length ? (col[col.length - 1].up && red(col[col.length - 1]) !== red(c) && col[col.length - 1].r === c.r + 1) : c.r === 13;
+function pileOf(id) {
+  if (G.waste.length && G.waste[G.waste.length - 1].id === id) return { kind: "waste", i: 0, k: G.waste.length - 1 };
+  for (let i = 0; i < 4; i++) if (G.found[i].length && G.found[i][G.found[i].length - 1].id === id) return { kind: "found", i, k: G.found[i].length - 1 };
+  for (let i = 0; i < 7; i++) { const k = G.tab[i].findIndex(c => c.id === id); if (k >= 0) return { kind: "tab", i, k }; }
+  return null;
+}
+const arr = (p) => p.kind === "waste" ? G.waste : p.kind === "found" ? G.found[p.i] : G.tab[p.i];
+function moveCards(from, toKind, toI) {
+  const src = arr(from), cards = src.slice(from.k), dst = toKind === "found" ? G.found[toI] : G.tab[toI];
+  if (toKind === "found" && (cards.length !== 1 || !canFound(cards[0], dst))) return false;
+  if (toKind === "tab" && !canTab(cards[0], dst)) return false;
+  push(); src.splice(from.k); dst.push(...cards);
+  if (from.kind === "tab" && src.length && !src[src.length - 1].up) src[src.length - 1].up = true;
+  G.moves++; startClock(); render(); check(); return true;
+}
+function drawStock() {
+  push(); startClock();
+  if (!G.stock.length) { if (!G.waste.length) { history.pop(); return; } G.stock = G.waste.reverse().map(c => ({ ...c, up: false })); G.waste = []; }
+  else { const n = Math.min(stats.draw, G.stock.length); for (let i = 0; i < n; i++) { const c = G.stock.pop(); c.up = true; G.waste.push(c); } }
+  G.moves++; render();
+}
+function toFoundation(id) { const p = pileOf(id); if (!p || p.kind === "found" || p.k !== arr(p).length - 1) return false; const c = arr(p)[p.k]; if (c.r === 1 && !G.found[c.s].length) return moveCards(p, "found", c.s); // cada as a la pila de su palo
+  for (let i = 0; i < 4; i++) if (canFound(c, G.found[i])) return moveCards(p, "found", i); return false; }
+function hint() {
+  const cands = [];
+  const tops = [...G.tab.map((col, i) => ({ col, i }))];
+  if (G.waste.length) { const c = G.waste[G.waste.length - 1]; for (let i = 0; i < 4; i++) if (canFound(c, G.found[i])) return [c.id]; for (const { col } of tops) if (canTab(c, col)) cands.push(c.id); }
+  for (const { col } of tops) { if (!col.length) continue; const c = col[col.length - 1]; for (let i = 0; i < 4; i++) if (canFound(c, G.found[i])) return [c.id]; }
+  for (const { col, i } of tops) { const k = col.findIndex(c => c.up); if (k < 0) continue; const c = col[k]; if (c.r === 13 && k === 0) continue;
+    for (const o of tops) if (o.i !== i && canTab(c, o.col)) { if (k > 0 || c.r !== 13) return [c.id]; } }
+  return cands.length ? cands : null;
+}
+const allUp = () => !G.stock.length && !G.waste.length && G.tab.every(col => col.every(c => c.up));
+function check() {
+  document.getElementById("auto").hidden = !(allUp() && !G.done);
+  if (G.found.every(f => f.length === 13) && !G.done) {
+    G.done = true; clearInterval(timer); timer = null; stats.won++; stats.streak++; const best = stats.best == null || G.time < stats.best; if (best) stats.best = G.time; saveStats(); tick(); celebrate(best);
+  }
+}
+async function autoFinish() { document.getElementById("auto").hidden = true; let moved = true; while (moved && !G.done) { moved = false; for (const id of [...G.tab.map(c => c[c.length - 1]?.id)].filter(Boolean)) if (toFoundation(id)) { moved = true; await new Promise(r => setTimeout(r, 90)); } } }
+
+/* ---------- dibujo ---------- */
+function layout() {
+  const W = T.clientWidth, H = T.clientHeight, gap = Math.max(8, W * .014);
+  let cw = Math.min(110, (W - gap * 8) / 7), ch = cw * 1.4; if (ch * 4.2 > H) { ch = H / 4.2; cw = ch / 1.4; }
+  L = { cw, ch, gap, x0: (W - (cw * 7 + gap * 6)) / 2, top: gap * 1.4, row2: gap * 1.4 + ch + gap * 1.6, fan: ch * .27, fanDown: ch * .12 };
+  document.documentElement.style.setProperty("--cw", cw + "px"); document.documentElement.style.setProperty("--ch", ch + "px");
+}
+const colX = (i) => L.x0 + i * (L.cw + L.gap);
+function faceHtml(c) {
+  const R = RANKS[c.r], S = SUITS[c.s];
+  const mid = c.r > 10 ? `<div class="court"><i class="t">${S}</i><b>${R}</b><i class="u">${S}</i></div>` : `<div class="mid">${c.r === 1 ? `<span style="font-size:1.35em">${S}</span>` : S}</div>`;
+  return `<div class="face ${red(c) ? "red" : ""}"><div class="ix">${R}<small>${S}</small></div>${mid}<div class="ix b">${R}<small>${S}</small></div></div>`;
+}
+function place(c, x, y, z) {
+  let el = els.get(c.id); if (!el) { el = document.createElement("div"); el.className = "card"; el.dataset.id = c.id; T.appendChild(el); els.set(c.id, el); }
+  const key = c.up ? "u" : "d"; if (el.dataset.k !== key) { el.innerHTML = c.up ? faceHtml(c) : '<div class="back"></div>'; el.dataset.k = key; el.setAttribute("aria-label", c.up ? RANKS[c.r] + " de " + ["picas", "corazones", "diamantes", "tréboles"][c.s] : "carta boca abajo"); }
+  el.style.left = x + "px"; el.style.top = y + "px"; el.style.zIndex = z; el.classList.remove("hint");
+}
+function render() {
+  layout();
+  T.querySelectorAll(".slot").forEach(s => s.remove());
+  const slot = (x, y, txt, data) => { const s = document.createElement("div"); s.className = "slot"; s.style.left = x + "px"; s.style.top = y + "px"; s.textContent = txt; Object.assign(s.dataset, data); T.appendChild(s); };
+  slot(colX(0), L.top, G.stock.length ? "" : "↻", { stock: 1 });
+  slot(colX(1), L.top, "", {});
+  for (let i = 0; i < 4; i++) slot(colX(3 + i), L.top, SUITS[i], { found: i });
+  for (let i = 0; i < 7; i++) slot(colX(i), L.row2, "K", { tab: i });
+  G.stock.forEach((c, k) => place(c, colX(0) + Math.min(k, 6) * .4, L.top - Math.min(k, 6) * .4, 10 + k));
+  const show = stats.draw === 3 ? 3 : 1; G.waste.forEach((c, k) => { const v = Math.max(0, k - (G.waste.length - show)); place(c, colX(1) + v * L.cw * .24, L.top, 100 + k); });
+  G.found.forEach((f, i) => f.forEach((c, k) => place(c, colX(3 + i), L.top, 200 + k)));
+  G.tab.forEach((col, i) => { let y = L.row2; const space = T.clientHeight - L.row2 - L.ch - L.gap; const upN = col.filter(c => c.up).length, dn = col.length - upN;
+    const fan = Math.min(L.fan, upN > 1 ? (space - dn * L.fanDown) / (upN - 1) : L.fan); col.forEach((c, k) => { place(c, colX(i), y, 300 + k); y += c.up ? Math.max(L.ch * .16, fan) : L.fanDown; }); });
+  tick(); check();
+}
+
+/* ---------- arrastrar, tocar ---------- */
+let drag = null;
+T.addEventListener("pointerdown", (e) => {
+  if (G.done) return;
+  const el = e.target.closest(".card"), s = e.target.closest(".slot");
+  if (!el) { if (s?.dataset.stock) drawStock(); return; }
+  const id = +el.dataset.id;
+  if (G.stock.some(c => c.id === id)) { drawStock(); return; }
+  const p = pileOf(id); if (!p) return; const pile = arr(p); if (!pile[p.k].up) return;
+  if (p.kind !== "tab" && p.k !== pile.length - 1) return;
+  const ids = pile.slice(p.k).map(c => c.id);
+  drag = { p, ids, x: e.clientX, y: e.clientY, moved: false, orig: ids.map(i => ({ el: els.get(i), l: parseFloat(els.get(i).style.left), t: parseFloat(els.get(i).style.top) })) };
+  T.setPointerCapture(e.pointerId);
+});
+T.addEventListener("pointermove", (e) => {
+  if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y; if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+  drag.moved = true; drag.orig.forEach((o, k) => { o.el.classList.add("drag"); o.el.style.left = o.l + dx + "px"; o.el.style.top = o.t + dy + "px"; o.el.style.zIndex = 1000 + k; });
+});
+T.addEventListener("pointerup", (e) => {
+  if (!drag) return; const d = drag; drag = null; d.orig.forEach(o => o.el.classList.remove("drag"));
+  if (!d.moved) { // un toque: a la fundación si se puede, si no a la mejor columna
+    if (!toFoundation(d.ids[0]) || d.ids.length > 1) { const c = arr(d.p)[d.p.k]; const i = G.tab.findIndex((col, i) => !(d.p.kind === "tab" && d.p.i === i) && canTab(c, col)); if (i >= 0) moveCards(d.p, "tab", i); else render(); }
+    return;
+  }
+  const x = parseFloat(d.orig[0].el.style.left) + L.cw / 2, y = parseFloat(d.orig[0].el.style.top) + L.ch / 2;
+  let best = null, bd = Infinity;
+  const tryT = (kind, i, cx, cy) => { const dd = Math.hypot(cx - x, cy - y); if (dd < bd && dd < L.cw * 1.1) { bd = dd; best = { kind, i }; } };
+  for (let i = 0; i < 4; i++) tryT("found", i, colX(3 + i) + L.cw / 2, L.top + L.ch / 2);
+  for (let i = 0; i < 7; i++) { const col = G.tab[i]; const last = col.length ? els.get(col[col.length - 1].id) : null; tryT("tab", i, colX(i) + L.cw / 2, (last ? parseFloat(last.style.top) : L.row2) + L.ch / 2); }
+  if (!best || (best.kind === d.p.kind && best.i === d.p.i) || !moveCards(d.p, best.kind, best.i)) render();
+});
+T.addEventListener("dblclick", (e) => { const el = e.target.closest(".card"); if (el) toFoundation(+el.dataset.id); });
+
+/* ---------- final ---------- */
+function celebrate(best) {
+  for (let i = 0; i < 36; i++) { const s = document.createElement("div"); s.className = "burst"; s.textContent = SUITS[i % 4]; s.style.left = Math.random() * 100 + "%"; s.style.top = -10 - Math.random() * 30 + "%"; s.style.color = i % 4 === 1 || i % 4 === 2 ? "#e2584d" : "#fff6e6"; s.style.animationDelay = Math.random() * .8 + "s"; T.appendChild(s); setTimeout(() => s.remove(), 3500); }
+  setTimeout(() => { const w = document.createElement("div"); w.className = "win"; const t = G.time;
+    w.innerHTML = `<div class="ap-card"><h2>¡Ganaste!</h2><div class="ap-muted">${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")} · ${G.moves} movidas${best ? " · <b>¡mejor tiempo!</b>" : ""}</div><div class="ap-faint">Ganadas ${stats.won} de ${stats.played} · racha de ${stats.streak}</div><button class="ap-btn primary" id="again">Otra partida</button></div>`;
+    T.appendChild(w); w.querySelector("#again").onclick = () => { w.remove(); newGame(); }; }, 900);
+}
+function newGame() { if (G && G.counted && !G.done) { stats.streak = 0; saveStats(); } els.forEach(el => el.remove()); els.clear(); T.querySelectorAll(".win").forEach(w => w.remove()); deal(); }
+const saveStats = () => ap.store.set("stats", stats);
+document.getElementById("new").onclick = newGame;
+document.getElementById("undo").onclick = () => { if (!history.length || G.done) return; Object.assign(G, JSON.parse(history.pop())); G.moves++; render(); };
+document.getElementById("hint").onclick = () => { const h = hint(); if (!h) { ap.toast(G.stock.length || G.waste.length ? "Roba una carta del mazo" : "No veo movidas: prueba deshacer"); return; } h.forEach(id => els.get(id)?.classList.add("hint")); setTimeout(() => h.forEach(id => els.get(id)?.classList.remove("hint")), 1400); };
+document.getElementById("auto").onclick = autoFinish;
+document.querySelectorAll("#draw button").forEach(b => b.onclick = () => { if (stats.draw === +b.dataset.d) return; stats.draw = +b.dataset.d; saveStats(); markDraw(); if (G.moves) ap.toast("Se aplica desde la próxima partida"); else render(); });
+const markDraw = () => document.querySelectorAll("#draw button").forEach(b => b.classList.toggle("on", +b.dataset.d === stats.draw));
+document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); document.getElementById("undo").click(); } else if (e.key.toLowerCase() === "h") document.getElementById("hint").click(); else if (e.key === " " ) { e.preventDefault(); drawStock(); } });
+new ResizeObserver(() => G && render()).observe(T);
+(async () => { await ap.ready; stats = { ...stats, ...((await ap.store.get("stats")) || {}) }; markDraw(); deal(); })();
+</script>
+</body>
+</html>

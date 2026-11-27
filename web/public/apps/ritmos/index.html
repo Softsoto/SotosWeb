@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Caja de ritmos</title>
+<!-- Sotos — Caja de ritmos de 16 pasos con sonidos sintetizados · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  :root { --deck: #2a2420; --deck-2: #362e28; --led: #f2b84b; }
+  body { background: #1d1916; color: #efe6d8; }
+  .ap-bar { background: #26201c; border-color: #3a322b; } .ap-bar .ap-btn, .ap-bar .ap-in { background: #2f2823; border-color: #4a4038; color: #efe6d8; }
+  .ap-bar .ap-btn:hover { background: #3a322b; }
+  .deck { margin: 18px auto; max-width: 980px; padding: 18px 18px 14px; border-radius: 14px; background: linear-gradient(180deg, var(--deck-2), var(--deck)); box-shadow: inset 0 1px 0 rgba(255,255,255,.06), 0 18px 40px -16px #000; }
+  .brand { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; font: 800 13px var(--font); letter-spacing: .22em; color: #d8c49a; text-transform: uppercase; }
+  .brand span { font: 500 11px var(--mono); letter-spacing: .06em; color: #9b8f7f; text-transform: none; }
+  .row { display: grid; grid-template-columns: 128px repeat(16, minmax(0, 1fr)) 70px; gap: 5px; align-items: center; margin-bottom: 6px; }
+  .name { display: flex; align-items: center; gap: 6px; font-weight: 600; font-size: 13px; cursor: pointer; padding: 4px 6px; border-radius: 6px; }
+  .name:hover { background: rgba(255,255,255,.05); }
+  .name i { width: 9px; height: 9px; border-radius: 50%; background: var(--c); box-shadow: 0 0 0 2px rgba(0,0,0,.3); }
+  .name.mute { opacity: .4; text-decoration: line-through; }
+  .st { height: 34px; border-radius: 6px; border: 0; cursor: pointer; background: #3d342d; box-shadow: inset 0 -3px 0 rgba(0,0,0,.35); position: relative; }
+  .st:nth-child(4n+2) { background: #4a3f36; }
+  .st.on { background: color-mix(in srgb, var(--c) 72%, #2a2420); box-shadow: inset 0 -3px 0 rgba(0,0,0,.3); }
+  .st.acc { background: var(--c); box-shadow: inset 0 -3px 0 rgba(0,0,0,.25), 0 0 0 2px #fff2 inset; }
+  .st.acc::after { content: ""; position: absolute; top: 4px; left: 50%; width: 6px; height: 6px; margin-left: -3px; border-radius: 50%; background: #fff8; }
+  .st.now { outline: 2px solid var(--led); outline-offset: 1px; }
+  .vol { width: 100%; accent-color: var(--c); }
+  .leds { display: grid; grid-template-columns: 128px repeat(16, minmax(0, 1fr)) 70px; gap: 5px; margin-bottom: 10px; }
+  .leds b { height: 6px; border-radius: 3px; background: #3a312a; } .leds b.on { background: var(--led); box-shadow: 0 0 6px var(--led); }
+  .controls { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; margin-top: 14px; padding-top: 12px; border-top: 1px solid #3a322b; font-size: 12.5px; color: #b9ad9c; }
+  .controls label { display: flex; align-items: center; gap: 8px; }
+  .controls input[type=range] { accent-color: var(--led); width: 140px; }
+  .bpm { font: 700 22px var(--mono); color: var(--led); min-width: 54px; text-align: right; }
+  .play { width: 46px; height: 46px; border-radius: 50%; border: 0; cursor: pointer; background: var(--led); color: #2a2420; font-size: 18px; box-shadow: 0 4px 0 #a5762a; }
+  .play:active { transform: translateY(2px); box-shadow: 0 2px 0 #a5762a; }
+  .help { max-width: 980px; margin: 0 auto 20px; color: #9b8f7f; font-size: 12.5px; padding: 0 6px; }
+  @media (max-width: 760px) { .row, .leds { grid-template-columns: 84px repeat(16, minmax(0, 1fr)) 0; } .vol { display: none; } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar">
+    <h1>Caja de ritmos</h1>
+    <select class="ap-in" id="preset" title="Ritmos"></select>
+    <button class="ap-btn" id="save">Guardar ritmo</button>
+    <button class="ap-btn" id="clear">Borrar</button>
+    <span class="sp"></span>
+    <button class="ap-btn" id="wav" title="Exporta 4 compases a un archivo .wav">Exportar .wav</button>
+  </div>
+  <div class="ap-main">
+    <div class="deck">
+      <div class="brand">Sotos · ritmo <span id="pname">—</span></div>
+      <div class="leds" id="leds"></div>
+      <div id="rows"></div>
+      <div class="controls">
+        <button class="play" id="play" title="Tocar / parar (barra espaciadora)">&#9654;</button>
+        <label>Tempo <input type="range" id="bpm" min="60" max="200"><span class="bpm" id="bpmv">100</span></label>
+        <label>Swing <input type="range" id="swing" min="0" max="60"></label>
+        <label>Volumen <input type="range" id="master" min="0" max="100"></label>
+      </div>
+    </div>
+    <p class="help">Toca una casilla para encenderla, otra vez para acentuarla y otra para apagarla. Toca el nombre de un instrumento para silenciarlo. Barra espaciadora: tocar o parar.</p>
+  </div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const INST = [
+  { id: "bombo", name: "Bombo", c: "#d9663f" }, { id: "caja", name: "Caja", c: "#e0a640" }, { id: "hihat", name: "Hi-hat", c: "#c9c06a" }, { id: "palmas", name: "Palmas", c: "#9fbf6a" },
+  { id: "tambora", name: "Tambora", c: "#5fae8f" }, { id: "guacharaca", name: "Guacharaca", c: "#58a0c8" }, { id: "campana", name: "Campana", c: "#8a84d6" }, { id: "maracas", name: "Maracas", c: "#c77bb0" },
+];
+const P = (s) => s.replace(/\s/g, "").split("").map(ch => ch === "x" ? 1 : ch === "X" ? 2 : 0);
+const PRESETS = {
+  "Cumbia":    { bpm: 96,  swing: 8,  p: { bombo: P("x...x...x...x..."), guacharaca: P("x.xxx.xxx.xxx.xx"), tambora: P("....X.......X..x"), campana: P("..x...x...x...x."), maracas: P("x.x.x.x.x.x.x.x.") } },
+  "Salsa (clave 3-2)": { bpm: 180, swing: 0, p: { campana: P("X.x.x.X.x.x.X.x."), palmas: P("x..x..x...x.x..."), tambora: P("......x.....xx.."), bombo: P("x.....x.x.....x."), maracas: P("xxxxxxxxxxxxxxxx") } },
+  "Vallenato": { bpm: 118, swing: 12, p: { tambora: P("X..x..x.X..x..x."), guacharaca: P("xxx.xxx.xxx.xxx."), bombo: P("x.......x......."), hihat: P("..x...x...x...x.") } },
+  "Champeta":  { bpm: 112, swing: 0,  p: { bombo: P("x..x..x.x..x..x."), caja: P("....X.......X..."), hihat: P("x.x.x.x.x.x.x.x."), campana: P("..x...x.....x.x.") } },
+  "Dembow":    { bpm: 96,  swing: 0,  p: { bombo: P("x...x...x...x..."), caja: P("...x..x....x..x."), hihat: P("x.x.x.x.x.x.x.x.") } },
+  "Rock":      { bpm: 120, swing: 0,  p: { bombo: P("x.....x.x......."), caja: P("....X.......X..."), hihat: P("x.x.x.x.x.x.x.x.") } },
+  "Vacío":     { bpm: 100, swing: 0,  p: {} },
+};
+let S = { name: "Cumbia", bpm: 96, swing: 8, master: 80, grid: {}, vol: {}, mute: {} }, saved = {};
+function load(name, src) { const pr = src || PRESETS[name]; S.name = name; S.bpm = pr.bpm; S.swing = pr.swing; S.grid = {}; INST.forEach(i => S.grid[i.id] = (pr.p[i.id] || []).concat(Array(16).fill(0)).slice(0, 16)); if (pr.vol) S.vol = { ...pr.vol }; render(); }
+
+/* ---------- sonidos (sintetizados, sin muestras) ---------- */
+let ac = null, out = null, noiseBuf = null;
+function ensure() { if (ac) return; ac = new AudioContext(); out = ac.createGain(); out.connect(ac.destination); noiseBuf = makeNoise(ac); setMaster(); }
+function makeNoise(ctx) { const b = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; return b; }
+const setMaster = () => { if (out) out.gain.value = S.master / 100; };
+function voice(ctx, dest, nb, id, t, v) {
+  const env = (node, a, d, peak) => { const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(peak * v, t + a); g.gain.exponentialRampToValueAtTime(0.0008, t + a + d); node.connect(g).connect(dest); return g; };
+  const osc = (type, f) => { const o = ctx.createOscillator(); o.type = type; o.frequency.setValueAtTime(f, t); return o; };
+  const noise = () => { const s = ctx.createBufferSource(); s.buffer = nb; return s; };
+  const filt = (type, f, q) => { const b = ctx.createBiquadFilter(); b.type = type; b.frequency.value = f; b.Q.value = q || 1; return b; };
+  switch (id) {
+    case "bombo": { const o = osc("sine", 140); o.frequency.exponentialRampToValueAtTime(45, t + .12); env(o, .002, .38, 1.1); o.start(t); o.stop(t + .45); break; }
+    case "caja": { const n = noise(), f = filt("highpass", 1500); n.connect(f); env(f, .001, .18, .55); n.start(t); n.stop(t + .22); const o = osc("triangle", 190); env(o, .001, .1, .35); o.start(t); o.stop(t + .12); break; }
+    case "hihat": { const n = noise(), f = filt("highpass", 7500); n.connect(f); env(f, .001, .05, .32); n.start(t); n.stop(t + .07); break; }
+    case "palmas": { for (let k = 0; k < 3; k++) { const n = noise(), f = filt("bandpass", 1300, 1.2); n.connect(f); const tt = t + k * .011; const g = ctx.createGain(); g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(.5 * v, tt + .001); g.gain.exponentialRampToValueAtTime(.001, tt + (k === 2 ? .14 : .02)); f.connect(g).connect(dest); n.start(tt); n.stop(tt + .16); } break; }
+    case "tambora": { const o = osc("sine", 95); o.frequency.exponentialRampToValueAtTime(70, t + .2); env(o, .002, .3, .9); o.start(t); o.stop(t + .35); const n = noise(), f = filt("bandpass", 400, 2); n.connect(f); env(f, .001, .04, .3); n.start(t); n.stop(t + .06); break; }
+    case "guacharaca": { const n = noise(), f = filt("bandpass", 3200, 3); n.connect(f); const g = ctx.createGain(); g.gain.setValueAtTime(0, t);
+      for (let k = 0; k < 6; k++) { g.gain.linearRampToValueAtTime(.45 * v * (k % 2 ? .4 : 1), t + k * .012 + .003); g.gain.linearRampToValueAtTime(.05 * v, t + k * .012 + .01); }
+      g.gain.exponentialRampToValueAtTime(.001, t + .1); f.connect(g).connect(dest); n.start(t); n.stop(t + .12); break; }
+    case "campana": { const f = filt("bandpass", 800, 3); [540, 800].forEach(fr => { const o = osc("square", fr); o.connect(f); o.start(t); o.stop(t + .3); }); env(f, .001, .22, .35); break; }
+    case "maracas": { const n = noise(), f = filt("highpass", 5000); n.connect(f); const g = ctx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.22 * v, t + .02); g.gain.exponentialRampToValueAtTime(.001, t + .07); f.connect(g).connect(dest); n.start(t); n.stop(t + .08); break; }
+  }
+}
+const level = (id, cell) => (S.mute[id] ? 0 : (S.vol[id] ?? 80) / 100) * (cell === 2 ? 1 : .62);
+
+/* ---------- reloj de pasos ---------- */
+let playing = false, step = 0, nextT = 0, timer = null, uiQ = [];
+const stepDur = () => 60 / S.bpm / 4;
+function schedule() {
+  while (nextT < ac.currentTime + .12) {
+    const sw = step % 2 ? stepDur() * (S.swing / 100) * .66 : 0;
+    INST.forEach(i => { const cell = S.grid[i.id][step]; if (cell) voice(ac, out, noiseBuf, i.id, nextT + sw, level(i.id, cell)); });
+    uiQ.push({ step, t: nextT + sw }); nextT += stepDur(); step = (step + 1) % 16;
+  }
+}
+function draw() { if (!playing) return; while (uiQ.length && uiQ[0].t <= ac.currentTime) { const s = uiQ.shift().step; document.querySelectorAll(".leds b").forEach((b, k) => b.classList.toggle("on", k === s)); document.querySelectorAll(".st").forEach(b => b.classList.toggle("now", +b.dataset.s === s)); } requestAnimationFrame(draw); }
+function toggle() {
+  ensure(); if (ac.state === "suspended") ac.resume();
+  playing = !playing; $("#play").innerHTML = playing ? "&#9632;" : "&#9654;";
+  if (playing) { step = 0; nextT = ac.currentTime + .05; uiQ = []; timer = setInterval(schedule, 25); schedule(); draw(); }
+  else { clearInterval(timer); document.querySelectorAll(".leds b.on,.st.now").forEach(b => b.classList.remove("on", "now")); }
+}
+
+/* ---------- interfaz ---------- */
+function render() {
+  $("#leds").innerHTML = "<span></span>" + Array.from({ length: 16 }, () => "<b></b>").join("") + "<span></span>";
+  $("#rows").innerHTML = INST.map(i => `<div class="row" style="--c:${i.c}"><div class="name ${S.mute[i.id] ? "mute" : ""}" data-m="${i.id}" title="Silenciar"><i></i>${i.name}</div>${S.grid[i.id].map((v, k) => `<button class="st ${v ? "on" : ""} ${v === 2 ? "acc" : ""}" data-i="${i.id}" data-s="${k}" aria-label="${i.name} paso ${k + 1}"></button>`).join("")}<input class="vol" type="range" min="0" max="100" value="${S.vol[i.id] ?? 80}" data-v="${i.id}" title="Volumen de ${i.name}"></div>`).join("");
+  $("#bpm").value = S.bpm; $("#bpmv").textContent = S.bpm; $("#swing").value = S.swing; $("#master").value = S.master; $("#pname").textContent = S.name;
+  const opts = [...Object.keys(PRESETS).map(n => [n, n]), ...Object.keys(saved).map(n => ["mio:" + n, "★ " + n])];
+  $("#preset").innerHTML = opts.map(([v, t]) => `<option value="${ap.esc(v)}">${ap.esc(t)}</option>`).join(""); $("#preset").value = saved[S.name] ? "mio:" + S.name : S.name;
+}
+$("#rows").addEventListener("click", (e) => {
+  const b = e.target.closest(".st"); if (b) { const g = S.grid[b.dataset.i], k = +b.dataset.s; g[k] = (g[k] + 1) % 3; b.classList.toggle("on", !!g[k]); b.classList.toggle("acc", g[k] === 2); if (g[k]) { ensure(); voice(ac, out, noiseBuf, b.dataset.i, ac.currentTime, level(b.dataset.i, g[k])); } persist(); return; }
+  const m = e.target.closest("[data-m]"); if (m) { S.mute[m.dataset.m] = !S.mute[m.dataset.m]; m.classList.toggle("mute"); persist(); }
+});
+$("#rows").addEventListener("input", (e) => { const v = e.target.closest("[data-v]"); if (v) { S.vol[v.dataset.v] = +v.value; persist(); } });
+$("#bpm").oninput = (e) => { S.bpm = +e.target.value; $("#bpmv").textContent = S.bpm; persist(); };
+$("#swing").oninput = (e) => { S.swing = +e.target.value; persist(); };
+$("#master").oninput = (e) => { S.master = +e.target.value; setMaster(); persist(); };
+$("#play").onclick = toggle;
+$("#preset").onchange = (e) => { const v = e.target.value; if (v.startsWith("mio:")) load(v.slice(4), saved[v.slice(4)]); else load(v); persist(); };
+$("#clear").onclick = () => { INST.forEach(i => S.grid[i.id] = Array(16).fill(0)); render(); persist(); };
+$("#save").onclick = async () => { const r = await ap.ask({ title: "Guardar ritmo", fields: [{ key: "n", label: "Nombre", value: saved[S.name] ? S.name : "" , placeholder: "Mi cumbia" }], ok: "Guardar" }); if (!r || !r.n.trim()) return;
+  const n = r.n.trim().slice(0, 40); saved[n] = { bpm: S.bpm, swing: S.swing, p: JSON.parse(JSON.stringify(S.grid)), vol: { ...S.vol } }; S.name = n; await ap.store.set("guardados", saved); render(); persist(); ap.toast("Ritmo guardado"); };
+document.addEventListener("keydown", (e) => { if (e.code === "Space" && !e.target.closest("input,select,textarea") && !document.querySelector(".ap-modal")) { e.preventDefault(); toggle(); } });
+let pt; const persist = () => { clearTimeout(pt); pt = setTimeout(() => ap.store.set("actual", S), 500); };
+
+/* ---------- exportar a WAV (4 compases) ---------- */
+$("#wav").onclick = async () => {
+  const bars = 4, sr = 44100, len = stepDur() * 16 * bars + 1, ctx = new OfflineAudioContext(2, Math.ceil(sr * len), sr), dest = ctx.createGain(); dest.gain.value = S.master / 100; dest.connect(ctx.destination);
+  const nb = makeNoise(ctx);
+  for (let b = 0; b < bars; b++) for (let s = 0; s < 16; s++) { const t = (b * 16 + s) * stepDur() + (s % 2 ? stepDur() * (S.swing / 100) * .66 : 0); INST.forEach(i => { const cell = S.grid[i.id][s]; if (cell) voice(ctx, dest, nb, i.id, t + .01, level(i.id, cell)); }); }
+  ap.toast("Preparando el audio…");
+  const buf = await ctx.startRendering(); const wav = toWav(buf);
+  await ap.save(`${S.name.replace(/[\\/:*?"<>|]/g, "_")} ${S.bpm} bpm.wav`, new Blob([wav], { type: "audio/wav" }));
+};
+function toWav(b) {
+  const ch = b.numberOfChannels, n = b.length, data = new DataView(new ArrayBuffer(44 + n * ch * 2)); let o = 0;
+  const w = (s) => { for (const c of s) data.setUint8(o++, c.charCodeAt(0)); }, u32 = (v) => { data.setUint32(o, v, true); o += 4; }, u16 = (v) => { data.setUint16(o, v, true); o += 2; };
+  w("RIFF"); u32(36 + n * ch * 2); w("WAVE"); w("fmt "); u32(16); u16(1); u16(ch); u32(b.sampleRate); u32(b.sampleRate * ch * 2); u16(ch * 2); u16(16); w("data"); u32(n * ch * 2);
+  const chans = [...Array(ch)].map((_, i) => b.getChannelData(i)); let peak = 0; chans.forEach(c => { for (let i = 0; i < n; i++) peak = Math.max(peak, Math.abs(c[i])); });
+  const gain = peak > .98 ? .98 / peak : 1; for (let i = 0; i < n; i++) for (let c = 0; c < ch; c++) { const v = Math.max(-1, Math.min(1, chans[c][i] * gain)); data.setInt16(o, v < 0 ? v * 0x8000 : v * 0x7fff, true); o += 2; }
+  return data.buffer;
+}
+(async () => { await ap.ready; saved = (await ap.store.get("guardados")) || {}; const a = await ap.store.get("actual"); if (a && a.grid) { S = { ...S, ...a }; render(); } else load("Cumbia"); })();
+</script>
+</body>
+</html>

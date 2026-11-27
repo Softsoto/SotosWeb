@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rompecabezas</title>
+<!-- Sotos — Rompecabezas con tus fotos · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .play { position: relative; flex: 1; overflow: hidden; user-select: none; touch-action: none;
+    background: radial-gradient(circle at 50% 40%, color-mix(in srgb, var(--panel-2) 80%, var(--bg)), var(--bg)); }
+  .boardbox { position: absolute; border: 2px dashed var(--line-2); border-radius: 4px; background: color-mix(in srgb, var(--panel) 70%, transparent); }
+  .boardbox img { width: 100%; height: 100%; object-fit: fill; opacity: 0; transition: opacity .2s; display: block; }
+  .play.ghost .boardbox img { opacity: .22; }
+  canvas.p { position: absolute; cursor: grab; filter: drop-shadow(0 2px 3px rgba(0,0,0,.35)); }
+  canvas.p.lock { cursor: default; filter: none; }
+  canvas.p.drag { cursor: grabbing; filter: drop-shadow(0 10px 14px rgba(0,0,0,.4)); }
+  .stat { font-size: 12.5px; color: var(--ink-2); } .stat b { color: var(--ink); font-variant-numeric: tabular-nums; }
+  .done { position: absolute; inset: 0; display: grid; place-items: center; z-index: 9999; background: color-mix(in srgb, var(--bg) 40%, transparent); }
+  .done .ap-card { padding: 22px 26px; text-align: center; display: grid; gap: 10px; }
+  .done h2 { margin: 0; font-size: 22px; }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar">
+    <h1>Rompecabezas</h1>
+    <button class="ap-btn primary" id="pick">Elegir foto</button>
+    <select class="ap-in" id="count" title="Piezas"><option value="12">12 piezas</option><option value="24">24 piezas</option><option value="48">48 piezas</option><option value="96">96 piezas</option></select>
+    <button class="ap-btn" id="ghost" title="Ver la imagen de fondo (G)">Ver imagen</button>
+    <button class="ap-btn" id="edges" title="Juntar las piezas del borde">Bordes</button>
+    <button class="ap-btn" id="shuffle">Revolver</button>
+    <span class="sp"></span>
+    <span class="stat">Piezas <b id="left">0</b> · Tiempo <b id="time">0:00</b></span>
+  </div>
+  <div class="play" id="play"></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s), P = $("#play");
+let img = null, imgName = "", pieces = [], board = null, cols = 0, rows = 0, pw = 0, ph = 0, t0 = 0, clock = null, best = {}, seconds = 0;
+
+/* imagen de muestra (dibujada aquí mismo): montañas y sol, para probar sin elegir foto */
+function sample() {
+  const c = document.createElement("canvas"); c.width = 1200; c.height = 800; const g = c.getContext("2d");
+  const sky = g.createLinearGradient(0, 0, 0, 800); sky.addColorStop(0, "#f6c27a"); sky.addColorStop(.55, "#e98a5a"); sky.addColorStop(1, "#6d4a7a"); g.fillStyle = sky; g.fillRect(0, 0, 1200, 800);
+  g.fillStyle = "#fff1c9"; g.beginPath(); g.arc(860, 300, 110, 0, 7); g.fill();
+  const hills = [["#7a4b6e", 520, 140], ["#5a3a5e", 590, 110], ["#3f2b48", 660, 90], ["#2b2035", 730, 60]];
+  hills.forEach(([col, base, amp], k) => { g.fillStyle = col; g.beginPath(); g.moveTo(0, 800); for (let x = 0; x <= 1200; x += 20) g.lineTo(x, base - Math.sin(x / (140 + k * 40) + k) * amp - Math.sin(x / 57 + k * 2) * amp * .25); g.lineTo(1200, 800); g.fill(); });
+  for (let i = 0; i < 26; i++) { const x = 40 + i * 46 + (i % 3) * 7, h = 40 + (i * 37 % 50); g.fillStyle = "#1e1626"; g.fillRect(x, 740 - h, 6, h); g.beginPath(); g.arc(x + 3, 740 - h, 16 + (i % 4) * 3, 0, 7); g.fill(); }
+  return new Promise(r => c.toBlob(b => r(b), "image/jpeg", .9));
+}
+async function useBlob(blob, name) {
+  const bmp = await createImageBitmap(blob); img = bmp; imgName = name; build();
+}
+/* forma de cada pieza: lados con pestaña (+1 hacia afuera, -1 hacia adentro, 0 borde) */
+function edgePath(g, x0, y0, x1, y1, tab) {
+  if (!tab) { g.lineTo(x1, y1); return; }
+  const dx = x1 - x0, dy = y1 - y0, nx = -dy, ny = dx; // normal hacia afuera del recorrido horario
+  const P = (a, b) => [x0 + dx * a + nx * b * tab, y0 + dy * a + ny * b * tab];
+  const pts = [[.36, 0], [.40, .02, .30, .20, .42, .26], [.5, .30, .58, .26], [.70, .20, .60, .02], [.64, 0]];
+  g.lineTo(...P(.36, 0));
+  g.bezierCurveTo(...P(.40, -.06), ...P(.28, .22), ...P(.50, .24));
+  g.bezierCurveTo(...P(.72, .22), ...P(.60, -.06), ...P(.64, 0));
+  g.lineTo(x1, y1);
+}
+function build() {
+  clearInterval(clock); P.innerHTML = ""; pieces = [];
+  const n = +$("#count").value, ar = img.width / img.height;
+  cols = Math.max(2, Math.round(Math.sqrt(n * ar))); rows = Math.max(2, Math.round(n / cols));
+  const W = P.clientWidth, H = P.clientHeight, maxW = W * .5, maxH = H * .66; // deja espacio alrededor para las piezas sueltas
+  let bw = maxW, bh = bw / ar; if (bh > maxH) { bh = maxH; bw = bh * ar; }
+  pw = bw / cols; ph = bh / rows; board = { x: (W - bw) / 2, y: (H - bh) / 2, w: bw, h: bh };
+  const box = document.createElement("div"); box.className = "boardbox"; Object.assign(box.style, { left: board.x - 2 + "px", top: board.y - 2 + "px", width: bw + 4 + "px", height: bh + 4 + "px" });
+  const ghost = document.createElement("img"); const gc = document.createElement("canvas"); gc.width = Math.round(bw); gc.height = Math.round(bh); gc.getContext("2d").drawImage(img, 0, 0, gc.width, gc.height); ghost.src = gc.toDataURL("image/jpeg", .7); box.appendChild(ghost); P.appendChild(box);
+  // pestañas al azar entre piezas vecinas
+  const H_ = [...Array(rows)].map(() => [...Array(cols - 1)].map(() => Math.random() < .5 ? 1 : -1));
+  const V_ = [...Array(rows - 1)].map(() => [...Array(cols)].map(() => Math.random() < .5 ? 1 : -1));
+  const m = Math.ceil(Math.max(pw, ph) * .3), scale = bw / img.width;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const top = r ? -V_[r - 1][c] : 0, right = c < cols - 1 ? H_[r][c] : 0, bottom = r < rows - 1 ? V_[r][c] : 0, left = c ? -H_[r][c - 1] : 0;
+    const cv = document.createElement("canvas"); cv.className = "p"; const dpr = Math.min(2, devicePixelRatio || 1);
+    cv.width = Math.ceil((pw + 2 * m) * dpr); cv.height = Math.ceil((ph + 2 * m) * dpr); cv.style.width = pw + 2 * m + "px"; cv.style.height = ph + 2 * m + "px";
+    const g = cv.getContext("2d"); g.scale(dpr, dpr);
+    g.beginPath(); g.moveTo(m, m); edgePath(g, m, m, m + pw, m, top); edgePath(g, m + pw, m, m + pw, m + ph, right); edgePath(g, m + pw, m + ph, m, m + ph, bottom); edgePath(g, m, m + ph, m, m, left); g.closePath();
+    g.save(); g.clip(); g.drawImage(img, -c * pw + m - 0, -r * ph + m - 0, img.width * scale, img.height * scale);
+    g.restore(); g.lineWidth = 1; g.strokeStyle = "rgba(255,255,255,.35)"; g.stroke(); g.strokeStyle = "rgba(0,0,0,.25)"; g.translate(.6, .6); g.stroke();
+    const piece = { el: cv, r, c, m, tx: board.x + c * pw - m, ty: board.y + r * ph - m, edge: !r || !c || r === rows - 1 || c === cols - 1, lock: false, x: 0, y: 0 };
+    cv._p = piece; P.appendChild(cv); pieces.push(piece);
+  }
+  scatter(); t0 = 0; seconds = 0; $("#time").textContent = "0:00"; counter();
+}
+/* reparte las piezas sueltas en los espacios libres alrededor del tablero (izquierda, derecha, arriba, abajo) */
+function scatter(only) {
+  const W = P.clientWidth, H = P.clientHeight, gap = 6, sx = pw * .82, sy = ph * .82, slots = [];
+  const strip = (x0, y0, x1, y1) => { for (let y = y0; y + ph <= y1; y += sy) for (let x = x0; x + pw <= x1; x += sx) slots.push([x, y]); };
+  strip(gap, gap, board.x - gap, H - gap); strip(board.x + board.w + gap, gap, W - gap, H - gap);
+  strip(board.x, gap, board.x + board.w, board.y - gap); strip(board.x, board.y + board.h + gap, board.x + board.w, H - gap);
+  for (let i = slots.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [slots[i], slots[j]] = [slots[j], slots[i]]; }
+  const loose = pieces.filter(p => !p.lock && (!only || only(p)));
+  loose.forEach((p, k) => {
+    let [x, y] = slots.length ? slots[k % slots.length] : [Math.random() * (W - pw), Math.random() * (H - ph)];
+    if (k >= slots.length) { x += (Math.random() - .5) * pw * .5; y += (Math.random() - .5) * ph * .5; } // si no caben todas, se apilan un poco corridas
+    move(p, Math.max(-p.m / 2, Math.min(W - pw - p.m, x - p.m)), Math.max(-p.m / 2, Math.min(H - ph - p.m, y - p.m))); p.el.style.zIndex = 10 + k;
+  });
+}
+function move(p, x, y) { p.x = x; p.y = y; p.el.style.left = x + "px"; p.el.style.top = y + "px"; }
+const counter = () => { $("#left").textContent = pieces.filter(p => !p.lock).length + " de " + pieces.length; };
+let z = 1000, drag = null;
+function pieceAt(x, y) {
+  for (const el of document.elementsFromPoint(x, y)) { if (!el.classList?.contains("p") || el._p.lock) continue; const r = el.getBoundingClientRect(), g = el.getContext("2d");
+    const px = Math.floor((x - r.left) * el.width / r.width), py = Math.floor((y - r.top) * el.height / r.height); if (g.getImageData(px, py, 1, 1).data[3] > 10) return el._p; }
+  return null;
+}
+P.addEventListener("pointerdown", (e) => {
+  const p = pieceAt(e.clientX, e.clientY); if (!p) return;
+  if (!t0) { t0 = Date.now(); clock = setInterval(() => { seconds = Math.floor((Date.now() - t0) / 1000); $("#time").textContent = Math.floor(seconds / 60) + ":" + String(seconds % 60).padStart(2, "0"); }, 1000); }
+  drag = { p, dx: e.clientX - p.x, dy: e.clientY - p.y }; p.el.style.zIndex = ++z; p.el.classList.add("drag"); P.setPointerCapture(e.pointerId);
+});
+P.addEventListener("pointermove", (e) => { if (!drag) return; const W = P.clientWidth, H = P.clientHeight; move(drag.p, Math.max(-drag.p.m, Math.min(W - pw - drag.p.m, e.clientX - drag.dx)), Math.max(-drag.p.m, Math.min(H - ph - drag.p.m, e.clientY - drag.dy))); });
+P.addEventListener("pointerup", () => {
+  if (!drag) return; const p = drag.p; drag = null; p.el.classList.remove("drag");
+  if (Math.hypot(p.x - p.tx, p.y - p.ty) < Math.max(14, Math.min(pw, ph) * .22)) {
+    move(p, p.tx, p.ty); p.lock = true; p.el.classList.add("lock"); p.el.style.zIndex = 1; click(); counter();
+    if (pieces.every(q => q.lock)) finish();
+  }
+});
+let ac; function click() { try { ac = ac || new AudioContext(); const o = ac.createOscillator(), g = ac.createGain(); o.type = "triangle"; o.frequency.value = 520; g.gain.setValueAtTime(.12, ac.currentTime); g.gain.exponentialRampToValueAtTime(.001, ac.currentTime + .12); o.connect(g).connect(ac.destination); o.start(); o.stop(ac.currentTime + .13); } catch {} }
+function finish() {
+  clearInterval(clock); const n = pieces.length, rec = best[n] == null || seconds < best[n]; if (rec) { best[n] = seconds; ap.store.set("best", best); }
+  const d = document.createElement("div"); d.className = "done";
+  d.innerHTML = `<div class="ap-card"><h2>¡Armado!</h2><div class="ap-muted">${n} piezas en ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}${rec ? " · <b>récord</b>" : ""}</div><div style="display:flex;gap:8px;justify-content:center"><button class="ap-btn" id="ok">Ver la foto</button><button class="ap-btn primary" id="again">Otra vez</button></div></div>`;
+  P.appendChild(d); d.querySelector("#ok").onclick = () => d.remove(); d.querySelector("#again").onclick = () => build();
+}
+$("#pick").onclick = async () => { try { const [f] = await sotos.files.pick({ types: ["img"], exts: ["jpg", "jpeg", "png", "webp"], title: "Elige una foto para armar" }); if (f) openFile(f); } catch (e) { ap.toast(e.message); } };
+async function openFile(f) { try { await useBlob(await sotos.files.read(f), f.name); sotos.window.setTitle("Rompecabezas · " + f.name).catch(() => {}); } catch (e) { ap.toast("No se pudo abrir la foto: " + e.message); } }
+$("#count").onchange = () => { ap.store.set("count", +$("#count").value); if (img) build(); };
+$("#ghost").onclick = () => { P.classList.toggle("ghost"); $("#ghost").classList.toggle("on"); };
+$("#edges").onclick = () => { // las del borde se juntan arriba a la izquierda, las demás se apartan
+  const W = P.clientWidth; let x = 6, y = 6; for (const p of pieces.filter(p => p.edge && !p.lock)) { move(p, x - p.m, y - p.m); p.el.style.zIndex = ++z; x += pw * .75; if (x > W - pw) { x = 6; y += ph * .75; } } };
+$("#shuffle").onclick = () => scatter();
+document.addEventListener("keydown", (e) => { if (e.key.toLowerCase() === "g") $("#ghost").click(); });
+let rt; new ResizeObserver(() => { clearTimeout(rt); rt = setTimeout(() => { if (img && !pieces.some(p => p.lock)) build(); }, 200); }).observe(P);
+(async () => { await ap.ready; best = (await ap.store.get("best")) || {}; const c = await ap.store.get("count"); if (c) $("#count").value = c;
+  let opened = false; sotos.on("open", (f) => { opened = true; openFile(f); });
+  setTimeout(async () => { if (!opened && !img) useBlob(await sample(), "Atardecer en la sabana"); }, 150); })();
+</script>
+</body>
+</html>

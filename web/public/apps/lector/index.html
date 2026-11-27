@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lector</title>
+<!-- Sotos — Lector de libros (EPUB, CBZ, TXT) · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  :root { --paper: #fbf6ec; --paper-ink: #2b2520; --paper-line: #e4d9c6; }
+  body.t-sepia { --paper: #f1e4c8; --paper-ink: #3b2f22; --paper-line: #d9c6a1; }
+  body.t-noche { --paper: #15130f; --paper-ink: #d8cfc0; --paper-line: #2c2822; }
+  :root[data-sotos-theme="dark"] body.t-dia { --paper: #f3ede2; }
+  /* biblioteca */
+  .lib { padding: 22px 24px 40px; max-width: 1100px; margin: 0 auto; }
+  .lib h2 { font: 700 13px var(--font); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); margin: 22px 0 12px; }
+  .shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 22px 18px; }
+  .book { cursor: pointer; display: grid; gap: 7px; position: relative; }
+  .cover { aspect-ratio: 2 / 3; border-radius: 3px 8px 8px 3px; overflow: hidden; background: var(--panel-2); box-shadow: inset 4px 0 0 rgba(0,0,0,.18), 0 10px 18px -12px rgba(40,25,10,.7); display: grid; place-items: center; position: relative; transition: transform .15s; }
+  .book:hover .cover { transform: translateY(-3px); }
+  .cover img { width: 100%; height: 100%; object-fit: cover; }
+  .cover.gen { padding: 14px 12px; align-content: space-between; justify-items: start; color: #fff8ec; text-align: left; }
+  .cover.gen b { font: 700 15px/1.2 Georgia, "Times New Roman", serif; }
+  .cover.gen i { font: italic 11.5px Georgia, serif; opacity: .85; }
+  .cover .kind { position: absolute; top: 6px; right: 6px; font: 700 9.5px var(--mono); background: rgba(0,0,0,.55); color: #fff; padding: 2px 5px; border-radius: 4px; }
+  .bt { font-weight: 600; font-size: 13px; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .ba { font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .prog { height: 4px; border-radius: 4px; background: var(--line); overflow: hidden; } .prog i { display: block; height: 100%; background: var(--accent); }
+  .book .x { position: absolute; top: -8px; left: -8px; width: 24px; height: 24px; border-radius: 50%; border: 1px solid var(--line-2); background: var(--panel); display: none; cursor: pointer; font-size: 13px; line-height: 1; }
+  .book:hover .x { display: block; }
+  /* lector */
+  .reader { display: none; flex: 1; min-height: 0; }
+  body.reading .reader { display: flex; } body.reading .lib-wrap { display: none; }
+  .toc { width: 270px; flex: 0 0 270px; border-right: 1px solid var(--line); background: var(--panel); overflow: auto; padding: 10px 6px; display: none; }
+  body.toc-open .toc { display: block; }
+  .toc a { display: block; padding: 6px 10px; border-radius: 6px; color: var(--ink); text-decoration: none; font-size: 13px; cursor: pointer; }
+  .toc a:hover { background: var(--panel-2); } .toc a.cur { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent); font-weight: 600; }
+  .toc a.l2 { padding-left: 24px; font-size: 12.5px; color: var(--ink-2); }
+  .page { flex: 1; min-width: 0; overflow: auto; background: var(--paper); color: var(--paper-ink); scroll-behavior: auto; }
+  .text { margin: 0 auto; padding: 46px 28px 120px; max-width: var(--w, 680px); font-family: var(--ff, Georgia, "Iowan Old Style", "Times New Roman", serif); font-size: var(--fs, 19px); line-height: var(--lh, 1.65); hyphens: auto; overflow-wrap: break-word; }
+  .text img, .text svg { max-width: 100%; height: auto; display: block; margin: 1em auto; }
+  .text h1, .text h2, .text h3 { line-height: 1.25; font-weight: 700; margin: 1.4em 0 .6em; }
+  .text a { color: inherit; text-decoration-color: color-mix(in srgb, var(--paper-ink) 35%, transparent); }
+  .text p { margin: 0 0 .9em; } .text blockquote { margin: 1em 1.4em; font-style: italic; }
+  .text pre { white-space: pre-wrap; font: inherit; }
+  .text table { border-collapse: collapse; max-width: 100%; } .text td, .text th { border: 1px solid var(--paper-line); padding: 4px 6px; }
+  .chapnav .ap-btn:not(.primary) { background: transparent; color: var(--paper-ink); border-color: var(--paper-line); }
+  .chapnav { display: flex; justify-content: space-between; gap: 10px; max-width: var(--w, 680px); margin: 30px auto 0; padding: 0 28px 60px; }
+  .comic { display: grid; place-items: center; min-height: 100%; padding: 10px; background: #111; }
+  .comic img { max-width: 100%; max-height: calc(100vh - 90px); object-fit: contain; box-shadow: 0 10px 40px rgba(0,0,0,.6); }
+  .comic.fitw img { max-height: none; width: min(100%, 1000px); }
+  .foot { display: flex; align-items: center; gap: 10px; padding: 6px 14px; border-top: 1px solid var(--line); background: var(--panel); font-size: 12.5px; color: var(--ink-2); }
+  .foot input[type=range] { flex: 1; accent-color: var(--accent); }
+  .menu { position: absolute; right: 12px; top: 52px; width: 280px; padding: 14px; display: none; gap: 12px; z-index: 20; }
+  .menu.open { display: grid; }
+  .menu label { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink-2); }
+  .themes { display: flex; gap: 8px; } .themes button { flex: 1; height: 38px; border-radius: 8px; border: 2px solid var(--line-2); cursor: pointer; font-weight: 600; }
+  .themes button.on { border-color: var(--accent); }
+  .drop { outline: 3px dashed var(--accent); outline-offset: -10px; }
+  .loading { position: fixed; inset: 0; display: grid; place-items: center; background: color-mix(in srgb, var(--bg) 70%, transparent); font-weight: 600; z-index: 30; }
+</style>
+</head>
+<body class="t-dia">
+<div class="ap">
+  <div class="ap-bar">
+    <button class="ap-btn ghost icon" id="back" title="Biblioteca" hidden>&#8592;</button>
+    <button class="ap-btn ghost" id="tocBtn" title="Índice (T)" hidden>&#9776; Índice</button>
+    <h1 id="title">Lector</h1>
+    <span class="ap-faint" id="sub"></span>
+    <span class="sp"></span>
+    <button class="ap-btn" id="aA" title="Letra y colores" hidden>Aa</button>
+    <button class="ap-btn" id="fit" title="Ajustar al ancho" hidden>Ancho</button>
+    <button class="ap-btn primary" id="openBtn">Abrir libro</button>
+  </div>
+  <div class="lib-wrap ap-main" id="lib"></div>
+  <div class="reader">
+    <nav class="toc" id="toc"></nav>
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+      <div class="page" id="page" tabindex="0"></div>
+      <div class="foot"><span id="where">—</span><input type="range" id="seek" min="0" max="1000" value="0" aria-label="Avanzar en el libro"><span id="pct">0 %</span></div>
+    </div>
+  </div>
+</div>
+<div class="menu ap-card" id="menu">
+  <div class="themes"><button data-t="dia" style="background:#fbf6ec;color:#2b2520">Día</button><button data-t="sepia" style="background:#f1e4c8;color:#3b2f22">Sepia</button><button data-t="noche" style="background:#15130f;color:#d8cfc0">Noche</button></div>
+  <label>Tamaño de letra <input type="range" id="fs" min="14" max="30" step="1"></label>
+  <label>Ancho de la columna <input type="range" id="w" min="480" max="980" step="20"></label>
+  <label>Interlineado <input type="range" id="lh" min="1.3" max="2.1" step="0.05"></label>
+  <div class="ap-seg" id="ff"><button data-f="serif">Con serifa</button><button data-f="sans">Sin serifa</button></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const EXTS = ["epub", "cbz", "txt"];
+let lib = {};            // id → { title, author, ext, pos, pct, cover, last }
+let prefs = { t: "dia", fs: 19, w: 680, lh: 1.65, ff: "serif" };
+let book = null;         // libro abierto
+const urls = [];         // blobs a liberar al cerrar
+
+/* ---------- ZIP (EPUB y CBZ son zip) con DecompressionStream ---------- */
+async function unzip(buf) {
+  const dv = new DataView(buf); let eocd = -1;
+  for (let i = buf.byteLength - 22; i >= Math.max(0, buf.byteLength - 65557); i--) if (dv.getUint32(i, true) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error("El archivo no es un EPUB/CBZ válido");
+  const n = dv.getUint16(eocd + 10, true); let off = dv.getUint32(eocd + 16, true); const files = new Map(), dec = new TextDecoder();
+  for (let i = 0; i < n && dv.getUint32(off, true) === 0x02014b50; i++) {
+    const method = dv.getUint16(off + 10, true), csize = dv.getUint32(off + 20, true), nl = dv.getUint16(off + 28, true), el = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true), lho = dv.getUint32(off + 42, true);
+    files.set(dec.decode(new Uint8Array(buf, off + 46, nl)), { method, csize, lho }); off += 46 + nl + el + cl;
+  }
+  return {
+    names: [...files.keys()],
+    async get(name) {
+      const f = files.get(name); if (!f) return null;
+      const start = f.lho + 30 + dv.getUint16(f.lho + 26, true) + dv.getUint16(f.lho + 28, true), raw = new Uint8Array(buf, start, f.csize);
+      if (f.method === 0) return raw.slice();
+      return new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+    },
+    async text(name) { const b = await this.get(name); return b ? new TextDecoder().decode(b) : null; },
+  };
+}
+const dirOf = (p) => p.includes("/") ? p.slice(0, p.lastIndexOf("/") + 1) : "";
+function resolvePath(base, rel) { const out = []; for (const s of (dirOf(base) + rel).split("/")) { if (s === "..") out.pop(); else if (s && s !== ".") out.push(s); } return out.join("/"); }
+const xml = (t) => new DOMParser().parseFromString(t, "application/xml");
+const MIME = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml" };
+
+/* ---------- EPUB ---------- */
+async function loadEpub(buf) {
+  const z = await unzip(buf);
+  const container = xml(await z.text("META-INF/container.xml") || "");
+  const opfPath = container.querySelector("rootfile")?.getAttribute("full-path"); if (!opfPath) throw new Error("EPUB sin índice (container.xml)");
+  const opf = xml(await z.text(opfPath)); const items = {}, byPath = {};
+  opf.querySelectorAll("manifest > item").forEach(it => { const p = resolvePath(opfPath, decodeURIComponent(it.getAttribute("href"))); items[it.getAttribute("id")] = { path: p, type: it.getAttribute("media-type"), props: it.getAttribute("properties") || "" }; byPath[p] = items[it.getAttribute("id")]; });
+  const spine = [...opf.querySelectorAll("spine > itemref")].map(r => items[r.getAttribute("idref")]).filter(Boolean).map(x => x.path);
+  const meta = (tag) => [...opf.getElementsByTagName("*")].find(e => e.localName === tag)?.textContent?.trim() || "";
+  const title = meta("title"), author = meta("creator");
+  // portada
+  let coverPath = Object.values(items).find(i => /cover-image/.test(i.props))?.path;
+  if (!coverPath) { const id = opf.querySelector('meta[name="cover"]')?.getAttribute("content"); if (id && items[id]) coverPath = items[id].path; }
+  if (!coverPath) coverPath = Object.values(items).find(i => /^image\//.test(i.type) && /cover/i.test(i.path))?.path;
+  // índice: nav de EPUB 3 o toc.ncx de EPUB 2
+  let toc = [];
+  const nav = Object.values(items).find(i => /\bnav\b/.test(i.props));
+  if (nav) { const d = new DOMParser().parseFromString(await z.text(nav.path), "application/xhtml+xml"); const navEl = [...d.getElementsByTagName("nav")].find(n => /toc/.test(n.getAttribute("epub:type") || n.getAttribute("type") || "")) || d.getElementsByTagName("nav")[0];
+    navEl?.querySelectorAll("a").forEach(a => { const href = a.getAttribute("href"); if (href) toc.push({ label: a.textContent.trim(), path: resolvePath(nav.path, decodeURIComponent(href.split("#")[0])), frag: href.split("#")[1] || "", lvl: a.closest("ol ol") ? 2 : 1 }); }); }
+  if (!toc.length) { const ncx = Object.values(items).find(i => i.type === "application/x-dtbncx+xml"); if (ncx) { const d = xml(await z.text(ncx.path)); d.querySelectorAll("navPoint").forEach(np => { const src = np.querySelector("content")?.getAttribute("src"); if (src) toc.push({ label: np.querySelector("navLabel")?.textContent.trim() || "", path: resolvePath(ncx.path, decodeURIComponent(src.split("#")[0])), frag: src.split("#")[1] || "", lvl: np.parentElement?.localName === "navPoint" ? 2 : 1 }); }); } }
+  if (!toc.length) toc = spine.map((p, i) => ({ label: "Parte " + (i + 1), path: p, frag: "", lvl: 1 }));
+  toc = toc.filter(t => spine.includes(t.path) && t.label);
+  return { kind: "epub", z, spine, toc, title, author, coverPath };
+}
+const imgCache = new Map();
+async function blobUrl(z, path) {
+  if (imgCache.has(path)) return imgCache.get(path);
+  const b = await z.get(path); if (!b) return ""; const u = URL.createObjectURL(new Blob([b], { type: MIME[path.split(".").pop().toLowerCase()] || "application/octet-stream" })); urls.push(u); imgCache.set(path, u); return u;
+}
+/** capítulo limpio: sin scripts ni estilos del libro, con las imágenes del propio EPUB */
+async function chapterNode(path) {
+  const raw = await book.z.text(path) || "";
+  let d = new DOMParser().parseFromString(raw, "application/xhtml+xml");
+  if (d.getElementsByTagName("parsererror").length) d = new DOMParser().parseFromString(raw, "text/html");
+  const body = d.body || d.getElementsByTagName("body")[0]; const box = document.createElement("div");
+  if (!body) return box;
+  box.innerHTML = new XMLSerializer().serializeToString(body).replace(/^<body[^>]*>|<\/body>$/g, "");
+  box.querySelectorAll("script,style,link,iframe,object,embed,form,input,button,meta,base").forEach(e => e.remove());
+  box.querySelectorAll("*").forEach(el => { for (const a of [...el.attributes]) { const n = a.name.toLowerCase(); if (n.startsWith("on") || n === "style" || n === "class" || n === "srcset" || (/^(href|src|xlink:href)$/.test(n) && /^\s*javascript:/i.test(a.value))) el.removeAttribute(a.name); } });
+  for (const img of box.querySelectorAll("img")) { const s = img.getAttribute("src"); if (s && !/^(data|blob|https?):/.test(s)) img.src = await blobUrl(book.z, resolvePath(path, decodeURIComponent(s))); img.loading = "lazy"; img.alt = img.alt || ""; }
+  for (const im of box.querySelectorAll("image")) { const s = im.getAttribute("xlink:href") || im.getAttribute("href"); if (s && !/^(data|blob|https?):/.test(s)) { const u = await blobUrl(book.z, resolvePath(path, decodeURIComponent(s))); im.setAttribute("href", u); im.setAttribute("xlink:href", u); } }
+  box.querySelectorAll("a[href]").forEach(a => { const h = a.getAttribute("href"); if (/^https?:/.test(h)) { a.target = "_blank"; a.rel = "noopener noreferrer"; } else { a.dataset.go = resolvePath(path, decodeURIComponent(h.split("#")[0] || path.split("/").pop())) + "#" + (h.split("#")[1] || ""); a.removeAttribute("href"); a.style.cursor = "pointer"; a.style.textDecoration = "underline"; } });
+  return box;
+}
+
+/* ---------- CBZ y TXT ---------- */
+const natural = (a, b) => a.localeCompare(b, "es", { numeric: true, sensitivity: "base" });
+async function loadCbz(buf) { const z = await unzip(buf); const pages = z.names.filter(n => /\.(jpe?g|png|gif|webp)$/i.test(n) && !/(^|\/)(__MACOSX|\.)/.test(n)).sort(natural); if (!pages.length) throw new Error("El cómic no tiene imágenes"); return { kind: "cbz", z, pages, coverPath: pages[0] }; }
+function loadTxt(buf) { let t = new TextDecoder("utf-8").decode(buf); if (t.includes("�")) t = new TextDecoder("windows-1252").decode(buf); const parts = []; const SIZE = 60000; for (let i = 0; i < t.length; i += SIZE) parts.push(t.slice(i, i + SIZE)); return { kind: "txt", parts: parts.length ? parts : [""] }; }
+
+/* ---------- portadas pequeñas para la biblioteca ---------- */
+async function thumb(blob) {
+  try { const bmp = await createImageBitmap(blob); const W = 180, H = Math.round(W * 1.5), c = document.createElement("canvas"); c.width = W; c.height = H; const g = c.getContext("2d");
+    const s = Math.max(W / bmp.width, H / bmp.height); g.drawImage(bmp, (W - bmp.width * s) / 2, (H - bmp.height * s) / 2, bmp.width * s, bmp.height * s); return c.toDataURL("image/jpeg", .72); } catch { return null; }
+}
+const hue = (s) => { let h = 0; for (const ch of s) h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
+
+/* ---------- biblioteca ---------- */
+async function renderLib() {
+  let recent = []; try { recent = (await sotos.files.recent()).filter(f => EXTS.includes((f.ext || f.name.split(".").pop() || "").toLowerCase())); } catch {}
+  const known = recent.map(f => ({ f, b: lib[f.id] || { title: f.name.replace(/\.[^.]+$/, ""), ext: f.ext } })).sort((a, b) => (b.b.last || 0) - (a.b.last || 0));
+  const reading = known.filter(x => (x.b.pct || 0) > 0 && (x.b.pct || 0) < 99.5), rest = known.filter(x => !reading.includes(x));
+  const card = ({ f, b }) => `<div class="book" data-id="${f.id}" title="${ap.esc(b.title)}">
+      <button class="x" data-forget="${f.id}" title="Quitar de la biblioteca">&times;</button>
+      ${b.cover ? `<div class="cover"><img src="${b.cover}" alt=""><span class="kind">${(b.ext || "").toUpperCase()}</span></div>`
+        : `<div class="cover gen" style="background:linear-gradient(160deg,hsl(${hue(b.title)} 38% 34%),hsl(${(hue(b.title) + 40) % 360} 42% 22%))"><b>${ap.esc(b.title)}</b><i>${ap.esc(b.author || "")}</i><span class="kind">${(b.ext || "").toUpperCase()}</span></div>`}
+      <div class="bt">${ap.esc(b.title)}</div><div class="ba">${ap.esc(b.author || f.name)}</div>
+      <div class="prog"><i style="width:${Math.round(b.pct || 0)}%"></i></div></div>`;
+  $("#lib").innerHTML = known.length ? `<div class="lib">
+      ${reading.length ? `<h2>Seguir leyendo</h2><div class="shelf">${reading.map(card).join("")}</div>` : ""}
+      ${rest.length ? `<h2>${reading.length ? "Tu biblioteca" : "Tus libros"}</h2><div class="shelf">${rest.map(card).join("")}</div>` : ""}
+      <p class="ap-faint" style="margin-top:28px">Los libros que abres quedan aquí, con la página en la que ibas. También puedes abrir un EPUB, CBZ o TXT desde Archivos con «Abrir con → Lector», o arrastrarlo a esta ventana.</p></div>`
+    : `<div class="ap-empty"><div><div class="big">&#128214;</div><b>Tu biblioteca está vacía</b><p class="ap-muted">Abre un libro EPUB, un cómic CBZ o un TXT de tu Drive.<br>Recordaré la página en la que vas.</p><button class="ap-btn primary" onclick="pick()">Abrir libro</button></div></div>`;
+}
+$("#lib").addEventListener("click", async (e) => {
+  const fg = e.target.closest("[data-forget]"); if (fg) { e.stopPropagation(); await sotos.files.forget(fg.dataset.forget); delete lib[fg.dataset.forget]; saveLib(); renderLib(); return; }
+  const b = e.target.closest(".book"); if (b) { const r = (await sotos.files.recent()).find(f => f.id === b.dataset.id); if (r) open(r); }
+});
+let libT; const saveLib = () => { clearTimeout(libT); libT = setTimeout(() => ap.store.set("libros", lib), 600); };
+
+/* ---------- abrir ---------- */
+async function pick() { try { const [f] = await sotos.files.pick({ exts: EXTS, title: "Abrir un libro" }); if (f) open(f); } catch (e) { ap.toast(e.message); } }
+async function open(f) {
+  const ext = (f.ext || f.name.split(".").pop() || "").toLowerCase();
+  const wait = document.createElement("div"); wait.className = "loading"; wait.textContent = "Abriendo «" + f.name + "»…"; document.body.appendChild(wait);
+  try {
+    const buf = await (await sotos.files.read(f)).arrayBuffer();
+    closeBook(); imgCache.clear();
+    book = ext === "epub" ? await loadEpub(buf) : ext === "cbz" ? await loadCbz(buf) : loadTxt(buf);
+    book.file = f; book.ext = ext;
+    const prev = lib[f.id] || {};
+    const title = book.title || prev.title || f.name.replace(/\.[^.]+$/, "");
+    let cover = prev.cover; if (!cover && book.coverPath) { const b = await book.z.get(book.coverPath); if (b) cover = await thumb(new Blob([b])); }
+    lib[f.id] = { ...prev, title, author: book.author || prev.author || "", ext, cover: cover || null, last: Date.now() }; saveLib();
+    $("#title").textContent = title; $("#sub").textContent = book.author || ""; sotos.window.setTitle(title).catch(() => {});
+    document.body.classList.add("reading"); ["#back", "#aA"].forEach(s => $(s).hidden = false);
+    $("#tocBtn").hidden = book.kind !== "epub"; $("#fit").hidden = book.kind !== "cbz"; $("#aA").hidden = book.kind === "cbz";
+    renderToc();
+    const pos = prev.pos || { i: 0, r: 0 };
+    await show(Math.min(pos.i || 0, count() - 1), pos.r || 0);
+    $("#page").focus();
+  } catch (e) { ap.toast("No se pudo abrir: " + e.message, 4000); }
+  wait.remove();
+}
+function closeBook() { urls.splice(0).forEach(u => URL.revokeObjectURL(u)); book = null; }
+const count = () => book.kind === "epub" ? book.spine.length : book.kind === "cbz" ? book.pages.length : book.parts.length;
+
+/* ---------- mostrar ---------- */
+async function show(i, ratio = 0, frag = "") {
+  book.i = i; const page = $("#page");
+  if (book.kind === "cbz") {
+    page.innerHTML = `<div class="comic ${prefs.fitw ? "fitw" : ""}"><img src="${await blobUrl(book.z, book.pages[i])}" alt="Página ${i + 1}"></div>`;
+    page.scrollTop = 0; // las páginas del cómic precargan la siguiente
+    if (book.pages[i + 1]) blobUrl(book.z, book.pages[i + 1]);
+  } else {
+    const box = document.createElement("div"); box.className = "text";
+    if (book.kind === "epub") box.append(...(await chapterNode(book.spine[i])).childNodes); else { const pre = document.createElement("pre"); pre.textContent = book.parts[i]; box.append(pre); }
+    const nav = document.createElement("div"); nav.className = "chapnav";
+    nav.innerHTML = `<button class="ap-btn" ${i ? "" : "disabled"} data-step="-1">&#8592; Anterior</button><span class="ap-faint" style="align-self:center">${i + 1} de ${count()}</span><button class="ap-btn primary" ${i < count() - 1 ? "" : "disabled"} data-step="1">Siguiente &#8594;</button>`;
+    page.replaceChildren(box, nav);
+    requestAnimationFrame(() => { if (frag) { const t = page.querySelector("#" + CSS.escape(frag)) || page.querySelector(`[name="${CSS.escape(frag)}"]`); if (t) { t.scrollIntoView(); return; } } page.scrollTop = ratio * Math.max(0, page.scrollHeight - page.clientHeight); });
+  }
+  markToc(); progress();
+}
+function progress() {
+  if (!book) return; const page = $("#page"); const r = page.scrollHeight > page.clientHeight ? page.scrollTop / (page.scrollHeight - page.clientHeight) : 0;
+  const pct = Math.min(100, ((book.i + (book.kind === "cbz" ? 1 : r)) / count()) * 100);
+  $("#pct").textContent = Math.round(pct) + " %"; $("#seek").value = Math.round(pct * 10);
+  const t = book.kind === "epub" ? (book.toc.filter(x => book.spine.indexOf(x.path) <= book.i).pop()?.label || `Parte ${book.i + 1}`) : book.kind === "cbz" ? `Página ${book.i + 1} de ${count()}` : `Parte ${book.i + 1} de ${count()}`;
+  $("#where").textContent = t;
+  const L = lib[book.file.id]; if (L) { L.pos = { i: book.i, r: Math.round(r * 1000) / 1000 }; L.pct = pct; L.last = Date.now(); saveLib(); }
+}
+let st; $("#page").addEventListener("scroll", () => { clearTimeout(st); st = setTimeout(progress, 250); });
+$("#page").addEventListener("click", (e) => {
+  const s = e.target.closest("[data-step]"); if (s) return step(+s.dataset.step);
+  const g = e.target.closest("[data-go]"); if (g && book.kind === "epub") { const [p, f] = g.dataset.go.split("#"); const i = book.spine.indexOf(p); if (i >= 0) show(i, 0, f); return; }
+  if (book?.kind === "cbz") { const x = e.clientX / $("#page").clientWidth; step(x < .35 ? -1 : 1); }
+});
+const step = (d) => { const n = book.i + d; if (n >= 0 && n < count()) show(n, d < 0 && book.kind !== "cbz" ? 1 : 0); };
+$("#seek").addEventListener("change", (e) => { const v = e.target.value / 1000 * count(); const i = Math.min(count() - 1, Math.floor(v)); show(i, book.kind === "cbz" ? 0 : v - i); });
+
+/* índice */
+function renderToc() { if (book.kind !== "epub") return; $("#toc").innerHTML = book.toc.map((t, k) => `<a class="l${t.lvl}" data-k="${k}">${ap.esc(t.label)}</a>`).join(""); }
+function markToc() { if (book.kind !== "epub") return; let cur = -1; book.toc.forEach((t, k) => { if (book.spine.indexOf(t.path) <= book.i) cur = k; }); $("#toc").querySelectorAll("a").forEach((a, k) => a.classList.toggle("cur", k === cur)); }
+$("#toc").addEventListener("click", (e) => { const a = e.target.closest("a[data-k]"); if (!a) return; const t = book.toc[+a.dataset.k]; show(book.spine.indexOf(t.path), 0, t.frag); if (innerWidth < 760) document.body.classList.remove("toc-open"); });
+$("#tocBtn").onclick = () => document.body.classList.toggle("toc-open");
+
+/* teclado */
+document.addEventListener("keydown", (e) => {
+  if (!book || e.target.closest("input,select,textarea") || document.querySelector(".ap-modal")) return;
+  const page = $("#page"), k = e.key;
+  if (book.kind === "cbz") { if (["ArrowRight", " ", "PageDown"].includes(k)) { e.preventDefault(); step(1); } else if (["ArrowLeft", "PageUp"].includes(k)) { e.preventDefault(); step(-1); } }
+  else if (k === "ArrowRight") { e.preventDefault(); step(1); } else if (k === "ArrowLeft") { e.preventDefault(); step(-1); }
+  else if ((k === " " || k === "PageDown") && page.scrollTop + page.clientHeight >= page.scrollHeight - 4) { e.preventDefault(); step(1); }
+  if (k.toLowerCase() === "t" && book.kind === "epub") document.body.classList.toggle("toc-open");
+  if (k === "Escape") $("#menu").classList.remove("open");
+});
+
+/* ajustes de lectura */
+function applyPrefs() {
+  document.body.className = document.body.className.replace(/\bt-\w+/g, "").trim() + " t-" + prefs.t + (document.body.classList.contains("reading") ? "" : "");
+  const r = document.documentElement.style; r.setProperty("--fs", prefs.fs + "px"); r.setProperty("--w", prefs.w + "px"); r.setProperty("--lh", prefs.lh);
+  r.setProperty("--ff", prefs.ff === "sans" ? 'var(--font)' : 'Georgia, "Iowan Old Style", "Times New Roman", serif');
+  $("#fs").value = prefs.fs; $("#w").value = prefs.w; $("#lh").value = prefs.lh;
+  document.querySelectorAll(".themes button").forEach(b => b.classList.toggle("on", b.dataset.t === prefs.t));
+  document.querySelectorAll("#ff button").forEach(b => b.classList.toggle("on", b.dataset.f === prefs.ff));
+  $("#fit").classList.toggle("on", !!prefs.fitw);
+}
+let pt; const savePrefs = () => { applyPrefs(); clearTimeout(pt); pt = setTimeout(() => ap.store.set("ajustes", prefs), 500); };
+document.querySelectorAll(".themes button").forEach(b => b.onclick = () => { prefs.t = b.dataset.t; savePrefs(); });
+document.querySelectorAll("#ff button").forEach(b => b.onclick = () => { prefs.ff = b.dataset.f; savePrefs(); });
+["fs", "w", "lh"].forEach(k => $("#" + k).oninput = (e) => { prefs[k] = +e.target.value; savePrefs(); });
+$("#aA").onclick = (e) => { e.stopPropagation(); $("#menu").classList.toggle("open"); };
+document.addEventListener("mousedown", (e) => { if (!e.target.closest("#menu,#aA")) $("#menu").classList.remove("open"); });
+$("#fit").onclick = () => { prefs.fitw = !prefs.fitw; savePrefs(); if (book) show(book.i); };
+$("#openBtn").onclick = pick;
+$("#back").onclick = () => { progress(); closeBook(); document.body.classList.remove("reading", "toc-open"); ["#back", "#aA", "#tocBtn", "#fit"].forEach(s => $(s).hidden = true); $("#title").textContent = "Lector"; $("#sub").textContent = ""; sotos.window.setTitle("Lector").catch(() => {}); renderLib(); };
+
+/* arrastrar un libro desde el equipo */
+document.addEventListener("dragover", (e) => { if ([...e.dataTransfer.types].includes("Files")) { e.preventDefault(); document.body.classList.add("drop"); } });
+document.addEventListener("dragleave", (e) => { if (!e.relatedTarget) document.body.classList.remove("drop"); });
+document.addEventListener("drop", (e) => { e.preventDefault(); document.body.classList.remove("drop"); const f = [...e.dataTransfer.files].find(x => EXTS.includes(x.name.split(".").pop().toLowerCase()));
+  if (!f) return ap.toast("Suelta un archivo EPUB, CBZ o TXT");
+  const fake = { id: "local", name: f.name, ext: f.name.split(".").pop().toLowerCase() }; // del equipo: se lee aquí mismo, no queda en la biblioteca
+  f.arrayBuffer().then(async (buf) => { closeBook(); book = fake.ext === "epub" ? await loadEpub(buf) : fake.ext === "cbz" ? await loadCbz(buf) : loadTxt(buf); book.file = fake; book.ext = fake.ext; $("#title").textContent = book.title || f.name; document.body.classList.add("reading"); $("#back").hidden = false; $("#aA").hidden = book.kind === "cbz"; $("#tocBtn").hidden = book.kind !== "epub"; $("#fit").hidden = book.kind !== "cbz"; renderToc(); show(0); }).catch(err => ap.toast("No se pudo abrir: " + err.message)); });
+
+/* inicio */
+(async () => {
+  await ap.ready;
+  lib = (await ap.store.get("libros")) || {}; prefs = { ...prefs, ...((await ap.store.get("ajustes")) || {}) };
+  applyPrefs(); renderLib();
+  sotos.on("open", (f) => open(f)); // «Abrir con → Lector» desde Archivos
+})();
+</script>
+</body>
+</html>

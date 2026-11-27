@@ -5,7 +5,9 @@
    ============================================================ */
 export const ID = /^[a-z0-9][a-z0-9-]{1,29}$/;
 export const PERMISSIONS = { "files.read": "Abrir los archivos que elijas", "files.write": "Guardar archivos donde elijas", "notify": "Mostrarte avisos", "storage": "Guardar sus propios datos en tu cuenta", "user": "Ver tu nombre e idioma" };
-const RESERVED = new Set(["files", "admin", "settings", "store", "mail", "calendar", "contacts", "worlds", "docs", "sheets", "slides", "gallery", "music", "video", "browser", "terminal", "launchpad", "vault", "paint", "code", "whiteboard", "diagrams", "tasks", "games", "cine", "fotos", "whatsapp", "inbox", "trash", "editor"]);export function validateManifest(m) {
+const RESERVED = new Set(["files", "admin", "settings", "store", "mail", "calendar", "contacts", "worlds", "docs", "sheets", "slides", "gallery", "music", "video", "browser", "terminal", "launchpad", "vault", "paint", "code", "whiteboard", "diagrams", "tasks", "games", "cine", "fotos", "whatsapp", "inbox", "trash", "editor",
+  "lector", "solitario", "palabras", "rompecabezas", "ritmos", "afinador", "pixelart", "memes", "diario", "pelis", "pinball", "panel", "informes", "diagnostico", "pdfmeta", "audioext", "control", "nas"]);
+export function validateManifest(m) {
   const err = (t) => { throw Object.assign(new Error("sotos-app.json: " + t), { status: 400 }); };
   if (!m || typeof m !== "object") err("no es un objeto JSON");
   if (!ID.test(m.id || "")) err("«id» debe tener 2-30 letras minúsculas, números o guiones (ej. «notas-md»)");

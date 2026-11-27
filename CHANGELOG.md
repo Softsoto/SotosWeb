@@ -3,6 +3,27 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.6.7 — 27 de noviembre de 2026
+
+### Nuevo: diez apps en la Tienda
+Se instalan desde la Tienda como cualquier otra app. Corren aisladas con el SDK: solo ven los archivos que eliges y guardan sus datos en tu cuenta.
+- **Lector**: libros EPUB, cómics CBZ y TXT. Tiene biblioteca con portadas, recuerda la página en la que ibas, índice, modo día, sepia o noche, tamaño de letra, ancho e interlineado. Abre con «Abrir con» desde Archivos.
+- **Solitario**: con baraja diseñada para Sotos; robar 1 o 3, arrastrar o tocar para mover, deshacer, pistas, terminar solo, y estadísticas de ganadas, racha y mejor tiempo.
+- **Palabras**: sopa de letras y crucigramas en español que se arman solos, con temas colombianos (frutas, comida, ciudades, animales, música y naturaleza), tres niveles y reto del día.
+- **Rompecabezas**: arma tus propias fotos en 12, 24, 48 o 96 piezas con pestañas, que se encajan solas. Tiene imagen de fondo de ayuda y opción de juntar los bordes.
+- **Caja de ritmos**: 16 pasos con acentos y 8 instrumentos sintetizados (bombo, caja, hi-hat, palmas, tambora, guacharaca, campana y maracas). Trae ritmos de cumbia, salsa, vallenato, champeta y dembow, con swing, tus ritmos guardados y exportación a .wav.
+- **Afinador**: guitarra, tiple, ukelele, bajo o cromático, con aguja, La ajustable y nota de referencia. Incluye metrónomo con compases, acentos y tempo por toques.
+- **Pixel art**: lienzos de 16 a 64 con lápiz, borrador, balde, línea, rectángulo, cuentagotas y espejo; paletas retro, cuadros de animación con capa fantasma y vista previa. Exporta a PNG, hoja de sprites o GIF animado.
+- **Memes y stickers**: texto arriba, abajo y libre, recorte, borrador y «quitar fondo» por color. Guarda stickers WebP de 512 × 512 con borde blanco, listos para WhatsApp.
+- **Diario**: una entrada al día con tu estado de ánimo, calendario de colores, racha, buscador, preguntas para arrancar, exportar a Markdown y PIN opcional.
+- **Películas y series**: vistas, viendo, quiero ver y abandonadas, con nota, géneros y pósteres tipográficos. Tiene estadísticas del año y exporta a CSV.
+
+### SDK
+- `sotos.files.recent()` y `sotos.files.forget()`: una app puede volver a abrir los archivos que la persona ya le dio, sin pedirlos otra vez. El Lector lo usa para su biblioteca.
+
+### Arreglado
+- **Temas Cristal y Vidrio**: el efecto de vidrio desenfocaba también el contenido de las ventanas con apps en marco (Tienda, juegos y Office). Ahora esas ventanas se ven nítidas.
+
 ## 3.6.6 — 24 de noviembre de 2026
 
 ### Nuevo

@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Memes y stickers</title>
+<!-- Sotos — Memes y stickers · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 290px; }
+  .stage { position: relative; overflow: hidden; display: grid; place-items: center; background: repeating-conic-gradient(var(--panel-2) 0 25%, var(--bg) 0 50%) 0 0 / 22px 22px; }
+  #view { box-shadow: 0 10px 30px -14px rgba(0,0,0,.5); touch-action: none; background: repeating-conic-gradient(#e6e2da 0 25%, #fbf9f5 0 50%) 0 0 / 16px 16px; }
+  .stage.erase #view { cursor: none; } .stage.crop #view { cursor: crosshair; } .stage.wand #view { cursor: cell; }
+  #brush { position: absolute; border: 1.5px solid #fff; box-shadow: 0 0 0 1px #000; border-radius: 50%; pointer-events: none; display: none; }
+  .side { background: var(--panel); border-left: 1px solid var(--line); overflow: auto; padding: 14px; display: grid; gap: 14px; align-content: start; }
+  .side h3 { margin: 0 0 6px; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .side .ap-in { width: 100%; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12.5px; color: var(--ink-2); }
+  .row input[type=range] { flex: 1; accent-color: var(--accent); }
+  .ap-btn.sm { height: 28px; padding: 0 9px; font-size: 12.5px; }
+  .hint { font-size: 12px; color: var(--ink-3); }
+  @media (max-width: 820px) { .body { grid-template-columns: 1fr; } .side { max-height: 300px; border-left: 0; border-top: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar">
+    <h1>Memes y stickers</h1>
+    <button class="ap-btn primary" id="pick">Elegir foto</button>
+    <button class="ap-btn ghost icon" id="undo" title="Deshacer (Ctrl+Z)">&#8630;</button>
+    <div class="ap-seg" id="mode"><button data-m="move" class="on">Texto</button><button data-m="crop">Recortar</button><button data-m="erase">Borrador</button><button data-m="wand">Quitar fondo</button></div>
+    <span class="sp"></span>
+    <button class="ap-btn" id="png">Guardar PNG</button>
+    <button class="ap-btn primary" id="sticker">Sticker para WhatsApp</button>
+  </div>
+  <div class="body">
+    <div class="stage" id="stage"><canvas id="view"></canvas><div id="brush"></div></div>
+    <div class="side">
+      <div><h3>Texto de arriba</h3><input class="ap-in" id="top" placeholder="Cuando abres la nevera…"></div>
+      <div><h3>Texto de abajo</h3><input class="ap-in" id="bottom" placeholder="…y no hay nada"></div>
+      <div><h3>Texto libre</h3><input class="ap-in" id="free" placeholder="Arrástralo sobre la foto"></div>
+      <div class="row">Tamaño <input type="range" id="size" min="4" max="18" step="0.5"></div>
+      <div class="row">Color <input type="color" id="fill" value="#ffffff"> Borde <input type="color" id="stroke" value="#000000">
+        <select class="ap-in" id="font" style="width:auto;height:28px"><option value="meme">Meme</option><option value="redonda">Redonda</option><option value="mano">A mano</option></select></div>
+      <div id="eraseOpts" hidden><h3>Borrador</h3><div class="row">Pincel <input type="range" id="bsize" min="4" max="120"></div><div class="row"><label><input type="checkbox" id="restore"> Restaurar (pinta de vuelta la foto)</label></div></div>
+      <div id="wandOpts" hidden><h3>Quitar fondo</h3><div class="row">Parecido <input type="range" id="tol" min="5" max="120"></div><p class="hint">Toca el fondo: se borra la zona de color parecido conectada a donde tocas. Repite en otras partes y retoca con el borrador.</p></div>
+      <div id="cropOpts" hidden><h3>Recortar</h3><div class="row"><label><input type="checkbox" id="square" checked> Cuadrado (para stickers)</label></div><p class="hint">Arrastra sobre la foto para marcar el recorte y suelta.</p></div>
+      <div><h3>Sticker</h3><div class="row"><label><input type="checkbox" id="outline" checked> Borde blanco alrededor</label></div><p class="hint">El sticker sale de 512 × 512 en WebP, con fondo transparente, como los pide WhatsApp.</p></div>
+    </div>
+  </div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const FONTS = { meme: '900 {s}px Impact, "Arial Black", "Haettenschweiler", sans-serif', redonda: '800 {s}px "Onest", "Arial Rounded MT Bold", "Segoe UI", sans-serif', mano: '700 {s}px "Comic Sans MS", "Segoe Print", cursive' };
+let work = null;      // lienzo con la foto (su transparencia es la que borra el borrador)
+let orig = null;      // la foto original (para restaurar)
+let hist = [], mode = "move", free = { x: .5, y: .5 }, scale = 1;
+const view = $("#view"), vg = view.getContext("2d");
+const T = { size: 9, fill: "#ffffff", stroke: "#000000", font: "meme" };
+
+function placeholder() {
+  const c = document.createElement("canvas"); c.width = 900; c.height = 900; const g = c.getContext("2d");
+  const gr = g.createLinearGradient(0, 0, 900, 900); gr.addColorStop(0, "#f2c14e"); gr.addColorStop(1, "#d9663f"); g.fillStyle = gr; g.fillRect(0, 0, 900, 900);
+  g.fillStyle = "#3b2a20"; g.beginPath(); g.arc(450, 470, 230, 0, 7); g.fill(); g.fillStyle = "#fff"; g.beginPath(); g.arc(370, 420, 46, 0, 7); g.arc(530, 420, 46, 0, 7); g.fill();
+  g.fillStyle = "#3b2a20"; g.beginPath(); g.arc(385, 430, 20, 0, 7); g.arc(545, 430, 20, 0, 7); g.fill(); g.strokeStyle = "#fff"; g.lineWidth = 14; g.lineCap = "round"; g.beginPath(); g.arc(450, 520, 80, .2, Math.PI - .2); g.stroke();
+  return c;
+}
+function setImage(src) { // src: lienzo o ImageBitmap
+  const max = 1600, s = Math.min(1, max / Math.max(src.width, src.height));
+  work = document.createElement("canvas"); work.width = Math.round(src.width * s); work.height = Math.round(src.height * s); work.getContext("2d").drawImage(src, 0, 0, work.width, work.height);
+  orig = document.createElement("canvas"); orig.width = work.width; orig.height = work.height; orig.getContext("2d").drawImage(work, 0, 0);
+  hist = []; fit();
+}
+function fit() { const st = $("#stage"); scale = Math.min((st.clientWidth - 30) / work.width, (st.clientHeight - 30) / work.height, 1.5); view.width = Math.round(work.width * scale); view.height = Math.round(work.height * scale); draw(); }
+/** texto con borde, partido en líneas para que quepa en el ancho */
+function drawText(g, text, x, y, w, base, px) {
+  if (!text.trim()) return; const up = T.font === "meme" ? text.toUpperCase() : text; g.font = FONTS[T.font].replace("{s}", px); g.textAlign = "center";
+  const words = up.split(/\s+/), lines = []; let line = ""; for (const wd of words) { const t = line ? line + " " + wd : wd; if (g.measureText(t).width > w * .94 && line) { lines.push(line); line = wd; } else line = t; } if (line) lines.push(line);
+  const lh = px * 1.08; let yy = base === "top" ? y + px : base === "bottom" ? y - (lines.length - 1) * lh : y - (lines.length - 1) * lh / 2 + px * .35;
+  g.lineJoin = "round"; g.lineWidth = Math.max(2, px * .16); g.strokeStyle = T.stroke; g.fillStyle = T.fill;
+  for (const l of lines) { g.strokeText(l, x, yy); g.fillText(l, x, yy); yy += lh; }
+}
+function compose(g, W, H) { // la foto y los textos a cualquier tamaño
+  g.drawImage(work, 0, 0, W, H); const px = Math.round(W * T.size / 100);
+  drawText(g, $("#top").value, W / 2, H * .03, W, "top", px); drawText(g, $("#bottom").value, W / 2, H * .97 - px * .1, W, "bottom", px); drawText(g, $("#free").value, free.x * W, free.y * H, W * .8, "mid", px);
+}
+let cropR = null, cursor = null;
+function draw() {
+  vg.clearRect(0, 0, view.width, view.height); compose(vg, view.width, view.height);
+  if (cropR) { const { x, y, w, h } = cropR; vg.fillStyle = "rgba(0,0,0,.45)"; vg.fillRect(0, 0, view.width, y); vg.fillRect(0, y + h, view.width, view.height - y - h); vg.fillRect(0, y, x, h); vg.fillRect(x + w, y, view.width - x - w, h); vg.strokeStyle = "#fff"; vg.setLineDash([6, 4]); vg.strokeRect(x + .5, y + .5, w, h); vg.setLineDash([]); }
+}
+const snap = () => { const c = document.createElement("canvas"); c.width = work.width; c.height = work.height; c.getContext("2d").drawImage(work, 0, 0); hist.push({ c, o: orig }); if (hist.length > 30) hist.shift(); };
+$("#undo").onclick = () => { const h = hist.pop(); if (!h) return; work = h.c; orig = h.o; fit(); };
+/* ---------- puntero: mover texto, recortar, borrar, quitar fondo ---------- */
+let drag = null;
+const local = (e) => { const r = view.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; };
+view.addEventListener("pointerdown", (e) => {
+  const p = local(e); view.setPointerCapture(e.pointerId);
+  if (mode === "move") { drag = { kind: "free" }; free = { x: p.x / view.width, y: p.y / view.height }; draw(); }
+  else if (mode === "crop") { drag = { kind: "crop", s: p }; cropR = { x: p.x, y: p.y, w: 0, h: 0 }; }
+  else if (mode === "erase") { snap(); drag = { kind: "erase", last: p }; brush(p, p); }
+  else if (mode === "wand") { snap(); wand(Math.floor(p.x / scale), Math.floor(p.y / scale)); }
+});
+view.addEventListener("pointermove", (e) => {
+  const p = local(e); if (mode === "erase") { const b = $("#brush"), d = +$("#bsize").value * scale, r = view.getBoundingClientRect(), sr = $("#stage").getBoundingClientRect(); Object.assign(b.style, { display: "block", width: d + "px", height: d + "px", left: r.left - sr.left + p.x - d / 2 + "px", top: r.top - sr.top + p.y - d / 2 + "px" }); }
+  if (!drag) return;
+  if (drag.kind === "free") { free = { x: Math.max(0, Math.min(1, p.x / view.width)), y: Math.max(0, Math.min(1, p.y / view.height)) }; draw(); }
+  else if (drag.kind === "crop") { let w = p.x - drag.s.x, h = p.y - drag.s.y; if ($("#square").checked) { const m = Math.min(Math.abs(w), Math.abs(h)); w = Math.sign(w || 1) * m; h = Math.sign(h || 1) * m; }
+    cropR = { x: Math.min(drag.s.x, drag.s.x + w), y: Math.min(drag.s.y, drag.s.y + h), w: Math.abs(w), h: Math.abs(h) }; draw(); }
+  else if (drag.kind === "erase") { brush(drag.last, p); drag.last = p; }
+});
+view.addEventListener("pointerleave", () => { $("#brush").style.display = "none"; });
+view.addEventListener("pointerup", () => {
+  if (drag?.kind === "crop" && cropR && cropR.w > 8 && cropR.h > 8) {
+    snap(); const s = 1 / scale, c = document.createElement("canvas"); c.width = Math.round(cropR.w * s); c.height = Math.round(cropR.h * s);
+    c.getContext("2d").drawImage(work, -cropR.x * s, -cropR.y * s); const o = document.createElement("canvas"); o.width = c.width; o.height = c.height; o.getContext("2d").drawImage(orig, -cropR.x * s, -cropR.y * s);
+    work = c; orig = o; cropR = null; fit(); setMode("move");
+  } else if (drag?.kind === "crop") { cropR = null; draw(); }
+  drag = null;
+});
+function brush(a, b) {
+  const g = work.getContext("2d"), s = 1 / scale, r = +$("#bsize").value / 2, rest = $("#restore").checked;
+  g.save(); g.lineCap = "round"; g.lineWidth = r * 2;
+  if (rest) { g.beginPath(); g.moveTo(a.x * s, a.y * s); g.lineTo(b.x * s, b.y * s); g.strokeStyle = g.createPattern(orig, "no-repeat"); g.globalCompositeOperation = "source-over"; g.stroke(); }
+  else { g.globalCompositeOperation = "destination-out"; g.beginPath(); g.moveTo(a.x * s, a.y * s); g.lineTo(b.x * s, b.y * s); g.stroke(); }
+  g.restore(); draw();
+}
+function wand(x, y) {
+  const g = work.getContext("2d"), W = work.width, H = work.height, img = g.getImageData(0, 0, W, H), d = img.data, tol = +$("#tol").value; if (x < 0 || y < 0 || x >= W || y >= H) return;
+  const i0 = (y * W + x) * 4, r0 = d[i0], g0 = d[i0 + 1], b0 = d[i0 + 2]; const seen = new Uint8Array(W * H), st = [y * W + x];
+  while (st.length) { const p = st.pop(); if (seen[p]) continue; seen[p] = 1; const i = p * 4; if (d[i + 3] === 0) continue;
+    if (Math.abs(d[i] - r0) + Math.abs(d[i + 1] - g0) + Math.abs(d[i + 2] - b0) > tol * 1.6) continue; d[i + 3] = 0;
+    const px = p % W, py = (p - px) / W; if (px > 0) st.push(p - 1); if (px < W - 1) st.push(p + 1); if (py > 0) st.push(p - W); if (py < H - 1) st.push(p + W); }
+  g.putImageData(img, 0, 0); draw();
+}
+function setMode(m) { mode = m; document.querySelectorAll("#mode button").forEach(b => b.classList.toggle("on", b.dataset.m === m)); $("#stage").className = "stage " + m; $("#eraseOpts").hidden = m !== "erase"; $("#wandOpts").hidden = m !== "wand"; $("#cropOpts").hidden = m !== "crop"; $("#brush").style.display = "none"; cropR = null; draw(); }
+document.querySelectorAll("#mode button").forEach(b => b.onclick = () => setMode(b.dataset.m));
+["top", "bottom", "free"].forEach(id => $("#" + id).oninput = draw);
+$("#size").oninput = (e) => { T.size = +e.target.value; draw(); }; $("#fill").oninput = (e) => { T.fill = e.target.value; draw(); }; $("#stroke").oninput = (e) => { T.stroke = e.target.value; draw(); }; $("#font").onchange = (e) => { T.font = e.target.value; draw(); };
+document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && !e.target.closest("input")) { e.preventDefault(); $("#undo").click(); } });
+/* ---------- abrir y guardar ---------- */
+async function openFile(f) { try { const bmp = await createImageBitmap(await sotos.files.read(f)); setImage(bmp); sotos.window.setTitle("Memes · " + f.name).catch(() => {}); } catch (e) { ap.toast("No se pudo abrir la foto: " + e.message); } }
+$("#pick").onclick = async () => { try { const [f] = await sotos.files.pick({ types: ["img"], exts: ["jpg", "jpeg", "png", "webp"], title: "Elige una foto" }); if (f) openFile(f); } catch (e) { ap.toast(e.message); } };
+document.addEventListener("dragover", (e) => e.preventDefault());
+document.addEventListener("drop", async (e) => { e.preventDefault(); const f = [...e.dataTransfer.files].find(x => /^image\//.test(x.type)); if (f) setImage(await createImageBitmap(f)); });
+document.addEventListener("paste", async (e) => { const it = [...(e.clipboardData?.items || [])].find(x => /^image\//.test(x.type)); if (it) setImage(await createImageBitmap(it.getAsFile())); });
+$("#png").onclick = () => { const c = document.createElement("canvas"); c.width = work.width; c.height = work.height; compose(c.getContext("2d"), c.width, c.height); c.toBlob(b => ap.save("meme.png", b), "image/png"); };
+$("#sticker").onclick = async () => {
+  const S = 512, pad = $("#outline").checked ? 22 : 8, c = document.createElement("canvas"); c.width = S; c.height = S; const g = c.getContext("2d");
+  const art = document.createElement("canvas"); art.width = work.width; art.height = work.height; compose(art.getContext("2d"), art.width, art.height);
+  const s = Math.min((S - pad * 2) / art.width, (S - pad * 2) / art.height), w = art.width * s, h = art.height * s, x = (S - w) / 2, y = (S - h) / 2;
+  if ($("#outline").checked) { // borde blanco: la silueta repetida en círculo, pintada de blanco
+    const sil = document.createElement("canvas"); sil.width = S; sil.height = S; const sg = sil.getContext("2d"); sg.drawImage(art, x, y, w, h); sg.globalCompositeOperation = "source-in"; sg.fillStyle = "#fff"; sg.fillRect(0, 0, S, S);
+    for (let a = 0; a < 24; a++) g.drawImage(sil, Math.cos(a / 24 * 6.283) * 9, Math.sin(a / 24 * 6.283) * 9); }
+  g.drawImage(art, x, y, w, h);
+  let q = .9, blob; do { blob = await new Promise(r => c.toBlob(r, "image/webp", q)); q -= .1; } while (blob && blob.size > 100 * 1024 && q > .3);
+  if (!blob || blob.type !== "image/webp") { blob = await new Promise(r => c.toBlob(r, "image/png")); ap.toast("Este navegador no hace WebP: se guarda en PNG"); }
+  ap.save(blob.type === "image/webp" ? "sticker.webp" : "sticker.png", blob);
+};
+new ResizeObserver(() => work && fit()).observe($("#stage"));
+(async () => { await ap.ready; $("#size").value = T.size; $("#bsize").value = 40; $("#tol").value = 40; let opened = false; sotos.on("open", (f) => { opened = true; openFile(f); }); setTimeout(() => { if (!opened && !work) setImage(placeholder()); }, 150); })();
+</script>
+</body>
+</html>

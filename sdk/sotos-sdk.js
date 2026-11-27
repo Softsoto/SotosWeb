@@ -52,7 +52,11 @@
       /** guarda un archivo nuevo dentro de una carpeta elegida con pickFolder: { name, data, type? } (no pisa: agrega «(2)») */
       saveIn: function (folder, o) { return call("files.saveIn", Object.assign({}, o, { folder: folder && folder.id || folder, data: toData(o && o.data) })); },
       /** reescribe un archivo que el usuario ya te dio (permiso «files.write») */
-      write: function (f, data) { return call("files.write", { id: f && f.id || f, data: toData(data) }); }
+      write: function (f, data) { return call("files.write", { id: f && f.id || f, data: toData(data) }); },
+      /** archivos que la persona ya le dio a tu app antes (en este navegador) y que siguen existiendo; se pueden leer sin volver a elegirlos (permiso «files.read») */
+      recent: function () { return call("files.recent"); },
+      /** saca un archivo de la lista de recientes */
+      forget: function (f) { return call("files.forget", { id: f && f.id || f }); }
     },
     /** aviso en la campana de Sotos: { title, body? } (permiso «notify») */
     notify: function (o) { return call("notify", typeof o === "string" ? { title: o } : o); },

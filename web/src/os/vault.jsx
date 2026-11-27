@@ -176,7 +176,7 @@ export function VaultApp() {
     if (one) out.push({ id: "open", label: "Abrir", icon: "open_in_new" });
     if (list.some(e => !e.dir)) out.push({ id: "download", label: list.filter(e => !e.dir).length > 1 ? "Descargar los archivos" : "Descargar", icon: "download" });
     if (one) out.push({ id: "rename", label: "Renombrar", icon: "drive_file_rename" });
-    if (one?.dir) { const l = lockOf(one.dir); out.push({ sep: true }, ...(!l ? [{ id: "lock", label: "Poner contraseña…", icon: "lock" }] : [...(l.open ? [{ id: "relock", label: "Cerrar con contraseña ahora", icon: "lock" }] : []), { id: "unlockremove", label: "Quitar contraseña…", icon: "no_encryption" }])); }
+    if (one?.dir) { const l = lockOf(one.dir); out.push({ sep: true }, ...(!l ? [{ id: "lock", label: "Poner contraseña…", icon: "lock" }] : [...(l.open ? [{ id: "relock", label: "Cerrar con contraseña ahora", icon: "lock" }] : []), { id: "unlockremove", label: "Quitar contraseña…", icon: "lock_open" }])); }
     out.push({ sep: true }, { id: "delete", label: list.length > 1 ? `Eliminar ${list.length} elementos` : "Eliminar", icon: "delete", danger: true });
     return out;
   };
@@ -263,7 +263,7 @@ export function VaultApp() {
           if (a.kind === "rename") { const e = a.entry; return run(() => e.dir ? vapi("POST", "folders/rename", { path: e.dir, to: (parent(e.dir) ? parent(e.dir) + "/" : "") + v }) : vapi("PATCH", "files/" + e.file.id, { name: (parent(e.file.name) ? parent(e.file.name) + "/" : "") + v })); }
           if (a.kind === "delete") return doRemove(a.list);
           if (a.kind === "lock") return run(() => vapi("POST", "folders/lock", { path: a.path, password: v }), { text: `«${base(a.path)}» ahora pide contraseña`, icon: "lock" });
-          if (a.kind === "unlockremove") return run(() => vapi("POST", "folders/unlockremove", { path: a.path, password: v }), { text: `«${base(a.path)}» ya no pide contraseña`, icon: "no_encryption" });
+          if (a.kind === "unlockremove") return run(() => vapi("POST", "folders/unlockremove", { path: a.path, password: v }), { text: `«${base(a.path)}» ya no pide contraseña`, icon: "lock_open" });
           if (a.kind === "unlock") { try { await vapi("POST", "folders/unlock", { path: a.path, password: v }); await load(); a.then?.(); } catch (e) { toast(e.message, { error: true }); } }
         }} />}
     </div>
@@ -276,7 +276,7 @@ function VaultAsk({ ask, onClose, onDone, entries }) {
   const [v, setV] = useState(start), [v2, setV2] = useState("");
   const isPw = ["lock", "unlock", "unlockremove"].includes(ask.kind);
   const T = { newdir: ["Nueva carpeta", "create_new_folder", "Crear"], rename: ["Renombrar", "drive_file_rename", "Renombrar"], delete: ["Eliminar de la bóveda", "delete", "Eliminar"],
-    lock: [`Poner contraseña a «${base(ask.path || "")}»`, "lock", "Poner contraseña"], unlock: [`«${base(ask.path || "")}» tiene contraseña`, "lock", "Abrir"], unlockremove: [`Quitar la contraseña de «${base(ask.path || "")}»`, "no_encryption", "Quitar"] }[ask.kind];
+    lock: [`Poner contraseña a «${base(ask.path || "")}»`, "lock", "Poner contraseña"], unlock: [`«${base(ask.path || "")}» tiene contraseña`, "lock", "Abrir"], unlockremove: [`Quitar la contraseña de «${base(ask.path || "")}»`, "lock_open", "Quitar"] }[ask.kind];
   const nameErr = (ask.kind === "newdir" || ask.kind === "rename") && v.trim() && (BAD.test(v) ? "No puede llevar / \\ : * ? \" < > |" : v.trim() !== start && entries.some(e => e.name.toLowerCase() === v.trim().toLowerCase()) ? "Ya hay algo con ese nombre aquí" : null);
   const valid = ask.kind === "delete" ? true : ask.kind === "lock" ? v.length >= 4 && v === v2 : isPw ? !!v : v.trim() && !nameErr && v.trim() !== start;
   const go = () => valid && onDone(isPw ? v : v.trim());

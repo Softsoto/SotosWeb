@@ -18,6 +18,9 @@ declare namespace Sotos {
       read(file: FileRef | string): Promise<Blob>;
       save(options: SaveOptions): Promise<FileRef | null>;
       write(file: FileRef | string, data: SaveOptions["data"]): Promise<FileRef>;
+      /** archivos que la persona ya le dio a la app antes (en este navegador) y que siguen existiendo */
+      recent(): Promise<FileRef[]>;
+      forget(file: FileRef | string): Promise<boolean>;
       pickFolder(options?: { title?: string }): Promise<FileRef | null>;
       saveIn(folder: FileRef | string, options: { name: string; data: SaveOptions["data"]; type?: string }): Promise<FileRef>;
     };

@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Afinador</title>
+<!-- Sotos — Afinador y metrónomo · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .tabs { display: flex; gap: 6px; }
+  .view { flex: 1; overflow: auto; display: none; padding: 18px; }
+  .view.on { display: grid; justify-items: center; align-content: start; gap: 16px; }
+  .dial { width: min(420px, 90vw); aspect-ratio: 2 / 1.15; position: relative; }
+  .dial svg { width: 100%; height: 100%; overflow: visible; }
+  .note { font: 800 64px/1 var(--font); letter-spacing: -.02em; text-align: center; min-height: 64px; }
+  .note sub { font-size: 24px; font-weight: 600; color: var(--ink-3); vertical-align: baseline; }
+  .readout { text-align: center; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .ok-note { color: var(--ok); } .off-note { color: var(--accent); }
+  .strings { display: flex; gap: 8px; flex-wrap: wrap; justify-content: center; }
+  .strings button { min-width: 54px; height: 54px; border-radius: 50%; border: 2px solid var(--line-2); background: var(--panel); font-weight: 700; cursor: pointer; }
+  .strings button.near { border-color: var(--accent); color: var(--accent); }
+  .strings button.tuned { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 14%, var(--panel)); color: var(--ok); }
+  .opts { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: center; font-size: 13px; color: var(--ink-2); }
+  .mic { text-align: center; max-width: 380px; } .mic .big { font-size: 54px; }
+  /* metrónomo */
+  .bpm { font: 800 76px/1 var(--font); font-variant-numeric: tabular-nums; } .bpm small { font-size: 18px; font-weight: 600; color: var(--ink-3); }
+  .beats { display: flex; gap: 12px; }
+  .beats i { width: 26px; height: 26px; border-radius: 50%; background: var(--panel-2); border: 2px solid var(--line-2); transition: transform .06s; }
+  .beats i.acc { border-color: var(--accent); }
+  .beats i.on { background: var(--ink-2); transform: scale(1.15); } .beats i.acc.on { background: var(--accent); }
+  input[type=range] { accent-color: var(--accent); }
+  .big-btn { width: 76px; height: 76px; border-radius: 50%; border: 0; background: var(--accent); color: #fff; font-size: 26px; cursor: pointer; box-shadow: 0 5px 0 color-mix(in srgb, var(--accent) 60%, #000); }
+  .big-btn:active { transform: translateY(3px); box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 60%, #000); }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Afinador</h1><div class="ap-seg tabs"><button data-v="afinar" class="on">Afinar</button><button data-v="metro">Metrónomo</button></div><span class="sp"></span></div>
+  <div class="view on" id="afinar">
+    <div class="opts">
+      <select class="ap-in" id="inst"></select>
+      <label>La = <input class="ap-in" id="a4" type="number" min="415" max="466" style="width:70px"> Hz</label>
+    </div>
+    <div class="mic" id="micbox"><div class="big">&#127908;</div><p class="ap-muted">Para afinar, Sotos necesita escuchar tu instrumento por el micrófono. El sonido no se graba ni sale de este equipo.</p><button class="ap-btn primary" id="micbtn">Activar el micrófono</button></div>
+    <div class="dial" id="dial" hidden>
+      <svg viewBox="-110 -105 220 120" aria-hidden="true">
+        <path d="M -96 0 A 96 96 0 0 1 96 0" fill="none" stroke="var(--line)" stroke-width="12" stroke-linecap="round"/>
+        <path d="M -24.8 -92.7 A 96 96 0 0 1 24.8 -92.7" fill="none" stroke="color-mix(in srgb, var(--ok) 55%, transparent)" stroke-width="12"/>
+        <g id="ticks"></g>
+        <g id="needle" style="transition:transform .12s ease-out"><line x1="0" y1="8" x2="0" y2="-88" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/><circle r="7" fill="var(--ink)"/></g>
+        <text x="-98" y="14" font-size="9" fill="var(--ink-3)" text-anchor="middle">−50</text><text x="98" y="14" font-size="9" fill="var(--ink-3)" text-anchor="middle">+50</text>
+      </svg>
+    </div>
+    <div class="note" id="note" hidden>—</div>
+    <div class="readout" id="read" hidden>Toca una cuerda</div>
+    <div class="strings" id="strings"></div>
+  </div>
+  <div class="view" id="metro">
+    <div class="bpm"><span id="bpmv">90</span> <small>pulsos por minuto</small></div>
+    <input type="range" id="bpm" min="40" max="240" style="width:min(420px,80vw)">
+    <div class="beats" id="beats"></div>
+    <div class="opts"><button class="ap-btn" data-d="-5">−5</button><button class="ap-btn" data-d="-1">−1</button><button class="big-btn" id="mplay" title="Empezar / parar (barra espaciadora)">&#9654;</button><button class="ap-btn" data-d="1">+1</button><button class="ap-btn" data-d="5">+5</button></div>
+    <div class="opts"><label>Compás <select class="ap-in" id="meter"><option value="2">2/4</option><option value="3">3/4</option><option value="4">4/4</option><option value="6">6/8</option></select></label>
+      <button class="ap-btn" id="tap" title="Toca al ritmo para fijar el tempo (T)">Marcar tempo</button></div>
+  </div>
+</div>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+// página de confianza (no usa el SDK): toma el tema y el acento del escritorio de Sotos
+try { const de = parent.document.documentElement; const sync = () => { document.documentElement.dataset.sotosTheme = de.getAttribute("data-theme") === "dark" ? "dark" : "light"; document.documentElement.style.setProperty("--sotos-accent", getComputedStyle(de).getPropertyValue("--accent").trim() || "#c4532f"); }; sync(); new MutationObserver(sync).observe(de, { attributes: true }); } catch {}
+const K = "sotos-afinador";
+let prefs = (() => { try { return JSON.parse(localStorage.getItem(K)) || {}; } catch { return {}; } })();
+prefs = { inst: "guitarra", a4: 440, bpm: 90, meter: 4, ...prefs };
+const savePrefs = () => { try { localStorage.setItem(K, JSON.stringify(prefs)); } catch {} };
+const NAMES = ["Do", "Do♯", "Re", "Re♯", "Mi", "Fa", "Fa♯", "Sol", "Sol♯", "La", "La♯", "Si"];
+const INSTS = { guitarra: ["Guitarra", ["E2", "A2", "D3", "G3", "B3", "E4"]], tiple: ["Tiple (como las 4 primeras de la guitarra)", ["D3", "G3", "B3", "E4"]], ukelele: ["Ukelele", ["G4", "C4", "E4", "A4"]], bajo: ["Bajo", ["E1", "A1", "D2", "G2"]], cromatico: ["Cromático (cualquier nota)", []] };
+const LETTER = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 };
+const midiOf = (n) => LETTER[n[0]] + (n[1] === "#" ? 1 : 0) + (parseInt(n.slice(-1)) + 1) * 12;
+const freqOf = (m) => prefs.a4 * Math.pow(2, (m - 69) / 12);
+$("#inst").innerHTML = Object.entries(INSTS).map(([k, [n]]) => `<option value="${k}">${n}</option>`).join(""); $("#inst").value = prefs.inst; $("#a4").value = prefs.a4;
+function strings() { const list = INSTS[prefs.inst][1]; $("#strings").innerHTML = list.map(n => { const m = midiOf(n); return `<button data-m="${m}" title="Escuchar ${NAMES[m % 12]}">${NAMES[m % 12]}<small style="display:block;font-size:10px;color:var(--ink-3)">${Math.floor(m / 12) - 1}</small></button>`; }).join(""); }
+strings();
+$("#inst").onchange = (e) => { prefs.inst = e.target.value; savePrefs(); strings(); };
+$("#a4").onchange = (e) => { prefs.a4 = Math.max(415, Math.min(466, +e.target.value || 440)); e.target.value = prefs.a4; savePrefs(); };
+// marcas del dial
+$("#ticks").innerHTML = Array.from({ length: 21 }, (_, i) => { const a = (-50 + i * 5) / 50 * 75 * Math.PI / 180, r1 = 84, r2 = i % 5 ? 78 : 72; return `<line x1="${Math.sin(a) * r1}" y1="${-Math.cos(a) * r1}" x2="${Math.sin(a) * r2}" y2="${-Math.cos(a) * r2}" stroke="var(--ink-3)" stroke-width="${i % 5 ? 1 : 2}"/>`; }).join("");
+
+/* ---------- escuchar y detectar la nota (autocorrelación) ---------- */
+let ac = null, an = null, buf = null, raf = 0, hold = 0;
+$("#micbtn").onclick = async () => {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: false, noiseSuppression: false, autoGainControl: false } });
+    ac = ac || new AudioContext(); const src = ac.createMediaStreamSource(stream); an = ac.createAnalyser(); an.fftSize = 4096; src.connect(an); buf = new Float32Array(an.fftSize);
+    $("#micbox").hidden = true; ["#dial", "#note", "#read"].forEach(s => $(s).hidden = false); loop();
+  } catch (e) { ap.toast("No se pudo usar el micrófono: " + (e.name === "NotAllowedError" ? "permiso denegado" : e.message), 4000); }
+};
+function detect(b, sr) {
+  let rms = 0; for (const v of b) rms += v * v; rms = Math.sqrt(rms / b.length); if (rms < .012) return -1;
+  let a = 0, z = b.length - 1; const th = .2; while (a < b.length / 2 && Math.abs(b[a]) < th) a++; while (z > b.length / 2 && Math.abs(b[z]) < th) z--;
+  const x = b.slice(a, z), n = x.length; if (n < 64) return -1; const c = new Float32Array(n);
+  for (let i = 0; i < n; i++) { let s = 0; for (let j = 0; j < n - i; j++) s += x[j] * x[j + i]; c[i] = s; }
+  let d = 0; while (d < n - 1 && c[d] > c[d + 1]) d++;
+  let mx = -1, pos = -1; for (let i = d; i < n; i++) if (c[i] > mx) { mx = c[i]; pos = i; }
+  if (pos <= 0 || pos >= n - 1) return -1;
+  const y1 = c[pos - 1], y2 = c[pos], y3 = c[pos + 1], A = (y1 + y3 - 2 * y2) / 2, B = (y3 - y1) / 2; const T0 = A ? pos - B / (2 * A) : pos;
+  return sr / T0;
+}
+let smooth = 0;
+function loop() {
+  an.getFloatTimeDomainData(buf); const f = detect(buf, ac.sampleRate);
+  if (f > 25 && f < 2000) {
+    smooth = smooth && Math.abs(f - smooth) / smooth < .06 ? smooth * .7 + f * .3 : f; hold = performance.now();
+    const list = INSTS[prefs.inst][1].map(midiOf);
+    const exact = 69 + 12 * Math.log2(smooth / prefs.a4);
+    const target = list.length ? list.reduce((b, m) => Math.abs(m - exact) < Math.abs(b - exact) ? m : b, list[0]) : Math.round(exact);
+    const cents = Math.max(-50, Math.min(50, Math.round((exact - target) * 100)));
+    $("#needle").style.transform = `rotate(${cents / 50 * 75}deg)`;
+    const ok = Math.abs(cents) <= 4; const name = NAMES[((target % 12) + 12) % 12];
+    $("#note").innerHTML = `<span class="${ok ? "ok-note" : "off-note"}">${name}</span><sub>${Math.floor(target / 12) - 1}</sub>`;
+    $("#read").textContent = `${smooth.toFixed(1)} Hz · ${cents > 0 ? "+" : ""}${cents} cents · ${ok ? "¡afinada!" : cents < 0 ? "sube (aprieta)" : "baja (afloja)"}`;
+    document.querySelectorAll("#strings button").forEach(b => { const m = +b.dataset.m; b.classList.toggle("near", m === target && !ok); b.classList.toggle("tuned", m === target && ok); });
+  } else if (performance.now() - hold > 1500) { $("#read").textContent = "Toca una cuerda"; document.querySelectorAll("#strings button").forEach(b => b.classList.remove("near", "tuned")); }
+  raf = requestAnimationFrame(loop);
+}
+// tocar la nota de referencia de una cuerda
+$("#strings").addEventListener("click", (e) => { const b = e.target.closest("button"); if (!b) return; ac = ac || new AudioContext(); const t = ac.currentTime, f = freqOf(+b.dataset.m);
+  [1, 2, 3].forEach((h, k) => { const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.value = f * h; g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(.18 / (k + 1), t + .02); g.gain.exponentialRampToValueAtTime(.001, t + 2.2); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + 2.3); }); });
+
+/* ---------- metrónomo ---------- */
+let mOn = false, beat = 0, nextT = 0, mt = null, taps = [];
+function renderBeats() { $("#beats").innerHTML = Array.from({ length: prefs.meter }, (_, i) => `<i class="${i === 0 || (prefs.meter === 6 && i === 3) ? "acc" : ""}"></i>`).join(""); }
+function setBpm(v) { prefs.bpm = Math.max(40, Math.min(240, Math.round(v))); $("#bpm").value = prefs.bpm; $("#bpmv").textContent = prefs.bpm; savePrefs(); }
+function click(t, acc) { const o = ac.createOscillator(), g = ac.createGain(); o.type = "square"; o.frequency.value = acc ? 1650 : 1050; g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(acc ? .35 : .22, t + .002); g.gain.exponentialRampToValueAtTime(.0001, t + .05); o.connect(g).connect(ac.destination); o.start(t); o.stop(t + .06); }
+function sched() { const per = prefs.meter === 6 ? 60 / prefs.bpm / 2 : 60 / prefs.bpm; while (nextT < ac.currentTime + .1) { const b = beat, acc = b === 0 || (prefs.meter === 6 && b === 3); click(nextT, acc); const when = (nextT - ac.currentTime) * 1000; setTimeout(() => { document.querySelectorAll("#beats i").forEach((i, k) => i.classList.toggle("on", k === b)); }, Math.max(0, when)); nextT += per; beat = (beat + 1) % prefs.meter; } }
+function mToggle() { ac = ac || new AudioContext(); if (ac.state === "suspended") ac.resume(); mOn = !mOn; $("#mplay").innerHTML = mOn ? "&#9632;" : "&#9654;"; if (mOn) { beat = 0; nextT = ac.currentTime + .06; mt = setInterval(sched, 25); sched(); } else { clearInterval(mt); document.querySelectorAll("#beats i").forEach(i => i.classList.remove("on")); } }
+$("#mplay").onclick = mToggle; $("#bpm").oninput = (e) => setBpm(+e.target.value);
+document.querySelectorAll("[data-d]").forEach(b => b.onclick = () => setBpm(prefs.bpm + +b.dataset.d));
+$("#meter").value = prefs.meter; $("#meter").onchange = (e) => { prefs.meter = +e.target.value; beat = 0; savePrefs(); renderBeats(); };
+$("#tap").onclick = () => { const t = performance.now(); taps = taps.filter(x => t - x < 2500); taps.push(t); if (taps.length >= 2) { const d = (taps[taps.length - 1] - taps[0]) / (taps.length - 1); setBpm(60000 / d); } };
+document.addEventListener("keydown", (e) => { if ($("#metro").classList.contains("on")) { if (e.code === "Space") { e.preventDefault(); mToggle(); } else if (e.key.toLowerCase() === "t") $("#tap").click(); } });
+document.querySelectorAll(".tabs button").forEach(b => b.onclick = () => { document.querySelectorAll(".tabs button").forEach(x => x.classList.toggle("on", x === b)); document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === b.dataset.v)); });
+setBpm(prefs.bpm); renderBeats();
+</script>
+</body>
+</html>

@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Diario</title>
+<!-- Sotos — Diario con estado de ánimo · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  :root { --m1: #4f8f4a; --m2: #9bb85a; --m3: #d9b44a; --m4: #d98a4a; --m5: #b9574f; }
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 340px minmax(0, 1fr); }
+  .cal { border-right: 1px solid var(--line); background: var(--panel); padding: 14px; overflow: auto; display: grid; gap: 14px; align-content: start; }
+  .mhead { display: flex; align-items: center; justify-content: space-between; } .mhead b { font-size: 16px; }
+  .days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+  .days .dn { text-align: center; font-size: 11px; color: var(--ink-3); padding-bottom: 2px; }
+  .days button { aspect-ratio: 1; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); cursor: pointer; font-size: 12.5px; position: relative; color: var(--ink); }
+  .days button.m { color: #fff; border-color: transparent; font-weight: 700; }
+  .days button.today { box-shadow: inset 0 0 0 2px var(--ink); } .days button.sel { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .days button.future { opacity: .35; cursor: default; } .days button.txt::after { content: ""; position: absolute; bottom: 4px; left: 50%; width: 4px; height: 4px; margin-left: -2px; border-radius: 50%; background: currentColor; opacity: .75; }
+  .moodbar { display: flex; height: 12px; border-radius: 6px; overflow: hidden; background: var(--line); }
+  .legend { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink-2); } .legend span { display: flex; align-items: center; gap: 6px; } .legend i { width: 10px; height: 10px; border-radius: 3px; }
+  .entry { overflow: auto; padding: 22px clamp(16px, 5vw, 56px) 40px; display: grid; gap: 14px; align-content: start; }
+  .date { font: 700 24px Georgia, "Times New Roman", serif; } .date small { display: block; font: 500 13px var(--font); color: var(--ink-3); text-transform: none; }
+  .moods { display: flex; gap: 10px; flex-wrap: wrap; }
+  .moods button { border: 2px solid transparent; background: transparent; border-radius: 14px; padding: 6px 8px 4px; cursor: pointer; display: grid; justify-items: center; gap: 2px; font-size: 11.5px; color: var(--ink-2); }
+  .moods button:hover { background: var(--panel-2); } .moods button.on { border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); color: var(--ink); }
+  .moods svg { width: 42px; height: 42px; }
+  textarea.write { width: 100%; min-height: 46vh; resize: vertical; border: 0; outline: none; background: transparent; font: 18px/1.7 Georgia, "Times New Roman", serif; color: var(--ink);
+    background-image: linear-gradient(transparent calc(1.7em - 1px), var(--line) calc(1.7em - 1px)); background-size: 100% 1.7em; padding-top: 0; }
+  .prompt { font-style: italic; color: var(--ink-3); font-size: 13.5px; }
+  .meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--ink-3); }
+  .lock { position: fixed; inset: 0; background: var(--bg); display: grid; place-items: center; z-index: 30; }
+  .lock .ap-card { padding: 24px; display: grid; gap: 12px; text-align: center; width: min(320px, 90vw); }
+  .results { display: grid; gap: 8px; } .results div { padding: 10px 12px; border-radius: 8px; background: var(--panel); border: 1px solid var(--line); cursor: pointer; font-size: 13px; }
+  .results b { display: block; font-size: 12px; color: var(--ink-3); }
+  @media (max-width: 760px) { .body { grid-template-columns: 1fr; } .cal { border-right: 0; border-bottom: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar">
+    <h1>Diario</h1>
+    <button class="ap-btn" id="hoy">Hoy</button>
+    <input class="ap-in" id="q" placeholder="Buscar en el diario" style="width:200px">
+    <span class="sp"></span>
+    <button class="ap-btn" id="pin" title="Pedir un PIN al abrir el diario">PIN</button>
+    <button class="ap-btn" id="exp">Exportar</button>
+  </div>
+  <div class="body">
+    <div class="cal">
+      <div class="mhead"><button class="ap-btn ghost icon" id="prev">&#8249;</button><b id="mname"></b><button class="ap-btn ghost icon" id="next">&#8250;</button></div>
+      <div class="days" id="days"></div>
+      <div><div class="moodbar" id="bar"></div><div class="ap-faint" id="mstat" style="margin-top:6px"></div></div>
+      <div class="legend" id="legend"></div>
+      <div class="ap-faint" id="streak"></div>
+    </div>
+    <div class="entry" id="entry"></div>
+  </div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const MOODS = [[1, "Muy bien", "var(--m1)", "M14 27q10 9 20 0"], [2, "Bien", "var(--m2)", "M15 28q9 5 18 0"], [3, "Normal", "var(--m3)", "M15 29h18"], [4, "Mal", "var(--m4)", "M15 31q9 -5 18 0"], [5, "Muy mal", "var(--m5)", "M14 32q10 -9 20 0"]];
+const face = (m) => `<svg viewBox="0 0 48 48"><circle cx="24" cy="24" r="21" fill="${m[2]}"/><circle cx="17" cy="19" r="2.6" fill="#2b231c"/><circle cx="31" cy="19" r="2.6" fill="#2b231c"/><path d="${m[3]}" stroke="#2b231c" stroke-width="2.8" fill="none" stroke-linecap="round"/></svg>`;
+const PROMPTS = ["¿Qué fue lo mejor de hoy?", "¿Qué te hizo reír?", "¿Qué aprendiste hoy?", "¿A quién le agradeces algo hoy?", "¿Qué te preocupa y qué puedes hacer al respecto?", "¿Qué harías distinto mañana?", "Describe un momento tranquilo del día.", "¿Qué comiste que valió la pena?", "¿Qué canción te acompañó hoy?", "¿Qué te gustaría recordar de este día dentro de un año?"];
+const iso = (d) => d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+const todayIso = iso(new Date());
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1); // «noviembre de 2026» → «Noviembre de 2026» (solo la primera)
+let view = new Date(), sel = todayIso, months = {}, cfg = { pin: null };
+const mkey = (isoDay) => "m:" + isoDay.slice(0, 7);
+async function month(key) { if (!months[key]) months[key] = (await ap.store.get(key)) || {}; return months[key]; }
+async function entryOf(d) { return (await month(mkey(d)))[d.slice(8)] || null; }
+let st; function save(d, e) { const k = mkey(d), m = months[k]; if (!e.text?.trim() && !e.mood) delete m[d.slice(8)]; else m[d.slice(8)] = { ...e, upd: Date.now() }; clearTimeout(st); st = setTimeout(() => { ap.store.set(k, m); $("#saved").textContent = "Guardado"; }, 700); $("#saved") && ($("#saved").textContent = "Guardando…"); }
+
+async function renderCal() {
+  const y = view.getFullYear(), mo = view.getMonth(), k = "m:" + y + "-" + String(mo + 1).padStart(2, "0"), m = await month(k);
+  $("#mname").textContent = cap(view.toLocaleDateString("es", { month: "long", year: "numeric" }));
+  const first = (new Date(y, mo, 1).getDay() + 6) % 7, n = new Date(y, mo + 1, 0).getDate();
+  let h = ["L", "M", "M", "J", "V", "S", "D"].map(d => `<div class="dn">${d}</div>`).join("") + "<div></div>".repeat(first);
+  const counts = [0, 0, 0, 0, 0, 0];
+  for (let d = 1; d <= n; d++) { const id = iso(new Date(y, mo, d)), e = m[String(d).padStart(2, "0")], md = e?.mood && MOODS[e.mood - 1]; if (md) counts[e.mood]++;
+    h += `<button data-d="${id}" class="${md ? "m" : ""} ${e?.text ? "txt" : ""} ${id === todayIso ? "today" : ""} ${id === sel ? "sel" : ""} ${id > todayIso ? "future" : ""}" style="${md ? "background:" + md[2] : ""}" ${id > todayIso ? "disabled" : ""} title="${md ? md[1] : ""}">${d}</button>`; }
+  $("#days").innerHTML = h;
+  const tot = counts.reduce((a, b) => a + b, 0);
+  $("#bar").innerHTML = tot ? MOODS.map(md => counts[md[0]] ? `<span style="width:${counts[md[0]] / tot * 100}%;background:${md[2]}"></span>` : "").join("") : "";
+  $("#mstat").textContent = tot ? `${tot} día(s) con ánimo marcado este mes` : "Aún no hay días marcados este mes";
+  $("#legend").innerHTML = MOODS.map(md => `<span><i style="background:${md[2]}"></i>${md[1]} · ${counts[md[0]]}</span>`).join("");
+  // racha: días seguidos con algo escrito o marcado, hasta hoy
+  let s = 0, d = new Date(); for (;;) { const e = await entryOf(iso(d)); if (!e) { if (s === 0 && iso(d) === todayIso) { d.setDate(d.getDate() - 1); continue; } break; } s++; d.setDate(d.getDate() - 1); if (s > 400) break; }
+  $("#streak").textContent = s ? `Racha: ${s} día(s) seguidos escribiendo` : "Escribe hoy para empezar una racha";
+}
+async function renderEntry() {
+  const e = (await entryOf(sel)) || {}, d = new Date(sel + "T12:00");
+  const pr = PROMPTS[(d.getDate() + d.getMonth() * 3) % PROMPTS.length];
+  $("#entry").innerHTML = `<div class="date">${cap(d.toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" }))}<small>${d.getFullYear()}${sel === todayIso ? " · hoy" : ""}</small></div>
+    <div class="moods">${MOODS.map(md => `<button data-m="${md[0]}" class="${e.mood === md[0] ? "on" : ""}" style="--c:${md[2]}" title="${md[1]}">${face(md)}${md[1]}</button>`).join("")}</div>
+    <div class="prompt">${pr}</div>
+    <textarea class="write" id="txt" placeholder="Escribe aquí…">${ap.esc(e.text || "")}</textarea>
+    <div class="meta"><span id="words"></span><span id="saved">${e.upd ? "Guardado" : ""}</span></div>`;
+  const cur = { mood: e.mood || 0, text: e.text || "" };
+  const words = () => { $("#words").textContent = (cur.text.trim() ? cur.text.trim().split(/\s+/).length : 0) + " palabras"; }; words();
+  $("#entry").querySelectorAll("[data-m]").forEach(b => b.onclick = async () => { cur.mood = cur.mood === +b.dataset.m ? 0 : +b.dataset.m; $("#entry").querySelectorAll("[data-m]").forEach(x => x.classList.toggle("on", +x.dataset.m === cur.mood)); await month(mkey(sel)); save(sel, cur); renderCal(); });
+  $("#txt").oninput = async (ev) => { cur.text = ev.target.value; words(); await month(mkey(sel)); save(sel, cur); };
+  if (sel === todayIso) $("#txt").focus();
+}
+$("#days").onclick = (e) => { const b = e.target.closest("[data-d]"); if (!b || b.disabled) return; sel = b.dataset.d; renderCal(); renderEntry(); };
+$("#prev").onclick = () => { view = new Date(view.getFullYear(), view.getMonth() - 1, 1); renderCal(); };
+$("#next").onclick = () => { view = new Date(view.getFullYear(), view.getMonth() + 1, 1); renderCal(); };
+$("#hoy").onclick = () => { view = new Date(); sel = todayIso; renderCal(); renderEntry(); };
+async function allMonths() { let keys = []; try { keys = (await sotos.storage.keys()).filter(k => k.startsWith("m:")); } catch {} for (const k of keys) await month(k); return Object.keys(months).sort(); }
+let qt; $("#q").oninput = (e) => { clearTimeout(qt); qt = setTimeout(async () => { const q = e.target.value.trim().toLowerCase(); if (!q) return renderEntry();
+  const hits = []; for (const k of await allMonths()) for (const [d, en] of Object.entries(months[k])) if ((en.text || "").toLowerCase().includes(q)) hits.push({ day: k.slice(2) + "-" + d, en });
+  hits.sort((a, b) => b.day.localeCompare(a.day));
+  $("#entry").innerHTML = `<div class="date">Buscar «${ap.esc(q)}»<small>${hits.length} entrada(s)</small></div><div class="results">${hits.map(h => { const i = h.en.text.toLowerCase().indexOf(q); return `<div data-go="${h.day}"><b>${new Date(h.day + "T12:00").toLocaleDateString("es", { dateStyle: "long" })}</b>…${ap.esc(h.en.text.slice(Math.max(0, i - 50), i + 90))}…</div>`; }).join("")}</div>`;
+  $("#entry").querySelectorAll("[data-go]").forEach(d => d.onclick = () => { sel = d.dataset.go; view = new Date(sel + "T12:00"); $("#q").value = ""; renderCal(); renderEntry(); }); }, 250); };
+$("#exp").onclick = async () => { let md = "# Mi diario\n\n"; for (const k of await allMonths()) for (const d of Object.keys(months[k]).sort()) { const en = months[k][d], day = k.slice(2) + "-" + d;
+    md += `## ${new Date(day + "T12:00").toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}${en.mood ? " · " + MOODS[en.mood - 1][1] : ""}\n\n${en.text || ""}\n\n`; }
+  ap.save("Diario.md", new Blob([md], { type: "text/markdown" })); ap.toast("Tip: guárdalo en la Bóveda para que quede cifrado"); };
+/* PIN (opcional): se pide al abrir la app. Es una cerradura de la app, no cifrado. */
+const sha = async (s) => [...new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode("diario:" + s)))].map(b => b.toString(16).padStart(2, "0")).join("");
+$("#pin").onclick = async () => {
+  if (cfg.pin) { const r = await ap.ask({ title: "Quitar el PIN", fields: [{ key: "p", label: "PIN actual", type: "password" }], ok: "Quitar" }); if (!r) return; if (await sha(r.p) !== cfg.pin) return ap.toast("PIN incorrecto"); cfg.pin = null; await ap.store.set("cfg", cfg); ap.toast("El diario ya no pide PIN"); return; }
+  const r = await ap.ask({ title: "Poner un PIN", text: "Se pedirá cada vez que abras el diario.", fields: [{ key: "p", label: "PIN (4 a 8 números)", type: "password" }, { key: "q", label: "Repítelo", type: "password" }], ok: "Poner PIN" });
+  if (!r) return; if (!/^\d{4,8}$/.test(r.p) || r.p !== r.q) return ap.toast("El PIN debe tener 4 a 8 números y coincidir"); cfg.pin = await sha(r.p); await ap.store.set("cfg", cfg); ap.toast("Listo: el diario pedirá el PIN");
+};
+function askPin() { return new Promise(ok => { const d = document.createElement("div"); d.className = "lock"; d.innerHTML = `<div class="ap-card"><div style="font-size:40px">&#128274;</div><b>Diario con PIN</b><input class="ap-in" id="pinin" type="password" inputmode="numeric" placeholder="PIN" style="text-align:center;font-size:20px;letter-spacing:.3em"><button class="ap-btn primary" id="pinok">Abrir</button></div>`;
+  document.body.appendChild(d); const go = async () => { if (await sha($("#pinin").value) === cfg.pin) { d.remove(); ok(); } else { $("#pinin").value = ""; ap.toast("PIN incorrecto"); } }; $("#pinok").onclick = go; $("#pinin").onkeydown = (e) => e.key === "Enter" && go(); $("#pinin").focus(); }); }
+(async () => { await ap.ready; cfg = { ...cfg, ...((await ap.store.get("cfg")) || {}) }; if (cfg.pin) await askPin(); await renderCal(); renderEntry(); })();
+</script>
+</body>
+</html>

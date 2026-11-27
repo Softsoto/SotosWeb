@@ -1,6 +1,7 @@
 /* ============================================================
    Sotos OS — registro de apps y datos · © 2026 Sebastian Sotomontes
    ============================================================ */
+import { APPS_CASA } from "./apps-casa.js";
 
 // ---- App registry. icon = Material Symbol ligature, color = tile bg ----
 const APPS = [
@@ -48,10 +49,12 @@ const APPS = [
   { id: "trash",   name: "Papelera",  icon: "delete",            color: "#6f6a60", comp: "TrashApp",     size: { w: 760, h: 520 } },
   { id: "games",   name: "Juegos",    icon: "sports_esports",    color: "#8a5a3b", comp: "GamesApp",     size: { w: 980, h: 700 } },
 ];
+// apps de la casa con el SDK: en la Tienda, aisladas como cualquier app (ver apps-casa.js)
+APPS.splice(APPS.findIndex(a => a.id === "pinball") + 1, 0, ...APPS_CASA.map(a => ({ ...a, comp: "WebApp", ext: a.sdk !== false, builtin: true, url: `apps/${a.id}/index.html`, store: true, author: "Sotos", version: "1.0.0", permissions: a.permissions || [], opens: a.opens || [] })));
 const APP_BY_ID = Object.fromEntries(APPS.map(a => [a.id, a]));
 /** apps del SDK instaladas en el servidor: se agregan (o actualizan) en el catálogo del escritorio */
 export function registerExtApps(list) {
-  for (let i = APPS.length - 1; i >= 0; i--) if (APPS[i].ext && !list.some(m => m.id === APPS[i].id)) { delete APP_BY_ID[APPS[i].id]; APPS.splice(i, 1); }
+  for (let i = APPS.length - 1; i >= 0; i--) if (APPS[i].ext && !APPS[i].builtin && !list.some(m => m.id === APPS[i].id)) { delete APP_BY_ID[APPS[i].id]; APPS.splice(i, 1); }
   for (const m of list) {
     const a = { id: m.id, name: m.name, icon: m.icon, color: m.color, comp: "WebApp", ext: true, url: `ext-apps/${m.id}/${m.entry}`, size: m.size, store: true, cat: m.category, desc: m.description, author: m.author, version: m.version, permissions: m.permissions, opens: m.opens, homepage: m.homepage, bytes: m.bytes, serverInstalled: m.installed };
     const at = APPS.findIndex(x => x.id === m.id); if (at >= 0) APPS[at] = a; else APPS.splice(APPS.findIndex(x => x.id === "admin"), 0, a);

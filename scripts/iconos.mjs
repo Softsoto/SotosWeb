@@ -6,14 +6,16 @@ import fs from "node:fs"; import path from "node:path"; import { fileURLToPath }
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const names = new Set([...fs.readFileSync(path.join(ROOT, "web/node_modules/material-symbols/index.d.ts"), "utf8").matchAll(/"([a-z0-9_]+)"/g)].map(m => m[1]));
 const walk = (d, out = []) => { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory() && e.name !== "node_modules" && e.name !== "dist") walk(p, out); else if (/\.(jsx?|mjs|html)$/.test(e.name)) out.push(p); } return out; };
-const files = [...walk(path.join(ROOT, "web/src")), ...walk(path.join(ROOT, "server")), ...(fs.existsSync(path.join(ROOT, "web/public/apps")) ? walk(path.join(ROOT, "web/public/apps")) : [])];
+// web/public/apps no se recorre: esas páginas no usan esta fuente (sus íconos de la Tienda están en web/src)
+const files = [...walk(path.join(ROOT, "web/src")), ...walk(path.join(ROOT, "server"))];
 // palabras del código que coinciden con un ícono pero nunca se usan como tal (lenguajes, códecs, términos técnicos)
 const IGNORE = new Set(["sdk", "av1", "hevc", "2d", "eyebrow", "javascript", "php", "sql", "css", "html", "http", "iframe", "markdown", "toast", "uppercase", "lists", "csv", "api", "host", "domain", "script", "window", "input", "join", "post", "start", "step", "steps", "toolbar", "web",
   // nombres de apps, campos y palabras sueltas del código que nunca se dibujan como ícono.
   // OJO: antes de agregar una, buscarla en listas de íconos (Paint, Juegos, Mundos, Contactos…): si se usa, sale como texto.
   "abc", "artist", "chips", "details", "diamond", "face", "flip", "height", "label", "light", "move", "orbit",
   "reminder", "resize", "reviews", "scan", "score", "signature", "spa", "square", "stars",
-  "sticker", "store", "sweep", "target", "task", "tour", "unsubscribe", "upcoming", "wc"]);
+  "sticker", "store", "sweep", "target", "task", "tour", "unsubscribe", "upcoming", "wc",
+  "box", "update", "menu", "radio", "navigation", "pending"]);
 const used = new Set();
 for (const f of files) for (const m of fs.readFileSync(f, "utf8").matchAll(/["'`]([a-z0-9_]{2,40})["'`]/g)) if (names.has(m[1]) && !IGNORE.has(m[1])) used.add(m[1]);
 const list = [...used].sort();

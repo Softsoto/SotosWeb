@@ -29,10 +29,13 @@ import { notify } from "./fs.mjs";
 export const APPS_DIR = path.join(DATA_DIR, "apps");
 const SDK_FILE = fileURLToPath(new URL("../sdk/sotos-sdk.js", import.meta.url));
 import { ID, PERMISSIONS, validateManifest } from "../sdk/manifest.mjs";
+import { APPS_CASA } from "../web/src/os/apps-casa.js";
 export { PERMISSIONS, validateManifest };
 const MAX_ZIP = 60 * 1024 * 1024, MAX_FILES = 3000, MAX_STORAGE = 2 * 1024 * 1024;
 db.exec(`CREATE TABLE IF NOT EXISTS app_storage (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, app_id TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (user_id, app_id, key));`);
 
+// apps de la casa que corren con el SDK (web/public/apps): sus permisos vienen del catálogo, no de un .zip
+const appById = (id) => listApps().find(a => a.id === id) || (() => { const c = APPS_CASA.find(a => a.id === id && a.sdk !== false); return c && { id: c.id, name: c.name, permissions: c.permissions || [] }; })();
 export function listApps() {
   if (!fs.existsSync(APPS_DIR)) return [];
   return fs.readdirSync(APPS_DIR).filter(d => ID.test(d)).map(d => { try { return { ...validateManifest(JSON.parse(fs.readFileSync(path.join(APPS_DIR, d, "sotos-app.json"), "utf8"))), installed: fs.statSync(path.join(APPS_DIR, d, "sotos-app.json")).mtimeMs, bytes: dirBytes(path.join(APPS_DIR, d)) }; } catch { return null; } }).filter(Boolean);
@@ -92,14 +95,14 @@ export async function handleApps(req, res, parts) {
     for (const x of db.prepare("SELECT id FROM users").all()) notify(x.id, "store", {}); return json(res, 200, { ok: true });
   }
   if (kind === "notify" && req.method === "POST") { // aviso en la campana (permiso «notify»)
-    const app = listApps().find(a => a.id === id); if (!app) fail(404, "App no encontrada"); if (!app.permissions.includes("notify")) fail(403, "La app no pidió el permiso «notify»");
+    const app = appById(id); if (!app) fail(404, "App no encontrada"); if (!app.permissions.includes("notify")) fail(403, "La app no pidió el permiso «notify»");
     if (!db.prepare("SELECT 1 FROM app_installs WHERE user_id = ? AND app_id = ?").get(u.id, id)) fail(403, "La app no está instalada en tu cuenta");
     rateLimit("app-notify:" + u.id + ":" + id, 30, 3600_000);
     const b = await readJson(req, 8192); const title = String(b.title || "").trim().slice(0, 120); if (!title) fail(400, "Falta el título");
     addNotification(u.id, { kind: "app", title: `${app.name}: ${title}`, body: String(b.body || "").slice(0, 400) || null, link: { app: id } }); return json(res, 200, { ok: true });
   }
   if (kind === "storage") { // datos propios de la app, por persona (lo pide el puente del SDK)
-    const app = listApps().find(a => a.id === id); if (!app) fail(404, "App no encontrada"); if (!app.permissions.includes("storage")) fail(403, "La app no pidió el permiso «storage»");
+    const app = appById(id); if (!app) fail(404, "App no encontrada"); if (!app.permissions.includes("storage")) fail(403, "La app no pidió el permiso «storage»");
     const k = key ? decodeURIComponent(key) : null; if (k !== null && !/^[\w.\-:/ ]{1,120}$/.test(k)) fail(400, "Clave no válida");
     if (req.method === "GET") { if (k === null) return json(res, 200, { keys: db.prepare("SELECT key FROM app_storage WHERE user_id = ? AND app_id = ? ORDER BY key").all(u.id, id).map(r => r.key) });
       const r = db.prepare("SELECT value FROM app_storage WHERE user_id = ? AND app_id = ? AND key = ?").get(u.id, id, k); return json(res, 200, { value: r ? JSON.parse(r.value) : null }); }

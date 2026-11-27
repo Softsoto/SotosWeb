@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Palabras</title>
+<!-- Sotos — Palabras: sopa de letras y crucigrama · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .wrap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 18px; padding: 18px; height: 100%; align-items: start; }
+  @media (max-width: 760px) { .wrap { grid-template-columns: 1fr; } }
+  .board { display: grid; place-items: center; min-height: 0; }
+  .grid { display: grid; gap: 0; background: var(--panel); border: 1px solid var(--line-2); border-radius: 10px; padding: 8px; box-shadow: var(--shadow); user-select: none; touch-action: none; position: relative; }
+  .c { width: var(--cs); height: var(--cs); display: grid; place-items: center; font: 700 calc(var(--cs) * .52) var(--font); color: var(--ink); position: relative; z-index: 1; }
+  .sopa .c { cursor: pointer; border-radius: 50%; }
+  .sopa .c.sel { background: color-mix(in srgb, var(--accent) 30%, transparent); }
+  .found-line { position: absolute; height: calc(var(--cs) * .78); border-radius: 999px; transform-origin: calc(var(--cs) * .39) 50%; opacity: .32; pointer-events: none; z-index: 0; }
+  .side { display: grid; gap: 12px; align-content: start; }
+  .side .ap-card { padding: 14px; }
+  .side h3 { margin: 0 0 8px; font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); }
+  .words { display: flex; flex-wrap: wrap; gap: 6px 10px; }
+  .words span { font-weight: 600; font-size: 13.5px; } .words span.ok { text-decoration: line-through; color: var(--ink-3); font-weight: 400; }
+  /* crucigrama */
+  .cruci .c { border: 1px solid var(--line-2); margin: -.5px; background: var(--bg); font-size: calc(var(--cs) * .5); cursor: text; }
+  .cruci .c.blk { background: transparent; border-color: transparent; cursor: default; }
+  .cruci .c .n { position: absolute; top: 1px; left: 2px; font: 600 calc(var(--cs) * .24) var(--font); color: var(--ink-3); }
+  .cruci .c.word { background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
+  .cruci .c.cur { background: color-mix(in srgb, var(--accent) 35%, var(--bg)); }
+  .cruci .c.bad { color: var(--bad); } .cruci .c.good { color: var(--ok); }
+  .clues { display: grid; gap: 4px; font-size: 13px; max-height: 260px; overflow: auto; }
+  .clues div { padding: 4px 6px; border-radius: 6px; cursor: pointer; } .clues div:hover { background: var(--panel-2); }
+  .clues div.cur { background: color-mix(in srgb, var(--accent) 16%, transparent); } .clues div.ok { color: var(--ink-3); text-decoration: line-through; }
+  .clues b { display: inline-block; min-width: 22px; }
+  .bigmsg { text-align: center; padding: 6px 0 2px; } .bigmsg b { font-size: 20px; display: block; }
+  #kb { position: absolute; opacity: 0; width: 1px; height: 1px; pointer-events: none; }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar">
+    <h1>Palabras</h1>
+    <div class="ap-seg" id="mode"><button data-m="sopa">Sopa de letras</button><button data-m="cruci">Crucigrama</button></div>
+    <select class="ap-in" id="tema" title="Tema"></select>
+    <div class="ap-seg" id="lvl"><button data-l="1">Fácil</button><button data-l="2">Medio</button><button data-l="3">Difícil</button></div>
+    <span class="sp"></span>
+    <span class="ap-faint">Tiempo <b id="time">0:00</b></span>
+    <button class="ap-btn" id="daily">Reto del día</button>
+    <button class="ap-btn primary" id="new">Nueva</button>
+  </div>
+  <div class="ap-main"><div class="wrap"><div class="board" id="board"></div><div class="side" id="side"></div></div></div>
+</div>
+<input id="kb" autocomplete="off" autocapitalize="characters" aria-hidden="true">
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script src="palabras.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+let S = { mode: "sopa", tema: "Todos", lvl: 1 }, stats = { sopa: 0, cruci: 0, daily: {} };
+let G = null, clock = null, t0 = 0;
+const norm = (w) => w.toUpperCase().normalize("NFD").replace(/(?!̃)[̀-ͯ]/g, "").normalize("NFC"); // quita tildes, deja la Ñ
+function rng(seed) { let s = seed >>> 0 || 1; return () => { s ^= s << 13; s >>>= 0; s ^= s >> 17; s ^= s << 5; s >>>= 0; return s / 4294967296; }; }
+const hash = (str) => { let h = 2166136261; for (const ch of str) { h ^= ch.charCodeAt(0); h = Math.imul(h, 16777619); } return h >>> 0; };
+const shuffle = (a, r) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const today = () => new Date().toISOString().slice(0, 10);
+function pool(tema) { return (tema === "Todos" ? Object.values(BANCO).flat() : BANCO[tema]).map(([w, c]) => ({ w: norm(w), c, raw: w })); }
+const fmt = (t) => Math.floor(t / 60) + ":" + String(t % 60).padStart(2, "0");
+function startClock() { clearInterval(clock); t0 = Date.now(); $("#time").textContent = "0:00"; clock = setInterval(() => { if (!G.done) $("#time").textContent = fmt(Math.floor((Date.now() - t0) / 1000)); }, 1000); }
+const ALPHA = "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ";
+
+/* ================= SOPA DE LETRAS ================= */
+function buildSopa(r, words, lvl) {
+  const N = lvl === 1 ? 10 : lvl === 2 ? 12 : 15;
+  const dirs = lvl === 1 ? [[0, 1], [1, 0]] : lvl === 2 ? [[0, 1], [1, 0], [1, 1], [-1, 1]] : [[0, 1], [1, 0], [1, 1], [-1, 1], [0, -1], [-1, 0], [-1, -1], [1, -1]];
+  const g = Array.from({ length: N }, () => Array(N).fill("")); const placed = [];
+  for (const it of shuffle(words.filter(x => x.w.length <= N), r)) {
+    if (placed.length >= (lvl === 1 ? 7 : lvl === 2 ? 10 : 13)) break;
+    let ok = false;
+    for (let tries = 0; tries < 200 && !ok; tries++) {
+      const [dr, dc] = dirs[Math.floor(r() * dirs.length)], L = it.w.length;
+      const r0 = Math.floor(r() * N), c0 = Math.floor(r() * N), r1 = r0 + dr * (L - 1), c1 = c0 + dc * (L - 1);
+      if (r1 < 0 || r1 >= N || c1 < 0 || c1 >= N) continue;
+      let fits = true; for (let k = 0; k < L; k++) { const ch = g[r0 + dr * k][c0 + dc * k]; if (ch && ch !== it.w[k]) { fits = false; break; } }
+      if (!fits) continue;
+      for (let k = 0; k < L; k++) g[r0 + dr * k][c0 + dc * k] = it.w[k];
+      placed.push({ ...it, r0, c0, r1, c1 }); ok = true;
+    }
+  }
+  for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) if (!g[i][j]) g[i][j] = ALPHA[Math.floor(r() * ALPHA.length)];
+  return { kind: "sopa", N, g, words: placed.sort((a, b) => a.w.localeCompare(b.w)), found: [], done: false };
+}
+const COLORS = ["#c4532f", "#3a6ea5", "#3d7a3f", "#a2562c", "#7a4e8a", "#1f6f78", "#b23a2e", "#8a6d1f", "#5a4a8a", "#2f6b45", "#b35a7a", "#4f6b8a", "#7a7a2a"];
+function renderSopa() {
+  const N = G.N, cs = Math.max(24, Math.min(46, Math.floor((Math.min($("#board").clientWidth, innerHeight - 110) - 20) / N)));
+  $("#board").innerHTML = `<div class="grid sopa" id="g" style="--cs:${cs}px;grid-template-columns:repeat(${N},var(--cs))">${G.g.map((row, i) => row.map((ch, j) => `<div class="c" data-r="${i}" data-c="${j}">${ch}</div>`).join("")).join("")}</div>`;
+  G.found.forEach(w => drawLine(w)); renderSopaSide();
+}
+function drawLine(w) {
+  const g = $("#g"), cs = parseFloat(getComputedStyle(g).getPropertyValue("--cs")), pad = 8; const idx = G.words.indexOf(w);
+  const x0 = pad + w.c0 * cs, y0 = pad + w.r0 * cs + cs * .11, x1 = pad + w.c1 * cs, y1 = pad + w.r1 * cs + cs * .11;
+  const len = Math.hypot(x1 - x0, y1 - y0) + cs * .78, ang = Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
+  const d = document.createElement("div"); d.className = "found-line"; Object.assign(d.style, { left: x0 + cs * .11 + "px", top: y0 + "px", width: len + "px", transform: `rotate(${ang}deg)`, background: COLORS[idx % COLORS.length] }); g.appendChild(d);
+}
+function renderSopaSide() {
+  const left = G.words.length - G.found.length;
+  $("#side").innerHTML = `<div class="ap-card"><h3>${G.daily ? "Reto del día · " + G.daily : S.tema}</h3><div class="words">${G.words.map(w => `<span class="${G.found.includes(w) ? "ok" : ""}">${w.raw}</span>`).join("")}</div></div>
+    <div class="ap-card">${G.done ? `<div class="bigmsg"><b>¡Completa!</b><span class="ap-muted">${$("#time").textContent} · ${G.words.length} palabras</span></div>` : `<span class="ap-muted">Te faltan <b>${left}</b> de ${G.words.length}. Arrastra sobre las letras, en línea recta.</span>`}</div>
+    <div class="ap-faint">Sopas resueltas: ${stats.sopa} · Crucigramas: ${stats.cruci}</div>`;
+}
+let sel = null;
+function cellAt(x, y) { const el = document.elementFromPoint(x, y)?.closest?.(".c"); return el ? { r: +el.dataset.r, c: +el.dataset.c } : null; }
+function lineCells(a, b) { const dr = Math.sign(b.r - a.r), dc = Math.sign(b.c - a.c), n = Math.max(Math.abs(b.r - a.r), Math.abs(b.c - a.c));
+  if (!(a.r === b.r || a.c === b.c || Math.abs(b.r - a.r) === Math.abs(b.c - a.c))) return null; const out = []; for (let k = 0; k <= n; k++) out.push({ r: a.r + dr * k, c: a.c + dc * k }); return out; }
+function paintSel(cells) { document.querySelectorAll(".c.sel").forEach(e => e.classList.remove("sel")); (cells || []).forEach(p => document.querySelector(`.c[data-r="${p.r}"][data-c="${p.c}"]`)?.classList.add("sel")); }
+document.addEventListener("pointerdown", (e) => { if (G?.kind !== "sopa" || G.done) return; const p = cellAt(e.clientX, e.clientY); if (!p || !e.target.closest("#g")) return; sel = { a: p, cells: [p] }; paintSel(sel.cells); });
+document.addEventListener("pointermove", (e) => { if (!sel) return; const p = cellAt(e.clientX, e.clientY); if (!p) return; const cells = lineCells(sel.a, p); if (cells) { sel.cells = cells; paintSel(cells); } });
+document.addEventListener("pointerup", () => {
+  if (!sel) return; const cells = sel.cells; sel = null; paintSel(null); if (cells.length < 2) return;
+  const a = cells[0], b = cells[cells.length - 1];
+  const w = G.words.find(w => !G.found.includes(w) && ((w.r0 === a.r && w.c0 === a.c && w.r1 === b.r && w.c1 === b.c) || (w.r0 === b.r && w.c0 === b.c && w.r1 === a.r && w.c1 === a.c)));
+  if (!w) return;
+  G.found.push(w); drawLine(w);
+  if (G.found.length === G.words.length) win(); else renderSopaSide();
+});
+
+/* ================= CRUCIGRAMA ================= */
+function buildCruci(r, words, lvl) {
+  const want = lvl === 1 ? 7 : lvl === 2 ? 10 : 13, list = shuffle(words.filter(x => x.w.length >= 3 && x.w.length <= 12), r);
+  const M = new Map(); const key = (y, x) => y + "," + x; const placed = [];
+  const get = (y, x) => M.get(key(y, x));
+  const canPlace = (w, y, x, d) => {
+    const dy = d === "v" ? 1 : 0, dx = d === "h" ? 1 : 0; let cross = 0;
+    if (get(y - dy, x - dx) || get(y + dy * w.length, x + dx * w.length)) return -1;
+    for (let k = 0; k < w.length; k++) {
+      const yy = y + dy * k, xx = x + dx * k, ch = get(yy, xx);
+      if (ch) { if (ch.ch !== w[k] || ch[d]) return -1; cross++; }
+      else if (get(yy + dx, xx + dy) || get(yy - dx, xx - dy)) return -1; // sin letras pegadas a los lados
+    }
+    return cross;
+  };
+  const put = (it, y, x, d) => { const dy = d === "v" ? 1 : 0, dx = d === "h" ? 1 : 0; for (let k = 0; k < it.w.length; k++) { const k2 = key(y + dy * k, x + dx * k); const c = M.get(k2) || { ch: it.w[k] }; c[d] = true; M.set(k2, c); } placed.push({ ...it, y, x, d }); };
+  put(list[0], 0, 0, "h");
+  for (const it of list.slice(1)) {
+    if (placed.length >= want) break;
+    let best = null;
+    for (const [k, c] of M) { const [y, x] = k.split(",").map(Number);
+      for (let i = 0; i < it.w.length; i++) if (it.w[i] === c.ch) for (const d of ["h", "v"]) {
+        if (c[d]) continue; const y0 = d === "v" ? y - i : y, x0 = d === "h" ? x - i : x; const s = canPlace(it.w, y0, x0, d);
+        if (s > 0 && (!best || s > best.s || (s === best.s && r() < .3))) best = { y: y0, x: x0, d, s };
+      } }
+    if (best) put(it, best.y, best.x, best.d);
+  }
+  let minY = Infinity, minX = Infinity, maxY = -Infinity, maxX = -Infinity; for (const k of M.keys()) { const [y, x] = k.split(",").map(Number); minY = Math.min(minY, y); minX = Math.min(minX, x); maxY = Math.max(maxY, y); maxX = Math.max(maxX, x); }
+  const H = maxY - minY + 1, W = maxX - minX + 1; const sol = Array.from({ length: H }, () => Array(W).fill(null));
+  for (const [k, c] of M) { const [y, x] = k.split(",").map(Number); sol[y - minY][x - minX] = c.ch; }
+  const ws = placed.map(p => ({ ...p, y: p.y - minY, x: p.x - minX }));
+  // números en orden de lectura
+  const starts = [...new Set(ws.map(w => w.y * 100 + w.x))].sort((a, b) => a - b); ws.forEach(w => w.n = starts.indexOf(w.y * 100 + w.x) + 1);
+  return { kind: "cruci", H, W, sol, ws, ans: sol.map(row => row.map(ch => ch ? "" : null)), cur: { y: ws[0].y, x: ws[0].x, d: ws[0].d }, done: false, checked: false };
+}
+const wordAt = (y, x, d) => G.ws.find(w => w.d === d && (d === "h" ? w.y === y && x >= w.x && x < w.x + w.w.length : w.x === x && y >= w.y && y < w.y + w.w.length));
+function renderCruci() {
+  const cs = Math.max(26, Math.min(46, Math.floor(Math.min(($("#board").clientWidth - 20) / G.W, (innerHeight - 120) / G.H))));
+  const cw = wordAt(G.cur.y, G.cur.x, G.cur.d) || wordAt(G.cur.y, G.cur.x, G.cur.d === "h" ? "v" : "h");
+  const inW = (y, x) => cw && (cw.d === "h" ? y === cw.y && x >= cw.x && x < cw.x + cw.w.length : x === cw.x && y >= cw.y && y < cw.y + cw.w.length);
+  const num = {}; G.ws.forEach(w => num[w.y + "," + w.x] = w.n);
+  $("#board").innerHTML = `<div class="grid cruci" id="g" style="--cs:${cs}px;grid-template-columns:repeat(${G.W},var(--cs))">${G.sol.map((row, y) => row.map((ch, x) => ch === null ? `<div class="c blk"></div>` :
+    `<div class="c ${inW(y, x) ? "word" : ""} ${G.cur.y === y && G.cur.x === x ? "cur" : ""} ${G.checked && G.ans[y][x] ? (G.ans[y][x] === ch ? "good" : "bad") : ""}" data-y="${y}" data-x="${x}">${num[y + "," + x] ? `<span class="n">${num[y + "," + x]}</span>` : ""}${G.ans[y][x] || ""}</div>`).join("")).join("")}</div>`;
+  const done = (w) => [...w.w].every((ch, k) => G.ans[w.y + (w.d === "v" ? k : 0)][w.x + (w.d === "h" ? k : 0)] === ch);
+  const list = (d) => G.ws.filter(w => w.d === d).sort((a, b) => a.n - b.n).map(w => `<div class="${w === cw ? "cur" : ""} ${done(w) ? "ok" : ""}" data-w="${G.ws.indexOf(w)}"><b>${w.n}</b> ${ap.esc(w.c)} <span class="ap-faint">(${w.w.length})</span></div>`).join("");
+  $("#side").innerHTML = `<div class="ap-card"><h3>${G.daily ? "Reto del día · " + G.daily : S.tema}</h3>${G.done ? `<div class="bigmsg"><b>¡Completo!</b><span class="ap-muted">${$("#time").textContent}</span></div>` : `<div class="ap-muted" style="font-size:13px">${cw ? `<b>${cw.n} ${cw.d === "h" ? "horizontal" : "vertical"}:</b> ${ap.esc(cw.c)}` : ""}</div>`}</div>
+    <div class="ap-card"><h3>Horizontales</h3><div class="clues">${list("h")}</div></div><div class="ap-card"><h3>Verticales</h3><div class="clues">${list("v")}</div></div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="ap-btn" id="chk">Revisar</button><button class="ap-btn" id="rl">Mostrar letra</button><button class="ap-btn" id="rw">Mostrar palabra</button></div>`;
+  $("#chk").onclick = () => { G.checked = !G.checked; renderCruci(); };
+  $("#rl").onclick = () => { const { y, x } = G.cur; G.ans[y][x] = G.sol[y][x]; advance(); afterType(); };
+  $("#rw").onclick = () => { if (!cw) return; [...cw.w].forEach((ch, k) => G.ans[cw.y + (cw.d === "v" ? k : 0)][cw.x + (cw.d === "h" ? k : 0)] = ch); afterType(); };
+  $("#side").querySelectorAll("[data-w]").forEach(d => d.onclick = () => { const w = G.ws[+d.dataset.w]; G.cur = { y: w.y, x: w.x, d: w.d }; renderCruci(); focusKb(); });
+  $("#g").onclick = (e) => { const c = e.target.closest(".c[data-y]"); if (!c) return; const y = +c.dataset.y, x = +c.dataset.x;
+    if (G.cur.y === y && G.cur.x === x && wordAt(y, x, G.cur.d === "h" ? "v" : "h")) G.cur.d = G.cur.d === "h" ? "v" : "h"; else { G.cur.y = y; G.cur.x = x; if (!wordAt(y, x, G.cur.d)) G.cur.d = G.cur.d === "h" ? "v" : "h"; }
+    renderCruci(); focusKb(); };
+}
+const focusKb = () => $("#kb").focus({ preventScroll: true });
+const open_ = (y, x) => y >= 0 && x >= 0 && y < G.H && x < G.W && G.sol[y][x] !== null;
+function advance(back) { const dy = G.cur.d === "v" ? 1 : 0, dx = G.cur.d === "h" ? 1 : 0, s = back ? -1 : 1; if (open_(G.cur.y + dy * s, G.cur.x + dx * s)) { G.cur.y += dy * s; G.cur.x += dx * s; } }
+function afterType() { G.checked = false; if (G.sol.every((row, y) => row.every((ch, x) => ch === null || G.ans[y][x] === ch))) { G.done = true; win(); } else renderCruci(); }
+document.addEventListener("keydown", (e) => {
+  if (G?.kind !== "cruci" || G.done || e.target.closest("select") || document.querySelector(".ap-modal")) return;
+  const k = e.key, { y, x } = G.cur;
+  if (/^[a-zñA-ZÑ]$/.test(k) && !e.ctrlKey && !e.metaKey) { e.preventDefault(); G.ans[y][x] = k.toUpperCase(); advance(); afterType(); }
+  else if (k === "Backspace") { e.preventDefault(); if (G.ans[y][x]) G.ans[y][x] = ""; else { advance(true); G.ans[G.cur.y][G.cur.x] = ""; } afterType(); }
+  else if (k.startsWith("Arrow")) { e.preventDefault(); const d = { ArrowRight: [0, 1, "h"], ArrowLeft: [0, -1, "h"], ArrowDown: [1, 0, "v"], ArrowUp: [-1, 0, "v"] }[k];
+    if (G.cur.d !== d[2] && wordAt(y, x, d[2])) G.cur.d = d[2]; else { let ny = y + d[0], nx = x + d[1]; while (ny >= 0 && nx >= 0 && ny < G.H && nx < G.W && !open_(ny, nx)) { ny += d[0]; nx += d[1]; } if (open_(ny, nx)) { G.cur.y = ny; G.cur.x = nx; if (!wordAt(ny, nx, G.cur.d)) G.cur.d = G.cur.d === "h" ? "v" : "h"; } }
+    renderCruci(); }
+  else if (k === "Tab") { e.preventDefault(); const list = [...G.ws].sort((a, b) => (a.d === b.d ? a.n - b.n : a.d === "h" ? -1 : 1)); const i = list.indexOf(wordAt(y, x, G.cur.d)); const w = list[(i + (e.shiftKey ? -1 : 1) + list.length) % list.length]; G.cur = { y: w.y, x: w.x, d: w.d }; renderCruci(); }
+});
+
+/* ================= común ================= */
+function win() {
+  clearInterval(clock); G.done = true; stats[G.kind]++; if (G.daily) stats.daily[G.daily + ":" + G.kind] = Math.floor((Date.now() - t0) / 1000); ap.store.set("stats", stats);
+  G.kind === "sopa" ? renderSopaSide() : renderCruci(); ap.toast(G.daily ? "¡Reto del día resuelto!" : "¡Bien hecho!");
+}
+function play(daily) {
+  const seed = daily ? hash(today() + S.mode + S.lvl) : (Math.random() * 2 ** 32) >>> 0, r = rng(seed);
+  const words = pool(daily ? "Todos" : S.tema);
+  G = S.mode === "sopa" ? buildSopa(r, words, S.lvl) : buildCruci(r, words, S.lvl); G.daily = daily ? today() : null;
+  startClock(); (S.mode === "sopa" ? renderSopa : renderCruci)(); if (S.mode === "cruci") focusKb();
+  ap.store.set("prefs", S);
+}
+function mark() { document.querySelectorAll("#mode button").forEach(b => b.classList.toggle("on", b.dataset.m === S.mode)); document.querySelectorAll("#lvl button").forEach(b => b.classList.toggle("on", +b.dataset.l === S.lvl)); $("#tema").value = S.tema; }
+document.querySelectorAll("#mode button").forEach(b => b.onclick = () => { S.mode = b.dataset.m; mark(); play(false); });
+document.querySelectorAll("#lvl button").forEach(b => b.onclick = () => { S.lvl = +b.dataset.l; mark(); play(false); });
+$("#tema").innerHTML = ["Todos", ...Object.keys(BANCO)].map(t => `<option>${t}</option>`).join(""); $("#tema").onchange = (e) => { S.tema = e.target.value; play(false); };
+$("#new").onclick = () => play(false); $("#daily").onclick = () => play(true);
+addEventListener("resize", () => G && (G.kind === "sopa" ? renderSopa() : renderCruci()));
+(async () => { await ap.ready; S = { ...S, ...((await ap.store.get("prefs")) || {}) }; stats = { ...stats, ...((await ap.store.get("stats")) || {}) }; mark(); play(false); })();
+</script>
+</body>
+</html>

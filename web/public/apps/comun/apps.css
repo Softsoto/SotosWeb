@@ -1,0 +1,62 @@
+/* ============================================================
+   Sotos — base común de las apps de la casa (web/public/apps/*)
+   Sigue el tema de Sotos (data-sotos-theme) y el color de acento de la persona (--sotos-accent).
+   © 2026 Sebastian Sotomontes
+   ============================================================ */
+:root {
+  --bg: #f4efe6; --panel: #fbf8f2; --panel-2: #efe8dc; --line: #d9cfbf; --line-2: #c9bca7;
+  --ink: #2a2520; --ink-2: #5f564b; --ink-3: #8b8174; --accent: var(--sotos-accent, #c4532f);
+  --ok: #3d7a3f; --bad: #b23a2e; --shadow: 0 1px 0 rgba(255,255,255,.6) inset, 0 6px 18px -10px rgba(60,40,20,.35);
+  --r: 10px; --font: "Onest", "Segoe UI", system-ui, -apple-system, sans-serif; --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  color-scheme: light;
+}
+:root[data-sotos-theme="dark"] {
+  --bg: #1b1916; --panel: #24211d; --panel-2: #2d2924; --line: #3a352e; --line-2: #4a443b;
+  --ink: #ece5da; --ink-2: #b9b0a3; --ink-3: #8a8175; --ok: #7cbf7f; --bad: #e07a6d;
+  --shadow: 0 1px 0 rgba(255,255,255,.04) inset, 0 8px 20px -10px rgba(0,0,0,.6);
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.45 var(--font); -webkit-font-smoothing: antialiased; }
+button, input, select, textarea { font: inherit; color: inherit; }
+.ap { display: flex; flex-direction: column; height: 100%; }
+.ap-bar { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--panel); border-bottom: 1px solid var(--line); flex-wrap: wrap; min-height: 50px; }
+.ap-bar h1 { font-size: 15px; margin: 0 6px 0 2px; font-weight: 700; letter-spacing: .1px; white-space: nowrap; }
+.ap-bar .sp { flex: 1; }
+.ap-main { flex: 1; min-height: 0; overflow: auto; }
+.ap-btn { display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--panel); cursor: pointer; white-space: nowrap; }
+.ap-btn:hover { background: var(--panel-2); }
+.ap-btn:active { transform: translateY(1px); }
+.ap-btn:disabled { opacity: .45; cursor: default; transform: none; }
+.ap-btn.primary { background: var(--accent); border-color: color-mix(in srgb, var(--accent) 70%, #000); color: #fff; }
+.ap-btn.primary:hover { background: color-mix(in srgb, var(--accent) 88%, #000); }
+.ap-btn.ghost { border-color: transparent; background: transparent; }
+.ap-btn.ghost:hover { background: var(--panel-2); }
+.ap-btn.on { background: color-mix(in srgb, var(--accent) 16%, var(--panel)); border-color: var(--accent); }
+.ap-btn.icon { width: 32px; padding: 0; justify-content: center; }
+.ap-in { height: 32px; padding: 0 10px; border-radius: 8px; border: 1px solid var(--line-2); background: var(--panel); outline: none; min-width: 0; }
+.ap-in:focus, textarea.ap-in:focus { border-color: var(--accent); }
+textarea.ap-in { height: auto; padding: 8px 10px; resize: vertical; }
+select.ap-in { padding-right: 6px; }
+.ap-card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); box-shadow: var(--shadow); }
+.ap-muted { color: var(--ink-2); } .ap-faint { color: var(--ink-3); font-size: 12.5px; }
+.ap-empty { display: grid; place-items: center; text-align: center; gap: 10px; padding: 40px 20px; color: var(--ink-2); height: 100%; }
+.ap-empty .big { font-size: 46px; line-height: 1; }
+.ap-empty b { color: var(--ink); font-size: 16px; }
+.ap-seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 8px; overflow: hidden; }
+.ap-seg button { border: 0; background: var(--panel); height: 30px; padding: 0 11px; cursor: pointer; border-right: 1px solid var(--line-2); }
+.ap-seg button:last-child { border-right: 0; }
+.ap-seg button.on { background: var(--accent); color: #fff; }
+.ap-toast { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 8px 14px; border-radius: 999px; font-size: 13px; box-shadow: 0 8px 24px -8px rgba(0,0,0,.5); z-index: 50; pointer-events: none; animation: ap-in .18s ease-out; }
+@keyframes ap-in { from { opacity: 0; transform: translate(-50%, 6px); } }
+.ap-modal { position: fixed; inset: 0; background: rgba(20,14,8,.42); display: grid; place-items: center; z-index: 40; padding: 16px; }
+.ap-modal > .ap-card { width: min(440px, 100%); max-height: 100%; overflow: auto; padding: 18px; display: grid; gap: 12px; }
+.ap-modal h2 { margin: 0; font-size: 16px; }
+.ap-modal .row { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.ap-field { display: grid; gap: 4px; font-size: 12.5px; color: var(--ink-2); }
+.ap-field > .ap-in { color: var(--ink); font-size: 14px; }
+.kbd { font: 11px var(--mono); padding: 1px 5px; border: 1px solid var(--line-2); border-bottom-width: 2px; border-radius: 4px; background: var(--panel); }
+::-webkit-scrollbar { width: 10px; height: 10px; } ::-webkit-scrollbar-thumb { background: var(--line-2); border-radius: 10px; border: 2px solid var(--bg); }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
