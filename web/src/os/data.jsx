@@ -56,7 +56,7 @@ const APP_BY_ID = Object.fromEntries(APPS.map(a => [a.id, a]));
 export function registerExtApps(list) {
   for (let i = APPS.length - 1; i >= 0; i--) if (APPS[i].ext && !APPS[i].builtin && !list.some(m => m.id === APPS[i].id)) { delete APP_BY_ID[APPS[i].id]; APPS.splice(i, 1); }
   for (const m of list) {
-    const a = { id: m.id, name: m.name, icon: m.icon, color: m.color, comp: "WebApp", ext: true, url: `ext-apps/${m.id}/${m.entry}`, size: m.size, store: true, cat: m.category, desc: m.description, author: m.author, version: m.version, permissions: m.permissions, opens: m.opens, homepage: m.homepage, bytes: m.bytes, serverInstalled: m.installed };
+    const a = { id: m.id, name: m.name, icon: m.icon, color: m.color, comp: "WebApp", ext: true, url: `ext-apps/${m.id}/${m.entry}`, size: m.size, store: true, cat: m.category, desc: m.description, author: m.author, version: m.version, permissions: m.permissions, opens: m.opens, hosts: m.hosts || [], homepage: m.homepage, bytes: m.bytes, serverInstalled: m.installed };
     const at = APPS.findIndex(x => x.id === m.id); if (at >= 0) APPS[at] = a; else APPS.splice(APPS.findIndex(x => x.id === "admin"), 0, a);
     APP_BY_ID[m.id] = a;
   }

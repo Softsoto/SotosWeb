@@ -58,6 +58,19 @@
       /** saca un archivo de la lista de recientes */
       forget: function (f) { return call("files.forget", { id: f && f.id || f }); }
     },
+    /** internet (permiso «net»): Sotos hace la petición por la app, solo a los sitios declarados en «hosts».
+        net.fetch(url, { method?, headers?, body? }) → { ok, status, type, json(), text(), blob() } */
+    net: {
+      fetch: function (url, o) {
+        return call("net.fetch", Object.assign({ url: String(url) }, o || {})).then(function (r) {
+          var bytes = function () { var s = atob(r.base64 || ""), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; };
+          return { ok: r.ok, status: r.status, type: r.type,
+            text: function () { return Promise.resolve(r.text != null ? r.text : new TextDecoder().decode(bytes())); },
+            json: function () { return Promise.resolve(JSON.parse(r.text != null ? r.text : new TextDecoder().decode(bytes()))); },
+            blob: function () { return Promise.resolve(r.text != null ? new Blob([r.text], { type: r.type }) : new Blob([bytes()], { type: r.type })); } };
+        });
+      }
+    },
     /** aviso en la campana de Sotos: { title, body? } (permiso «notify») */
     notify: function (o) { return call("notify", typeof o === "string" ? { title: o } : o); },
     /** datos de tu app en la cuenta de la persona, hasta 2 MB (permiso «storage») */

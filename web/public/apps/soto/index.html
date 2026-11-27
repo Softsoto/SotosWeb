@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SOTO</title>
+<!-- Sotos — SOTO: archivos .soto cifrados (AES-256-GCM + scrypt), compatibles con SOTO de escritorio · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  :root { --verm: #c4452b; }
+  body { --accent: var(--verm); }
+  .side-nav { width: 200px; flex: 0 0 200px; background: var(--panel); border-right: 1px solid var(--line); padding: 12px 8px; display: grid; gap: 2px; align-content: start; }
+  .side-nav button { text-align: left; border: 0; background: transparent; padding: 9px 12px; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--ink-2); }
+  .side-nav button.on { background: color-mix(in srgb, var(--verm) 14%, transparent); color: var(--verm); }
+  .side-nav .brand { font: 800 20px/1 var(--mono); letter-spacing: .18em; color: var(--verm); padding: 6px 12px 14px; }
+  .side-nav .brand small { display: block; font: 500 10.5px var(--font); letter-spacing: .02em; color: var(--ink-3); margin-top: 6px; }
+  .body { flex: 1; display: flex; min-height: 0; }
+  .pane { flex: 1; overflow: auto; padding: 20px 24px; display: none; }
+  .pane.on { display: block; }
+  h2 { margin: 0 0 4px; font-size: 19px; } .lead { color: var(--ink-2); margin: 0 0 16px; font-size: 13.5px; }
+  .drop { border: 2px dashed var(--line-2); border-radius: 12px; padding: 26px; text-align: center; color: var(--ink-2); display: grid; gap: 10px; justify-items: center; }
+  .drop.hot { border-color: var(--verm); background: color-mix(in srgb, var(--verm) 7%, transparent); }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+  th { text-align: left; font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-3); padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; } td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--mono); font-size: 12px; }
+  tr:hover td { background: var(--panel-2); }
+  .tag { font: 600 10.5px var(--mono); padding: 2px 6px; border-radius: 4px; background: var(--panel-2); border: 1px solid var(--line); }
+  .tag.ok { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); } .tag.no { color: var(--bad); }
+  .meta { display: flex; gap: 18px; flex-wrap: wrap; font-size: 12.5px; color: var(--ink-2); margin: 6px 0 4px; } .meta b { color: var(--ink); }
+  .stamp { display: inline-flex; align-items: center; gap: 6px; font: 700 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--verm); border: 2px solid var(--verm); border-radius: 5px; padding: 3px 8px; transform: rotate(-2deg); }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 12px; }
+  .files { display: grid; gap: 4px; margin: 12px 0; } .files div { display: flex; justify-content: space-between; gap: 10px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); font-size: 13px; }
+  .bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 8px; } .bar i { display: block; height: 100%; background: var(--verm); width: 0; transition: width .1s; }
+  .note { font-size: 12.5px; color: var(--ink-3); line-height: 1.5; margin-top: 18px; max-width: 640px; }
+  .strength { font-size: 12px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="ap"><div class="body">
+  <nav class="side-nav"><div class="brand">SOTO<small>cifrado AES-256-GCM · scrypt</small></div>
+    <button data-p="abrir" class="on">Abrir un .soto</button><button data-p="crear">Crear un .soto</button><button data-p="acerca">Cómo funciona</button></nav>
+  <section class="pane on" id="abrir">
+    <h2>Abrir un archivo .soto</h2><p class="lead">Se descifra aquí mismo, en tu navegador: la contraseña no sale de esta ventana.</p>
+    <div class="drop" id="dropA"><b>Suelta un .soto aquí</b><span class="ap-faint">o</span><button class="ap-btn primary" id="pickA">Elegir de mi Drive</button></div>
+    <div id="arch"></div>
+  </section>
+  <section class="pane" id="crear">
+    <h2>Crear un archivo .soto</h2><p class="lead">Junta archivos en un solo .soto comprimido y cifrado. Se abre igual en SOTO de escritorio.</p>
+    <div class="drop" id="dropC"><b>Suelta archivos aquí</b><span class="ap-faint">o</span><button class="ap-btn" id="pickC">Elegir de mi Drive</button></div>
+    <div class="files" id="list"></div>
+    <div style="display:grid;gap:10px;max-width:420px">
+      <label class="ap-field">Contraseña<input class="ap-in" type="password" id="pw1" autocomplete="new-password" placeholder="Mínimo 8 caracteres"></label>
+      <div class="strength" id="str"></div>
+      <label class="ap-field">Repítela<input class="ap-in" type="password" id="pw2" autocomplete="new-password"></label>
+      <label class="ap-field">Nota (opcional, va dentro del archivo)<input class="ap-in" id="cmt" maxlength="200"></label>
+      <label class="ap-field">Nombre del archivo<input class="ap-in" id="fname" value="archivos.soto"></label>
+    </div>
+    <div class="row"><button class="ap-btn primary" id="make" disabled>Cifrar y guardar</button><span class="ap-faint" id="mk"></span></div>
+    <div class="bar" id="mbar" hidden><i></i></div>
+  </section>
+  <section class="pane" id="acerca">
+    <h2>Cómo funciona</h2>
+    <p class="lead">Es el mismo formato .soto v1 de SOTO para Windows, hecho con las herramientas de cifrado del navegador.</p>
+    <div class="note" style="margin-top:0">
+      <p><b>Clave.</b> Tu contraseña pasa por <b>scrypt</b> (N = 2<sup>16</sup>, r = 8, p = 1; usa 64 MB de memoria a propósito, para que probar contraseñas a ciegas sea muy lento) con una sal aleatoria. De esa clave maestra salen dos subclaves con HMAC-SHA256: una para cifrar y otra solo para comprobar la contraseña.</p>
+      <p><b>Cifrado.</b> El contenido va en bloques de 1 MB cifrados con <b>AES-256-GCM</b>. Cada bloque lleva su número y la cabecera como datos autenticados: si alguien cambia, quita o reordena un bloque, el archivo no abre.</p>
+      <p><b>Integridad.</b> Cada archivo guarda su huella SHA-256 y se comprueba al extraerlo.</p>
+      <p><b>Compresión.</b> Aquí se usa Deflate. SOTO de escritorio también hace Zstandard, Brotli y SOTO-M: esos se pueden listar aquí, pero se extraen en el programa de escritorio.</p>
+      <p>Si olvidas la contraseña no hay forma de recuperar el contenido. Nadie, tampoco Sotos, puede abrirlo sin ella.</p>
+    </div>
+  </section>
+</div></div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script src="../comun/soto.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const fmt = (n) => n < 1024 ? n + " B" : n < 1048576 ? (n / 1024).toFixed(1) + " KB" : (n / 1048576).toFixed(1) + " MB";
+document.querySelectorAll(".side-nav [data-p]").forEach(b => b.onclick = () => { document.querySelectorAll(".side-nav [data-p]").forEach(x => x.classList.toggle("on", x === b)); document.querySelectorAll(".pane").forEach(p => p.classList.toggle("on", p.id === b.dataset.p)); });
+const drop = (el, fn) => { el.addEventListener("dragover", e => { e.preventDefault(); el.classList.add("hot"); }); el.addEventListener("dragleave", () => el.classList.remove("hot")); el.addEventListener("drop", e => { e.preventDefault(); el.classList.remove("hot"); fn([...e.dataTransfer.files]); }); };
+
+/* ---------- abrir ---------- */
+let cur = null;
+async function openBytes(bytes, name) {
+  let pw = null;
+  for (;;) {
+    try {
+      $("#arch").innerHTML = `<p class="ap-muted">${pw ? "Derivando la clave con scrypt…" : "Leyendo…"}</p>`;
+      const a = await SotoCrypto.read(bytes, pw); cur = { a, name }; renderArch(); return;
+    } catch (e) {
+      if (e.code !== "password") { $("#arch").innerHTML = `<p style="color:var(--bad)">${ap.esc(e.message)}</p>`; return; }
+      const r = await ap.ask({ title: `«${name}» está cifrado`, text: pw ? "Contraseña incorrecta. Prueba otra vez." : "Escribe la contraseña del archivo.", fields: [{ key: "p", label: "Contraseña", type: "password" }], ok: "Abrir" });
+      if (!r) { $("#arch").innerHTML = ""; return; } pw = r.p;
+    }
+  }
+}
+function renderArch() {
+  const { a, name } = cur, files = a.entries.filter(e => !e.dir), tot = files.reduce((s, e) => s + e.size, 0), packed = files.reduce((s, e) => s + e.packed, 0);
+  $("#arch").innerHTML = `<div class="row" style="justify-content:space-between;margin-top:18px"><div><b style="font-size:16px">${ap.esc(name)}</b>
+      <div class="meta"><span>${files.length} archivo(s)</span><span>Original <b>${fmt(tot)}</b></span><span>Comprimido <b>${fmt(packed)}</b>${tot ? ` (${Math.round(packed / tot * 100)} %)` : ""}</span>${a.created ? `<span>Creado ${a.created.toLocaleString("es")}</span>` : ""}${a.app ? `<span>${ap.esc(a.app)}</span>` : ""}</div>
+      ${a.comment ? `<div class="ap-muted" style="font-size:13px">«${ap.esc(a.comment)}»</div>` : ""}</div>${a.encrypted ? '<span class="stamp">Cifrado · AES-256</span>' : '<span class="stamp" style="color:var(--ink-3);border-color:var(--ink-3)">Sin cifrar</span>'}</div>
+    <table><thead><tr><th>Archivo</th><th>Método</th><th style="text-align:right">Tamaño</th><th style="text-align:right">Comprimido</th><th></th></tr></thead><tbody>
+    ${files.map((e, i) => `<tr><td>${ap.esc(e.name)}</td><td><span class="tag">${e.method}</span></td><td class="num">${fmt(e.size)}</td><td class="num">${fmt(e.packed)}</td>
+      <td style="text-align:right">${a.supported(e) ? `<button class="ap-btn" style="height:26px;font-size:12px" data-x="${i}">Guardar</button>` : '<span class="ap-faint">en SOTO de escritorio</span>'}</td></tr>`).join("")}</tbody></table>
+    <div class="row"><button class="ap-btn primary" id="xall" ${files.some(e => a.supported(e)) ? "" : "disabled"}>Extraer todo a una carpeta…</button><span class="ap-faint" id="xs"></span></div>`;
+  $("#arch").querySelectorAll("[data-x]").forEach(b => b.onclick = async () => { const e = files[+b.dataset.x]; try { await ap.save(e.name.split("/").pop(), new Blob([await a.extract(e)])); } catch (err) { ap.toast(err.message, 4000); } });
+  $("#xall").onclick = async () => {
+    let folder; try { folder = await sotos.files.pickFolder({ title: "¿En qué carpeta extraigo?" }); } catch (e) { return ap.toast(e.message); } if (!folder) return;
+    let n = 0, ok = 0; for (const e of files) { if (!a.supported(e)) continue; n++; $("#xs").textContent = `Extrayendo ${n} de ${files.length}…`;
+      try { await sotos.files.saveIn(folder, { name: e.name.replace(/\//g, " - "), data: new Blob([await a.extract(e)]) }); ok++; } catch (err) { ap.toast(err.message, 4000); } }
+    $("#xs").textContent = `${ok} archivo(s) extraído(s) y verificados con SHA-256`; sotos.notify({ title: "Extracción lista", body: `${ok} archivo(s) de ${name}` }).catch(() => {});
+  };
+}
+$("#pickA").onclick = async () => { try { const [f] = await sotos.files.pick({ exts: ["soto"], title: "Abrir un .soto" }); if (f) openBytes(new Uint8Array(await (await sotos.files.read(f)).arrayBuffer()), f.name); } catch (e) { ap.toast(e.message); } };
+drop($("#dropA"), async (fs) => { const f = fs.find(x => /\.soto$/i.test(x.name)); if (f) openBytes(new Uint8Array(await f.arrayBuffer()), f.name); else ap.toast("Suelta un archivo .soto"); });
+
+/* ---------- crear ---------- */
+let picked = [];
+function renderList() { $("#list").innerHTML = picked.map((f, i) => `<div><span>${ap.esc(f.name)}</span><span class="ap-faint">${fmt(f.size)} <button class="ap-btn ghost" style="height:22px;padding:0 6px" data-rm="${i}">✕</button></span></div>`).join(""); $("#list").querySelectorAll("[data-rm]").forEach(b => b.onclick = () => { picked.splice(+b.dataset.rm, 1); renderList(); }); check(); }
+function strength(p) { let s = 0; if (p.length >= 8) s++; if (p.length >= 14) s++; if (/[a-z]/.test(p) && /[A-Z]/.test(p)) s++; if (/\d/.test(p)) s++; if (/[^\w]/.test(p)) s++; return s; }
+function check() { const p = $("#pw1").value, s = strength(p); $("#str").innerHTML = p ? `Fuerza: <b style="color:${s < 2 ? "var(--bad)" : s < 4 ? "#c9902a" : "var(--ok)"}">${["muy débil", "débil", "aceptable", "buena", "fuerte", "muy fuerte"][s]}</b>` : "";
+  $("#make").disabled = !picked.length || p.length < 8 || p !== $("#pw2").value; }
+["pw1", "pw2"].forEach(id => $("#" + id).oninput = check);
+$("#pickC").onclick = async () => { try { const fs = await sotos.files.pick({ multiple: true, title: "Archivos para el .soto" }); for (const f of fs) picked.push({ name: f.name, size: f.size, ref: f }); renderList(); } catch (e) { ap.toast(e.message); } };
+drop($("#dropC"), (fs) => { for (const f of fs) picked.push({ name: f.name, size: f.size, file: f }); renderList(); });
+$("#make").onclick = async () => {
+  $("#make").disabled = true; $("#mbar").hidden = false; const bar = $("#mbar i");
+  try {
+    $("#mk").textContent = "Leyendo los archivos…"; const files = [];
+    for (const f of picked) files.push({ name: f.name, data: f.file || await sotos.files.read(f.ref) });
+    $("#mk").textContent = "Derivando la clave con scrypt (64 MB)…";
+    const out = await SotoCrypto.write(files, $("#pw1").value, { comment: $("#cmt").value.trim(), onProgress: (x) => bar.style.width = Math.round(x * 100) + "%" });
+    bar.style.width = "100%"; $("#mk").textContent = `Listo: ${fmt(out.length)}`;
+    let n = $("#fname").value.trim() || "archivos.soto"; if (!/\.soto$/i.test(n)) n += ".soto";
+    await ap.save(n, new Blob([out], { type: "application/octet-stream" })); $("#pw1").value = $("#pw2").value = ""; check();
+  } catch (e) { ap.toast(e.message, 4000); $("#mk").textContent = ""; }
+  $("#make").disabled = false; setTimeout(() => { $("#mbar").hidden = true; bar.style.width = 0; }, 1200);
+};
+if (!SotoCrypto.available) document.querySelectorAll(".pane .lead")[0].insertAdjacentHTML("afterend", `<p style="color:var(--bad);font-size:13px">El navegador solo permite cifrar con <b>HTTPS</b> o en el propio equipo (localhost). Entrando por http:// desde la red, SOTO no puede abrir ni crear archivos .soto.</p>`);
+(async () => { await ap.ready; sotos.on("open", async (f) => { document.querySelector('[data-p="abrir"]').click(); try { openBytes(new Uint8Array(await (await sotos.files.read(f)).arrayBuffer()), f.name); } catch (e) { ap.toast(e.message); } }); })();
+</script>
+</body>
+</html>

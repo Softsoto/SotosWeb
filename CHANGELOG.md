@@ -3,6 +3,29 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.6.8 — 27 de noviembre de 2026
+
+### SDK
+- **Permiso `net`: las apps pueden usar internet.** Declaran en `hosts` los sitios a los que se conectan, que se muestran en la Tienda antes de instalar. `sotos.net.fetch(url)` funciona como `fetch`. Sotos hace la petición por la app, así que no hay problemas de CORS. Solo se permite HTTPS, solo a los sitios declarados, nunca a direcciones privadas (la red de la casa o el propio servidor), con tiempo y tamaño máximos y sin seguir redirecciones. Además, solo funciona si la app está instalada en la cuenta.
+- **Cifrado SOTO en el navegador** (`apps/comun/soto.js`): lee y escribe archivos `.soto` v1, compatibles con SOTO de escritorio en los dos sentidos. Usa scrypt propio (verificado con el vector de RFC 7914), claves con HMAC-SHA256 y AES-256-GCM por bloques autenticados con la cabecera y el número de bloque. Probado contra `soto-cli` con Deflate, sólido y sin compresión.
+
+### Nuevo: ocho apps que muestran lo que se puede hacer con el SDK
+- **SOTO**: abre, verifica y extrae archivos `.soto` (también los hechos en SOTO de escritorio) y crea nuevos cifrados. Los comprimidos con Zstandard, Brotli o SOTO-M se listan y se extraen en el programa de escritorio.
+- **Claves**: gestor de contraseñas cifrado con el sistema de SOTO. A la cuenta solo llega texto cifrado, y la copia de respaldo `.soto` también la abre SOTO de escritorio. Tiene generador de contraseñas y de frases, revisión de claves débiles y repetidas, portapapeles que se borra a los 30 s, cierre solo a los 5 minutos y cambio de clave maestra.
+- **Clima** (Open-Meteo): ciudades guardadas, actual, próximas 24 horas, 7 días, salida y puesta del sol y UV.
+- **Monedas** (ExchangeRate-API y Frankfurter): más de 150 monedas con la tasa del día e historial de hasta un año.
+- **Enciclopedia** (Wikipedia en español): portada con lo más leído y «un día como hoy», buscador, artículos con índice y enlaces internos, favoritos y guardar en el Drive.
+- **Tablero**: kanban con arrastrar y soltar, etiquetas, fechas, listas de chequeo y exportación a Markdown.
+- **Visor 3D**: STL (binario y de texto) y OBJ con WebGL propio. Girar, acercar, mover, alambre, color, medidas y captura en PNG.
+- **Editor de fotos**: exposición, contraste, saturación, temperatura, tono, nitidez, viñeta y 9 filtros. También recorte con proporciones, giro, espejo, comparar con la original, deshacer y guardar una copia en JPG, PNG o WebP.
+- **Pixel art**: nuevo botón «Ejemplo» con la Gioconda en 48 × 64 píxeles.
+
+### Arreglado
+- Claves y el PIN del Diario no dejaban escribir: el manejador de teclas cancelaba toda tecla que no fuera Enter.
+
+### Para saber
+- El cifrado del navegador (WebCrypto) solo existe con HTTPS o en el propio equipo (localhost). Entrando por `http://IP`, SOTO y Claves lo avisan y no pueden cifrar.
+
 ## 3.6.7 — 27 de noviembre de 2026
 
 ### Nuevo: diez apps en la Tienda

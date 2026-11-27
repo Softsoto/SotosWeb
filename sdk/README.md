@@ -51,6 +51,7 @@ Instala el `.zip` en **Administración → Apps → Instalar una app (.zip)**. L
 | `entry` | La página que se abre (por defecto `index.html`). Usa rutas relativas dentro de la app. |
 | `permissions` | Lo que la app puede pedir. Se muestran en la Tienda antes de instalarla. |
 | `opens` | Extensiones que la app sabe abrir (`["md","txt"]`): aparece **Abrir con** en Archivos. Requiere `files.read`. |
+| `hosts` | Sitios de internet a los que se conecta la app (con el permiso `net`). Se muestran en la Tienda antes de instalarla. |
 
 ### Permisos
 
@@ -61,6 +62,7 @@ Instala el `.zip` en **Administración → Apps → Instalar una app (.zip)**. L
 | `storage` | Guardar datos propios de la app en la cuenta de cada persona (hasta 2 MB). |
 | `notify` | Mandar avisos a la campana de notificaciones. |
 | `user` | Ver el nombre y el idioma de quien usa la app. |
+| `net` | Conectarse a internet, **solo** a los sitios que la app declara en `hosts` (ej. `["api.open-meteo.com", "*.wikipedia.org"]`). Sotos hace la petición por la app: no hay problemas de CORS, solo se permite HTTPS y nunca llega a direcciones de la red privada. |
 
 ## La API
 
@@ -87,6 +89,10 @@ await sotos.files.forget(recientes[0]);                                       //
 await sotos.storage.set("ajustes", { fuente: 16 });
 const ajustes = await sotos.storage.get("ajustes");   // null si no existe
 await sotos.storage.remove("ajustes"); const claves = await sotos.storage.keys();
+
+// internet (permiso «net» + «hosts»): mismo estilo que fetch
+const r = await sotos.net.fetch("https://api.open-meteo.com/v1/forecast?latitude=4.6&longitude=-74.1&current=temperature_2m");
+const clima = await r.json();                          // también r.text() y r.blob()
 
 // avisos, ventana y eventos
 sotos.notify({ title: "Listo", body: "Se exportó tu lista" });

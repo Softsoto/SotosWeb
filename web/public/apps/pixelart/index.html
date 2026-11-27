@@ -39,6 +39,7 @@
     <button class="ap-btn" id="nuevo">Nuevo</button>
     <button class="ap-btn" id="abrir">Abrir</button>
     <button class="ap-btn" id="guardar">Guardar</button>
+    <button class="ap-btn" id="ejemplo" title="La Gioconda en 48 × 64 píxeles">Ejemplo</button>
     <button class="ap-btn ghost icon" id="undo" title="Deshacer (Ctrl+Z)">&#8630;</button>
     <button class="ap-btn ghost icon" id="redo" title="Rehacer (Ctrl+Y)">&#8631;</button>
     <span class="sp"></span>
@@ -61,6 +62,7 @@
 </div>
 <script src="/sdk/sotos-sdk.js"></script>
 <script src="../comun/apps.js"></script>
+<script src="gioconda.js"></script>
 <script>
 "use strict";
 const $ = (s) => document.querySelector(s);
@@ -194,7 +196,8 @@ function lzw(px, minBits, b) {
   emit(prefix); emit(EOI); if (curBits > 0) block.push(cur & 255); if (block.length) b(block.length, ...block); b(0);
 }
 new ResizeObserver(() => P && fitZoom()).observe($("#stage"));
-(async () => { await ap.ready; const a = await ap.store.get("actual"); P = a ? unpack(a) : blank(32, 32); $("#tools [data-t=pencil]").classList.add("on"); all(); })();
+$("#ejemplo").onclick = async () => { if (P.frames.some(f => f.some(Boolean)) && !(await ap.confirm("¿Abrir el ejemplo? Se reemplaza el dibujo actual (guárdalo antes si lo quieres).", { ok: "Abrir ejemplo", danger: false }))) return; P = gioconda(); cur = 0; hist = []; redo = []; all(); autosave(); ap.toast("La Gioconda, de Leonardo da Vinci, en 48 × 64 píxeles"); };
+(async () => { await ap.ready; const a = await ap.store.get("actual"); P = a ? unpack(a) : gioconda(); $("#tools [data-t=pencil]").classList.add("on"); all(); })();
 </script>
 </body>
 </html>

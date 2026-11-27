@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Visor 3D</title>
+<!-- Sotos — Visor 3D (STL y OBJ con WebGL, sin librerías) · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .stage { position: relative; flex: 1; min-height: 0; background: radial-gradient(circle at 50% 35%, var(--bg1, #3a4150), var(--bg2, #15181d)); }
+  canvas { width: 100%; height: 100%; display: block; touch-action: none; cursor: grab; } canvas:active { cursor: grabbing; }
+  .info { position: absolute; left: 12px; bottom: 12px; color: #dfe6ee; font: 12px var(--mono); background: rgba(0,0,0,.35); padding: 8px 10px; border-radius: 8px; line-height: 1.6; pointer-events: none; }
+  .hint { position: absolute; right: 12px; bottom: 12px; color: #c9d2dc; font-size: 12px; background: rgba(0,0,0,.3); padding: 6px 10px; border-radius: 8px; }
+  .drop { outline: 3px dashed var(--accent); outline-offset: -10px; }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Visor 3D</h1><button class="ap-btn primary" id="pick">Abrir modelo</button>
+    <label class="ap-faint"><input type="checkbox" id="wire"> Alambre</label><label class="ap-faint"><input type="checkbox" id="spin" checked> Girar solo</label>
+    <label class="ap-faint">Color <input type="color" id="col" value="#c9874a"></label>
+    <select class="ap-in" id="bg"><option value="#3a4150,#15181d">Fondo oscuro</option><option value="#f4f1ea,#cfc8bb">Fondo claro</option><option value="#2c4a3e,#0f1c17">Fondo verde</option></select>
+    <span class="sp"></span><button class="ap-btn" id="reset">Centrar</button><button class="ap-btn" id="shot">Captura PNG</button></div>
+  <div class="stage" id="stage"><canvas id="cv"></canvas><div class="info" id="info"></div><div class="hint">Arrastra para girar · rueda para acercar · clic derecho para mover</div></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s), cv = $("#cv");
+const gl = cv.getContext("webgl", { antialias: true, preserveDrawingBuffer: true });
+/* ---------- matrices (columna mayor) ---------- */
+const M = {
+  persp: (f, a, n, fa) => { const t = 1 / Math.tan(f / 2); return new Float32Array([t / a, 0, 0, 0, 0, t, 0, 0, 0, 0, (fa + n) / (n - fa), -1, 0, 0, 2 * fa * n / (n - fa), 0]); },
+  mul: (a, b) => { const o = new Float32Array(16); for (let i = 0; i < 4; i++) for (let j = 0; j < 4; j++) { let s = 0; for (let k = 0; k < 4; k++) s += a[k * 4 + j] * b[i * 4 + k]; o[i * 4 + j] = s; } return o; },
+  rx: (r) => { const c = Math.cos(r), s = Math.sin(r); return new Float32Array([1, 0, 0, 0, 0, c, s, 0, 0, -s, c, 0, 0, 0, 0, 1]); },
+  ry: (r) => { const c = Math.cos(r), s = Math.sin(r); return new Float32Array([c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1]); },
+  tr: (x, y, z) => new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, x, y, z, 1]),
+};
+/* ---------- sombreadores ---------- */
+const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+const prog = gl.createProgram();
+gl.attachShader(prog, sh(gl.VERTEX_SHADER, `attribute vec3 p; attribute vec3 n; uniform mat4 mvp, mv; varying vec3 vn; varying vec3 vp;
+  void main(){ vn = mat3(mv) * n; vp = (mv * vec4(p,1.)).xyz; gl_Position = mvp * vec4(p,1.); }`));
+gl.attachShader(prog, sh(gl.FRAGMENT_SHADER, `precision mediump float; varying vec3 vn; varying vec3 vp; uniform vec3 col; uniform float flat_;
+  void main(){ vec3 n = normalize(vn); if (!gl_FrontFacing) n = -n; vec3 l = normalize(vec3(.4,.7,1.)); vec3 v = normalize(-vp);
+    float d = max(dot(n,l),0.), s = pow(max(dot(reflect(-l,n),v),0.), 32.) * .35, rim = pow(1.-max(dot(n,v),0.), 3.) * .25;
+    vec3 c = flat_ > .5 ? col : col * (.28 + .72*d) + vec3(s) + vec3(rim) * col; gl_FragColor = vec4(c, 1.); }`));
+gl.linkProgram(prog); gl.useProgram(prog);
+const loc = { p: gl.getAttribLocation(prog, "p"), n: gl.getAttribLocation(prog, "n"), mvp: gl.getUniformLocation(prog, "mvp"), mv: gl.getUniformLocation(prog, "mv"), col: gl.getUniformLocation(prog, "col"), flat: gl.getUniformLocation(prog, "flat_") };
+let mesh = null, rot = { x: -0.5, y: 0.6 }, dist = 2.6, pan = { x: 0, y: 0 };
+/* ---------- cargar: posiciones de triángulos → normales, centro y escala ---------- */
+function upload(pos, name) {
+  const n = pos.length / 9; if (!n) throw new Error("El modelo no tiene triángulos");
+  let min = [Infinity, Infinity, Infinity], max = [-Infinity, -Infinity, -Infinity];
+  for (let i = 0; i < pos.length; i += 3) for (let k = 0; k < 3; k++) { min[k] = Math.min(min[k], pos[i + k]); max[k] = Math.max(max[k], pos[i + k]); }
+  const ctr = min.map((m, k) => (m + max[k]) / 2), size = Math.max(...max.map((m, k) => m - min[k])) || 1, P = new Float32Array(pos.length), N = new Float32Array(pos.length);
+  for (let i = 0; i < pos.length; i += 3) for (let k = 0; k < 3; k++) P[i + k] = (pos[i + k] - ctr[k]) / size * 1.6;
+  for (let t = 0; t < n; t++) { const o = t * 9, ax = P[o + 3] - P[o], ay = P[o + 4] - P[o + 1], az = P[o + 5] - P[o + 2], bx = P[o + 6] - P[o], by = P[o + 7] - P[o + 1], bz = P[o + 8] - P[o + 2];
+    let nx = ay * bz - az * by, ny = az * bx - ax * bz, nz = ax * by - ay * bx; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l; for (let v = 0; v < 3; v++) { N[o + v * 3] = nx; N[o + v * 3 + 1] = ny; N[o + v * 3 + 2] = nz; } }
+  const edges = new Float32Array(n * 18); for (let t = 0; t < n; t++) { const o = t * 9; [[0, 1], [1, 2], [2, 0]].forEach(([a, b], e) => { edges.set(P.subarray(o + a * 3, o + a * 3 + 3), t * 18 + e * 6); edges.set(P.subarray(o + b * 3, o + b * 3 + 3), t * 18 + e * 6 + 3); }); }
+  const buf = (d) => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, d, gl.STATIC_DRAW); return b; };
+  mesh = { pb: buf(P), nb: buf(N), eb: buf(edges), n: n * 3, en: n * 6 };
+  const dim = max.map((m, k) => m - min[k]);
+  $("#info").innerHTML = `${ap.esc(name)}<br>${n.toLocaleString("es")} triángulos<br>${dim.map(x => +x.toPrecision(4)).join(" × ")} (unidades del archivo)`;
+}
+function parseSTL(buf) {
+  const dv = new DataView(buf), n = buf.byteLength >= 84 ? dv.getUint32(80, true) : 0;
+  if (buf.byteLength === 84 + n * 50 && n) { const p = new Float32Array(n * 9); for (let t = 0; t < n; t++) for (let k = 0; k < 9; k++) p[t * 9 + k] = dv.getFloat32(84 + t * 50 + 12 + k * 4, true); return p; }
+  const txt = new TextDecoder().decode(buf), out = []; for (const m of txt.matchAll(/vertex\s+([-\d.eE+]+)\s+([-\d.eE+]+)\s+([-\d.eE+]+)/g)) out.push(+m[1], +m[2], +m[3]); return new Float32Array(out);
+}
+function parseOBJ(txt) {
+  const v = [], out = [];
+  for (const line of txt.split(/\r?\n/)) { const p = line.trim().split(/\s+/);
+    if (p[0] === "v") v.push([+p[1], +p[2], +p[3]]);
+    else if (p[0] === "f") { const idx = p.slice(1).map(s => { const i = parseInt(s.split("/")[0], 10); return i < 0 ? v.length + i : i - 1; }); for (let k = 1; k < idx.length - 1; k++) for (const j of [idx[0], idx[k], idx[k + 1]]) { const q = v[j]; if (q) out.push(q[0], q[1], q[2]); } } }
+  return new Float32Array(out);
+}
+/* modelo de muestra: un nudo toroidal */
+function knot() { const out = [], S = 240, R = 18, pt = (u) => { const p = 2, q = 3, r = Math.cos(q * u) + 2; return [r * Math.cos(p * u), r * Math.sin(p * u), -Math.sin(q * u)]; };
+  const ring = []; for (let i = 0; i <= S; i++) { const u = i / S * Math.PI * 2, c = pt(u), d = pt(u + .01), t = d.map((x, k) => x - c[k]), tl = Math.hypot(...t); const T = t.map(x => x / tl), up = [0, 0, 1];
+    let N = [T[1] * up[2] - T[2] * up[1], T[2] * up[0] - T[0] * up[2], T[0] * up[1] - T[1] * up[0]]; const nl = Math.hypot(...N); N = N.map(x => x / nl); const Bv = [T[1] * N[2] - T[2] * N[1], T[2] * N[0] - T[0] * N[2], T[0] * N[1] - T[1] * N[0]];
+    ring.push(Array.from({ length: R }, (_, j) => { const a = j / R * Math.PI * 2; return c.map((x, k) => x + .45 * (Math.cos(a) * N[k] + Math.sin(a) * Bv[k])); })); }
+  for (let i = 0; i < S; i++) for (let j = 0; j < R; j++) { const a = ring[i][j], b = ring[i + 1][j], c2 = ring[i + 1][(j + 1) % R], d = ring[i][(j + 1) % R]; out.push(...a, ...b, ...c2, ...a, ...c2, ...d); }
+  return new Float32Array(out); }
+/* ---------- dibujar ---------- */
+let col = [0.79, 0.53, 0.29];
+function draw() {
+  const w = cv.clientWidth * devicePixelRatio, h = cv.clientHeight * devicePixelRatio; if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  gl.viewport(0, 0, w, h); gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT); gl.enable(gl.DEPTH_TEST);
+  if (!mesh) return; const mv = M.mul(M.tr(pan.x, pan.y, -dist), M.mul(M.rx(rot.x), M.ry(rot.y))), mvp = M.mul(M.persp(0.8, w / h, 0.05, 100), mv);
+  gl.uniformMatrix4fv(loc.mvp, false, mvp); gl.uniformMatrix4fv(loc.mv, false, mv);
+  const wire = $("#wire").checked;
+  gl.bindBuffer(gl.ARRAY_BUFFER, wire ? mesh.eb : mesh.pb); gl.enableVertexAttribArray(loc.p); gl.vertexAttribPointer(loc.p, 3, gl.FLOAT, false, 0, 0);
+  if (wire) { gl.disableVertexAttribArray(loc.n); gl.vertexAttrib3f(loc.n, 0, 0, 1); gl.uniform1f(loc.flat, 1); gl.uniform3fv(loc.col, col); gl.drawArrays(gl.LINES, 0, mesh.en); }
+  else { gl.bindBuffer(gl.ARRAY_BUFFER, mesh.nb); gl.enableVertexAttribArray(loc.n); gl.vertexAttribPointer(loc.n, 3, gl.FLOAT, false, 0, 0); gl.uniform1f(loc.flat, 0); gl.uniform3fv(loc.col, col); gl.drawArrays(gl.TRIANGLES, 0, mesh.n); }
+}
+let last = 0, dragging = false; (function loop(t) { if ($("#spin").checked && !dragging) rot.y += (t - last) * 0.0004; last = t; draw(); requestAnimationFrame(loop); })(0);
+/* ---------- mouse ---------- */
+let pd = null; cv.addEventListener("pointerdown", (e) => { pd = { x: e.clientX, y: e.clientY, b: e.button }; dragging = true; cv.setPointerCapture(e.pointerId); });
+cv.addEventListener("pointermove", (e) => { if (!pd) return; const dx = e.clientX - pd.x, dy = e.clientY - pd.y; pd.x = e.clientX; pd.y = e.clientY;
+  if (pd.b === 2 || e.shiftKey) { pan.x += dx * dist * 0.0015; pan.y -= dy * dist * 0.0015; } else { rot.y += dx * 0.01; rot.x = Math.max(-1.55, Math.min(1.55, rot.x + dy * 0.01)); } });
+cv.addEventListener("pointerup", () => { pd = null; dragging = false; }); cv.addEventListener("contextmenu", (e) => e.preventDefault());
+cv.addEventListener("wheel", (e) => { e.preventDefault(); dist = Math.max(0.6, Math.min(20, dist * (1 + Math.sign(e.deltaY) * 0.1))); }, { passive: false });
+$("#reset").onclick = () => { rot = { x: -0.5, y: 0.6 }; dist = 2.6; pan = { x: 0, y: 0 }; };
+$("#col").oninput = (e) => { const h = e.target.value; col = [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16) / 255); };
+$("#bg").onchange = (e) => { const [a, b] = e.target.value.split(","); $("#stage").style.setProperty("--bg1", a); $("#stage").style.setProperty("--bg2", b); };
+$("#shot").onclick = () => { const c = document.createElement("canvas"); c.width = cv.width; c.height = cv.height; const g = c.getContext("2d"); const [a, b] = $("#bg").value.split(","), gr = g.createRadialGradient(c.width / 2, c.height * .35, 10, c.width / 2, c.height * .35, c.width * .7); gr.addColorStop(0, a); gr.addColorStop(1, b); g.fillStyle = gr; g.fillRect(0, 0, c.width, c.height); g.drawImage(cv, 0, 0); c.toBlob(bl => ap.save("modelo.png", bl), "image/png"); };
+/* ---------- abrir ---------- */
+async function load(buf, name) { try { const pos = /\.obj$/i.test(name) ? parseOBJ(new TextDecoder().decode(buf)) : parseSTL(buf); upload(pos, name); sotos.window.setTitle("Visor 3D · " + name).catch(() => {}); } catch (e) { ap.toast("No se pudo leer el modelo: " + e.message, 4000); } }
+$("#pick").onclick = async () => { try { const [f] = await sotos.files.pick({ exts: ["stl", "obj"], title: "Abrir un modelo 3D" }); if (f) load(await (await sotos.files.read(f)).arrayBuffer(), f.name); } catch (e) { ap.toast(e.message); } };
+document.addEventListener("dragover", (e) => { e.preventDefault(); $("#stage").classList.add("drop"); }); document.addEventListener("dragleave", () => $("#stage").classList.remove("drop"));
+document.addEventListener("drop", async (e) => { e.preventDefault(); $("#stage").classList.remove("drop"); const f = [...e.dataTransfer.files].find(x => /\.(stl|obj)$/i.test(x.name)); if (f) load(await f.arrayBuffer(), f.name); });
+(async () => { await ap.ready; let opened = false; sotos.on("open", async (f) => { opened = true; load(await (await sotos.files.read(f)).arrayBuffer(), f.name); }); setTimeout(() => { if (!opened && !mesh) upload(knot(), "Nudo de muestra"); }, 150); })();
+</script>
+</body>
+</html>

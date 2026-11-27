@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Claves</title>
+<!-- Sotos — Claves: gestor de contraseñas cifrado con SOTO (scrypt + AES-256-GCM) · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .gate { height: 100%; display: grid; place-items: center; padding: 20px; }
+  .gate .ap-card { width: min(380px, 100%); padding: 26px; display: grid; gap: 12px; text-align: center; }
+  .gate .lockico { width: 64px; height: 64px; margin: 0 auto; border-radius: 16px; display: grid; place-items: center; font-size: 30px; background: color-mix(in srgb, var(--accent) 14%, var(--panel-2)); }
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 320px minmax(0, 1fr); }
+  .list { border-right: 1px solid var(--line); background: var(--panel); overflow: auto; }
+  .list .it { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .list .it:hover { background: var(--panel-2); } .list .it.on { background: color-mix(in srgb, var(--accent) 12%, var(--panel)); }
+  .fav { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; color: #fff; font-weight: 800; flex: 0 0 auto; }
+  .list b { display: block; font-size: 13.5px; } .list small { color: var(--ink-3); font-size: 12px; }
+  .det { overflow: auto; padding: 20px 26px; }
+  .field { display: grid; gap: 4px; margin-bottom: 14px; } .field > span { font-size: 12px; color: var(--ink-3); }
+  .val { display: flex; gap: 6px; align-items: center; } .val .ap-in { flex: 1; font-family: var(--mono); }
+  .health { display: flex; gap: 10px; flex-wrap: wrap; margin: 4px 0 14px; } .health span { font-size: 12px; padding: 3px 8px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); }
+  .health .bad { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, transparent); }
+  .gen { display: grid; gap: 10px; } .gen .out { font: 600 18px var(--mono); padding: 12px; border-radius: 8px; background: var(--panel-2); word-break: break-all; }
+  .meter { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; } .meter i { display: block; height: 100%; }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar" id="bar" hidden>
+    <h1>Claves</h1><input class="ap-in" id="q" placeholder="Buscar" style="width:200px">
+    <span class="sp"></span>
+    <button class="ap-btn" id="genBtn">Generador</button>
+    <button class="ap-btn" id="more">Respaldo</button>
+    <button class="ap-btn" id="lock">Cerrar</button>
+    <button class="ap-btn primary" id="add">+ Nueva</button>
+  </div>
+  <div class="gate" id="gate"></div>
+  <div class="body" id="main" hidden><div class="list" id="list"></div><div class="det" id="det"></div></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script src="../comun/soto.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const enc = new TextEncoder(), dec = new TextDecoder();
+let vault = null, master = null, sel = null, idleT = null;   // solo en memoria mientras está abierta
+const b64 = (u) => { let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+const unb64 = (s) => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+const hue = (s) => { let h = 0; for (const ch of s || "?") h = (h * 31 + ch.charCodeAt(0)) % 360; return h; };
+/* la bóveda es un .soto con un solo archivo (claves.json), cifrado con la clave maestra */
+async function seal() { const bytes = await SotoCrypto.write([{ name: "claves.json", data: enc.encode(JSON.stringify(vault)) }], master, { comment: "Bóveda de Claves (Sotos)" }); await ap.store.set("boveda", b64(bytes)); }
+async function unseal(pw, stored) { const a = await SotoCrypto.read(unb64(stored), pw); return JSON.parse(dec.decode(await a.extract(a.entries[0]))); }
+function bump() { clearTimeout(idleT); idleT = setTimeout(() => lockNow("Se cerró sola tras 5 minutos sin uso"), 5 * 60_000); }
+["mousemove", "keydown", "click"].forEach(ev => document.addEventListener(ev, () => vault && bump()));
+
+/* ---------- entrar ---------- */
+async function gate() {
+  if (!SotoCrypto.available) { $("#gate").innerHTML = `<div class="ap-card"><div class="lockico">&#128274;</div><h2 style="margin:0">Hace falta una conexión segura</h2><div class="ap-muted" style="font-size:13px">El navegador solo permite cifrar cuando entras a Sotos con <b>HTTPS</b> o desde el mismo equipo. Por una dirección <b>http://</b> de la red, Claves no puede abrir tu bóveda.</div></div>`; return; }
+  $("#bar").hidden = true; $("#main").hidden = true; $("#gate").hidden = false;
+  const stored = await ap.store.get("boveda");
+  $("#gate").innerHTML = `<div class="ap-card"><div class="lockico">&#128273;</div><h2 style="margin:0">${stored ? "Claves" : "Crea tu bóveda"}</h2>
+    <div class="ap-muted" style="font-size:13px">${stored ? "Escribe tu clave maestra." : "Tus contraseñas se cifran con el sistema de SOTO (scrypt + AES-256-GCM) usando una clave maestra que solo tú conoces. <b>Si la olvidas, no hay forma de recuperarlas.</b>"}</div>
+    <input class="ap-in" type="password" id="m1" placeholder="Clave maestra" autocomplete="${stored ? "current-password" : "new-password"}">
+    ${stored ? "" : '<input class="ap-in" type="password" id="m2" placeholder="Repítela" autocomplete="new-password">'}
+    <button class="ap-btn primary" id="go">${stored ? "Abrir" : "Crear bóveda"}</button><div class="ap-faint" id="gs"></div></div>`;
+  $("#m1").focus();
+  const go = async () => {
+    const p = $("#m1").value; if (!p) return;
+    if (!stored) { if (p.length < 10) return ap.toast("La clave maestra debe tener al menos 10 caracteres"); if (p !== $("#m2").value) return ap.toast("No coinciden"); }
+    $("#go").disabled = true; $("#gs").textContent = "Derivando la clave…";
+    try { if (stored) vault = await unseal(p, stored); else { vault = { items: [], created: Date.now() }; master = p; await seal(); } master = p; bump(); app(); }
+    catch (e) { ap.toast(e.code === "password" ? "Clave maestra incorrecta" : e.message); $("#go").disabled = false; $("#gs").textContent = ""; $("#m1").select(); }
+  };
+  $("#go").onclick = go; $("#gate").querySelectorAll("input").forEach(i => i.onkeydown = (e) => { if (e.key === "Enter") go(); });
+}
+function lockNow(msg) { vault = null; master = null; sel = null; clearTimeout(idleT); gate(); if (msg) ap.toast(msg); }
+
+/* ---------- lista y detalle ---------- */
+function health() { const ps = vault.items.map(i => i.pass).filter(Boolean); const reused = ps.filter((p, k) => ps.indexOf(p) !== k).length; const weak = vault.items.filter(i => i.pass && score(i.pass) < 3).length; return { reused, weak }; }
+function app() { $("#gate").hidden = true; $("#bar").hidden = false; $("#main").hidden = false; renderList(); renderDet(); }
+function renderList() {
+  const q = $("#q").value.toLowerCase(), items = vault.items.filter(i => !q || [i.title, i.user, i.url, i.notes].join(" ").toLowerCase().includes(q)).sort((a, b) => a.title.localeCompare(b.title, "es"));
+  $("#list").innerHTML = items.length ? items.map(i => `<div class="it ${sel === i.id ? "on" : ""}" data-id="${i.id}"><span class="fav" style="background:hsl(${hue(i.title)} 45% 40%)">${ap.esc((i.title || "?")[0].toUpperCase())}</span><span style="min-width:0"><b>${ap.esc(i.title)}</b><small>${ap.esc(i.user || i.url || "")}</small></span></div>`).join("")
+    : `<div class="ap-empty" style="height:auto;padding:30px"><div><b>${q ? "Sin resultados" : "Aún no hay claves"}</b><p class="ap-muted">Agrega tu primera con «+ Nueva».</p></div></div>`;
+}
+$("#list").onclick = (e) => { const it = e.target.closest(".it"); if (it) { sel = it.dataset.id; renderList(); renderDet(); } };
+$("#q").oninput = renderList;
+function renderDet() {
+  const h = health(), i = vault.items.find(x => x.id === sel);
+  const hh = `<div class="health"><span>${vault.items.length} clave(s)</span><span class="${h.weak ? "bad" : ""}">${h.weak} débil(es)</span><span class="${h.reused ? "bad" : ""}">${h.reused} repetida(s)</span><span>Cifrada con SOTO · AES-256-GCM</span></div>`;
+  if (!i) { $("#det").innerHTML = hh + `<div class="ap-muted">Elige una clave de la lista o crea una nueva.</div>`; return; }
+  const row = (k, label, v, secret) => `<div class="field"><span>${label}</span><div class="val"><input class="ap-in" readonly type="${secret ? "password" : "text"}" value="${ap.esc(v || "")}" id="f-${k}">
+    ${secret ? `<button class="ap-btn icon" title="Mostrar" data-show="f-${k}">&#128065;</button>` : ""}${v ? `<button class="ap-btn" data-copy="${k}">Copiar</button>` : ""}</div></div>`;
+  $("#det").innerHTML = hh + `<h2 style="margin:0 0 14px">${ap.esc(i.title)}</h2>${row("user", "Usuario", i.user)}${row("pass", "Contraseña", i.pass, true)}
+    ${i.pass ? `<div class="meter" style="margin:-8px 0 14px"><i style="width:${score(i.pass) * 20}%;background:${score(i.pass) < 3 ? "var(--bad)" : score(i.pass) < 4 ? "#c9902a" : "var(--ok)"}"></i></div>` : ""}
+    ${i.url ? `<div class="field"><span>Sitio</span><a href="${/^https?:\/\//.test(i.url) ? ap.esc(i.url) : "https://" + ap.esc(i.url)}" target="_blank" rel="noopener noreferrer">${ap.esc(i.url)}</a></div>` : ""}
+    ${i.notes ? `<div class="field"><span>Notas</span><div style="white-space:pre-wrap">${ap.esc(i.notes)}</div></div>` : ""}
+    <div class="ap-faint">Cambiada ${new Date(i.updated).toLocaleString("es")}</div>
+    <div class="row" style="display:flex;gap:8px;margin-top:14px"><button class="ap-btn" id="ed">Editar</button><button class="ap-btn" id="del" style="color:var(--bad)">Eliminar</button></div>`;
+  $("#det").querySelectorAll("[data-show]").forEach(b => b.onclick = () => { const f = $("#" + b.dataset.show); f.type = f.type === "password" ? "text" : "password"; });
+  $("#det").querySelectorAll("[data-copy]").forEach(b => b.onclick = () => copy(i[b.dataset.copy]));
+  $("#ed").onclick = () => edit(i); $("#del").onclick = async () => { if (!(await ap.confirm(`¿Eliminar «${i.title}»?`))) return; vault.items = vault.items.filter(x => x.id !== i.id); sel = null; await seal(); renderList(); renderDet(); };
+}
+/* copiar: el portapapeles se limpia solo a los 30 s */
+let clipT; async function copy(text) {
+  const ok = await navigator.clipboard.writeText(text).then(() => true).catch(() => { const t = document.createElement("textarea"); t.value = text; document.body.appendChild(t); t.select(); const r = document.execCommand("copy"); t.remove(); return r; });
+  if (!ok) return ap.toast("No se pudo copiar"); ap.toast("Copiado · se borra en 30 s"); clearTimeout(clipT);
+  clipT = setTimeout(() => navigator.clipboard.writeText("").catch(() => {}), 30_000);
+}
+function score(p) { let s = 0; if (p.length >= 10) s++; if (p.length >= 16) s++; if (/[a-z]/.test(p) && /[A-Z]/.test(p)) s++; if (/\d/.test(p)) s++; if (/[^\w\s]/.test(p) || p.split(/[\s-]/).length >= 4) s++; return s; }
+async function edit(i) {
+  const isNew = !i; i = i || { id: Date.now().toString(36) + rnd(1e9).toString(36), title: "", user: "", pass: gen({ len: 20, sym: true }), url: "", notes: "" };
+  const r = await ap.ask({ title: isNew ? "Nueva clave" : "Editar", fields: [{ key: "title", label: "Nombre", value: i.title, placeholder: "Banco, correo, red social…" }, { key: "user", label: "Usuario o correo", value: i.user }, { key: "pass", label: "Contraseña (ya va una generada)", value: i.pass }, { key: "url", label: "Sitio (opcional)", value: i.url }, { key: "notes", label: "Notas", type: "textarea", rows: 3, value: i.notes }], ok: "Guardar" });
+  if (!r) return; if (!r.title.trim()) return ap.toast("Ponle un nombre");
+  const n = { ...i, ...r, title: r.title.trim(), updated: Date.now() }; vault.items = isNew ? [...vault.items, n] : vault.items.map(x => x.id === n.id ? n : x); sel = n.id; await seal(); renderList(); renderDet();
+}
+$("#add").onclick = () => edit(); $("#lock").onclick = () => lockNow();
+/* ---------- generador ---------- */
+const WORDS = "arepa cafe lulo mango salsa cumbia condor paramo llano selva nevado orquidea tiple marimba guadua bambuco cocora tolima boyaca caribe pacifico colibri tucan danta chiguiro jaguar frailejon cascada laguna volcan cordillera guayaba papaya maracuya mora panela tinto oblea natilla bunuelo tamal ajiaco sancocho changua almojabana pandebono".split(" ");
+function rnd(n) { return crypto.getRandomValues(new Uint32Array(1))[0] % n; }
+function gen(o) { if (o.words) return Array.from({ length: o.words }, () => WORDS[rnd(WORDS.length)]).join("-") + "-" + (rnd(90) + 10);
+  const sets = ["abcdefghijkmnopqrstuvwxyz", "ABCDEFGHJKLMNPQRSTUVWXYZ", "23456789", ...(o.sym ? ["!@#$%&*?-_=+"] : [])]; const all = sets.join("");
+  let p; do { p = Array.from({ length: o.len }, () => all[rnd(all.length)]).join(""); } while (!sets.every(s => [...p].some(c => s.includes(c)))); return p; }
+$("#genBtn").onclick = () => { const m = document.createElement("div"); m.className = "ap-modal"; let o = { len: 20, sym: true, words: 0 };
+  m.innerHTML = `<div class="ap-card gen"><h2>Generador</h2><div class="out" id="go"></div><div class="meter"><i id="gm"></i></div>
+    <label class="ap-field">Largo: <b id="gl">20</b><input type="range" min="8" max="64" value="20" id="glen"></label>
+    <label><input type="checkbox" id="gsym" checked> Símbolos</label><label><input type="checkbox" id="gw"> Frase de palabras (más fácil de recordar)</label>
+    <div class="row" style="display:flex;gap:8px;justify-content:flex-end"><button class="ap-btn" id="gx">Cerrar</button><button class="ap-btn" id="gr">Otra</button><button class="ap-btn primary" id="gc">Copiar</button></div></div>`;
+  document.body.appendChild(m); const draw = () => { const p = gen(o); $("#go").textContent = p; const s = score(p); $("#gm").style.width = s * 20 + "%"; $("#gm").style.background = s < 3 ? "var(--bad)" : s < 4 ? "#c9902a" : "var(--ok)"; };
+  $("#glen").oninput = (e) => { o.len = +e.target.value; $("#gl").textContent = o.len; draw(); }; $("#gsym").onchange = (e) => { o.sym = e.target.checked; draw(); }; $("#gw").onchange = (e) => { o.words = e.target.checked ? 5 : 0; draw(); };
+  $("#gr").onclick = draw; $("#gc").onclick = () => copy($("#go").textContent); $("#gx").onclick = () => m.remove(); draw(); };
+/* ---------- respaldo: .soto que también abre SOTO de escritorio ---------- */
+$("#more").onclick = async () => {
+  const r = await ap.ask({ title: "Respaldo", text: "La copia es un .soto cifrado con tu clave maestra; también lo abre SOTO de escritorio.", fields: [{ key: "a", label: "¿Qué quieres hacer?", type: "select", value: "export", options: [["export", "Guardar una copia (.soto)"], ["import", "Traer claves de una copia .soto"], ["master", "Cambiar la clave maestra"]] }], ok: "Seguir" });
+  if (!r) return;
+  if (r.a === "export") { const bytes = await SotoCrypto.write([{ name: "claves.json", data: enc.encode(JSON.stringify(vault, null, 1)) }], master, { comment: "Respaldo de Claves (Sotos)" }); ap.save(`Claves ${new Date().toISOString().slice(0, 10)}.soto`, new Blob([bytes])); }
+  if (r.a === "import") { try { const [f] = await sotos.files.pick({ exts: ["soto"], title: "Copia de Claves" }); if (!f) return; const p = await ap.ask({ title: "Clave de esa copia", fields: [{ key: "p", label: "Clave maestra con la que se guardó", type: "password" }], ok: "Abrir" }); if (!p) return;
+      const a = await SotoCrypto.read(new Uint8Array(await (await sotos.files.read(f)).arrayBuffer()), p.p); const v = JSON.parse(dec.decode(await a.extract(a.entries.find(e => e.name === "claves.json") || a.entries[0])));
+      let n = 0; for (const it of v.items || []) if (!vault.items.some(x => x.id === it.id)) { vault.items.push(it); n++; } await seal(); renderList(); renderDet(); ap.toast(`${n} clave(s) nuevas importadas`); } catch (e) { ap.toast(e.code === "password" ? "Clave incorrecta" : e.message); } }
+  if (r.a === "master") { const p = await ap.ask({ title: "Cambiar la clave maestra", fields: [{ key: "o", label: "Clave actual", type: "password" }, { key: "n", label: "Nueva (mínimo 10)", type: "password" }, { key: "m", label: "Repítela", type: "password" }], ok: "Cambiar" });
+    if (!p) return; if (p.o !== master) return ap.toast("La clave actual no es esa"); if (p.n.length < 10 || p.n !== p.m) return ap.toast("La nueva debe tener 10 caracteres o más y coincidir"); master = p.n; await seal(); ap.toast("Clave maestra cambiada"); }
+};
+(async () => { await ap.ready; gate(); })();
+</script>
+</body>
+</html>

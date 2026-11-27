@@ -126,7 +126,7 @@ $("#pin").onclick = async () => {
   if (!r) return; if (!/^\d{4,8}$/.test(r.p) || r.p !== r.q) return ap.toast("El PIN debe tener 4 a 8 números y coincidir"); cfg.pin = await sha(r.p); await ap.store.set("cfg", cfg); ap.toast("Listo: el diario pedirá el PIN");
 };
 function askPin() { return new Promise(ok => { const d = document.createElement("div"); d.className = "lock"; d.innerHTML = `<div class="ap-card"><div style="font-size:40px">&#128274;</div><b>Diario con PIN</b><input class="ap-in" id="pinin" type="password" inputmode="numeric" placeholder="PIN" style="text-align:center;font-size:20px;letter-spacing:.3em"><button class="ap-btn primary" id="pinok">Abrir</button></div>`;
-  document.body.appendChild(d); const go = async () => { if (await sha($("#pinin").value) === cfg.pin) { d.remove(); ok(); } else { $("#pinin").value = ""; ap.toast("PIN incorrecto"); } }; $("#pinok").onclick = go; $("#pinin").onkeydown = (e) => e.key === "Enter" && go(); $("#pinin").focus(); }); }
+  document.body.appendChild(d); const go = async () => { if (await sha($("#pinin").value) === cfg.pin) { d.remove(); ok(); } else { $("#pinin").value = ""; ap.toast("PIN incorrecto"); } }; $("#pinok").onclick = go; $("#pinin").onkeydown = (e) => { if (e.key === "Enter") go(); }; $("#pinin").focus(); }); }
 (async () => { await ap.ready; cfg = { ...cfg, ...((await ap.store.get("cfg")) || {}) }; if (cfg.pin) await askPin(); await renderCal(); renderEntry(); })();
 </script>
 </body>

@@ -508,6 +508,9 @@ function SdkHost({ app, fileId, setWinTitle, closeWin }) {
       "files.saveIn": async ({ folder, name, data, type }) => { need("files.write"); const f = own(folder); if (f instanceof File || f.type !== "folder") throw new Error("Eso no es una carpeta que la persona eligió");
         const dir = vfs.node(f.id); if (!dir) throw new Error("La carpeta ya no existe"); const id = await vfs.create(dir.id, vfs.uniqueName(dir, String(name || "archivo").replace(/[\\/:*?"<>|]/g, "_").slice(0, 180)), toBlob(data, type)); return grant(vfs.node(id)); },
       "files.write": async ({ id, data }) => { need("files.write"); const g = own(id); if (g instanceof File) throw new Error("Ese archivo vino del equipo: usa files.save para guardarlo en Sotos"); await vfs.write(g.id, toBlob(data)); return meta(vfs.node(g.id) || g); },
+      // internet (permiso «net»): el servidor hace la petición, solo a los sitios que la app declaró
+      "net.fetch": async (o) => { need("net"); if (vfs.getState().mode !== "cloud") throw Object.assign(new Error("Para conectarse a internet, la app necesita una cuenta de Sotos"), { code: "offline" });
+        return api("POST", `apps/${app.id}/fetch`, { url: o.url, method: o.method, headers: o.headers, body: o.body }); },
       notify: async ({ title, body }) => { need("notify"); if (vfs.getState().mode === "cloud") await api("POST", `apps/${app.id}/notify`, { title, body }); else toast(`${app.name}: ${title}`, { icon: app.icon }); return true; },
       "storage.get": async ({ key }) => { need("storage"); return (await api_("GET", key)).value; },
       "storage.set": async ({ key, value }) => { need("storage"); await api_("PUT", key, { value }); return true; },
@@ -592,7 +595,7 @@ function StoreDetail({ a, cloud, onClose, onToggle, onOpen }) {
         <div><div className="faint" style={{ fontSize: 12 }}>{a.cat} · por {a.ext ? (a.author || "autor desconocido") : "Sebastian Sotomontes"}{a.version ? ` · versión ${a.version}` : ""}</div><div style={{ fontSize: 13.5, lineHeight: 1.55, marginTop: 4 }}>{a.desc}</div>
           {a.homepage && <a href={a.homepage} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12.5 }}>Página del autor</a>}</div></div>
       {a.ext && <><div className="side-label" style={{ marginTop: 14 }}>Esta app puede</div>
-        <div className="store-perms">{(a.permissions || []).length ? a.permissions.map(p => <div key={p}><Ic name={{ "files.read": "file_open", "files.write": "save", notify: "notifications", storage: "database", user: "person" }[p] || "check"} size={16} /> {permissionNames()[p] || p}</div>)
+        <div className="store-perms">{(a.permissions || []).length ? a.permissions.map(p => <div key={p}><Ic name={{ "files.read": "file_open", "files.write": "save", notify: "notifications", storage: "database", user: "person", net: "public" }[p] || "check"} size={16} /> {permissionNames()[p] || (p === "net" ? "Conectarse a internet, solo a los sitios que declara" : p)}{p === "net" && a.hosts?.length ? <span className="faint">: {a.hosts.join(", ")}</span> : null}</div>)
           : <div><Ic name="lock" size={16} /> Nada fuera de su ventana: no pide permisos</div>}
           <div className="faint"><Ic name="shield" size={16} /> Corre aislada: no ve tu sesión, tus otros archivos ni tus datos.{a.opens?.length ? ` Abre archivos ${a.opens.map(e => "." + e).join(", ")} desde Archivos («Abrir con»).` : ""}</div></div></>}
       <div className="side-label" style={{ marginTop: 16 }}>Reseñas</div>

@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editor de fotos</title>
+<!-- Sotos — Editor de fotos · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 290px; }
+  .stage { position: relative; display: grid; place-items: center; overflow: hidden; background: repeating-conic-gradient(var(--panel-2) 0 25%, var(--bg) 0 50%) 0 0 / 22px 22px; }
+  #cv { max-width: calc(100% - 30px); max-height: calc(100% - 30px); box-shadow: 0 12px 34px -14px rgba(0,0,0,.55); }
+  .crop { position: absolute; border: 1.5px solid #fff; box-shadow: 0 0 0 9999px rgba(0,0,0,.45); cursor: move; }
+  .crop i { position: absolute; width: 14px; height: 14px; background: #fff; border-radius: 3px; } .crop i.nw { left: -7px; top: -7px; cursor: nwse-resize; } .crop i.se { right: -7px; bottom: -7px; cursor: nwse-resize; }
+  .side { background: var(--panel); border-left: 1px solid var(--line); overflow: auto; padding: 12px 14px; display: grid; gap: 14px; align-content: start; }
+  .side h3 { margin: 0 0 6px; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .sl { display: grid; grid-template-columns: 92px 1fr 34px; gap: 8px; align-items: center; font-size: 12.5px; } .sl input { accent-color: var(--accent); } .sl span:last-child { text-align: right; font: 11.5px var(--mono); color: var(--ink-3); }
+  .filters { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; } .filters button { border: 2px solid transparent; border-radius: 8px; padding: 0; background: none; cursor: pointer; font-size: 11.5px; color: var(--ink-2); }
+  .filters canvas { width: 100%; aspect-ratio: 1; border-radius: 6px; display: block; object-fit: cover; } .filters button.on { border-color: var(--accent); }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; } .ap-btn.sm { height: 28px; padding: 0 9px; font-size: 12.5px; }
+  .cmp { position: absolute; left: 14px; top: 14px; }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Editor de fotos</h1><button class="ap-btn primary" id="pick">Abrir foto</button><button class="ap-btn ghost icon" id="undo" title="Deshacer (Ctrl+Z)">&#8630;</button><button class="ap-btn ghost icon" id="redo" title="Rehacer (Ctrl+Y)">&#8631;</button>
+    <span class="sp"></span><span class="ap-faint" id="dims"></span><button class="ap-btn" id="resetAll">Quitar cambios</button><button class="ap-btn primary" id="save">Guardar copia</button></div>
+  <div class="body"><div class="stage" id="stage"><canvas id="cv"></canvas><button class="ap-btn sm cmp" id="cmp" title="Mantén pulsado para ver la original">Original</button></div>
+    <div class="side">
+      <div><h3>Filtros</h3><div class="filters" id="filters"></div></div>
+      <div><h3>Ajustes</h3><div id="sliders" style="display:grid;gap:8px"></div></div>
+      <div><h3>Recortar y girar</h3><div class="row"><button class="ap-btn sm" data-crop="0">Libre</button><button class="ap-btn sm" data-crop="1">1:1</button><button class="ap-btn sm" data-crop="1.3333">4:3</button><button class="ap-btn sm" data-crop="1.7778">16:9</button><button class="ap-btn sm" data-crop="0.8">4:5</button></div>
+        <div class="row" style="margin-top:6px"><button class="ap-btn sm" id="rotL">↺ 90°</button><button class="ap-btn sm" id="rotR">↻ 90°</button><button class="ap-btn sm" id="flip">Espejo</button><button class="ap-btn sm primary" id="applyCrop" hidden>Aplicar recorte</button></div></div>
+    </div></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s), cv = $("#cv"), g = cv.getContext("2d");
+const SL = [["exp", "Exposición", -100, 100, 0], ["con", "Contraste", -100, 100, 0], ["sat", "Saturación", -100, 100, 0], ["temp", "Temperatura", -100, 100, 0], ["hue", "Tono", -180, 180, 0], ["sharp", "Nitidez", 0, 100, 0], ["vig", "Viñeta", 0, 100, 0], ["fade", "Desvanecer", 0, 100, 0]];
+const FILTERS = { "Natural": {}, "Blanco y negro": { sat: -100, con: 15 }, "Sepia": { sat: -100, temp: 60, con: 5, fade: 10 }, "Película": { con: -12, sat: -15, temp: 18, fade: 28, vig: 30 }, "Cálido": { temp: 45, sat: 10 }, "Frío": { temp: -45, con: 8 }, "Dramático": { con: 40, sat: -20, vig: 55, exp: -8 }, "Vivo": { sat: 45, con: 15, sharp: 30 }, "Páramo": { temp: -12, sat: -25, con: 10, fade: 15, hue: -8 } };
+let base = null, adj = {}, filt = "Natural", hist = [], fut = [], name = "foto";
+const def = () => Object.fromEntries(SL.map(s => [s[0], s[4]]));
+$("#sliders").innerHTML = SL.map(([k, l, a, b]) => `<label class="sl"><span>${l}</span><input type="range" min="${a}" max="${b}" data-k="${k}"><span id="v-${k}"></span></label>`).join("");
+/* aplica los ajustes a un lienzo de destino (vista previa o tamaño completo) */
+function render(src, dst, a) {
+  const W = dst.width, H = dst.height, c = dst.getContext("2d");
+  const f = [`brightness(${1 + a.exp / 100})`, `contrast(${1 + a.con / 100})`, `saturate(${1 + a.sat / 100})`, a.hue ? `hue-rotate(${a.hue}deg)` : ""].join(" ");
+  c.save(); c.filter = f; c.drawImage(src, 0, 0, W, H); c.restore();
+  if (a.temp) { c.save(); c.globalCompositeOperation = "soft-light"; c.globalAlpha = Math.abs(a.temp) / 100 * .55; c.fillStyle = a.temp > 0 ? "#ff9a3c" : "#3c8cff"; c.fillRect(0, 0, W, H); c.restore(); }
+  if (a.fade) { c.save(); c.globalCompositeOperation = "lighten"; c.globalAlpha = a.fade / 100 * .5; c.fillStyle = "#3a3530"; c.fillRect(0, 0, W, H); c.restore(); }
+  if (a.sharp) sharpen(c, W, H, a.sharp / 100);
+  if (a.vig) { const gr = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .25, W / 2, H / 2, Math.hypot(W, H) / 2); gr.addColorStop(0, "rgba(0,0,0,0)"); gr.addColorStop(1, `rgba(0,0,0,${a.vig / 100 * .75})`); c.fillStyle = gr; c.fillRect(0, 0, W, H); }
+}
+function sharpen(c, W, H, amt) { // máscara de enfoque 3×3
+  const img = c.getImageData(0, 0, W, H), d = img.data, o = new Uint8ClampedArray(d), w4 = W * 4;
+  for (let y = 1; y < H - 1; y++) for (let x = 1; x < W - 1; x++) { const i = y * w4 + x * 4; for (let k = 0; k < 3; k++) { const v = 5 * o[i + k] - o[i + k - 4] - o[i + k + 4] - o[i + k - w4] - o[i + k + w4]; d[i + k] = o[i + k] + (v - o[i + k]) * amt; } }
+  c.putImageData(img, 0, 0);
+}
+const preview = () => { if (!base) return; const s = Math.min(1, 1600 / Math.max(base.width, base.height)); cv.width = Math.round(base.width * s); cv.height = Math.round(base.height * s); render(base, cv, adj); $("#dims").textContent = `${base.width} × ${base.height} px`; };
+let rt; const schedule = () => { cancelAnimationFrame(rt); rt = requestAnimationFrame(preview); };
+function sync() { for (const [k] of SL) { $(`[data-k="${k}"]`).value = adj[k]; $("#v-" + k).textContent = adj[k]; } document.querySelectorAll("#filters button").forEach(b => b.classList.toggle("on", b.dataset.f === filt)); }
+const snap = () => { hist.push({ base, adj: { ...adj }, filt }); if (hist.length > 40) hist.shift(); fut = []; };
+$("#sliders").addEventListener("pointerdown", (e) => { if (e.target.dataset.k) snap(); });
+$("#sliders").addEventListener("input", (e) => { const k = e.target.dataset.k; if (!k) return; adj[k] = +e.target.value; $("#v-" + k).textContent = adj[k]; schedule(); });
+function thumbs() { const t = document.createElement("canvas"), s = 96 / Math.max(base.width, base.height); t.width = Math.round(base.width * s); t.height = Math.round(base.height * s); t.getContext("2d").drawImage(base, 0, 0, t.width, t.height);
+  $("#filters").innerHTML = ""; for (const [n, a] of Object.entries(FILTERS)) { const b = document.createElement("button"); b.dataset.f = n; const c = document.createElement("canvas"); c.width = t.width; c.height = t.height; render(t, c, { ...def(), ...a }); b.append(c, n); b.onclick = () => { snap(); filt = n; adj = { ...def(), ...a }; sync(); schedule(); }; $("#filters").appendChild(b); } sync(); }
+/* girar, espejo, recorte: cambian la imagen base */
+const transform = (fn) => { snap(); const c = document.createElement("canvas"); fn(c, c.getContext("2d")); base = c; thumbs(); schedule(); };
+$("#rotL").onclick = () => transform((c, x) => { c.width = base.height; c.height = base.width; x.translate(0, c.height); x.rotate(-Math.PI / 2); x.drawImage(base, 0, 0); });
+$("#rotR").onclick = () => transform((c, x) => { c.width = base.height; c.height = base.width; x.translate(c.width, 0); x.rotate(Math.PI / 2); x.drawImage(base, 0, 0); });
+$("#flip").onclick = () => transform((c, x) => { c.width = base.width; c.height = base.height; x.translate(c.width, 0); x.scale(-1, 1); x.drawImage(base, 0, 0); });
+let crop = null, cropEl = null, ratio = 0;
+document.querySelectorAll("[data-crop]").forEach(b => b.onclick = () => { ratio = +b.dataset.crop; const r = cv.getBoundingClientRect(), sr = $("#stage").getBoundingClientRect();
+  let w = r.width * .8, h = ratio ? w / ratio : r.height * .8; if (h > r.height * .9) { h = r.height * .9; w = ratio ? h * ratio : w; }
+  crop = { x: r.left - sr.left + (r.width - w) / 2, y: r.top - sr.top + (r.height - h) / 2, w, h }; drawCrop(); $("#applyCrop").hidden = false; });
+function drawCrop() { if (!cropEl) { cropEl = document.createElement("div"); cropEl.className = "crop"; cropEl.innerHTML = '<i class="nw"></i><i class="se"></i>'; $("#stage").appendChild(cropEl); cropDrag(); } Object.assign(cropEl.style, { left: crop.x + "px", top: crop.y + "px", width: crop.w + "px", height: crop.h + "px" }); }
+function cropDrag() { let d = null; cropEl.addEventListener("pointerdown", (e) => { d = { mode: e.target.classList.contains("se") ? "se" : e.target.classList.contains("nw") ? "nw" : "move", x: e.clientX, y: e.clientY, c: { ...crop } }; cropEl.setPointerCapture(e.pointerId); });
+  cropEl.addEventListener("pointermove", (e) => { if (!d) return; const dx = e.clientX - d.x, dy = e.clientY - d.y, c = d.c;
+    if (d.mode === "move") crop = { ...c, x: c.x + dx, y: c.y + dy };
+    else if (d.mode === "se") { let w = Math.max(30, c.w + dx), h = ratio ? w / ratio : Math.max(30, c.h + dy); crop = { ...c, w, h }; }
+    else { let w = Math.max(30, c.w - dx), h = ratio ? w / ratio : Math.max(30, c.h - dy); crop = { x: c.x + c.w - w, y: c.y + c.h - h, w, h }; } drawCrop(); });
+  cropEl.addEventListener("pointerup", () => d = null); }
+$("#applyCrop").onclick = () => { const r = cv.getBoundingClientRect(), sr = $("#stage").getBoundingClientRect(), s = base.width / r.width;
+  const x = Math.max(0, (crop.x - (r.left - sr.left)) * s), y = Math.max(0, (crop.y - (r.top - sr.top)) * s), w = Math.min(base.width - x, crop.w * s), h = Math.min(base.height - y, crop.h * s);
+  transform((c, ctx) => { c.width = Math.round(w); c.height = Math.round(h); ctx.drawImage(base, -x, -y); }); cropEl.remove(); cropEl = null; crop = null; $("#applyCrop").hidden = true; };
+/* comparar, deshacer, guardar */
+$("#cmp").onpointerdown = () => { if (base) { const c = cv.getContext("2d"); c.drawImage(base, 0, 0, cv.width, cv.height); } }; $("#cmp").onpointerup = $("#cmp").onpointerleave = schedule;
+const restore = (s) => { base = s.base; adj = s.adj; filt = s.filt; thumbs(); schedule(); };
+$("#undo").onclick = () => { const s = hist.pop(); if (!s) return; fut.push({ base, adj: { ...adj }, filt }); restore(s); };
+$("#redo").onclick = () => { const s = fut.pop(); if (!s) return; hist.push({ base, adj: { ...adj }, filt }); restore(s); };
+$("#resetAll").onclick = () => { snap(); adj = def(); filt = "Natural"; sync(); schedule(); };
+document.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); $("#undo").click(); } if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); $("#redo").click(); } });
+$("#save").onclick = async () => { if (!base) return; const r = await ap.ask({ title: "Guardar una copia", text: "La foto original no se toca.", fields: [{ key: "f", label: "Formato", type: "select", value: "jpeg", options: [["jpeg", "JPG (fotos, liviano)"], ["png", "PNG (sin pérdida)"], ["webp", "WebP (moderno, liviano)"]] }, { key: "q", label: "Calidad (JPG y WebP)", type: "select", value: "0.9", options: [["0.95", "Máxima"], ["0.9", "Alta"], ["0.8", "Media"], ["0.65", "Liviana"]] }, { key: "m", label: "Tamaño", type: "select", value: "0", options: [["0", `Original (${base.width} px)`], ["2048", "Hasta 2048 px"], ["1280", "Hasta 1280 px (para compartir)"]] }], ok: "Guardar" });
+  if (!r) return; const s = +r.m ? Math.min(1, +r.m / Math.max(base.width, base.height)) : 1, c = document.createElement("canvas"); c.width = Math.round(base.width * s); c.height = Math.round(base.height * s); render(base, c, adj);
+  c.toBlob(b => ap.save(`${name} (editada).${r.f === "jpeg" ? "jpg" : r.f}`, b), "image/" + r.f, +r.q); };
+async function open(blob, n) { try { const bmp = await createImageBitmap(blob); const c = document.createElement("canvas"); c.width = bmp.width; c.height = bmp.height; c.getContext("2d").drawImage(bmp, 0, 0); base = c; name = n.replace(/\.[^.]+$/, ""); hist = []; fut = []; adj = def(); filt = "Natural"; thumbs(); preview(); sotos.window.setTitle("Editor · " + n).catch(() => {}); } catch (e) { ap.toast("No se pudo abrir: " + e.message); } }
+$("#pick").onclick = async () => { try { const [f] = await sotos.files.pick({ types: ["img"], exts: ["jpg", "jpeg", "png", "webp"], title: "Abrir una foto" }); if (f) open(await sotos.files.read(f), f.name); } catch (e) { ap.toast(e.message); } };
+document.addEventListener("dragover", (e) => e.preventDefault()); document.addEventListener("drop", (e) => { e.preventDefault(); const f = [...e.dataTransfer.files].find(x => /^image\//.test(x.type)); if (f) open(f, f.name); });
+function demo() { const c = document.createElement("canvas"); c.width = 1200; c.height = 800; const x = c.getContext("2d"); const gr = x.createLinearGradient(0, 0, 0, 800); gr.addColorStop(0, "#7fb2d8"); gr.addColorStop(.6, "#e9d3a8"); gr.addColorStop(1, "#5d7a3e"); x.fillStyle = gr; x.fillRect(0, 0, 1200, 800);
+  x.fillStyle = "#f6e7b8"; x.beginPath(); x.arc(900, 220, 70, 0, 7); x.fill(); [["#4c6b4a", 560, 120], ["#3a563a", 620, 90], ["#2c4430", 690, 60]].forEach(([c2, b, a], k) => { x.fillStyle = c2; x.beginPath(); x.moveTo(0, 800); for (let i = 0; i <= 1200; i += 20) x.lineTo(i, b - Math.sin(i / (150 + k * 50) + k) * a); x.lineTo(1200, 800); x.fill(); }); return new Promise(r => c.toBlob(b => r(b), "image/jpeg", .92)); }
+(async () => { await ap.ready; let opened = false; sotos.on("open", async (f) => { opened = true; open(await sotos.files.read(f), f.name); }); setTimeout(async () => { if (!opened && !base) open(await demo(), "muestra.jpg"); }, 150); })();
+</script>
+</body>
+</html>

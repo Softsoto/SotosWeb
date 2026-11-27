@@ -19,6 +19,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
+import dns from "node:dns/promises";
 import { fileURLToPath } from "node:url";
 import { db, now, DATA_DIR } from "./db.mjs";
 import { fail, json, readJson, rateLimit } from "./http.mjs";
@@ -35,7 +36,36 @@ const MAX_ZIP = 60 * 1024 * 1024, MAX_FILES = 3000, MAX_STORAGE = 2 * 1024 * 102
 db.exec(`CREATE TABLE IF NOT EXISTS app_storage (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, app_id TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (user_id, app_id, key));`);
 
 // apps de la casa que corren con el SDK (web/public/apps): sus permisos vienen del catálogo, no de un .zip
-const appById = (id) => listApps().find(a => a.id === id) || (() => { const c = APPS_CASA.find(a => a.id === id && a.sdk !== false); return c && { id: c.id, name: c.name, permissions: c.permissions || [] }; })();
+const appById = (id) => listApps().find(a => a.id === id) || (() => { const c = APPS_CASA.find(a => a.id === id && a.sdk !== false); return c && { id: c.id, name: c.name, permissions: c.permissions || [], hosts: c.hosts || [] }; })();
+
+/* ---------- permiso «net»: Sotos hace la petición por la app ----------
+   Solo HTTPS, solo a los sitios que la app declaró en «hosts», nunca a direcciones privadas
+   (la red de la casa, el propio servidor), con tiempo y tamaño máximos. Así una app puede usar
+   APIs públicas sin pelear con CORS y sin poder tocar nada de la red interna. */
+const NET_MAX = 6 * 1024 * 1024, netCache = new Map();
+const hostAllowed = (host, list) => list.some(h => h.startsWith("*.") ? host === h.slice(2) || host.endsWith(h.slice(1)) : host === h);
+const privateIp = (ip) => /^(10\.|127\.|0\.|169\.254\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.|100\.(6[4-9]|[7-9]\d|1[01]\d|12[0-7])\.|22[4-9]\.|23\d\.|24\d\.|25[0-5]\.)/.test(ip) || /^(::1?$|f[cd][0-9a-f]{2}:|fe80:|::ffff:(10|127|192\.168|169\.254)\.)/i.test(ip);
+async function netFetch(app, b) {
+  let url; try { url = new URL(String(b.url || "")); } catch { fail(400, "Dirección no válida"); }
+  if (url.protocol !== "https:") fail(400, "Solo se permiten direcciones https://");
+  if (url.username || url.password || (url.port && url.port !== "443")) fail(400, "Dirección no permitida");
+  if (!hostAllowed(url.hostname.toLowerCase(), app.hosts || [])) fail(403, `La app no declaró «${url.hostname}» en sus sitios permitidos`);
+  const addrs = await dns.lookup(url.hostname, { all: true }).catch(() => fail(502, "No se encontró el sitio"));
+  if (!addrs.length || addrs.some(a => privateIp(a.address))) fail(403, "Ese sitio apunta a una dirección privada");
+  const method = ["GET", "POST", "PUT", "PATCH", "DELETE"].includes(String(b.method || "GET").toUpperCase()) ? String(b.method || "GET").toUpperCase() : "GET";
+  const headers = {}; for (const [k, v] of Object.entries(b.headers || {})) if (/^[a-z0-9-]{1,40}$/i.test(k) && !/^(host|cookie|connection|content-length|transfer-encoding)$/i.test(k)) headers[k] = String(v).slice(0, 2000);
+  headers["user-agent"] = headers["user-agent"] || "Sotos-App/1 (+https://github.com/Softsoto/SotosWeb)";
+  const key = method === "GET" ? url.href + JSON.stringify(headers) : null, hit = key && netCache.get(key);
+  if (hit && Date.now() - hit.at < 60_000) return hit.data; // la misma consulta en el último minuto
+  let r; try { r = await fetch(url, { method, headers, body: method === "GET" ? undefined : typeof b.body === "string" ? b.body.slice(0, 1_000_000) : b.body ? JSON.stringify(b.body) : undefined, redirect: "manual", signal: AbortSignal.timeout(15_000) }); }
+  catch (e) { fail(502, "No se pudo conectar: " + (e.cause?.code || e.message)); }
+  if (r.status >= 300 && r.status < 400) { const loc = r.headers.get("location"); fail(502, "El sitio redirige a otra dirección" + (loc ? ` (${new URL(loc, url).hostname})` : "")); }
+  const chunks = []; let n = 0; for await (const c of r.body || []) { n += c.length; if (n > NET_MAX) fail(413, "La respuesta pesa más de 6 MB"); chunks.push(c); }
+  const buf = Buffer.concat(chunks), type = r.headers.get("content-type") || "application/octet-stream", textual = /json|text|xml|javascript|csv/i.test(type);
+  const data = { status: r.status, ok: r.ok, type, ...(textual ? { text: buf.toString("utf8") } : { base64: buf.toString("base64") }) };
+  if (key && r.ok) { netCache.set(key, { at: Date.now(), data }); if (netCache.size > 300) netCache.delete(netCache.keys().next().value); }
+  return data;
+}
 export function listApps() {
   if (!fs.existsSync(APPS_DIR)) return [];
   return fs.readdirSync(APPS_DIR).filter(d => ID.test(d)).map(d => { try { return { ...validateManifest(JSON.parse(fs.readFileSync(path.join(APPS_DIR, d, "sotos-app.json"), "utf8"))), installed: fs.statSync(path.join(APPS_DIR, d, "sotos-app.json")).mtimeMs, bytes: dirBytes(path.join(APPS_DIR, d)) }; } catch { return null; } }).filter(Boolean);
@@ -100,6 +130,12 @@ export async function handleApps(req, res, parts) {
     rateLimit("app-notify:" + u.id + ":" + id, 30, 3600_000);
     const b = await readJson(req, 8192); const title = String(b.title || "").trim().slice(0, 120); if (!title) fail(400, "Falta el título");
     addNotification(u.id, { kind: "app", title: `${app.name}: ${title}`, body: String(b.body || "").slice(0, 400) || null, link: { app: id } }); return json(res, 200, { ok: true });
+  }
+  if (kind === "fetch" && req.method === "POST") { // permiso «net»
+    const app = appById(id); if (!app) fail(404, "App no encontrada"); if (!app.permissions.includes("net")) fail(403, "La app no pidió el permiso «net»");
+    if (!db.prepare("SELECT 1 FROM app_installs WHERE user_id = ? AND app_id = ?").get(u.id, id)) fail(403, "La app no está instalada en tu cuenta");
+    rateLimit("app-net:" + u.id + ":" + id, 300, 600_000);
+    return json(res, 200, await netFetch(app, await readJson(req, 1_100_000)));
   }
   if (kind === "storage") { // datos propios de la app, por persona (lo pide el puente del SDK)
     const app = appById(id); if (!app) fail(404, "App no encontrada"); if (!app.permissions.includes("storage")) fail(403, "La app no pidió el permiso «storage»");

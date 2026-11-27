@@ -27,5 +27,23 @@ export const APPS_CASA = [
     desc: "Una entrada al día con tu estado de ánimo y un calendario de colores por mes.", permissions: ["storage", "files.write"] },
   { id: "pelis", name: "Películas y series", icon: "live_tv", color: "#3c4a5c", cat: "Entretenimiento", size: { w: 1040, h: 740 },
     desc: "Lo que viste, tu nota y lo que quieres ver, con estadísticas del año.", permissions: ["storage", "files.write"] },
+  // ---- avanzadas: muestran lo que se puede hacer con el SDK ----
+  { id: "soto", name: "SOTO", icon: "enhanced_encryption", color: "#b8452f", cat: "Seguridad", size: { w: 980, h: 700 },
+    desc: "Abre y crea archivos .soto cifrados con AES-256-GCM y scrypt, compatibles con SOTO de escritorio.", permissions: ["files.read", "files.write"], opens: ["soto"] },
+  { id: "claves", name: "Claves", icon: "key", color: "#3d4a5c", cat: "Seguridad", size: { w: 1000, h: 700 },
+    desc: "Gestor de contraseñas cifrado con el sistema de SOTO: solo tú tienes la clave maestra.", permissions: ["storage", "files.read", "files.write"] },
+  { id: "tablero", name: "Tablero", icon: "view_quilt", color: "#2f6b8a", cat: "Productividad", size: { w: 1180, h: 760 },
+    desc: "Tableros tipo kanban con columnas, tarjetas, etiquetas, fechas y listas de chequeo.", permissions: ["storage", "files.write"] },
+  { id: "visor3d", name: "Visor 3D", icon: "category", color: "#5b4b8a", cat: "Creatividad", size: { w: 1100, h: 760 },
+    desc: "Modelos STL y OBJ en 3D con WebGL: girar, acercar, medidas y captura en PNG.", permissions: ["files.read", "files.write"], opens: ["stl", "obj"] },
+  { id: "fotos-edit", name: "Editor de fotos", icon: "brush", color: "#a2562c", cat: "Creatividad", size: { w: 1180, h: 780 },
+    desc: "Brillo, contraste, color, filtros, recorte, giro y viñeta, con historial y guardado de una copia.", permissions: ["files.read", "files.write"], opens: ["jpg", "jpeg", "png", "webp"] },
+  // ---- con internet (permiso «net»): Sotos hace la petición solo a estos sitios ----
+  { id: "clima", name: "Clima", icon: "partly_cloudy_day", color: "#2f7fa8", cat: "Internet", size: { w: 1000, h: 720 },
+    desc: "Pronóstico por horas y por días de cualquier ciudad, con Open-Meteo.", permissions: ["net", "storage"], hosts: ["api.open-meteo.com", "geocoding-api.open-meteo.com"] },
+  { id: "monedas", name: "Monedas", icon: "currency_exchange", color: "#3d7a3f", cat: "Internet", size: { w: 900, h: 680 },
+    desc: "Convierte entre más de 150 monedas con la tasa del día y su historia.", permissions: ["net", "storage"], hosts: ["open.er-api.com", "api.frankfurter.dev"] },
+  { id: "wiki", name: "Enciclopedia", icon: "travel_explore", color: "#4a4a4a", cat: "Internet", size: { w: 1040, h: 760 },
+    desc: "Busca en Wikipedia en español, lee artículos y mira qué pasó un día como hoy.", permissions: ["net", "storage", "files.write"], hosts: ["es.wikipedia.org", "api.wikimedia.org"] },
 ];
 export const CASA_IDS = APPS_CASA.map(a => a.id);

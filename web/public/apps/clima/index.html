@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Clima</title>
+<!-- Sotos — Clima (Open-Meteo, por el permiso «net» del SDK) · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 240px minmax(0, 1fr); }
+  .cities { border-right: 1px solid var(--line); background: var(--panel); overflow: auto; padding: 10px; display: grid; gap: 4px; align-content: start; }
+  .city { display: flex; justify-content: space-between; align-items: center; padding: 9px 10px; border-radius: 8px; cursor: pointer; font-size: 13.5px; }
+  .city:hover { background: var(--panel-2); } .city.on { background: color-mix(in srgb, var(--accent) 14%, transparent); font-weight: 600; }
+  .city small { color: var(--ink-3); font-size: 11.5px; display: block; font-weight: 400; } .city .x { visibility: hidden; border: 0; background: none; cursor: pointer; color: var(--ink-3); }
+  .city:hover .x { visibility: visible; }
+  .main { overflow: auto; padding: 20px 24px; display: grid; gap: 16px; align-content: start; }
+  .now { display: grid; grid-template-columns: auto 1fr auto; gap: 18px; align-items: center; padding: 18px 20px; border-radius: 14px; color: #fff;
+    background: linear-gradient(135deg, var(--sky1, #3a7fc0), var(--sky2, #8fc0e8)); }
+  .now .t { font: 800 64px/1 var(--font); } .now .t small { font-size: 22px; vertical-align: top; }
+  .now h2 { margin: 0; font-size: 22px; } .now .d { opacity: .9; }
+  .facts { display: grid; grid-template-columns: repeat(2, auto); gap: 4px 16px; font-size: 13px; opacity: .95; }
+  .card { padding: 14px 16px; } .card h3 { margin: 0 0 10px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .days { display: grid; gap: 2px; } .day { display: grid; grid-template-columns: 90px 40px 1fr 64px; gap: 10px; align-items: center; padding: 6px 4px; font-size: 13.5px; }
+  .range { position: relative; height: 6px; border-radius: 3px; background: var(--line); } .range i { position: absolute; top: 0; bottom: 0; border-radius: 3px; background: linear-gradient(90deg, #5aa8d8, #e8a04a); }
+  .search { position: relative; } .sug { position: absolute; top: 36px; left: 0; right: 0; z-index: 5; padding: 4px; } .sug div { padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; } .sug div:hover { background: var(--panel-2); }
+  svg text { font: 11px var(--font); fill: var(--ink-3); }
+  .src { font-size: 11.5px; color: var(--ink-3); }
+  @media (max-width: 760px) { .body { grid-template-columns: 1fr; } .cities { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Clima</h1><div class="search"><input class="ap-in" id="q" placeholder="Buscar ciudad…" style="width:240px" autocomplete="off"><div class="sug ap-card" id="sug" hidden></div></div><span class="sp"></span><button class="ap-btn" id="ref">Actualizar</button></div>
+  <div class="body"><div class="cities" id="cities"></div><div class="main" id="main"><div class="ap-empty">Cargando…</div></div></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const WMO = { 0: ["Despejado", "sol"], 1: ["Casi despejado", "sol"], 2: ["Parcialmente nublado", "nubesol"], 3: ["Nublado", "nube"], 45: ["Niebla", "niebla"], 48: ["Niebla helada", "niebla"], 51: ["Llovizna débil", "lluvia"], 53: ["Llovizna", "lluvia"], 55: ["Llovizna fuerte", "lluvia"], 61: ["Lluvia débil", "lluvia"], 63: ["Lluvia", "lluvia"], 65: ["Lluvia fuerte", "lluvia"], 66: ["Lluvia helada", "lluvia"], 67: ["Lluvia helada fuerte", "lluvia"], 71: ["Nieve débil", "nieve"], 73: ["Nieve", "nieve"], 75: ["Nieve fuerte", "nieve"], 77: ["Granizo fino", "nieve"], 80: ["Chubascos", "lluvia"], 81: ["Chubascos fuertes", "lluvia"], 82: ["Aguaceros", "lluvia"], 85: ["Chubascos de nieve", "nieve"], 86: ["Nevadas fuertes", "nieve"], 95: ["Tormenta", "tormenta"], 96: ["Tormenta con granizo", "tormenta"], 99: ["Tormenta fuerte con granizo", "tormenta"] };
+const icon = (code, day = 1, s = 40) => { const k = (WMO[code] || ["", "nube"])[1], sun = day ? `<circle cx="16" cy="15" r="8" fill="#f2b84b"/>` : `<path d="M20 8a8 8 0 1 0 6 13 7 7 0 0 1-6-13z" fill="#e7e1c8"/>`;
+  const cloud = (y = 0, c = "#e9eef3") => `<path d="M12 ${30 + y}h22a7 7 0 0 0-1-14 9 9 0 0 0-17 2 6 6 0 0 0-4 12z" fill="${c}" stroke="#9aa9b8" stroke-width="1"/>`;
+  const body = { sol: sun, nubesol: sun + cloud(2), nube: cloud(0, "#d9e1e8") + cloud(4), niebla: cloud(-4) + `<path d="M8 32h28M10 36h24" stroke="#9aa9b8" stroke-width="2" stroke-linecap="round"/>`,
+    lluvia: cloud(-4) + `<path d="M15 31l-2 5M22 31l-2 5M29 31l-2 5" stroke="#4a90c8" stroke-width="2.4" stroke-linecap="round"/>`, nieve: cloud(-4) + `<g fill="#9cc8e8"><circle cx="14" cy="34" r="2"/><circle cx="22" cy="36" r="2"/><circle cx="30" cy="34" r="2"/></g>`,
+    tormenta: cloud(-4, "#c4ccd4") + `<path d="M22 28l-4 7h5l-3 7 8-10h-5l3-4z" fill="#f2b84b"/>` }[k];
+  return `<svg width="${s}" height="${s}" viewBox="0 0 44 44" aria-label="${(WMO[code] || [""])[0]}">${body}</svg>`; };
+let cities = [], cur = 0;
+async function get(url) { const r = await sotos.net.fetch(url); if (!r.ok) throw new Error("El servicio respondió " + r.status); return r.json(); }
+function renderCities() { $("#cities").innerHTML = cities.map((c, i) => `<div class="city ${i === cur ? "on" : ""}" data-i="${i}"><span>${ap.esc(c.name)}<small>${ap.esc([c.admin, c.country].filter(Boolean).join(", "))}</small></span>${cities.length > 1 ? `<button class="x" data-del="${i}" title="Quitar">✕</button>` : ""}</div>`).join(""); }
+$("#cities").onclick = (e) => { const d = e.target.closest("[data-del]"); if (d) { e.stopPropagation(); cities.splice(+d.dataset.del, 1); cur = 0; save(); renderCities(); load(); return; } const c = e.target.closest(".city"); if (c) { cur = +c.dataset.i; renderCities(); load(); } };
+const save = () => ap.store.set("ciudades", { cities, cur });
+async function load() {
+  const c = cities[cur]; if (!c) return; $("#main").innerHTML = `<div class="ap-empty">Consultando el pronóstico de ${ap.esc(c.name)}…</div>`;
+  try {
+    const w = await get(`https://api.open-meteo.com/v1/forecast?latitude=${c.lat}&longitude=${c.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,is_day&hourly=temperature_2m,precipitation_probability,weather_code,is_day&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset,uv_index_max&timezone=auto&forecast_days=7`);
+    render(c, w);
+  } catch (e) { $("#main").innerHTML = `<div class="ap-empty"><div><b>No se pudo consultar el clima</b><p class="ap-muted">${ap.esc(e.message)}</p><button class="ap-btn" onclick="load()">Reintentar</button></div></div>`; }
+}
+function render(c, w) {
+  const n = w.current, day = n.is_day, d = w.daily, h = w.hourly, desc = (WMO[n.weather_code] || ["—"])[0];
+  const sky = day ? (n.weather_code <= 1 ? ["#2f86d0", "#8fc6ee"] : n.weather_code <= 3 ? ["#5b7d9c", "#a9c1d6"] : ["#4b5d6e", "#8796a5"]) : ["#1f2b48", "#3c4b72"];
+  const now = new Date(n.time), start = h.time.findIndex(t => new Date(t) >= new Date(now.getTime() - 3600_000)), H = h.time.slice(start, start + 24).map((t, k) => ({ t: new Date(t), temp: h.temperature_2m[start + k], p: h.precipitation_probability[start + k], code: h.weather_code[start + k], day: h.is_day[start + k] }));
+  const lo = Math.min(...H.map(x => x.temp)) - 1, hi = Math.max(...H.map(x => x.temp)) + 1, W = 760, Ht = 150, X = (k) => 20 + k * (W - 40) / 23, Y = (t) => 20 + (hi - t) / (hi - lo) * (Ht - 60);
+  const path = H.map((x, k) => (k ? "L" : "M") + X(k).toFixed(1) + " " + Y(x.temp).toFixed(1)).join(" ");
+  const dlo = Math.min(...d.temperature_2m_min), dhi = Math.max(...d.temperature_2m_max);
+  const hm = (s) => new Date(s).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
+  $("#main").innerHTML = `
+    <div class="now" style="--sky1:${sky[0]};--sky2:${sky[1]}">${icon(n.weather_code, day, 86)}<div><h2>${ap.esc(c.name)}</h2><div class="d">${desc} · sensación ${Math.round(n.apparent_temperature)}°</div>
+      <div class="facts" style="margin-top:8px"><span>Humedad ${n.relative_humidity_2m} %</span><span>Viento ${Math.round(n.wind_speed_10m)} km/h</span><span>Lluvia ${n.precipitation} mm</span><span>UV máx. ${Math.round(d.uv_index_max[0])}</span><span>Sale el sol ${hm(d.sunrise[0])}</span><span>Se oculta ${hm(d.sunset[0])}</span></div></div>
+      <div class="t">${Math.round(n.temperature_2m)}<small>°C</small></div></div>
+    <div class="ap-card card"><h3>Próximas 24 horas</h3><svg viewBox="0 0 ${W} ${Ht}" width="100%" preserveAspectRatio="none" style="height:${Ht}px">
+      <path d="${path} L ${X(23)} ${Ht - 40} L ${X(0)} ${Ht - 40} Z" fill="color-mix(in srgb, var(--accent) 12%, transparent)"/><path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>
+      ${H.map((x, k) => k % 3 ? "" : `<text x="${X(k)}" y="${Y(x.temp) - 8}" text-anchor="middle" style="fill:var(--ink);font-weight:600">${Math.round(x.temp)}°</text><text x="${X(k)}" y="${Ht - 22}" text-anchor="middle">${x.t.getHours()}h</text><text x="${X(k)}" y="${Ht - 6}" text-anchor="middle" style="fill:#4a90c8">${x.p ?? 0}%</text>`).join("")}</svg></div>
+    <div class="ap-card card"><h3>Siete días</h3><div class="days">${d.time.map((t, k) => `<div class="day"><b>${k ? new Date(t + "T12:00").toLocaleDateString("es", { weekday: "long" }) : "Hoy"}</b>${icon(d.weather_code[k], 1, 30)}
+      <div style="display:flex;align-items:center;gap:8px"><span class="ap-faint" style="width:30px;text-align:right">${Math.round(d.temperature_2m_min[k])}°</span><div class="range" style="flex:1"><i style="left:${(d.temperature_2m_min[k] - dlo) / (dhi - dlo) * 100}%;right:${(dhi - d.temperature_2m_max[k]) / (dhi - dlo) * 100}%"></i></div><b style="width:30px">${Math.round(d.temperature_2m_max[k])}°</b></div>
+      <span class="ap-faint">&#128167; ${d.precipitation_probability_max[k] ?? 0}%</span></div>`).join("")}</div></div>
+    <div class="src">Datos de Open-Meteo.com (CC BY 4.0). Sotos los consulta por la app con el permiso «internet», solo a los sitios declarados.</div>`;
+}
+/* buscador de ciudades */
+let st; $("#q").oninput = (e) => { clearTimeout(st); const q = e.target.value.trim(); if (q.length < 2) { $("#sug").hidden = true; return; } st = setTimeout(async () => {
+  try { const r = await get(`https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(q)}&count=6&language=es&format=json`);
+    const res = r.results || []; $("#sug").hidden = false; $("#sug").innerHTML = res.length ? res.map((x, i) => `<div data-k="${i}">${ap.esc(x.name)} <span class="ap-faint">${ap.esc([x.admin1, x.country].filter(Boolean).join(", "))}</span></div>`).join("") : '<div class="ap-faint">Sin resultados</div>';
+    $("#sug").querySelectorAll("[data-k]").forEach(el => el.onclick = () => { const x = res[+el.dataset.k]; cities.push({ name: x.name, admin: x.admin1 || "", country: x.country || "", lat: x.latitude, lon: x.longitude }); cur = cities.length - 1; save(); renderCities(); load(); $("#sug").hidden = true; $("#q").value = ""; });
+  } catch (err) { ap.toast(err.message); } }, 300); };
+document.addEventListener("mousedown", (e) => { if (!e.target.closest(".search")) $("#sug").hidden = true; });
+$("#ref").onclick = load;
+(async () => { await ap.ready; const s = await ap.store.get("ciudades"); if (s?.cities?.length) { cities = s.cities; cur = Math.min(s.cur || 0, cities.length - 1); } else cities = [{ name: "Bogotá", admin: "Bogotá D.C.", country: "Colombia", lat: 4.6097, lon: -74.0817 }]; renderCities(); load(); })();
+</script>
+</body>
+</html>

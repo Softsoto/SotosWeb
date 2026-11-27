@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tablero</title>
+<!-- Sotos — Tablero (kanban) · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .board { flex: 1; min-height: 0; overflow: auto; display: flex; gap: 12px; padding: 14px; align-items: flex-start; }
+  .col { width: 280px; flex: 0 0 280px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; display: flex; flex-direction: column; max-height: 100%; }
+  .col.hot { outline: 2px dashed var(--accent); outline-offset: -2px; }
+  .colh { display: flex; align-items: center; gap: 6px; padding: 10px 12px 6px; } .colh b { flex: 1; font-size: 13.5px; cursor: text; } .colh .n { font-size: 12px; color: var(--ink-3); }
+  .colh button { border: 0; background: none; cursor: pointer; color: var(--ink-3); font-size: 15px; padding: 2px 4px; border-radius: 5px; } .colh button:hover { background: var(--panel); color: var(--ink); }
+  .cards { padding: 4px 8px 8px; display: grid; gap: 8px; overflow: auto; min-height: 30px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 9px; padding: 9px 10px; cursor: grab; box-shadow: 0 1px 0 rgba(0,0,0,.05); font-size: 13.5px; display: grid; gap: 6px; }
+  .card:hover { border-color: var(--line-2); } .card.drag { opacity: .4; } .card.drop-before { box-shadow: 0 -3px 0 var(--accent); }
+  .labels { display: flex; gap: 4px; flex-wrap: wrap; } .lab { height: 6px; width: 34px; border-radius: 3px; } .labf { font-size: 10.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; color: #fff; }
+  .cmeta { display: flex; gap: 10px; font-size: 11.5px; color: var(--ink-3); } .cmeta .late { color: var(--bad); font-weight: 600; } .cmeta .done { color: var(--ok); }
+  .addc { margin: 0 8px 8px; border: 0; background: none; text-align: left; padding: 7px 8px; border-radius: 8px; cursor: pointer; color: var(--ink-2); } .addc:hover { background: var(--panel); }
+  .addcol { width: 240px; flex: 0 0 240px; border: 2px dashed var(--line-2); border-radius: 12px; background: none; padding: 14px; cursor: pointer; color: var(--ink-2); font-weight: 600; }
+  .edit { width: min(560px, 100%) !important; } .chk { display: flex; gap: 8px; align-items: center; } .chk input[type=text] { flex: 1; }
+  .labpick { display: flex; gap: 6px; flex-wrap: wrap; } .labpick button { border: 2px solid transparent; border-radius: 999px; padding: 3px 10px; color: #fff; font-weight: 700; font-size: 12px; cursor: pointer; opacity: .5; } .labpick button.on { opacity: 1; border-color: var(--ink); }
+  .prog { height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; } .prog i { display: block; height: 100%; background: var(--ok); }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Tablero</h1><select class="ap-in" id="bsel"></select><button class="ap-btn" id="bnew">+ Tablero</button><button class="ap-btn" id="bren">Renombrar</button>
+    <span class="sp"></span><select class="ap-in" id="filter"><option value="">Todas las etiquetas</option></select><input class="ap-in" id="q" placeholder="Buscar tarjetas" style="width:170px"><button class="ap-btn" id="exp">Exportar</button></div>
+  <div class="board" id="board"></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const LABELS = [["rojo", "#c4452b", "Urgente"], ["naranja", "#d98a2b", "Importante"], ["verde", "#3d7a3f", "Listo para revisar"], ["azul", "#3a6ea5", "Idea"], ["morado", "#6b4a8a", "Personal"], ["gris", "#6b6b6b", "Esperando"]];
+const id = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+let data = { boards: [], cur: 0 };
+const B = () => data.boards[data.cur];
+let st; const save = () => { clearTimeout(st); st = setTimeout(() => ap.store.set("tableros", data), 400); };
+const sample = () => ({ id: id(), name: "Mi tablero", cols: [{ id: id(), name: "Por hacer", cards: [{ id: id(), title: "Arrastra esta tarjeta a «En curso»", labels: ["azul"], checks: [] }, { id: id(), title: "Abre una tarjeta para ver los detalles", desc: "Puedes ponerle etiquetas, fecha de entrega y una lista de chequeo.", labels: ["naranja"], due: new Date(Date.now() + 3 * 864e5).toISOString().slice(0, 10), checks: [{ t: "Ponerle una etiqueta", d: true }, { t: "Agregar una fecha", d: false }] }] }, { id: id(), name: "En curso", cards: [] }, { id: id(), name: "Hecho", cards: [] }] });
+function render() {
+  $("#bsel").innerHTML = data.boards.map((b, i) => `<option value="${i}" ${i === data.cur ? "selected" : ""}>${ap.esc(b.name)}</option>`).join("");
+  const f = $("#filter").value, q = $("#q").value.toLowerCase(), today = new Date().toISOString().slice(0, 10);
+  $("#board").innerHTML = B().cols.map(c => { const cards = c.cards.filter(k => (!f || k.labels.includes(f)) && (!q || (k.title + " " + (k.desc || "")).toLowerCase().includes(q)));
+    return `<div class="col" data-col="${c.id}"><div class="colh"><b data-ren="${c.id}" title="Toca para renombrar">${ap.esc(c.name)}</b><span class="n">${c.cards.length}</span><button data-delcol="${c.id}" title="Quitar columna">✕</button></div>
+      <div class="cards">${cards.map(k => { const done = k.checks.filter(x => x.d).length;
+        return `<div class="card" draggable="true" data-card="${k.id}">${k.labels.length ? `<div class="labels">${k.labels.map(l => { const L = LABELS.find(x => x[0] === l); return L ? `<span class="lab" style="background:${L[1]}" title="${L[2]}"></span>` : ""; }).join("")}</div>` : ""}
+        <div>${ap.esc(k.title)}</div>${k.due || k.checks.length || k.desc ? `<div class="cmeta">${k.due ? `<span class="${k.due < today ? "late" : ""}">&#128197; ${new Date(k.due + "T12:00").toLocaleDateString("es", { day: "numeric", month: "short" })}</span>` : ""}${k.checks.length ? `<span class="${done === k.checks.length ? "done" : ""}">&#9745; ${done}/${k.checks.length}</span>` : ""}${k.desc ? "<span>&#9776;</span>" : ""}</div>` : ""}</div>`; }).join("")}</div>
+      <button class="addc" data-add="${c.id}">+ Agregar tarjeta</button></div>`; }).join("") + `<button class="addcol" id="addcol">+ Columna</button>`;
+}
+/* arrastrar tarjetas entre columnas y dentro de una columna */
+let dragId = null;
+$("#board").addEventListener("dragstart", (e) => { const c = e.target.closest(".card"); if (!c) return; dragId = c.dataset.card; c.classList.add("drag"); e.dataTransfer.effectAllowed = "move"; e.dataTransfer.setData("text/plain", dragId); });
+$("#board").addEventListener("dragend", () => { dragId = null; document.querySelectorAll(".drag,.hot,.drop-before").forEach(x => x.classList.remove("drag", "hot", "drop-before")); });
+$("#board").addEventListener("dragover", (e) => { if (!dragId) return; const col = e.target.closest(".col"); if (!col) return; e.preventDefault(); document.querySelectorAll(".hot,.drop-before").forEach(x => x.classList.remove("hot", "drop-before")); col.classList.add("hot");
+  const before = [...col.querySelectorAll(".card:not(.drag)")].find(k => e.clientY < k.getBoundingClientRect().top + k.offsetHeight / 2); if (before) before.classList.add("drop-before"); });
+$("#board").addEventListener("drop", (e) => { if (!dragId) return; e.preventDefault(); const col = e.target.closest(".col"); if (!col) return;
+  const before = col.querySelector(".drop-before")?.dataset.card; let card; for (const c of B().cols) { const i = c.cards.findIndex(k => k.id === dragId); if (i >= 0) card = c.cards.splice(i, 1)[0]; }
+  const dst = B().cols.find(c => c.id === col.dataset.col), at = before ? dst.cards.findIndex(k => k.id === before) : -1; at >= 0 ? dst.cards.splice(at, 0, card) : dst.cards.push(card); save(); render(); });
+$("#board").addEventListener("click", async (e) => {
+  const t = e.target;
+  if (t.closest("#addcol")) { const r = await ap.ask({ title: "Nueva columna", fields: [{ key: "n", label: "Nombre" }], ok: "Crear" }); if (r?.n.trim()) { B().cols.push({ id: id(), name: r.n.trim(), cards: [] }); save(); render(); } return; }
+  const add = t.closest("[data-add]"); if (add) { const r = await ap.ask({ title: "Nueva tarjeta", fields: [{ key: "n", label: "¿Qué hay que hacer?" }], ok: "Agregar" }); if (r?.n.trim()) { B().cols.find(c => c.id === add.dataset.add).cards.push({ id: id(), title: r.n.trim(), labels: [], checks: [] }); save(); render(); } return; }
+  const ren = t.closest("[data-ren]"); if (ren) { const c = B().cols.find(x => x.id === ren.dataset.ren); const r = await ap.ask({ title: "Renombrar columna", fields: [{ key: "n", label: "Nombre", value: c.name }], ok: "Guardar" }); if (r?.n.trim()) { c.name = r.n.trim(); save(); render(); } return; }
+  const dc = t.closest("[data-delcol]"); if (dc) { const c = B().cols.find(x => x.id === dc.dataset.delcol); if (c.cards.length && !(await ap.confirm(`¿Quitar «${c.name}» y sus ${c.cards.length} tarjeta(s)?`))) return; B().cols = B().cols.filter(x => x !== c); save(); render(); return; }
+  const card = t.closest("[data-card]"); if (card) edit(card.dataset.card);
+});
+function edit(cid) {
+  let col, k; for (const c of B().cols) { const f = c.cards.find(x => x.id === cid); if (f) { col = c; k = f; } }
+  const m = document.createElement("div"); m.className = "ap-modal"; const lab = new Set(k.labels); const checks = k.checks.map(x => ({ ...x }));
+  const drawChecks = () => { const done = checks.filter(x => x.d).length; m.querySelector("#chks").innerHTML = (checks.length ? `<div class="prog"><i style="width:${done / checks.length * 100}%"></i></div>` : "") + checks.map((x, i) => `<div class="chk"><input type="checkbox" data-ci="${i}" ${x.d ? "checked" : ""}><input class="ap-in" type="text" data-ct="${i}" value="${ap.esc(x.t)}"><button class="ap-btn ghost" data-cx="${i}">✕</button></div>`).join(""); };
+  m.innerHTML = `<div class="ap-card edit"><input class="ap-in" id="e-t" value="${ap.esc(k.title)}" style="font-size:16px;font-weight:700"><div class="ap-faint">en «${ap.esc(col.name)}»</div>
+    <div class="ap-field">Etiquetas<div class="labpick">${LABELS.map(l => `<button data-l="${l[0]}" class="${lab.has(l[0]) ? "on" : ""}" style="background:${l[1]}">${l[2]}</button>`).join("")}</div></div>
+    <label class="ap-field">Fecha de entrega<input class="ap-in" type="date" id="e-d" value="${k.due || ""}"></label>
+    <label class="ap-field">Descripción<textarea class="ap-in" id="e-x" rows="4">${ap.esc(k.desc || "")}</textarea></label>
+    <div class="ap-field">Lista de chequeo<div id="chks" style="display:grid;gap:6px"></div><button class="ap-btn" id="e-ac" style="justify-self:start;margin-top:4px">+ Elemento</button></div>
+    <div class="row"><button class="ap-btn" id="e-del" style="margin-right:auto;color:var(--bad)">Eliminar tarjeta</button><button class="ap-btn" id="e-no">Cancelar</button><button class="ap-btn primary" id="e-ok">Guardar</button></div></div>`;
+  document.body.appendChild(m); drawChecks();
+  m.querySelectorAll("[data-l]").forEach(b => b.onclick = () => { lab.has(b.dataset.l) ? lab.delete(b.dataset.l) : lab.add(b.dataset.l); b.classList.toggle("on"); });
+  m.addEventListener("input", (e) => { if (e.target.dataset.ct != null) checks[+e.target.dataset.ct].t = e.target.value; });
+  m.addEventListener("change", (e) => { if (e.target.dataset.ci != null) { checks[+e.target.dataset.ci].d = e.target.checked; drawChecks(); } });
+  m.addEventListener("click", (e) => { const x = e.target.closest("[data-cx]"); if (x) { checks.splice(+x.dataset.cx, 1); drawChecks(); } });
+  m.querySelector("#e-ac").onclick = () => { checks.push({ t: "", d: false }); drawChecks(); m.querySelector(`[data-ct="${checks.length - 1}"]`).focus(); };
+  m.querySelector("#e-no").onclick = () => m.remove();
+  m.querySelector("#e-del").onclick = async () => { if (!(await ap.confirm("¿Eliminar esta tarjeta?"))) return; col.cards = col.cards.filter(x => x.id !== cid); m.remove(); save(); render(); };
+  m.querySelector("#e-ok").onclick = () => { Object.assign(k, { title: m.querySelector("#e-t").value.trim() || k.title, desc: m.querySelector("#e-x").value.trim(), due: m.querySelector("#e-d").value || null, labels: [...lab], checks: checks.filter(x => x.t.trim()) }); m.remove(); save(); render(); };
+}
+$("#bsel").onchange = (e) => { data.cur = +e.target.value; save(); render(); };
+$("#bnew").onclick = async () => { const r = await ap.ask({ title: "Nuevo tablero", fields: [{ key: "n", label: "Nombre", placeholder: "Proyecto, mudanza, estudio…" }], ok: "Crear" }); if (!r?.n.trim()) return; const b = sample(); b.name = r.n.trim(); b.cols.forEach(c => c.cards = []); data.boards.push(b); data.cur = data.boards.length - 1; save(); render(); };
+$("#bren").onclick = async () => { const r = await ap.ask({ title: "Renombrar tablero", fields: [{ key: "n", label: "Nombre", value: B().name }], ok: "Guardar" }); if (r?.n.trim()) { B().name = r.n.trim(); save(); render(); } };
+$("#filter").innerHTML += LABELS.map(l => `<option value="${l[0]}">${l[2]}</option>`).join(""); $("#filter").onchange = render; $("#q").oninput = render;
+$("#exp").onclick = () => { let md = `# ${B().name}\n\n`; for (const c of B().cols) { md += `## ${c.name}\n\n`; for (const k of c.cards) { md += `- **${k.title}**${k.due ? ` (para el ${k.due})` : ""}${k.labels.length ? " · " + k.labels.map(l => LABELS.find(x => x[0] === l)?.[2]).join(", ") : ""}\n`; if (k.desc) md += `  ${k.desc.replace(/\n/g, "\n  ")}\n`; for (const x of k.checks) md += `  - [${x.d ? "x" : " "}] ${x.t}\n`; } md += "\n"; } ap.save(B().name.replace(/[\\/:*?"<>|]/g, "_") + ".md", new Blob([md], { type: "text/markdown" })); };
+(async () => { await ap.ready; const d = await ap.store.get("tableros"); data = d?.boards?.length ? d : { boards: [sample()], cur: 0 }; render(); })();
+</script>
+</body>
+</html>
