@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Datos</title>
+<!-- Sotos — Datos: tablas CSV/JSON, resumen, agrupación, columnas calculadas y gráficas · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .tabs { display: flex; gap: 2px; padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .tabs button { border: 0; background: none; padding: 9px 14px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--ink-2); font-weight: 600; }
+  .tabs button.on { color: var(--ink); border-color: var(--accent); }
+  .view { flex: 1; min-height: 0; overflow: auto; }
+  table { border-collapse: separate; border-spacing: 0; font-size: 13px; font-variant-numeric: tabular-nums; }
+  th { position: sticky; top: 0; background: var(--panel-2); text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line-2); border-right: 1px solid var(--line); cursor: pointer; white-space: nowrap; user-select: none; z-index: 1; }
+  th small { color: var(--ink-3); font-weight: 400; margin-left: 4px; } th:hover { background: var(--line); }
+  td { padding: 5px 10px; border-bottom: 1px solid var(--line); border-right: 1px solid var(--line); white-space: nowrap; max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+  td.num { text-align: right; } tr:hover td { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+  td.rn, th.rn { color: var(--ink-3); text-align: right; background: var(--panel); position: sticky; left: 0; }
+  .more { padding: 10px 14px; color: var(--ink-3); font-size: 12.5px; }
+  .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; padding: 14px; }
+  .card { padding: 12px 14px; display: grid; gap: 6px; font-size: 13px; } .card h3 { margin: 0; font-size: 14px; display: flex; justify-content: space-between; gap: 6px; } .card h3 small { font-weight: 400; color: var(--ink-3); }
+  .kv { display: flex; justify-content: space-between; } .kv span { color: var(--ink-3); } .kv b { font-variant-numeric: tabular-nums; font-weight: 600; }
+  .bar { display: grid; grid-template-columns: 1fr 50px; gap: 6px; align-items: center; font-size: 12px; } .bar div { position: relative; height: 18px; border-radius: 4px; overflow: hidden; background: var(--panel-2); } .bar i { position: absolute; inset: 0 auto 0 0; background: color-mix(in srgb, var(--accent) 40%, transparent); } .bar span { position: relative; padding: 0 6px; line-height: 18px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .chart { display: grid; grid-template-columns: 240px minmax(0, 1fr); min-height: 100%; }
+  .ctl { border-right: 1px solid var(--line); background: var(--panel); padding: 12px; display: grid; gap: 10px; align-content: start; }
+  .ctl label { display: grid; gap: 4px; font-size: 12px; color: var(--ink-3); } .ctl .ap-in { width: 100%; }
+  .seg { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; } .seg .ap-btn { padding: 0; justify-content: center; font-size: 12px; }
+  .plot { padding: 16px; min-width: 0; display: grid; gap: 10px; align-content: start; } .plot svg { width: 100%; height: auto; display: block; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
+  .drop { position: fixed; inset: 0; background: color-mix(in srgb, var(--accent) 18%, transparent); border: 3px dashed var(--accent); display: grid; place-items: center; font-size: 18px; font-weight: 700; z-index: 30; pointer-events: none; }
+  .welcome { max-width: 520px; text-align: center; display: grid; gap: 10px; justify-items: center; }
+  @media (max-width: 760px) { .chart { grid-template-columns: 1fr; } .ctl { border-right: 0; border-bottom: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Datos</h1><button class="ap-btn" id="open">Abrir…</button><button class="ap-btn" id="paste">Pegar</button><button class="ap-btn" id="demo">Ejemplo</button>
+    <span class="ap-faint" id="info"></span><span class="sp"></span>
+    <input class="ap-in" id="filter" placeholder="Filtrar filas…" style="width:170px" hidden><button class="ap-btn" id="calc" hidden title="Agregar una columna con una fórmula">Columna nueva</button><button class="ap-btn" id="export" hidden>Exportar CSV</button></div>
+  <div class="tabs" id="tabs" hidden><button data-v="tabla" class="on">Tabla</button><button data-v="resumen">Resumen</button><button data-v="grafica">Gráfica</button></div>
+  <div class="view" id="view"><div class="ap-empty"><div class="welcome"><b style="font-size:17px">Explora una tabla de datos</b><span class="ap-muted">Abre un CSV, TSV o JSON (o arrástralo aquí), pega celdas copiadas de una hoja de cálculo, o prueba con el ejemplo. Verás un resumen de cada columna, podrás agrupar, calcular columnas nuevas con fórmulas y hacer gráficas.</span><span class="ap-faint">Todo se calcula aquí mismo: los datos no salen de tu equipo.</span></div></div></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const COLORS = ["#c4532f", "#2f6b8a", "#3d7a3f", "#c27c0e", "#5a4a8a", "#8a3f5f", "#1f6f78", "#7a4e2a", "#9a8a3a", "#4a6a9a"];
+let name = "", cols = [], rows = [], view = "tabla", sortCol = -1, sortDir = 1, chartCfg = { type: "bar", x: 0, y: -1, agg: "count", top: 15, bucket: "month" };
+
+/* ---------- lectura ---------- */
+function parseCsv(text) {
+  text = text.replace(/^﻿/, ""); const first = text.split(/\r?\n/).slice(0, 5).join("\n");
+  const delim = ["\t", ";", ",", "|"].map(d => [d, (first.match(new RegExp(d === "|" ? "\\|" : d, "g")) || []).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const out = []; let row = [], cell = "", q = false;
+  for (let i = 0; i < text.length; i++) { const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; }
+    else if (c === '"' && cell === "") q = true; else if (c === delim) { row.push(cell); cell = ""; } else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(cell); out.push(row); row = []; cell = ""; } else cell += c; }
+  if (cell !== "" || row.length) { row.push(cell); out.push(row); }
+  return out.filter(r => r.some(c => c.trim() !== ""));
+}
+/* números en formato colombiano (1.234,5) o internacional (1,234.5), con $ o % */
+function num(s) {
+  if (typeof s === "number") return s; s = String(s).trim().replace(/[\s$€£%]/g, ""); if (!s || !/^[-+(]?[\d.,]+\)?$/.test(s)) return NaN;
+  const neg = /^\(.*\)$/.test(s) || s[0] === "-"; s = s.replace(/[()+-]/g, "");
+  const lc = s.lastIndexOf(","), ld = s.lastIndexOf(".");
+  if (lc >= 0 && ld >= 0) s = lc > ld ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, "");
+  else if (lc >= 0) s = /^\d{1,3}(,\d{3})+$/.test(s) ? s.replace(/,/g, "") : s.replace(",", ".");
+  else if (ld >= 0 && /^\d{1,3}(\.\d{3}){2,}$/.test(s)) s = s.replace(/\./g, "");
+  const v = parseFloat(s); return neg ? -v : v;
+}
+function date(s) { s = String(s).trim(); let m;
+  if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return new Date(+m[1], m[2] - 1, +m[3]).getTime();
+  if ((m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/))) return new Date(+m[3], m[2] - 1, +m[1]).getTime(); return NaN; }
+function load(table, nm) {
+  if (!table.length) return ap.toast("No se encontraron filas");
+  const head = table[0].map((h, i) => String(h).trim() || `Columna ${i + 1}`), seen = {};
+  cols = head.map(h => { let n = h; while (seen[n]) n += "_"; seen[n] = 1; return { name: n, type: "text" }; });
+  rows = table.slice(1).map(r => cols.map((_, i) => r[i] == null ? "" : r[i]));
+  cols.forEach((c, i) => typeCol(i)); name = nm; sortCol = -1; chartCfg = { type: "bar", x: cols.findIndex(c => c.type !== "num") >= 0 ? cols.findIndex(c => c.type !== "num") : 0, y: cols.findIndex(c => c.type === "num"), agg: cols.some(c => c.type === "num") ? "sum" : "count", top: 15, bucket: "month" };
+  ["#tabs", "#filter", "#calc", "#export"].forEach(s => $(s).hidden = false); $("#filter").value = ""; show(view);
+}
+function typeCol(i) {
+  const vals = rows.map(r => r[i]).filter(v => String(v).trim() !== ""), c = cols[i]; if (!vals.length) { c.type = "text"; return; }
+  const n = vals.filter(v => !isNaN(num(v))).length, d = vals.filter(v => !isNaN(date(v))).length;
+  c.type = d / vals.length > .9 ? "date" : n / vals.length > .9 ? "num" : "text";
+  rows.forEach(r => { const v = r[i]; r[i] = String(v).trim() === "" ? null : c.type === "num" ? num(v) : c.type === "date" ? date(v) : String(v); if (r[i] !== null && typeof r[i] === "number" && isNaN(r[i])) r[i] = null; });
+}
+function fromJson(t) { let d = JSON.parse(t); if (!Array.isArray(d)) d = Object.values(d).find(Array.isArray) || [d]; const keys = [...new Set(d.flatMap(o => o && typeof o === "object" ? Object.keys(o) : []))]; return [keys, ...d.map(o => keys.map(k => o[k] == null ? "" : typeof o[k] === "object" ? JSON.stringify(o[k]) : o[k]))]; }
+async function openBlob(blob, nm) { const t = await blob.text(); try { load(/\.json$/i.test(nm) || /^\s*[[{]/.test(t) ? fromJson(t) : parseCsv(t), nm); $("#info").textContent = ""; } catch (e) { ap.toast("No se pudo leer: " + e.message); } }
+
+/* ---------- vistas ---------- */
+const fmt = (v, t) => v == null ? "" : t === "num" ? v.toLocaleString("es", { maximumFractionDigits: 4 }) : t === "date" ? new Date(v).toLocaleDateString("es") : String(v);
+const fmtShort = (v) => Math.abs(v) >= 1e9 ? (v / 1e9).toLocaleString("es", { maximumFractionDigits: 1 }) + " mil M" : Math.abs(v) >= 1e6 ? (v / 1e6).toLocaleString("es", { maximumFractionDigits: 1 }) + " M" : Math.abs(v) >= 1e4 ? (v / 1e3).toLocaleString("es", { maximumFractionDigits: 1 }) + " mil" : v.toLocaleString("es", { maximumFractionDigits: 2 });
+function filtered() { const q = $("#filter").value.trim().toLowerCase(); let r = q ? rows.filter(row => row.some((v, i) => fmt(v, cols[i].type).toLowerCase().includes(q))) : rows.slice();
+  if (sortCol >= 0) r.sort((a, b) => { const x = a[sortCol], y = b[sortCol]; if (x == null) return 1; if (y == null) return -1; return (typeof x === "number" ? x - y : String(x).localeCompare(String(y), "es", { numeric: true })) * sortDir; }); return r; }
+function show(v) {
+  view = v; document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === v));
+  const r = filtered(); $("#info").textContent = `${name} · ${r.length.toLocaleString("es")}${r.length !== rows.length ? " de " + rows.length.toLocaleString("es") : ""} filas · ${cols.length} columnas`;
+  if (v === "tabla") tabla(r); else if (v === "resumen") resumen(r); else grafica(r);
+}
+const typeTag = { num: "123", text: "abc", date: "fecha" };
+function tabla(r) {
+  const N = 1000; $("#view").innerHTML = `<table><thead><tr><th class="rn">#</th>${cols.map((c, i) => `<th data-c="${i}" title="Ordenar">${ap.esc(c.name)}<small>${typeTag[c.type]}${sortCol === i ? (sortDir > 0 ? " ▲" : " ▼") : ""}</small></th>`).join("")}</tr></thead><tbody>${r.slice(0, N).map((row, k) => `<tr><td class="rn">${k + 1}</td>${row.map((v, i) => `<td class="${cols[i].type === "num" ? "num" : ""}">${ap.esc(fmt(v, cols[i].type))}</td>`).join("")}</tr>`).join("")}</tbody></table>${r.length > N ? `<div class="more">Se muestran ${N} de ${r.length.toLocaleString("es")} filas. El resumen y las gráficas usan todas.</div>` : ""}`;
+  $("#view").querySelectorAll("th[data-c]").forEach(th => th.onclick = () => { const c = +th.dataset.c; if (sortCol === c) sortDir = -sortDir; else { sortCol = c; sortDir = 1; } show("tabla"); });
+}
+function stats(vals) { const s = vals.slice().sort((a, b) => a - b), n = s.length, sum = s.reduce((a, b) => a + b, 0), mean = sum / n, q = (p) => { const i = (n - 1) * p, lo = Math.floor(i); return s[lo] + (s[Math.ceil(i)] - s[lo]) * (i - lo); };
+  return { n, sum, mean, min: s[0], max: s[n - 1], med: q(.5), q1: q(.25), q3: q(.75), sd: Math.sqrt(s.reduce((a, b) => a + (b - mean) ** 2, 0) / Math.max(1, n - 1)) }; }
+function resumen(r) {
+  $("#view").innerHTML = `<div class="cards">${cols.map((c, i) => { const vals = r.map(x => x[i]).filter(v => v != null), empty = r.length - vals.length, uniq = new Set(vals).size;
+    let body = `<div class="kv"><span>Valores</span><b>${vals.length.toLocaleString("es")}</b></div><div class="kv"><span>Vacíos</span><b>${empty.toLocaleString("es")}</b></div><div class="kv"><span>Distintos</span><b>${uniq.toLocaleString("es")}</b></div>`;
+    if (c.type === "num" && vals.length) { const s = stats(vals); body += [["Suma", s.sum], ["Promedio", s.mean], ["Mediana", s.med], ["Mínimo", s.min], ["Máximo", s.max], ["Desviación", s.sd]].map(([k, v]) => `<div class="kv"><span>${k}</span><b>${fmtShort(v)}</b></div>`).join("") + histo(vals); }
+    else if (c.type === "date" && vals.length) body += `<div class="kv"><span>Desde</span><b>${fmt(Math.min(...vals), "date")}</b></div><div class="kv"><span>Hasta</span><b>${fmt(Math.max(...vals), "date")}</b></div>`;
+    else if (vals.length) { const cnt = {}; vals.forEach(v => cnt[v] = (cnt[v] || 0) + 1); const top = Object.entries(cnt).sort((a, b) => b[1] - a[1]).slice(0, 5), mx = top[0][1]; body += top.map(([k, n]) => `<div class="bar"><div><i style="width:${n / mx * 100}%"></i><span>${ap.esc(k)}</span></div><b style="text-align:right">${n.toLocaleString("es")}</b></div>`).join(""); }
+    return `<div class="ap-card card"><h3>${ap.esc(c.name)}<small>${{ num: "números", text: "texto", date: "fechas" }[c.type]}</small></h3>${body}</div>`; }).join("")}</div>`;
+}
+function histo(vals) { const s = stats(vals); if (s.max === s.min) return ""; const B = 16, h = new Array(B).fill(0); vals.forEach(v => h[Math.min(B - 1, Math.floor((v - s.min) / (s.max - s.min) * B))]++); const m = Math.max(...h);
+  return `<svg viewBox="0 0 160 36" style="width:100%;height:36px;margin-top:4px">${h.map((n, i) => `<rect x="${i * 10 + 1}" y="${36 - n / m * 34}" width="8" height="${n / m * 34}" rx="1" fill="${COLORS[0]}" opacity=".7"><title>${fmtShort(s.min + (s.max - s.min) * i / B)} a ${fmtShort(s.min + (s.max - s.min) * (i + 1) / B)}: ${n}</title></rect>`).join("")}</svg>`; }
+
+/* ---------- gráficas ---------- */
+function aggregate(r) {
+  const c = chartCfg, xc = cols[c.x], groups = new Map();
+  const keyOf = (v) => { if (v == null) return "(vacío)"; if (xc.type === "date") { const d = new Date(v); return c.bucket === "year" ? String(d.getFullYear()) : c.bucket === "month" ? `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}` : d.toISOString().slice(0, 10); } return xc.type === "num" ? v : String(v); };
+  r.forEach(row => { const k = keyOf(row[c.x]); const y = c.y >= 0 ? row[c.y] : null; if (!groups.has(k)) groups.set(k, []); if (c.agg === "count" || typeof y === "number") groups.get(k).push(y); });
+  const f = { count: a => a.length, sum: a => a.reduce((s, v) => s + v, 0), avg: a => a.length ? a.reduce((s, v) => s + v, 0) / a.length : 0, min: a => a.length ? Math.min(...a) : 0, max: a => a.length ? Math.max(...a) : 0 }[c.agg];
+  let out = [...groups].map(([k, a]) => ({ k, v: f(a) }));
+  if (xc.type === "date" || (xc.type === "num" && c.type === "line")) out.sort((a, b) => a.k < b.k ? -1 : 1);
+  else if (c.type !== "line") { out.sort((a, b) => b.v - a.v); if (out.length > c.top) { const rest = out.slice(c.top); out = out.slice(0, c.top); if (c.agg === "count" || c.agg === "sum") out.push({ k: `Otros (${rest.length})`, v: rest.reduce((s, x) => s + x.v, 0) }); } }
+  return out;
+}
+const dk = () => document.documentElement.dataset.sotosTheme === "dark";
+function grafica(r) {
+  const c = chartCfg, opts = cols.map((x, i) => `<option value="${i}">${ap.esc(x.name)}</option>`).join(""), numOpts = cols.map((x, i) => x.type === "num" ? `<option value="${i}">${ap.esc(x.name)}</option>` : "").join("");
+  $("#view").innerHTML = `<div class="chart"><div class="ctl">
+    <div class="seg">${[["bar", "Barras"], ["line", "Líneas"], ["scatter", "Puntos"], ["pie", "Torta"]].map(([k, t]) => `<button class="ap-btn ${c.type === k ? "on" : ""}" data-t="${k}">${t}</button>`).join("")}</div>
+    <label>${c.type === "scatter" ? "Eje horizontal (números)" : "Agrupar por"}<select class="ap-in" id="cx">${c.type === "scatter" ? numOpts : opts}</select></label>
+    ${cols[c.x]?.type === "date" && c.type !== "scatter" ? `<label>Cada<select class="ap-in" id="cb"><option value="day">día</option><option value="month">mes</option><option value="year">año</option></select></label>` : ""}
+    ${c.type === "scatter" ? `<label>Eje vertical (números)<select class="ap-in" id="cy">${numOpts}</select></label>` : `<label>Calcular<select class="ap-in" id="ca"><option value="count">Cuántas filas</option><option value="sum">Suma de…</option><option value="avg">Promedio de…</option><option value="min">Mínimo de…</option><option value="max">Máximo de…</option></select></label>
+    ${c.agg !== "count" ? `<label>Columna<select class="ap-in" id="cy">${numOpts}</select></label>` : ""}
+    ${c.type !== "line" ? `<label>Mostrar los primeros<select class="ap-in" id="ct">${[5, 10, 15, 25, 50].map(n => `<option>${n}</option>`).join("")}</select></label>` : ""}`}
+    <button class="ap-btn" id="spng">Guardar imagen PNG</button><button class="ap-btn" id="ssvg">Guardar SVG</button>${c.type !== "scatter" ? '<button class="ap-btn" id="scsv">Guardar el resultado en CSV</button>' : ""}
+    </div><div class="plot" id="plot"></div></div>`;
+  const set = (id, v) => { const el = $(id); if (el) el.value = String(v); };
+  set("#cx", c.x); set("#cy", c.y); set("#ca", c.agg); set("#ct", c.top); set("#cb", c.bucket);
+  if (c.type === "scatter" && cols[c.x]?.type !== "num") { const n = cols.map((x, i) => x.type === "num" ? i : -1).filter(i => i >= 0); c.x = n[0] ?? 0; c.y = n[1] ?? n[0] ?? -1; return grafica(r); }
+  if (c.agg !== "count" && c.type !== "scatter" && (c.y < 0 || cols[c.y]?.type !== "num")) { c.y = cols.findIndex(x => x.type === "num"); if (c.y < 0) c.agg = "count"; return grafica(r); }
+  $("#view").querySelectorAll("[data-t]").forEach(b => b.onclick = () => { c.type = b.dataset.t; grafica(filtered()); });
+  [["#cx", "x", Number], ["#cy", "y", Number], ["#ca", "agg", String], ["#ct", "top", Number], ["#cb", "bucket", String]].forEach(([id, k, T]) => { const el = $(id); if (el) el.onchange = () => { c[k] = T(el.value); grafica(filtered()); }; });
+  const svg = c.type === "scatter" ? scatter(r) : c.type === "pie" ? pie(aggregate(r)) : barsLines(aggregate(r));
+  $("#plot").innerHTML = svg;
+  $("#spng").onclick = () => savePng(svg); $("#ssvg").onclick = () => ap.save(fileBase() + ".svg", new Blob([svg], { type: "image/svg+xml" }));
+  if ($("#scsv")) $("#scsv").onclick = () => { const a = aggregate(r); ap.save(fileBase() + "-resumen.csv", new Blob(["﻿" + toCsv([[cols[c.x].name, aggLabel()], ...a.map(x => [x.k, x.v])])], { type: "text/csv" })); };
+}
+const fileBase = () => (name.replace(/\.[^.]+$/, "") || "datos") + "-grafica";
+const aggLabel = () => chartCfg.agg === "count" ? "Filas" : `${{ sum: "Suma", avg: "Promedio", min: "Mínimo", max: "Máximo" }[chartCfg.agg]} de ${cols[chartCfg.y]?.name}`;
+const theme = () => dk() ? { bg: "#24211d", ink: "#ece5da", ink3: "#8a8175", line: "#3a352e" } : { bg: "#fbf8f2", ink: "#2a2520", ink3: "#8b8174", line: "#e3dacb" };
+const svgOpen = (W, H, t) => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" font-family="Segoe UI, system-ui, sans-serif" font-size="12"><rect width="${W}" height="${H}" fill="${t.bg}"/>`;
+function niceTicks(lo, hi, n = 5) { if (lo === hi) { hi = lo + 1; } const step0 = (hi - lo) / n, mag = 10 ** Math.floor(Math.log10(step0)), step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= step0); const a = Math.floor(lo / step) * step, out = []; for (let v = a; v <= hi + step * .5; v += step) out.push(+v.toFixed(10)); return out; }
+function barsLines(data) {
+  const t = theme(), W = 860, H = 440, L = 70, R = 20, T = 40, B = 90, line = chartCfg.type === "line"; if (!data.length) return svgOpen(W, H, t) + `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="${t.ink3}">Sin datos</text></svg>`;
+  const ticks = niceTicks(Math.min(0, ...data.map(d => d.v)), Math.max(...data.map(d => d.v))), lo = ticks[0], hi = ticks[ticks.length - 1], Y = (v) => T + (hi - v) / (hi - lo) * (H - T - B), bw = (W - L - R) / data.length;
+  let s = svgOpen(W, H, t) + `<text x="${L}" y="24" font-size="14" font-weight="700" fill="${t.ink}">${ap.esc(aggLabel())} por ${ap.esc(cols[chartCfg.x].name)}</text>`;
+  ticks.forEach(v => s += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${t.line}"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" fill="${t.ink3}">${fmtShort(v)}</text>`);
+  const every = Math.ceil(data.length / 30), lbl = (k) => { const x = String(k); return x.length > 16 ? x.slice(0, 15) + "…" : x; };
+  if (line) { const pts = data.map((d, i) => [L + bw * (i + .5), Y(d.v)]); s += `<path d="M${pts.map(p => p.map(n => n.toFixed(1)).join(" ")).join("L")}L${pts[pts.length - 1][0]} ${Y(Math.max(lo, 0))}L${pts[0][0]} ${Y(Math.max(lo, 0))}Z" fill="${COLORS[1]}" opacity=".12"/><path d="M${pts.map(p => p.map(n => n.toFixed(1)).join(" ")).join("L")}" fill="none" stroke="${COLORS[1]}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    if (data.length <= 60) s += pts.map((p, i) => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="${COLORS[1]}"><title>${ap.esc(data[i].k)}: ${fmtShort(data[i].v)}</title></circle>`).join(""); }
+  else s += data.map((d, i) => { const y0 = Y(0), y1 = Y(d.v); return `<rect x="${L + bw * i + bw * .14}" y="${Math.min(y0, y1)}" width="${bw * .72}" height="${Math.abs(y1 - y0)}" rx="3" fill="${String(d.k).startsWith("Otros (") ? t.ink3 : COLORS[0]}"><title>${ap.esc(d.k)}: ${fmtShort(d.v)}</title></rect>${data.length <= 25 ? `<text x="${L + bw * (i + .5)}" y="${Math.min(y0, y1) - 5}" text-anchor="middle" font-size="11" fill="${t.ink}">${fmtShort(d.v)}</text>` : ""}`; }).join("");
+  s += data.map((d, i) => i % every ? "" : `<text transform="translate(${L + bw * (i + .5)} ${H - B + 14}) rotate(${data.length > 8 ? -38 : 0})" text-anchor="${data.length > 8 ? "end" : "middle"}" fill="${t.ink3}">${ap.esc(lbl(d.k))}</text>`).join("");
+  return s + "</svg>";
+}
+function pie(data) {
+  const t = theme(), W = 860, H = 440, cx = 230, cy = 230, R = 170, r0 = 92, total = data.reduce((a, d) => a + Math.max(0, d.v), 0); let a = -Math.PI / 2;
+  let s = svgOpen(W, H, t) + `<text x="24" y="28" font-size="14" font-weight="700" fill="${t.ink}">${ap.esc(aggLabel())} por ${ap.esc(cols[chartCfg.x].name)}</text>`;
+  data.forEach((d, i) => { const f = Math.max(0, d.v) / total, b = a + f * 2 * Math.PI, big = f > .5 ? 1 : 0, col = String(d.k).startsWith("Otros (") ? t.ink3 : COLORS[i % COLORS.length];
+    const p = (ang, rr) => `${(cx + rr * Math.cos(ang)).toFixed(1)} ${(cy + rr * Math.sin(ang)).toFixed(1)}`;
+    if (f >= .9999) s += `<circle cx="${cx}" cy="${cy}" r="${(R + r0) / 2}" fill="none" stroke="${col}" stroke-width="${R - r0}"/>`;
+    else if (f > 0) s += `<path d="M${p(a, R)}A${R} ${R} 0 ${big} 1 ${p(b, R)}L${p(b, r0)}A${r0} ${r0} 0 ${big} 0 ${p(a, r0)}Z" fill="${col}" stroke="${t.bg}" stroke-width="2"><title>${ap.esc(d.k)}: ${fmtShort(d.v)} (${(f * 100).toFixed(1)} %)</title></path>`;
+    if (i < 16) s += `<rect x="450" y="${60 + i * 22}" width="12" height="12" rx="2" fill="${col}"/><text x="470" y="${70 + i * 22}" fill="${t.ink}">${ap.esc(String(d.k).slice(0, 32))}</text><text x="830" y="${70 + i * 22}" text-anchor="end" fill="${t.ink3}">${(f * 100).toFixed(1).replace(".", ",")} %</text>`;
+    a = b; });
+  return s + `<text x="${cx}" y="${cy - 2}" text-anchor="middle" font-size="22" font-weight="700" fill="${t.ink}">${fmtShort(total)}</text><text x="${cx}" y="${cy + 18}" text-anchor="middle" fill="${t.ink3}">total</text></svg>`;
+}
+function scatter(r) {
+  const t = theme(), W = 860, H = 440, L = 70, R = 20, T = 40, B = 60, xi = chartCfg.x, yi = chartCfg.y; const pts = r.filter(row => typeof row[xi] === "number" && typeof row[yi] === "number").map(row => [row[xi], row[yi]]);
+  if (!pts.length) return svgOpen(W, H, t) + `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" fill="${t.ink3}">Elige dos columnas de números</text></svg>`;
+  const xt = niceTicks(Math.min(...pts.map(p => p[0])), Math.max(...pts.map(p => p[0]))), yt = niceTicks(Math.min(...pts.map(p => p[1])), Math.max(...pts.map(p => p[1])));
+  const X = (v) => L + (v - xt[0]) / (xt[xt.length - 1] - xt[0]) * (W - L - R), Y = (v) => T + (yt[yt.length - 1] - v) / (yt[yt.length - 1] - yt[0]) * (H - T - B);
+  // recta de tendencia (mínimos cuadrados) y correlación
+  const n = pts.length, mx = pts.reduce((a, p) => a + p[0], 0) / n, my = pts.reduce((a, p) => a + p[1], 0) / n, sxy = pts.reduce((a, p) => a + (p[0] - mx) * (p[1] - my), 0), sxx = pts.reduce((a, p) => a + (p[0] - mx) ** 2, 0), syy = pts.reduce((a, p) => a + (p[1] - my) ** 2, 0), m = sxy / sxx, b = my - m * mx, rr = sxy / Math.sqrt(sxx * syy);
+  let s = svgOpen(W, H, t) + `<text x="${L}" y="24" font-size="14" font-weight="700" fill="${t.ink}">${ap.esc(cols[yi].name)} frente a ${ap.esc(cols[xi].name)}</text><text x="${W - R}" y="24" text-anchor="end" fill="${t.ink3}">correlación r = ${isFinite(rr) ? rr.toFixed(2).replace(".", ",") : "—"} · ${n.toLocaleString("es")} puntos</text>`;
+  yt.forEach(v => s += `<line x1="${L}" x2="${W - R}" y1="${Y(v)}" y2="${Y(v)}" stroke="${t.line}"/><text x="${L - 8}" y="${Y(v) + 4}" text-anchor="end" fill="${t.ink3}">${fmtShort(v)}</text>`);
+  xt.forEach(v => s += `<text x="${X(v)}" y="${H - B + 18}" text-anchor="middle" fill="${t.ink3}">${fmtShort(v)}</text>`);
+  s += pts.slice(0, 5000).map(p => `<circle cx="${X(p[0]).toFixed(1)}" cy="${Y(p[1]).toFixed(1)}" r="3.5" fill="${COLORS[1]}" opacity=".55"/>`).join("");
+  if (isFinite(m)) s += `<line x1="${X(xt[0])}" y1="${Y(m * xt[0] + b)}" x2="${X(xt[xt.length - 1])}" y2="${Y(m * xt[xt.length - 1] + b)}" stroke="${COLORS[0]}" stroke-width="2" stroke-dasharray="6 4"/>`;
+  return s + `<text x="${(L + W - R) / 2}" y="${H - 14}" text-anchor="middle" fill="${t.ink}">${ap.esc(cols[xi].name)}</text></svg>`;
+}
+function savePng(svg) { const img = new Image(); img.onload = () => { const c = document.createElement("canvas"); c.width = 1720; c.height = 880; c.getContext("2d").drawImage(img, 0, 0, c.width, c.height); c.toBlob(b => ap.save(fileBase() + ".png", b), "image/png"); }; img.onerror = () => ap.toast("No se pudo crear la imagen"); img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg); }
+const toCsv = (t) => t.map(r => r.map(v => { const s = v == null ? "" : String(v); return /[",;\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }).join(",")).join("\r\n");
+
+/* ---------- columna calculada: fórmula propia (sin eval) ---------- */
+function compile(src) {
+  const toks = []; const re = /\s*(?:(\d+(?:[.,]\d+)?)|\[([^\]]+)\]|([A-Za-zÁÉÍÓÚÑáéíóúñ_][\wÁÉÍÓÚÑáéíóúñ]*)|("[^"]*")|(<=|>=|<>|[-+*/^(),<>=&]))/y;
+  let m, p = 0; src = src.trim(); while (p < src.length) { re.lastIndex = p; m = re.exec(src); if (!m) throw new Error(`No entiendo «${src.slice(p, p + 8)}»`); p = re.lastIndex; toks.push(m[1] ? { n: +m[1].replace(",", ".") } : m[2] ? { c: m[2] } : m[3] ? { id: m[3] } : m[4] ? { s: m[4].slice(1, -1) } : { o: m[5] }); }
+  let i = 0; const peek = () => toks[i], eat = (o) => { if (toks[i]?.o === o) { i++; return true; } return false; };
+  const colIdx = (n) => { const k = cols.findIndex(c => c.name.toLowerCase() === n.toLowerCase()); if (k < 0) throw new Error(`No hay una columna «${n}»`); return k; };
+  const FN = { redondear: (a, d = 0) => Math.round(a * 10 ** d) / 10 ** d, abs: Math.abs, raiz: Math.sqrt, min: Math.min, max: Math.max, si: (c, a, b) => c ? a : b, mayusculas: (s) => String(s ?? "").toUpperCase(), minusculas: (s) => String(s ?? "").toLowerCase(), largo: (s) => String(s ?? "").length, año: (d) => new Date(d).getFullYear(), mes: (d) => new Date(d).getMonth() + 1, dia: (d) => new Date(d).getDate() };
+  const cmp = () => { let a = add(); for (;;) { const o = peek()?.o; if (["<", ">", "<=", ">=", "=", "<>"].includes(o)) { i++; const b = add(), x = a; a = (r) => { const u = x(r), v = b(r); return o === "<" ? u < v : o === ">" ? u > v : o === "<=" ? u <= v : o === ">=" ? u >= v : o === "=" ? u == v : u != v; }; } else return a; } };
+  const add = () => { let a = mul(); for (;;) { if (eat("+")) { const b = mul(), x = a; a = (r) => x(r) + b(r); } else if (eat("-")) { const b = mul(), x = a; a = (r) => x(r) - b(r); } else if (eat("&")) { const b = mul(), x = a; a = (r) => String(x(r) ?? "") + String(b(r) ?? ""); } else return a; } };
+  const mul = () => { let a = pow(); for (;;) { if (eat("*")) { const b = pow(), x = a; a = (r) => x(r) * b(r); } else if (eat("/")) { const b = pow(), x = a; a = (r) => x(r) / b(r); } else return a; } };
+  const pow = () => { const a = un(); if (eat("^")) { const b = pow(); return (r) => a(r) ** b(r); } return a; };
+  const un = () => { if (eat("-")) { const a = un(); return (r) => -a(r); } return atom(); };
+  const atom = () => { const t = toks[i++]; if (!t) throw new Error("La fórmula está incompleta");
+    if ("n" in t) return () => t.n; if ("s" in t) return () => t.s; if (t.c) { const k = colIdx(t.c); return (r) => r[k]; }
+    if (t.o === "(") { const e = cmp(); if (!eat(")")) throw new Error("Falta cerrar un paréntesis"); return e; }
+    if (t.id) { const f = FN[t.id.toLowerCase()]; if (f && eat("(")) { const args = []; if (!eat(")")) { do args.push(cmp()); while (eat(",")); if (!eat(")")) throw new Error("Falta cerrar un paréntesis"); } return (r) => f(...args.map(a => a(r))); } const k = colIdx(t.id); return (r) => r[k]; }
+    throw new Error(`No esperaba «${t.o}»`); };
+  const e = cmp(); if (i < toks.length) throw new Error("Sobra algo al final de la fórmula"); return e;
+}
+$("#calc").onclick = async () => {
+  const nums = cols.filter(c => c.type === "num").map(c => /^[A-Za-z_]\w*$/.test(c.name) ? c.name : `[${c.name}]`);
+  const r = await ap.ask({ title: "Columna nueva", text: `Usa los nombres de las columnas (entre [ ] si tienen espacios), + − * / ^, paréntesis y funciones: redondear, abs, raiz, min, max, si, año, mes, dia, mayusculas, largo. Ejemplo: ${nums.length >= 2 ? `${nums[0]} * ${nums[1]}` : "redondear([Precio] * 1.19, 0)"}`,
+    fields: [{ key: "n", label: "Nombre", value: "Calculada" }, { key: "f", label: "Fórmula", placeholder: nums.length >= 2 ? `${nums[0]} * ${nums[1]}` : "" }], ok: "Agregar" });
+  if (!r || !r.f.trim()) return;
+  try { const fn = compile(r.f); let n = r.n.trim() || "Calculada"; while (cols.some(c => c.name === n)) n += "_"; const vals = rows.map(row => { try { const v = fn(row); return typeof v === "number" && !isFinite(v) ? null : v; } catch { return null; } });
+    cols.push({ name: n, type: vals.every(v => v == null || typeof v === "number") ? "num" : "text" }); rows.forEach((row, k) => row.push(typeof vals[k] === "boolean" ? (vals[k] ? "sí" : "no") : vals[k])); show(view); ap.toast(`Columna «${n}» agregada`); }
+  catch (e) { ap.toast(e.message, 3500); }
+};
+
+/* ---------- entrada ---------- */
+$("#open").onclick = async () => { try { const [f] = await sotos.files.pick({ title: "Abrir datos", exts: ["csv", "tsv", "txt", "json"] }); if (f) openBlob(await sotos.files.read(f), f.name); } catch (e) { ap.toast(e.message); } };
+$("#paste").onclick = async () => { const r = await ap.ask({ title: "Pegar datos", text: "Copia celdas de una hoja de cálculo (con la fila de títulos) y pégalas aquí.", fields: [{ key: "t", label: "Datos", type: "textarea", rows: 10 }], ok: "Usar" }); if (r && r.t.trim()) load(parseCsv(r.t), "Datos pegados"); };
+$("#export").onclick = () => { const r = filtered(); ap.save((name.replace(/\.[^.]+$/, "") || "datos") + "-filtrado.csv", new Blob(["﻿" + toCsv([cols.map(c => c.name), ...r.map(row => row.map((v, i) => cols[i].type === "date" && v != null ? new Date(v).toISOString().slice(0, 10) : v))])], { type: "text/csv" })); };
+$("#tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) show(b.dataset.v); };
+let ft; $("#filter").oninput = () => { clearTimeout(ft); ft = setTimeout(() => show(view), 200); };
+$("#demo").onclick = () => { // datos inventados para probar: ventas de una tienda durante 2026
+  let seed = 11; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const prods = [["Café de Huila 500 g", "Despensa", 28000], ["Panela orgánica", "Despensa", 6500], ["Arepas de maíz", "Panadería", 9000], ["Queso campesino", "Lácteos", 16000], ["Mochila wayuu", "Artesanías", 180000], ["Sombrero vueltiao", "Artesanías", 120000], ["Bocadillo veleño", "Dulces", 7000], ["Chocolate de mesa", "Despensa", 11000]];
+  const cities = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Bucaramanga"], t = [["Fecha", "Ciudad", "Producto", "Categoría", "Cantidad", "Precio unitario"]];
+  for (let i = 0; i < 900; i++) { const d = new Date(2026, 0, 1 + Math.floor(rnd() * 330)), p = prods[Math.floor(rnd() ** 1.4 * prods.length)], q = 1 + Math.floor(rnd() * (p[2] > 100000 ? 2 : 8)) + (d.getMonth() === 11 ? 2 : 0);
+    t.push([d.toISOString().slice(0, 10), cities[Math.floor(rnd() ** 1.2 * cities.length)], p[0], p[1], String(q), String(p[2])]); }
+  load(t, "ventas-ejemplo.csv");
+};
+let dd = 0; document.addEventListener("dragenter", (e) => { e.preventDefault(); if (!dd++) { const d = document.createElement("div"); d.className = "drop"; d.id = "drop"; d.textContent = "Suelta el archivo para abrirlo"; document.body.appendChild(d); } });
+document.addEventListener("dragleave", () => { if (!--dd) $("#drop")?.remove(); }); document.addEventListener("dragover", (e) => e.preventDefault());
+document.addEventListener("drop", (e) => { e.preventDefault(); dd = 0; $("#drop")?.remove(); const f = e.dataTransfer.files[0]; if (f) openBlob(f, f.name); });
+new MutationObserver(() => { if (view === "grafica" && rows.length) show("grafica"); }).observe(document.documentElement, { attributes: true, attributeFilter: ["data-sotos-theme"] });
+(async () => { await ap.ready; if (window.sotos && window.parent !== window) sotos.on("open", async (f) => openBlob(await sotos.files.read(f), f.name)); })();
+</script>
+</body>
+</html>

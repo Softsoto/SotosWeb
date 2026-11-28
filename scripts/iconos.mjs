@@ -15,7 +15,8 @@ const IGNORE = new Set(["sdk", "av1", "hevc", "2d", "eyebrow", "javascript", "ph
   "abc", "artist", "chips", "details", "diamond", "face", "flip", "height", "label", "light", "move", "orbit",
   "reminder", "resize", "reviews", "scan", "score", "signature", "spa", "square", "stars",
   "sticker", "store", "sweep", "target", "task", "tour", "unsubscribe", "upcoming", "wc",
-  "box", "update", "menu", "radio", "navigation", "pending"]);
+  "box", "update", "menu", "radio", "navigation", "pending",
+  "tsv", "storage", "files", "docs"]);
 const used = new Set();
 for (const f of files) for (const m of fs.readFileSync(f, "utf8").matchAll(/["'`]([a-z0-9_]{2,40})["'`]/g)) if (names.has(m[1]) && !IGNORE.has(m[1])) used.add(m[1]);
 const list = [...used].sort();

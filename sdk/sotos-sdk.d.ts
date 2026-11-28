@@ -26,7 +26,7 @@ declare namespace Sotos {
     };
     notify(n: { title: string; body?: string } | string): Promise<true>;
     /** internet (permiso «net»): solo HTTPS y solo a los sitios declarados en «hosts» del manifiesto */
-    net: { fetch(url: string, o?: { method?: string; headers?: Record<string, string>; body?: string | object }): Promise<{ ok: boolean; status: number; type: string; json<T = unknown>(): Promise<T>; text(): Promise<string>; blob(): Promise<Blob> }> };
+    net: { fetch(url: string, o?: { method?: string; headers?: Record<string, string>; body?: string | object; /** true: no usar la respuesta guardada del último minuto (datos en vivo) */ fresh?: boolean }): Promise<{ ok: boolean; status: number; type: string; json<T = unknown>(): Promise<T>; text(): Promise<string>; blob(): Promise<Blob> }> };
     storage: { get<T = unknown>(key: string): Promise<T | null>; set(key: string, value: unknown): Promise<true>; remove(key: string): Promise<true>; keys(): Promise<string[]> };
     window: { setTitle(title: string): Promise<true>; close(): Promise<true> };
     on<K extends keyof Events>(event: K, handler: (data: Events[K]) => void): () => void;

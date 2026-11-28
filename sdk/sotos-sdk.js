@@ -59,7 +59,8 @@
       forget: function (f) { return call("files.forget", { id: f && f.id || f }); }
     },
     /** internet (permiso «net»): Sotos hace la petición por la app, solo a los sitios declarados en «hosts».
-        net.fetch(url, { method?, headers?, body? }) → { ok, status, type, json(), text(), blob() } */
+        net.fetch(url, { method?, headers?, body?, fresh? }) → { ok, status, type, json(), text(), blob() }
+        Las consultas GET se guardan un minuto; fresh: true pide siempre la respuesta nueva (datos en vivo). */
     net: {
       fetch: function (url, o) {
         return call("net.fetch", Object.assign({ url: String(url) }, o || {})).then(function (r) {
@@ -73,7 +74,7 @@
     },
     /** aviso en la campana de Sotos: { title, body? } (permiso «notify») */
     notify: function (o) { return call("notify", typeof o === "string" ? { title: o } : o); },
-    /** datos de tu app en la cuenta de la persona, hasta 2 MB (permiso «storage») */
+    /** datos de tu app en la cuenta de la persona, hasta 8 MB (permiso «storage») */
     storage: {
       get: function (k) { return call("storage.get", { key: k }); },
       set: function (k, v) { return call("storage.set", { key: k, value: v }); },

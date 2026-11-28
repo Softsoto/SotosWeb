@@ -510,7 +510,7 @@ function SdkHost({ app, fileId, setWinTitle, closeWin }) {
       "files.write": async ({ id, data }) => { need("files.write"); const g = own(id); if (g instanceof File) throw new Error("Ese archivo vino del equipo: usa files.save para guardarlo en Sotos"); await vfs.write(g.id, toBlob(data)); return meta(vfs.node(g.id) || g); },
       // internet (permiso «net»): el servidor hace la petición, solo a los sitios que la app declaró
       "net.fetch": async (o) => { need("net"); if (vfs.getState().mode !== "cloud") throw Object.assign(new Error("Para conectarse a internet, la app necesita una cuenta de Sotos"), { code: "offline" });
-        return api("POST", `apps/${app.id}/fetch`, { url: o.url, method: o.method, headers: o.headers, body: o.body }); },
+        return api("POST", `apps/${app.id}/fetch`, { url: o.url, method: o.method, headers: o.headers, body: o.body, fresh: !!o.fresh }); },
       notify: async ({ title, body }) => { need("notify"); if (vfs.getState().mode === "cloud") await api("POST", `apps/${app.id}/notify`, { title, body }); else toast(`${app.name}: ${title}`, { icon: app.icon }); return true; },
       "storage.get": async ({ key }) => { need("storage"); return (await api_("GET", key)).value; },
       "storage.set": async ({ key, value }) => { need("storage"); await api_("PUT", key, { value }); return true; },

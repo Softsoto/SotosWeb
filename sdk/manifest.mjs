@@ -8,7 +8,7 @@ export const PERMISSIONS = { "files.read": "Abrir los archivos que elijas", "fil
 /** sitio permitido para «net»: dominio o *.dominio (sin protocolo, puerto ni ruta) */
 export const HOST = /^(\*\.)?([a-z0-9-]+\.)+[a-z]{2,}$/;
 const RESERVED = new Set(["files", "admin", "settings", "store", "mail", "calendar", "contacts", "worlds", "docs", "sheets", "slides", "gallery", "music", "video", "browser", "terminal", "launchpad", "vault", "paint", "code", "whiteboard", "diagrams", "tasks", "games", "cine", "fotos", "whatsapp", "inbox", "trash", "editor",
-  "lector", "solitario", "palabras", "rompecabezas", "ritmos", "afinador", "pixelart", "memes", "diario", "pelis", "soto", "claves", "tablero", "visor3d", "fotos-edit", "clima", "monedas", "wiki", "pinball", "panel", "informes", "diagnostico", "pdfmeta", "audioext", "control", "nas"]);
+  "lector", "solitario", "palabras", "rompecabezas", "ritmos", "afinador", "pixelart", "memes", "diario", "pelis", "soto", "claves", "tablero", "visor3d", "fotos-edit", "clima", "monedas", "wiki", "pinball", "panel", "informes", "diagnostico", "pdfmeta", "audioext", "control", "nas", "sismos", "orbita", "ajedrez", "datos", "facturas", "crm", "horas", "finanzas"]);
 export function validateManifest(m) {
   const err = (t) => { throw Object.assign(new Error("sotos-app.json: " + t), { status: 400 }); };
   if (!m || typeof m !== "object") err("no es un objeto JSON");

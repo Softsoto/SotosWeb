@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Estación espacial</title>
+<!-- Sotos — Estación espacial: la EEI en vivo (wheretheiss.at, por el permiso «net» del SDK) · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
+  .mapw { position: relative; min-height: 0; } canvas { width: 100%; height: 100%; display: block; }
+  .zoom { position: absolute; right: 10px; top: 10px; display: grid; gap: 4px; } .zoom .ap-btn { width: 32px; padding: 0; justify-content: center; background: var(--panel); }
+  .hint { position: absolute; left: 50%; top: 12px; transform: translateX(-50%); padding: 8px 14px; font-size: 13px; }
+  .side { border-left: 1px solid var(--line); background: var(--panel); overflow: auto; padding: 14px; display: grid; gap: 12px; align-content: start; }
+  .big { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .big div { background: var(--panel-2); border-radius: 10px; padding: 8px 10px; } .big b { display: block; font: 700 19px/1.2 var(--font); font-variant-numeric: tabular-nums; } .big span { font-size: 11px; color: var(--ink-3); }
+  .over { font-size: 15px; } .over b { font-size: 18px; display: block; }
+  .kv { display: flex; justify-content: space-between; font-size: 13px; padding: 3px 0; border-bottom: 1px dashed var(--line); } .kv span { color: var(--ink-3); } .kv b { font-variant-numeric: tabular-nums; }
+  h3 { margin: 4px 0 0; font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+  .pill { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 3px 9px; border-radius: 12px; background: var(--panel-2); } .pill i { width: 8px; height: 8px; border-radius: 50%; }
+  .near { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); font-size: 13px; }
+  .src { font-size: 11px; color: var(--ink-3); }
+  @media (max-width: 760px) { .body { grid-template-columns: 1fr; grid-template-rows: 55% 45%; } .side { border-left: 0; border-top: 1px solid var(--line); } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Estación espacial</h1><span class="pill" id="live"><i style="background:var(--ink-3)"></i>Conectando…</span><span class="sp"></span>
+    <button class="ap-btn on" id="follow" title="Mantener la estación en el centro">Seguir</button><button class="ap-btn" id="lugar" title="Toca el mapa para elegir dónde estás">Mi lugar</button></div>
+  <div class="body">
+    <div class="mapw"><canvas id="map"></canvas>
+      <div class="zoom"><button class="ap-btn" id="zin" title="Acercar">+</button><button class="ap-btn" id="zout" title="Alejar">−</button><button class="ap-btn" id="zall" title="Ver el mundo">⤢</button></div>
+      <div class="hint ap-card" id="hint" hidden>Toca el mapa donde estás</div></div>
+    <div class="side" id="side"><div class="ap-empty">Buscando la estación…</div></div>
+  </div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script src="../comun/mapa.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const API = "https://api.wheretheiss.at/v1/satellites/25544";
+let map, now = null, prev = null, shownPos = null, animFrom = 0, track = [], follow = true, picking = false, place = { name: "Bogotá", lat: 4.61, lon: -74.08 }, fails = 0;
+const R = 6371, MU = 398600.4418;
+const rad = (d) => d * Math.PI / 180, deg = (r) => r * 180 / Math.PI;
+const dist = (a, b) => { const la1 = rad(a.lat), la2 = rad(b.lat), dl = rad(b.lon - a.lon); return R * Math.acos(Math.min(1, Math.sin(la1) * Math.sin(la2) + Math.cos(la1) * Math.cos(la2) * Math.cos(dl))); };
+/* interpolación sobre la esfera entre dos posiciones (la órbita es casi un círculo máximo) */
+function slerp(a, b, t) {
+  const v = (p) => [Math.cos(rad(p.lat)) * Math.cos(rad(p.lon)), Math.cos(rad(p.lat)) * Math.sin(rad(p.lon)), Math.sin(rad(p.lat))];
+  const A = v(a), B = v(b), d = Math.acos(Math.min(1, A[0] * B[0] + A[1] * B[1] + A[2] * B[2])); if (d < 1e-9) return { lat: a.lat, lon: a.lon };
+  const s1 = Math.sin((1 - t) * d) / Math.sin(d), s2 = Math.sin(t * d) / Math.sin(d), P = A.map((x, i) => s1 * x + s2 * B[i]);
+  return { lat: deg(Math.asin(P[2])), lon: deg(Math.atan2(P[1], P[0])) };
+}
+const fmt = (n, d = 0) => n.toLocaleString("es", { minimumFractionDigits: d, maximumFractionDigits: d });
+const coord = (v, pos, neg) => `${fmt(Math.abs(v), 2)}° ${v >= 0 ? pos : neg}`;
+const hm = (t) => new Date(t * 1000).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
+
+async function get(url) { const r = await sotos.net.fetch(url, { fresh: true }); if (!r.ok) throw new Error(r.status === 429 ? "El servicio pide esperar un momento" : "El servicio respondió " + r.status); return r.json(); }
+async function poll() {
+  try { const p = await get(API); prev = shownPos || p; now = p; animFrom = performance.now(); fails = 0; setLive(true); panel(); }
+  catch (e) { fails++; setLive(false, e.message); }
+}
+/* trayectoria: 45 minutos atrás y 95 adelante, de a 10 puntos por consulta */
+async function loadTrack() {
+  const t0 = Math.floor(Date.now() / 1000), ts = []; for (let t = t0 - 45 * 60; t <= t0 + 95 * 60; t += 150) ts.push(t);
+  const out = []; for (let i = 0; i < ts.length; i += 10) { try { out.push(...await get(`${API}/positions?timestamps=${ts.slice(i, i + 10).join(",")}&units=kilometers`)); } catch { /* sigue con lo que haya */ } }
+  if (out.length) { track = out.sort((a, b) => a.timestamp - b.timestamp); panel(); map.draw(); }
+}
+function setLive(ok, msg) { $("#live").innerHTML = ok ? '<i style="background:#3d9a4a"></i>En vivo' : `<i style="background:var(--bad)"></i>${ap.esc(msg || "Sin conexión")}`; }
+
+function panel() {
+  if (!now) return;
+  const h = now.altitude, period = 2 * Math.PI * Math.sqrt(((R + h) ** 3) / MU) / 60, pais = map.countryAt(now.longitude, now.latitude);
+  const fut = track.filter(p => p.timestamp > now.timestamp);
+  let best = null; for (let i = 0; i + 1 < fut.length; i++) for (let k = 0; k < 10; k++) { const q = slerp({ lat: fut[i].latitude, lon: fut[i].longitude }, { lat: fut[i + 1].latitude, lon: fut[i + 1].longitude }, k / 10), d = dist(q, place); if (!best || d < best.d) best = { d, t: fut[i].timestamp + (fut[i + 1].timestamp - fut[i].timestamp) * k / 10 }; }
+  const dnow = dist({ lat: now.latitude, lon: now.longitude }, place), horizonte = now.footprint / 2;
+  $("#side").innerHTML = `
+    <div class="over"><span class="ap-faint">Ahora pasa sobre</span><b>${ap.esc(pais || oceano(now.latitude, now.longitude))}</b></div>
+    <div class="big"><div><b>${fmt(now.velocity)}</b><span>km/h</span></div><div><b>${fmt(h)}</b><span>km de altura</span></div>
+      <div><b>${fmt(now.velocity / 3600, 2)}</b><span>km por segundo</span></div><div><b>${fmt(period, 1)}</b><span>minutos por vuelta</span></div></div>
+    <div><div class="kv"><span>Latitud</span><b>${coord(now.latitude, "N", "S")}</b></div><div class="kv"><span>Longitud</span><b>${coord(now.longitude, "E", "O")}</b></div>
+      <div class="kv"><span>Luz</span><b>${now.visibility === "daylight" ? "Le da el sol" : "En la sombra de la Tierra"}</b></div>
+      <div class="kv"><span>Alcance visual</span><b>${fmt(now.footprint)} km</b></div><div class="kv"><span>Vueltas al día</span><b>${fmt(1440 / period, 1)}</b></div></div>
+    <h3>Desde ${ap.esc(place.name)}</h3>
+    <div class="near">Ahora está a <b>${fmt(dnow)} km</b>.${dnow < horizonte ? " <b>Está sobre tu horizonte.</b>" : ""}<br>
+      ${best ? `En la próxima hora y media pasará más cerca a las <b>${hm(best.t)}</b>, a ${fmt(best.d)} km${best.d < horizonte ? ": sobre tu horizonte. Si es de noche y le da el sol, se ve como una estrella que cruza el cielo." : "."}` : "Calculando su trayectoria…"}</div>
+    <div class="src">Posición: wheretheiss.at, cada 5 segundos. Línea continua: dónde estuvo; punteada: dónde estará. La sombra es la noche en la Tierra.</div>`;
+}
+const oceano = (lat, lon) => lat < -60 ? "la Antártida o el océano Antártico" : lon > -70 && lon < 20 && lat > -60 ? "el océano Atlántico" : (lon >= 20 && lon < 120 && lat < 30) ? "el océano Índico" : lat > 66 ? "el océano Ártico" : "el océano Pacífico";
+
+function frame(t) {
+  if (now) {
+    const k = Math.min(1, (t - animFrom) / 5000), a = { lat: prev.latitude, lon: prev.longitude }, b = { lat: now.latitude, lon: now.longitude };
+    // se adelanta suave hacia la última posición, y luego sigue la órbita hacia el siguiente punto calculado
+    const p = slerp(a, b, k); shownPos = { latitude: p.lat, longitude: p.lon };
+    if (follow) { map.view.lon = p.lon; map.view.lat = p.lat; }
+    map.draw();
+  }
+  requestAnimationFrame(frame);
+}
+function draw(ctx, m) {
+  if (now) m.night(now.solar_lon > 180 ? now.solar_lon - 360 : now.solar_lon, now.solar_lat, document.documentElement.dataset.sotosTheme === "dark" ? "rgba(0,0,0,.35)" : "rgba(20,30,60,.22)");
+  if (track.length) {
+    const ts = shownPos && now ? now.timestamp : 0, past = track.filter(p => p.timestamp <= ts).map(p => [p.longitude, p.latitude]), fut = track.filter(p => p.timestamp >= ts).map(p => [p.longitude, p.latitude]);
+    if (shownPos) { past.push([shownPos.longitude, shownPos.latitude]); fut.unshift([shownPos.longitude, shownPos.latitude]); }
+    const dens = (pts) => { const o = []; for (let i = 0; i + 1 < pts.length; i++) for (let k = 0; k < 8; k++) { const q = slerp({ lon: pts[i][0], lat: pts[i][1] }, { lon: pts[i + 1][0], lat: pts[i + 1][1] }, k / 8); o.push([q.lon, q.lat]); } if (pts.length) o.push(pts[pts.length - 1]); return o; };
+    ctx.lineWidth = 2; ctx.strokeStyle = "#c4532f"; m.path(dens(past)); ctx.stroke();
+    ctx.setLineDash([5, 5]); m.path(dens(fut)); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // mi lugar
+  const pp = m.dot(place.lon, place.lat, 4, "#2f6b45", "#fff"); ctx.font = "12px " + getComputedStyle(document.body).fontFamily; ctx.fillStyle = document.documentElement.dataset.sotosTheme === "dark" ? "#ece5da" : "#2a2520"; ctx.fillText(place.name, pp[0] + 7, pp[1] + 4);
+  if (shownPos && now) {
+    ctx.fillStyle = "rgba(196,83,47,.12)"; ctx.strokeStyle = "rgba(196,83,47,.5)"; ctx.lineWidth = 1; m.path(m.circle(shownPos.longitude, shownPos.latitude, now.footprint / 2)); ctx.fill(); ctx.stroke();
+    const p = m.proj(shownPos.longitude, shownPos.latitude); station(ctx, p[0], p[1]);
+  }
+}
+/* la estación: módulo central, armazón y dos alas de paneles solares */
+function station(ctx, x, y) {
+  ctx.save(); ctx.translate(x, y);
+  ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.beginPath(); ctx.arc(0, 0, 15, 0, 7); ctx.fill(); ctx.strokeStyle = "#2a2520"; ctx.lineWidth = 1; ctx.stroke();
+  ctx.fillStyle = "#2a2520"; ctx.fillRect(-11, -1, 22, 2);
+  ctx.fillStyle = "#3b5f8f"; [[-11, -8], [-11, 2], [6, -8], [6, 2]].forEach(([a, b]) => ctx.fillRect(a, b, 5, 6));
+  ctx.fillStyle = "#d9d2c4"; ctx.fillRect(-3, -3, 6, 6); ctx.strokeRect(-3, -3, 6, 6);
+  ctx.restore();
+}
+
+$("#follow").onclick = () => { follow = !follow; $("#follow").classList.toggle("on", follow); };
+$("#lugar").onclick = () => { picking = !picking; $("#hint").hidden = !picking; $("#lugar").classList.toggle("on", picking); };
+$("#zin").onclick = () => map.zoom(1.6); $("#zout").onclick = () => map.zoom(1 / 1.6); $("#zall").onclick = () => { follow = false; $("#follow").classList.remove("on"); map.center(0, 0, 1); };
+
+(async () => {
+  await ap.ready;
+  const s = await ap.store.get("lugar"); if (s && typeof s.lat === "number") place = s;
+  map = await SotosMapa($("#map"), { zoom: 1.6, onDraw: draw,
+    onMove() { if (follow) { follow = false; $("#follow").classList.remove("on"); } },
+    async onClick(ll) {
+      if (!picking) return; picking = false; $("#hint").hidden = true; $("#lugar").classList.remove("on");
+      const r = await ap.ask({ title: "Tu lugar", text: `${ll[1].toFixed(2)}, ${ll[0].toFixed(2)}`, fields: [{ key: "n", label: "Nombre", value: map.countryAt(ll[0], ll[1]) || "Mi lugar" }], ok: "Guardar" });
+      if (!r) return; place = { name: r.n.trim().slice(0, 40) || "Mi lugar", lat: ll[1], lon: ll[0] }; ap.store.set("lugar", place); panel(); map.draw(); } });
+  if (map.error) ap.toast("No se pudo cargar el mapa: " + map.error.message);
+  await poll(); loadTrack();
+  setInterval(() => { if (!document.hidden) poll(); }, 5000);
+  setInterval(() => { if (!document.hidden) loadTrack(); }, 10 * 60_000);
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

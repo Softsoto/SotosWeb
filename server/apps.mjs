@@ -32,7 +32,7 @@ const SDK_FILE = fileURLToPath(new URL("../sdk/sotos-sdk.js", import.meta.url));
 import { ID, PERMISSIONS, validateManifest } from "../sdk/manifest.mjs";
 import { APPS_CASA } from "../web/src/os/apps-casa.js";
 export { PERMISSIONS, validateManifest };
-const MAX_ZIP = 60 * 1024 * 1024, MAX_FILES = 3000, MAX_STORAGE = 2 * 1024 * 1024;
+const MAX_ZIP = 60 * 1024 * 1024, MAX_FILES = 3000, MAX_STORAGE = 8 * 1024 * 1024;
 db.exec(`CREATE TABLE IF NOT EXISTS app_storage (user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, app_id TEXT NOT NULL, key TEXT NOT NULL, value TEXT NOT NULL, updated INTEGER NOT NULL, PRIMARY KEY (user_id, app_id, key));`);
 
 // apps de la casa que corren con el SDK (web/public/apps): sus permisos vienen del catálogo, no de un .zip
@@ -56,7 +56,7 @@ async function netFetch(app, b) {
   const headers = {}; for (const [k, v] of Object.entries(b.headers || {})) if (/^[a-z0-9-]{1,40}$/i.test(k) && !/^(host|cookie|connection|content-length|transfer-encoding)$/i.test(k)) headers[k] = String(v).slice(0, 2000);
   headers["user-agent"] = headers["user-agent"] || "Sotos-App/1 (+https://github.com/Softsoto/SotosWeb)";
   const key = method === "GET" ? url.href + JSON.stringify(headers) : null, hit = key && netCache.get(key);
-  if (hit && Date.now() - hit.at < 60_000) return hit.data; // la misma consulta en el último minuto
+  if (hit && !b.fresh && Date.now() - hit.at < 60_000) return hit.data; // la misma consulta en el último minuto (fresh: true la salta, para datos en vivo)
   let r; try { r = await fetch(url, { method, headers, body: method === "GET" ? undefined : typeof b.body === "string" ? b.body.slice(0, 1_000_000) : b.body ? JSON.stringify(b.body) : undefined, redirect: "manual", signal: AbortSignal.timeout(15_000) }); }
   catch (e) { fail(502, "No se pudo conectar: " + (e.cause?.code || e.message)); }
   if (r.status >= 300 && r.status < 400) { const loc = r.headers.get("location"); fail(502, "El sitio redirige a otra dirección" + (loc ? ` (${new URL(loc, url).hostname})` : "")); }
@@ -143,9 +143,9 @@ export async function handleApps(req, res, parts) {
     if (req.method === "GET") { if (k === null) return json(res, 200, { keys: db.prepare("SELECT key FROM app_storage WHERE user_id = ? AND app_id = ? ORDER BY key").all(u.id, id).map(r => r.key) });
       const r = db.prepare("SELECT value FROM app_storage WHERE user_id = ? AND app_id = ? AND key = ?").get(u.id, id, k); return json(res, 200, { value: r ? JSON.parse(r.value) : null }); }
     if (req.method === "PUT" && k !== null) {
-      let raw; try { raw = (await readRaw(req, MAX_STORAGE + 1024, "La app llegó a su límite de 2 MB de datos")).toString("utf8"); } catch (e) { fail(413, e.message); } let v; try { v = JSON.parse(raw).value; } catch { fail(400, "Valor no válido"); }
+      let raw; try { raw = (await readRaw(req, MAX_STORAGE + 1024, "La app llegó a su límite de 8 MB de datos")).toString("utf8"); } catch (e) { fail(413, e.message); } let v; try { v = JSON.parse(raw).value; } catch { fail(400, "Valor no válido"); }
       const s = JSON.stringify(v ?? null); const used = db.prepare("SELECT COALESCE(SUM(LENGTH(value)),0) n FROM app_storage WHERE user_id = ? AND app_id = ? AND key <> ?").get(u.id, id, k).n;
-      if (used + s.length > MAX_STORAGE) fail(413, "La app llegó a su límite de 2 MB de datos");
+      if (used + s.length > MAX_STORAGE) fail(413, "La app llegó a su límite de 8 MB de datos");
       db.prepare("INSERT INTO app_storage(user_id,app_id,key,value,updated) VALUES(?,?,?,?,?) ON CONFLICT(user_id,app_id,key) DO UPDATE SET value = excluded.value, updated = excluded.updated").run(u.id, id, k, s, now());
       return json(res, 200, { ok: true });
     }

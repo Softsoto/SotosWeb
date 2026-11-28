@@ -1,0 +1,187 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ventas</title>
+<!-- Sotos — Ventas (CRM): contactos, embudo de negocios, pronóstico, actividades con recordatorios e historial · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .tabs { display: flex; gap: 2px; padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .tabs button { border: 0; background: none; padding: 9px 14px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--ink-2); font-weight: 600; } .tabs button.on { color: var(--ink); border-color: var(--accent); }
+  .tabs small { background: var(--bad); color: #fff; border-radius: 9px; padding: 0 6px; font-size: 11px; margin-left: 4px; }
+  .main { flex: 1; min-height: 0; overflow: auto; padding: 16px 18px; display: grid; gap: 14px; align-content: start; }
+  .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .tools h2 { margin: 0; font-size: 17px; }
+  .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; } .kpi { padding: 12px 14px; } .kpi span { font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; } .kpi b { display: block; font-size: 19px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .pipe { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 1fr); gap: 10px; align-items: start; overflow-x: auto; padding-bottom: 6px; }
+  .col { background: var(--panel-2); border-radius: 10px; padding: 8px; display: grid; gap: 7px; min-height: 120px; align-content: start; } .col.over { outline: 2px dashed var(--accent); }
+  .col h3 { margin: 2px 4px 4px; font-size: 12.5px; display: flex; justify-content: space-between; gap: 6px; } .col h3 small { color: var(--ink-3); font-weight: 400; font-variant-numeric: tabular-nums; }
+  .deal { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 9px 10px; cursor: grab; display: grid; gap: 3px; font-size: 13px; box-shadow: var(--shadow); } .deal.drag { opacity: .4; }
+  .deal b { font-size: 13.5px; } .deal .v { font-variant-numeric: tabular-nums; font-weight: 600; } .deal .m { color: var(--ink-3); font-size: 11.5px; display: flex; justify-content: space-between; gap: 6px; } .deal .late { color: var(--bad); font-weight: 600; }
+  table.list { width: 100%; border-collapse: collapse; font-size: 13.5px; } table.list th { text-align: left; font-size: 11.5px; color: var(--ink-3); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; border-bottom: 1px solid var(--line-2); }
+  table.list td { padding: 9px 10px; border-bottom: 1px solid var(--line); } table.list tr.r { cursor: pointer; } table.list tr.r:hover td { background: var(--panel-2); } .n { text-align: right; font-variant-numeric: tabular-nums; }
+  .act { display: grid; grid-template-columns: 24px minmax(0, 1fr) auto; gap: 10px; align-items: start; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--panel); font-size: 13.5px; }
+  .act input[type=checkbox] { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--ok); } .act .when { font-size: 12px; color: var(--ink-3); white-space: nowrap; } .act .when.late { color: var(--bad); font-weight: 600; } .act.done span { text-decoration: line-through; color: var(--ink-3); }
+  .box { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .ficha { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; align-items: start; } .card { padding: 14px 16px; display: grid; gap: 8px; } .card h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+  .kv { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; } .kv span { color: var(--ink-3); }
+  .tl { display: grid; gap: 0; } .tl .it { display: grid; grid-template-columns: 26px 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px dashed var(--line); font-size: 13px; } .tl .ic { width: 24px; height: 24px; border-radius: 50%; background: var(--panel-2); display: grid; place-items: center; font-size: 12px; }
+  .tag { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11.5px; background: var(--panel-2); margin-right: 4px; }
+  .funnel { display: grid; gap: 6px; } .funnel div { display: grid; grid-template-columns: 120px 1fr 110px; gap: 10px; align-items: center; font-size: 13px; } .funnel i { display: block; height: 22px; border-radius: 4px; background: var(--accent); opacity: .8; }
+  @media (max-width: 860px) { .kpis { grid-template-columns: repeat(2, 1fr); } .ficha { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Ventas</h1><input class="ap-in" id="q" placeholder="Buscar contacto, empresa o negocio…" style="width:260px"><span class="sp"></span>
+    <button class="ap-btn" id="newAct">+ Actividad</button><button class="ap-btn" id="newCon">+ Contacto</button><button class="ap-btn primary" id="newDeal">+ Negocio</button></div>
+  <div class="tabs" id="tabs"><button data-v="embudo" class="on">Embudo</button><button data-v="actividades">Actividades<small id="late" hidden></small></button><button data-v="contactos">Contactos</button><button data-v="informe">Informe</button></div>
+  <div class="main" id="main"></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const ETAPAS = [["prospecto", "Prospecto", 10], ["contactado", "Contactado", 25], ["propuesta", "Propuesta enviada", 50], ["negociacion", "Negociación", 75], ["ganado", "Ganado", 100], ["perdido", "Perdido", 0]];
+const TIPOS = { llamada: ["Llamada", "☎"], reunion: ["Reunión", "◉"], correo: ["Correo", "✉"], tarea: ["Tarea", "✓"], whatsapp: ["WhatsApp", "◍"], nota: ["Nota", "✎"] };
+let D = { contactos: [], negocios: [], actividades: [], avisados: [] }, view = "embudo", q = "", sel = null;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const save = () => ap.store.set("crm", D);
+const money = (v) => new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(v || 0);
+const short = (v) => v >= 1e6 ? "$" + (v / 1e6).toLocaleString("es-CO", { maximumFractionDigits: 1 }) + " M" : money(v);
+const now = () => Date.now();
+const local = (t) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+const when = (t) => { const d = new Date(t), today = new Date(); today.setHours(0, 0, 0, 0); const diff = Math.round((new Date(d).setHours(0, 0, 0, 0) - today) / 864e5), h = d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+  return diff === 0 ? `Hoy ${h}` : diff === 1 ? `Mañana ${h}` : diff === -1 ? `Ayer ${h}` : d.toLocaleDateString("es-CO", { day: "numeric", month: "short" }) + " " + h; };
+const con = (id) => D.contactos.find(c => c.id === id);
+const etapa = (k) => ETAPAS.find(e => e[0] === k) || ETAPAS[0];
+const prob = (n) => n.prob ?? etapa(n.etapa)[2];
+const abiertos = () => D.negocios.filter(n => n.etapa !== "ganado" && n.etapa !== "perdido");
+const pendiente = (n) => D.actividades.filter(a => a.neg === n.id && !a.hecha).sort((a, b) => a.cuando - b.cuando)[0];
+const match = (s) => !q || String(s || "").toLowerCase().includes(q);
+
+function lateCount() { const n = D.actividades.filter(a => !a.hecha && a.cuando < now()).length; $("#late").hidden = !n; $("#late").textContent = n; }
+function render() { document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === view)); lateCount(); if (sel) return ficha(sel); ({ embudo: vEmbudo, actividades: vActs, contactos: vContactos, informe: vInforme })[view](); }
+
+function vEmbudo() {
+  const ab = abiertos(), total = ab.reduce((s, n) => s + (+n.valor || 0), 0), pond = ab.reduce((s, n) => s + (+n.valor || 0) * prob(n) / 100, 0), mes = new Date().toISOString().slice(0, 7);
+  const ganMes = D.negocios.filter(n => n.etapa === "ganado" && (n.cerrado || "").startsWith(mes)), cerr = D.negocios.filter(n => n.etapa === "ganado" || n.etapa === "perdido"), tasa = cerr.length ? D.negocios.filter(n => n.etapa === "ganado").length / cerr.length : 0;
+  const late = D.actividades.filter(a => !a.hecha && a.cuando < now()).length;
+  $("#main").innerHTML = `<div class="kpis"><div class="ap-card kpi"><span>En el embudo</span><b>${short(total)}</b></div><div class="ap-card kpi"><span>Pronóstico ponderado</span><b>${short(pond)}</b></div><div class="ap-card kpi"><span>Ganado este mes</span><b>${short(ganMes.reduce((s, n) => s + (+n.valor || 0), 0))}</b></div><div class="ap-card kpi"><span>Tasa de cierre</span><b>${cerr.length ? Math.round(tasa * 100) + " %" : "—"}</b></div><div class="ap-card kpi"><span>Actividades atrasadas</span><b style="${late ? "color:var(--bad)" : ""}">${late}</b></div></div>
+    <div class="pipe">${ETAPAS.map(([k, t, p]) => { const ns = D.negocios.filter(n => n.etapa === k && (match(n.titulo) || match(con(n.con)?.nombre) || match(con(n.con)?.empresa))).sort((a, b) => (b.valor || 0) - (a.valor || 0));
+      return `<div class="col" data-e="${k}"><h3>${t}<small>${ns.length} · ${short(ns.reduce((s, n) => s + (+n.valor || 0), 0))}</small></h3>${ns.map(n => { const c = con(n.con), a = pendiente(n);
+        return `<div class="deal" draggable="true" data-id="${n.id}"><b>${ap.esc(n.titulo)}</b><span class="v">${money(n.valor)}</span><span class="m"><span>${ap.esc(c ? (c.empresa || c.nombre) : "")}</span>${k !== "ganado" && k !== "perdido" ? `<span>${prob(n)} %</span>` : ""}</span>${a ? `<span class="m"><span class="${a.cuando < now() ? "late" : ""}">${TIPOS[a.tipo][1]} ${ap.esc(a.titulo)} · ${when(a.cuando)}</span></span>` : k !== "ganado" && k !== "perdido" ? '<span class="m"><span class="late" style="font-weight:400">Sin siguiente paso</span></span>' : ""}</div>`; }).join("")}</div>`; }).join("")}</div>
+    ${!D.negocios.length ? '<div class="ap-empty"><div style="max-width:440px;text-align:center"><b>Tu embudo de ventas</b><p class="ap-muted">Crea un negocio por cada oportunidad: a quién le vendes, cuánto vale y en qué etapa va. Arrastra las tarjetas entre columnas y agenda el siguiente paso para que nada se enfríe.</p></div></div>' : ""}`;
+  // arrastrar con el puntero (mouse, lápiz o dedo); un toque sin mover abre el negocio
+  $("#main").querySelectorAll(".deal").forEach(el => {
+    el.draggable = false; el.style.touchAction = "none";
+    el.onpointerdown = (e) => { if (e.button) return; const r = el.getBoundingClientRect(); let ghost = null, over = null; const sx = e.clientX, sy = e.clientY; el.setPointerCapture(e.pointerId);
+      el.onpointermove = (ev) => { if (!ghost && Math.hypot(ev.clientX - sx, ev.clientY - sy) < 6) return;
+        if (!ghost) { ghost = el.cloneNode(true); Object.assign(ghost.style, { position: "fixed", width: r.width + "px", pointerEvents: "none", zIndex: 50, transform: "rotate(2deg)", opacity: ".92" }); document.body.appendChild(ghost); el.classList.add("drag"); }
+        ghost.style.left = ev.clientX - (sx - r.left) + "px"; ghost.style.top = ev.clientY - (sy - r.top) + "px";
+        const col = document.elementFromPoint(ev.clientX, ev.clientY)?.closest(".col"); if (col !== over) { over?.classList.remove("over"); over = col; over?.classList.add("over"); } };
+      el.onpointerup = async () => { el.onpointermove = el.onpointerup = null; const n = D.negocios.find(x => x.id === el.dataset.id);
+        if (!ghost) return editNeg(n); ghost.remove(); el.classList.remove("drag"); over?.classList.remove("over");
+        if (over && n && n.etapa !== over.dataset.e) { await moverEtapa(n, over.dataset.e); render(); } }; };
+  });
+}
+async function moverEtapa(n, e) {
+  const antes = n.etapa; n.etapa = e; delete n.prob;
+  if (e === "perdido") { const r = await ap.ask({ title: "¿Por qué se perdió?", fields: [{ key: "m", label: "Motivo", type: "select", value: "Precio", options: ["Precio", "Eligió a la competencia", "No era el momento", "Sin presupuesto", "No respondió", "Otro"].map(x => [x, x]) }, { key: "n", label: "Nota (opcional)" }], ok: "Guardar" }); n.motivo = r ? r.m + (r.n ? ": " + r.n : "") : ""; }
+  if (e === "ganado" || e === "perdido") n.cerrado = new Date().toISOString().slice(0, 10); else delete n.cerrado;
+  D.actividades.push({ id: uid(), tipo: "nota", titulo: `Etapa: ${etapa(antes)[1]} → ${etapa(e)[1]}${n.motivo && e === "perdido" ? ` (${n.motivo})` : ""}`, cuando: now(), hecha: true, neg: n.id, con: n.con, auto: true });
+  save(); if (e === "ganado") ap.toast(`¡Ganado! ${money(n.valor)}`);
+}
+function actRow(a) { const c = con(a.con), n = D.negocios.find(x => x.id === a.neg); return `<div class="act ${a.hecha ? "done" : ""}" data-id="${a.id}"><input type="checkbox" ${a.hecha ? "checked" : ""} title="Hecha"><span><b>${TIPOS[a.tipo][1]} ${ap.esc(a.titulo)}</b>${a.nota ? `<br><span class="ap-faint" style="font-size:12.5px">${ap.esc(a.nota)}</span>` : ""}<br><span class="ap-faint" style="font-size:12px">${[c?.nombre, c?.empresa, n?.titulo].filter(Boolean).map(ap.esc).join(" · ")}</span></span><span class="when ${!a.hecha && a.cuando < now() ? "late" : ""}">${when(a.cuando)}</span></div>`; }
+function bindActs() { $("#main").querySelectorAll(".act").forEach(el => { const a = D.actividades.find(x => x.id === el.dataset.id); el.querySelector("input").onclick = (e) => { e.stopPropagation(); a.hecha = e.target.checked; a.hechaEn = a.hecha ? now() : null; save(); render(); }; el.onclick = (e) => { if (e.target.tagName !== "INPUT") editAct(a); }; }); }
+function vActs() {
+  const pend = D.actividades.filter(a => !a.hecha && (match(a.titulo) || match(con(a.con)?.nombre))).sort((a, b) => a.cuando - b.cuando), end = new Date(); end.setHours(23, 59, 59, 999);
+  const grupos = [["Atrasadas", pend.filter(a => a.cuando < now())], ["Hoy", pend.filter(a => a.cuando >= now() && a.cuando <= end)], ["Próximas", pend.filter(a => a.cuando > end)]];
+  const hechas = D.actividades.filter(a => a.hecha && !a.auto).sort((a, b) => (b.hechaEn || b.cuando) - (a.hechaEn || a.cuando)).slice(0, 15);
+  $("#main").innerHTML = grupos.filter(g => g[1].length).map(([t, l]) => `<div><div class="tools" style="margin-bottom:6px"><h2 style="font-size:14px;${t === "Atrasadas" ? "color:var(--bad)" : ""}">${t} · ${l.length}</h2></div><div class="box">${l.map(actRow).join("")}</div></div>`).join("") +
+    (pend.length ? "" : '<div class="ap-empty">No tienes actividades pendientes</div>') + (hechas.length ? `<div><div class="tools" style="margin-bottom:6px"><h2 style="font-size:14px">Hechas recientemente</h2></div><div class="box">${hechas.map(actRow).join("")}</div></div>` : "");
+  bindActs();
+}
+function vContactos() {
+  const list = D.contactos.filter(c => match(c.nombre) || match(c.empresa) || match(c.correo) || match((c.etiquetas || []).join(" "))).sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  $("#main").innerHTML = `<div class="tools"><h2>Contactos · ${D.contactos.length}</h2><span class="sp" style="flex:1"></span><button class="ap-btn" id="imp">Importar CSV</button><button class="ap-btn" id="exp">Exportar CSV</button></div>
+    ${list.length ? `<table class="list"><thead><tr><th>Nombre</th><th>Empresa</th><th>Contacto</th><th>Etiquetas</th><th class="n">Negocios abiertos</th><th>Último contacto</th></tr></thead><tbody>${list.map(c => { const ns = abiertos().filter(n => n.con === c.id), ult = D.actividades.filter(a => a.con === c.id && a.hecha && !a.auto).sort((a, b) => b.cuando - a.cuando)[0];
+      return `<tr class="r" data-id="${c.id}"><td><b>${ap.esc(c.nombre)}</b>${c.cargo ? `<br><span class="ap-faint" style="font-size:12px">${ap.esc(c.cargo)}</span>` : ""}</td><td>${ap.esc(c.empresa || "")}</td><td style="font-size:12.5px">${ap.esc([c.tel, c.correo].filter(Boolean).join(" · "))}</td><td>${(c.etiquetas || []).map(t => `<span class="tag">${ap.esc(t)}</span>`).join("")}</td><td class="n">${ns.length ? `${ns.length} · ${short(ns.reduce((s, n) => s + (+n.valor || 0), 0))}` : ""}</td><td class="ap-faint" style="font-size:12.5px">${ult ? when(ult.cuando) : "Nunca"}</td></tr>`; }).join("")}</tbody></table>` : '<div class="ap-empty">Sin contactos</div>'}`;
+  $("#main").querySelectorAll("tr.r").forEach(tr => tr.onclick = () => { sel = tr.dataset.id; render(); });
+  $("#exp").onclick = () => { const rows = [["Nombre", "Empresa", "Cargo", "Teléfono", "Correo", "Ciudad", "Etiquetas", "Notas"], ...D.contactos.map(c => [c.nombre, c.empresa, c.cargo, c.tel, c.correo, c.ciudad, (c.etiquetas || []).join(", "), c.notas])];
+    ap.save("contactos.csv", new Blob(["﻿" + rows.map(r => r.map(v => { const s = String(v ?? ""); return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }).join(";")).join("\r\n")], { type: "text/csv" })); };
+  $("#imp").onclick = importar;
+}
+async function importar() {
+  let f; try { [f] = await sotos.files.pick({ title: "Contactos en CSV", exts: ["csv", "txt"] }); } catch (e) { return ap.toast(e.message); } if (!f) return;
+  const text = (await (await sotos.files.read(f)).text()).replace(/^﻿/, ""), delim = (text.split("\n")[0].match(/;/g) || []).length > (text.split("\n")[0].match(/,/g) || []).length ? ";" : ",";
+  const rows = text.split(/\r?\n/).filter(Boolean).map(l => { const out = []; let cell = "", qq = false; for (let i = 0; i < l.length; i++) { const ch = l[i]; if (qq) { if (ch === '"') { if (l[i + 1] === '"') { cell += '"'; i++; } else qq = false; } else cell += ch; } else if (ch === '"') qq = true; else if (ch === delim) { out.push(cell.trim()); cell = ""; } else cell += ch; } out.push(cell.trim()); return out; });
+  const h = rows[0].map(x => x.toLowerCase()), idx = (re) => h.findIndex(x => re.test(x)), I = { nombre: idx(/^nombre|name|contacto/), empresa: idx(/empresa|company|organi/), cargo: idx(/cargo|title|puesto/), tel: idx(/tel|phone|celular|móvil|movil/), correo: idx(/correo|e-?mail/), ciudad: idx(/ciudad|city/) };
+  if (I.nombre < 0) return ap.toast("No encontré una columna «Nombre»"); let n = 0;
+  rows.slice(1).forEach(r => { const c = { id: uid(), etiquetas: [] }; Object.entries(I).forEach(([k, i]) => { if (i >= 0) c[k] = r[i] || ""; }); if (!c.nombre || D.contactos.some(x => x.nombre === c.nombre && (x.correo || "") === (c.correo || ""))) return; D.contactos.push(c); n++; });
+  save(); ap.toast(`${n} contactos importados`); render();
+}
+function ficha(id) {
+  const c = con(id); if (!c) { sel = null; return render(); }
+  const ns = D.negocios.filter(n => n.con === id), acts = D.actividades.filter(a => a.con === id).sort((a, b) => b.cuando - a.cuando);
+  $("#main").innerHTML = `<div class="tools"><button class="ap-btn ghost" id="back">← Volver</button><h2>${ap.esc(c.nombre)}</h2>${c.empresa ? `<span class="ap-faint">${ap.esc(c.empresa)}</span>` : ""}<span class="sp" style="flex:1"></span><button class="ap-btn" id="ed">Editar</button><button class="ap-btn" id="na">+ Actividad</button><button class="ap-btn primary" id="nn">+ Negocio</button></div>
+    <div class="ficha"><div style="display:grid;gap:12px"><div class="ap-card card"><h3>Datos</h3>${[["Cargo", c.cargo], ["Teléfono", c.tel], ["Correo", c.correo], ["Ciudad", c.ciudad]].filter(x => x[1]).map(([k, v]) => `<div class="kv"><span>${k}</span><b>${ap.esc(v)}</b></div>`).join("")}${(c.etiquetas || []).length ? `<div>${c.etiquetas.map(t => `<span class="tag">${ap.esc(t)}</span>`).join("")}</div>` : ""}${c.notas ? `<div class="ap-muted" style="font-size:13px;white-space:pre-wrap">${ap.esc(c.notas)}</div>` : ""}</div>
+      <div class="ap-card card"><h3>Negocios</h3>${ns.length ? ns.map(n => `<div class="kv" data-neg="${n.id}" style="cursor:pointer"><span>${ap.esc(n.titulo)} · ${etapa(n.etapa)[1]}</span><b>${short(n.valor)}</b></div>`).join("") : '<span class="ap-faint">Sin negocios</span>'}</div></div>
+      <div class="ap-card card"><h3>Historial</h3><div class="tl">${acts.length ? acts.map(a => `<div class="it" data-act="${a.id}" style="cursor:pointer"><span class="ic">${TIPOS[a.tipo][1]}</span><span><b>${ap.esc(a.titulo)}</b> <span class="ap-faint" style="font-size:12px">· ${when(a.cuando)}${a.hecha ? "" : " · pendiente"}</span>${a.nota ? `<br><span class="ap-muted" style="white-space:pre-wrap">${ap.esc(a.nota)}</span>` : ""}</span></div>`).join("") : '<span class="ap-faint">Aún no hay nada. Registra una llamada, reunión o nota.</span>'}</div></div></div>`;
+  $("#back").onclick = () => { sel = null; render(); }; $("#ed").onclick = () => editCon(c); $("#na").onclick = () => editAct({ con: id }); $("#nn").onclick = () => editNeg({ con: id });
+  $("#main").querySelectorAll("[data-neg]").forEach(el => el.onclick = () => editNeg(D.negocios.find(n => n.id === el.dataset.neg)));
+  $("#main").querySelectorAll("[data-act]").forEach(el => el.onclick = () => editAct(D.actividades.find(a => a.id === el.dataset.act)));
+}
+function vInforme() {
+  const ganados = D.negocios.filter(n => n.etapa === "ganado"), perdidos = D.negocios.filter(n => n.etapa === "perdido"), year = new Date().getFullYear();
+  const porMes = [...Array(12)].map((_, m) => ganados.filter(n => (n.cerrado || "").startsWith(`${year}-${String(m + 1).padStart(2, "0")}`)).reduce((s, n) => s + (+n.valor || 0), 0)), mx = Math.max(1, ...porMes);
+  const motivos = {}; perdidos.forEach(n => { const k = (n.motivo || "Sin motivo").split(":")[0]; motivos[k] = (motivos[k] || 0) + 1; });
+  const ciclo = ganados.filter(n => n.creado && n.cerrado).map(n => (new Date(n.cerrado) - n.creado) / 864e5), cicloP = ciclo.length ? Math.round(ciclo.reduce((a, b) => a + b, 0) / ciclo.length) : null;
+  const ticket = ganados.length ? ganados.reduce((s, n) => s + (+n.valor || 0), 0) / ganados.length : 0, embudo = ETAPAS.slice(0, 5).map(([k, t]) => [t, D.negocios.filter(n => ETAPAS.findIndex(e => e[0] === n.etapa) >= ETAPAS.findIndex(e => e[0] === k) && n.etapa !== "perdido").length]), emx = Math.max(1, ...embudo.map(e => e[1]));
+  $("#main").innerHTML = `<div class="kpis" style="grid-template-columns:repeat(4,1fr)"><div class="ap-card kpi"><span>Ganado en ${year}</span><b>${short(porMes.reduce((a, b) => a + b, 0))}</b></div><div class="ap-card kpi"><span>Ticket promedio</span><b>${short(ticket)}</b></div><div class="ap-card kpi"><span>Días para cerrar</span><b>${cicloP ?? "—"}</b></div><div class="ap-card kpi"><span>Ganados / perdidos</span><b>${ganados.length} / ${perdidos.length}</b></div></div>
+    <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px"><div class="ap-card card"><h3>Ventas ganadas por mes</h3><svg viewBox="0 0 640 200" width="100%">${porMes.map((v, i) => `<rect x="${14 + i * 52}" y="${170 - v / mx * 150}" width="38" height="${v / mx * 150}" rx="3" fill="var(--accent)"><title>${money(v)}</title></rect><text x="${33 + i * 52}" y="190" text-anchor="middle" style="font:11px var(--font);fill:var(--ink-3)">${new Date(year, i, 15).toLocaleDateString("es", { month: "short" })}</text>`).join("")}</svg></div>
+      <div class="ap-card card"><h3>Embudo de conversión</h3><div class="funnel">${embudo.map(([t, n]) => `<div><span>${t}</span><i style="width:${n / emx * 100}%"></i><span class="ap-faint">${n} negocios</span></div>`).join("")}</div>
+        <h3 style="margin-top:8px">Por qué se pierden</h3>${Object.keys(motivos).length ? Object.entries(motivos).sort((a, b) => b[1] - a[1]).map(([k, v]) => `<div class="kv"><span>${ap.esc(k)}</span><b>${v}</b></div>`).join("") : '<span class="ap-faint">Sin negocios perdidos</span>'}</div></div>`;
+}
+
+/* ---------- editores ---------- */
+async function editCon(c = {}) {
+  const r = await ap.ask({ title: c.id ? "Editar contacto" : "Contacto nuevo", fields: [{ key: "nombre", label: "Nombre", value: c.nombre }, { key: "empresa", label: "Empresa", value: c.empresa }, { key: "cargo", label: "Cargo", value: c.cargo }, { key: "tel", label: "Teléfono", value: c.tel }, { key: "correo", label: "Correo", type: "email", value: c.correo }, { key: "ciudad", label: "Ciudad", value: c.ciudad }, { key: "et", label: "Etiquetas (separadas por coma)", value: (c.etiquetas || []).join(", ") }, { key: "notas", label: "Notas", type: "textarea", value: c.notas }], ok: "Guardar" });
+  if (!r || !r.nombre.trim()) return null; const o = { nombre: r.nombre.trim(), empresa: r.empresa.trim(), cargo: r.cargo.trim(), tel: r.tel.trim(), correo: r.correo.trim(), ciudad: r.ciudad.trim(), etiquetas: r.et.split(",").map(s => s.trim()).filter(Boolean), notas: r.notas };
+  if (c.id) Object.assign(c, o); else { c = { id: uid(), ...o }; D.contactos.push(c); } save(); render(); return c;
+}
+async function editNeg(n = {}) {
+  if (!D.contactos.length && !n.con) { ap.toast("Primero crea el contacto o la empresa"); const c = await editCon(); if (!c) return; n.con = c.id; }
+  const r = await ap.ask({ title: n.id ? "Negocio" : "Negocio nuevo", fields: [{ key: "t", label: "Título", value: n.titulo, placeholder: "Ej.: Página web para la tienda" }, { key: "c", label: "Contacto", type: "select", value: n.con, options: D.contactos.map(c => [c.id, c.nombre + (c.empresa ? " · " + c.empresa : "")]) },
+    { key: "v", label: "Valor", type: "number", value: n.valor ?? "", min: 0 }, { key: "e", label: "Etapa", type: "select", value: n.etapa || "prospecto", options: ETAPAS.map(([k, t]) => [k, t]) }, { key: "p", label: "Probabilidad % (vacío = la de la etapa)", type: "number", value: n.prob ?? "", min: 0, max: 100 }, { key: "f", label: "Cierre esperado", type: "date", value: n.fecha }, { key: "x", label: "Notas", type: "textarea", value: n.notas },
+    ...(n.id ? [{ key: "del", label: "¿Eliminar?", type: "select", value: "0", options: [["0", "No"], ["1", "Sí, eliminar el negocio"]] }] : [])], ok: "Guardar" });
+  if (!r) return; if (r.del === "1") { D.negocios = D.negocios.filter(x => x.id !== n.id); D.actividades = D.actividades.filter(a => a.neg !== n.id || !a.auto); save(); render(); return; }
+  if (!r.t.trim()) return ap.toast("Ponle un título");
+  const etapaNueva = r.e, o = { titulo: r.t.trim(), con: r.c, valor: +r.v || 0, fecha: r.f, notas: r.x }; if (r.p !== "") o.prob = Math.max(0, Math.min(100, +r.p)); else delete n.prob;
+  if (n.id) { Object.assign(n, o); if (n.etapa !== etapaNueva) await moverEtapa(n, etapaNueva); }
+  else { n = { id: uid(), creado: now(), etapa: etapaNueva, ...o }; D.negocios.push(n); if (await ap.confirm("¿Agendar el siguiente paso de este negocio?", { ok: "Agendar", cancel: "Ahora no", danger: false })) await editAct({ neg: n.id, con: n.con }); }
+  save(); render();
+}
+async function editAct(a = {}) {
+  const nuevo = !a.id, base = new Date(); base.setDate(base.getDate() + 1); base.setHours(9, 0, 0, 0);
+  const r = await ap.ask({ title: nuevo ? "Actividad" : "Editar actividad", fields: [{ key: "tp", label: "Tipo", type: "select", value: a.tipo || "llamada", options: Object.entries(TIPOS).map(([k, v]) => [k, v[0]]) }, { key: "t", label: "Qué", value: a.titulo, placeholder: "Ej.: Llamar para revisar la propuesta" },
+    { key: "w", label: "Cuándo", type: "datetime-local", value: local(a.cuando || base.getTime()) }, { key: "c", label: "Contacto", type: "select", value: a.con || "", options: [["", "—"], ...D.contactos.map(c => [c.id, c.nombre])] }, { key: "n", label: "Negocio", type: "select", value: a.neg || "", options: [["", "—"], ...D.negocios.map(x => [x.id, x.titulo])] },
+    { key: "x", label: "Notas", type: "textarea", value: a.nota }, { key: "h", label: "Estado", type: "select", value: a.hecha ? "1" : "0", options: [["0", "Pendiente"], ["1", "Hecha"], ...(nuevo ? [] : [["del", "Eliminar"]])] }], ok: "Guardar" });
+  if (!r) return; if (r.h === "del") { D.actividades = D.actividades.filter(x => x.id !== a.id); save(); render(); return; } if (!r.t.trim()) return ap.toast("Escribe qué hay que hacer");
+  const neg = D.negocios.find(x => x.id === r.n), o = { tipo: r.tp, titulo: r.t.trim(), cuando: new Date(r.w).getTime() || now(), con: r.c || neg?.con || "", neg: r.n, nota: r.x, hecha: r.h === "1" };
+  if (nuevo) D.actividades.push({ id: uid(), ...o }); else { if (a.cuando !== o.cuando) D.avisados = D.avisados.filter(x => x !== a.id); Object.assign(a, o); } save(); render();
+}
+/* recordatorios: un aviso de Sotos cuando llega la hora (mientras la app esté abierta) */
+function avisar() {
+  D.actividades.filter(a => !a.hecha && a.cuando <= now() + 60000 && a.cuando > now() - 6 * 3600000 && !D.avisados.includes(a.id)).forEach(a => {
+    const c = con(a.con); sotos.notify({ title: `${TIPOS[a.tipo][0]}: ${a.titulo}`, body: [c?.nombre, c?.empresa, c?.tel].filter(Boolean).join(" · ") || "Ventas" }).catch(() => {}); D.avisados.push(a.id); });
+  D.avisados = D.avisados.slice(-300); save(); lateCount();
+}
+$("#tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) { view = b.dataset.v; sel = null; render(); } };
+let qt; $("#q").oninput = (e) => { clearTimeout(qt); qt = setTimeout(() => { q = e.target.value.trim().toLowerCase(); render(); }, 200); };
+$("#newDeal").onclick = () => editNeg(); $("#newCon").onclick = () => editCon(); $("#newAct").onclick = () => editAct();
+(async () => { await ap.ready; const s = await ap.store.get("crm"); if (s && s.negocios) D = Object.assign(D, s); render(); avisar(); setInterval(() => { avisar(); if (view === "actividades" || view === "embudo") render(); }, 60000); })();
+</script>
+</body>
+</html>

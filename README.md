@@ -10,7 +10,7 @@
 | **Tipo** | Escritorio web · ordenador en la nube |
 | **Plataforma** | Cualquier navegador moderno (Chrome, Edge, Firefox, Safari), en computador, tableta o celular |
 | **Servidor** | Este equipo (Windows, Linux, macOS), servidor Linux o Docker |
-| **Versión** | 3.6.8 |
+| **Versión** | 3.6.9 |
 | **Estado** | Funcional |
 | **Stack** | React 18 · Vite · Node.js 24 · SQLite · IndexedDB · Docker · Caddy · ONLYOFFICE / Euro-Office · Neko |
 | **Licencia** | [MIT](LICENSE) |
@@ -36,7 +36,7 @@ Sotos no usa código, gráficos ni recursos de inevio: todo está escrito desde 
 
 ## Novedades
 
-**Versión 3.6.8** ([historial completo](CHANGELOG.md)): el **SDK puede usar internet** (permiso `net`), **cifrado SOTO en el navegador** y ocho apps nuevas: SOTO, Claves, Clima, Monedas, Enciclopedia, Tablero, Visor 3D y Editor de fotos; además, la Gioconda como ejemplo de Pixel art. En 3.6.7: **diez apps nuevas en la Tienda**: Lector de libros, Solitario, Palabras, Rompecabezas, Caja de ritmos, Afinador, Pixel art, Memes y stickers, Diario, y Películas y series. En 3.6.6: **carpetas con contraseña** en Archivos y en la Bóveda, la Bóveda guarda **carpetas enteras** y se pueden **seleccionar varios elementos arrastrando un recuadro**. En 3.6.5: los enlaces para compartir se ven y se abren desde la ventana de compartir, usan la dirección pública de Sotos y avisan si solo funcionan dentro de casa; la ventana de compartir ya no queda detrás de las demás. En 3.6.4: **actualizar con un botón**, también en Docker y en NAS: cuando sale una versión nueva el administrador ve «Actualizar», la toca y Sotos se instala, se reinicia y la página se recarga sola. En 3.6.3: los enlaces para compartir se copian también entrando por la IP (Docker, NAS, red local), **Carpetas del NAS** (ver, reproducir, copiar y guardar archivos en las carpetas compartidas del NAS) y **Administración → Servicios** para instalar Office, Diagramas, Cine, Fotos o el navegador virtual después de instalar Sotos. Antes, en 3.6.2: Panel de control y los temas Núcleo y Circuito.
+**Versión 3.6.9** ([historial completo](CHANGELOG.md)): ocho apps nuevas. Para el trabajo y la casa: **Facturas**, **Ventas** (CRM), **Horas** y **Finanzas**. Con datos en vivo: **Sismos** y **Estación espacial**. Además, **Ajedrez** con motor propio y **Datos** para tablas y gráficas. La Gioconda de Pixel art ahora sale del cuadro real. En 3.6.8: el **SDK puede usar internet** (permiso `net`), **cifrado SOTO en el navegador** y ocho apps nuevas: SOTO, Claves, Clima, Monedas, Enciclopedia, Tablero, Visor 3D y Editor de fotos; además, la Gioconda como ejemplo de Pixel art. En 3.6.7: **diez apps nuevas en la Tienda**: Lector de libros, Solitario, Palabras, Rompecabezas, Caja de ritmos, Afinador, Pixel art, Memes y stickers, Diario, y Películas y series. En 3.6.6: **carpetas con contraseña** en Archivos y en la Bóveda, la Bóveda guarda **carpetas enteras** y se pueden **seleccionar varios elementos arrastrando un recuadro**. En 3.6.5: los enlaces para compartir se ven y se abren desde la ventana de compartir, usan la dirección pública de Sotos y avisan si solo funcionan dentro de casa; la ventana de compartir ya no queda detrás de las demás. En 3.6.4: **actualizar con un botón**, también en Docker y en NAS: cuando sale una versión nueva el administrador ve «Actualizar», la toca y Sotos se instala, se reinicia y la página se recarga sola. En 3.6.3: los enlaces para compartir se copian también entrando por la IP (Docker, NAS, red local), **Carpetas del NAS** (ver, reproducir, copiar y guardar archivos en las carpetas compartidas del NAS) y **Administración → Servicios** para instalar Office, Diagramas, Cine, Fotos o el navegador virtual después de instalar Sotos. Antes, en 3.6.2: Panel de control y los temas Núcleo y Circuito.
 
 **Versión 3.6**: **temas de época** (Prado, Cristal, Vidrio, Mosaico y Aluminio) con íconos, fondos y sonidos propios, **tu cuenta a un clic en tu foto**, **Contribuir y donaciones**, y **descargas al servidor**.
 
@@ -409,17 +409,24 @@ Con el permiso **`net`** una app también puede usar internet, solo con los siti
 
 Las apps de la casa están hechas con el mismo SDK que cualquier desarrollador, así que sirven de muestra:
 
-<img src="docs/capturas/gioconda-pixelart.png" alt="La Gioconda dibujada en Pixel art, 48 × 64 píxeles" width="192" align="right">
+<img src="docs/capturas/gioconda-pixelart.png" alt="La Gioconda en Pixel art, 86 × 128 píxeles y 64 colores" width="172" align="right">
 
 | App | Qué demuestra |
 |---|---|
 | **SOTO** | Cifrado real en el navegador: archivos `.soto` (AES-256-GCM por bloques, scrypt, SHA-256) compatibles con SOTO de escritorio en los dos sentidos. |
 | **Claves** | Gestor de contraseñas: la bóveda es un `.soto` cifrado con la clave maestra; a la cuenta solo llega texto cifrado. |
+| **Facturas** | Cotizaciones, cuentas de cobro y facturas con IVA, retención en la fuente, ReteIVA, ReteICA y abonos; PDF propio con logo y total en letras; informe de IVA por bimestre. |
+| **Ventas** | CRM: embudo arrastrable (también con el dedo), pronóstico ponderado, actividades con avisos de Sotos, historial por cliente e importación de contactos. |
+| **Horas** | Cronómetro por proyecto que sigue corriendo con la app cerrada, planilla semanal, tarifas, horas presupuestadas e informe en PDF. |
+| **Finanzas** | Cuentas en pesos y dólares (tasa del día con `net`), presupuesto, extractos del banco con reglas que aprenden, gastos fijos automáticos y metas de ahorro. |
+| **Sismos**, **Estación espacial** | Datos en vivo con `net`: el USGS y wheretheiss.at sobre un mapa mundial propio en Canvas (Natural Earth), con la sombra de la noche y la órbita. |
+| **Ajedrez** | Motor propio con alfa-beta, quiescencia y profundización iterativa, verificado con perft; cuatro niveles, pistas y PGN. |
+| **Datos** | CSV y JSON: resumen por columna, columnas con fórmulas (intérprete propio, sin `eval`), agrupación y gráficas en PNG o SVG. |
 | **Clima**, **Monedas**, **Enciclopedia** | APIs externas con el permiso `net`: Open-Meteo, ExchangeRate-API y Frankfurter, Wikipedia. |
 | **Visor 3D** | WebGL sin librerías: modelos STL y OBJ con luz, alambre y captura. |
 | **Editor de fotos** | Filtros y ajustes con Canvas, recorte, giro, deshacer y guardado de una copia. |
 | **Tablero** | Kanban con arrastrar y soltar, etiquetas, fechas y listas de chequeo. |
-| **Pixel art** | Editor con animación y un codificador GIF propio. La Gioconda de la derecha es su ejemplo, en 48 × 64 píxeles. |
+| **Pixel art** | Editor con animación y un codificador GIF propio. La Gioconda de la derecha es su ejemplo: el cuadro reducido a 86 × 128 píxeles con una paleta de 64 colores sacada de la misma pintura. |
 | **Lector**, **Caja de ritmos**, **Rompecabezas**, **Memes**… | Archivos (EPUB/CBZ, WAV, imágenes), audio sintetizado, «Abrir con» y datos por cuenta. |
 
 ## Para desarrolladores

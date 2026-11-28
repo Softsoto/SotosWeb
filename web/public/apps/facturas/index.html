@@ -1,0 +1,298 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Facturas</title>
+<!-- Sotos — Facturas: cotizaciones, cuentas de cobro y facturas con IVA, retenciones, abonos y PDF · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 190px minmax(0, 1fr); }
+  .nav { border-right: 1px solid var(--line); background: var(--panel); padding: 10px; display: grid; gap: 2px; align-content: start; }
+  .nav button { border: 0; background: none; text-align: left; padding: 9px 10px; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--ink-2); display: flex; justify-content: space-between; }
+  .nav button.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--ink); } .nav button:hover { background: var(--panel-2); }
+  .nav small { font-weight: 400; color: var(--ink-3); }
+  .main { overflow: auto; padding: 18px 22px; display: grid; gap: 14px; align-content: start; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; } .kpi { padding: 12px 14px; } .kpi span { font-size: 11.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; } .kpi b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; margin-top: 2px; } .kpi.warn b { color: var(--bad); }
+  .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .chip { border: 1px solid var(--line-2); background: var(--panel); border-radius: 16px; padding: 4px 11px; cursor: pointer; font-size: 12.5px; } .chip.on { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+  table.list { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  table.list th { text-align: left; font-size: 11.5px; color: var(--ink-3); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; border-bottom: 1px solid var(--line-2); }
+  table.list td { padding: 9px 10px; border-bottom: 1px solid var(--line); } table.list tr.r { cursor: pointer; } table.list tr.r:hover td { background: var(--panel-2); }
+  .n { text-align: right; } .badge { display: inline-block; padding: 2px 9px; border-radius: 10px; font-size: 11.5px; font-weight: 600; background: var(--panel-2); color: var(--ink-2); }
+  .b-pagada { background: #dcebd9; color: #2d5e2f; } .b-vencida { background: #f3d6d1; color: #8c2c22; } .b-pendiente { background: #f4e6c8; color: #7a5410; } .b-anulada { text-decoration: line-through; } .b-aceptada { background: #d6e4ee; color: #234d6b; }
+  :root[data-sotos-theme="dark"] .b-pagada { background: #24402a; color: #a7d8a9; } :root[data-sotos-theme="dark"] .b-vencida { background: #4a2420; color: #f0a99f; } :root[data-sotos-theme="dark"] .b-pendiente { background: #4a3a18; color: #f0d08a; } :root[data-sotos-theme="dark"] .b-aceptada { background: #1f3445; color: #a9cbe6; }
+  .ed { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 16px; align-items: start; }
+  .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; } .grid .w2 { grid-column: span 2; }
+  .f { display: grid; gap: 4px; font-size: 12px; color: var(--ink-3); } .f .ap-in, .f textarea { width: 100%; color: var(--ink); }
+  .items { width: 100%; border-collapse: collapse; font-size: 13px; } .items th { font-size: 11px; color: var(--ink-3); text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line-2); font-weight: 600; }
+  .items td { padding: 4px; border-bottom: 1px solid var(--line); vertical-align: top; } .items .ap-in { width: 100%; height: 30px; padding: 0 7px; } .items td.tot { text-align: right; padding-top: 10px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .items .x { border: 0; background: none; cursor: pointer; color: var(--ink-3); padding: 6px; } .items .x:hover { color: var(--bad); }
+  .totals { padding: 14px 16px; display: grid; gap: 6px; font-size: 13.5px; position: sticky; top: 0; } .totals .kv { display: flex; justify-content: space-between; font-variant-numeric: tabular-nums; } .totals .kv span { color: var(--ink-3); }
+  .totals .big { font-size: 19px; font-weight: 700; border-top: 1px solid var(--line-2); padding-top: 8px; margin-top: 4px; } .totals .big span { color: var(--ink); }
+  .letras { font-size: 11.5px; color: var(--ink-3); font-style: italic; }
+  .acts { display: grid; gap: 6px; } .acts .ap-btn { justify-content: center; }
+  .card { padding: 14px 16px; display: grid; gap: 10px; } .card h3 { margin: 0; font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+  .pay { display: flex; justify-content: space-between; font-size: 12.5px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+  .note { font-size: 12px; color: var(--ink-3); background: var(--panel-2); border-radius: 8px; padding: 9px 12px; }
+  .logo { width: 120px; height: 60px; border: 1px dashed var(--line-2); border-radius: 8px; display: grid; place-items: center; cursor: pointer; overflow: hidden; background: #fff; } .logo img { max-width: 100%; max-height: 100%; }
+  svg text { font: 11px var(--font); fill: var(--ink-3); }
+  @media (max-width: 860px) { .body { grid-template-columns: 1fr; } .nav { display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--line); } .ed { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, 1fr); } .grid { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Facturas</h1><span class="ap-faint" id="emp"></span><span class="sp"></span>
+    <button class="ap-btn" data-new="F">Nueva factura</button><button class="ap-btn" data-new="C">Nueva cotización</button><button class="ap-btn" data-new="R">Nueva cuenta de cobro</button></div>
+  <div class="body">
+    <div class="nav" id="nav">
+      <button data-v="docs" class="on">Documentos <small id="cDocs"></small></button><button data-v="clientes">Clientes <small id="cCli"></small></button>
+      <button data-v="productos">Productos y servicios <small id="cProd"></small></button><button data-v="informe">Informe</button><button data-v="empresa">Mi empresa</button></div>
+    <div class="main" id="main"></div>
+  </div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script src="../comun/pdf.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const TIPOS = { F: "Factura de venta", C: "Cotización", R: "Cuenta de cobro" }, CORTO = { F: "Factura", C: "Cotización", R: "Cuenta de cobro" };
+let D = { empresa: { nombre: "", nit: "", dir: "", ciudad: "", tel: "", correo: "", regimen: "Responsable de IVA", banco: "", nota: "", moneda: "COP", logo: null, validez: 15, plazo: 30 },
+  clientes: [], productos: [], docs: [], seq: { F: 1, C: 1, R: 1 }, pref: { F: "FV-", C: "COT-", R: "CC-" } };
+let view = "docs", filtro = { tipo: "", estado: "", q: "" }, editing = null;
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const hoy = () => new Date().toISOString().slice(0, 10);
+const addDays = (d, n) => { const x = new Date(d + "T12:00"); x.setDate(x.getDate() + Number(n || 0)); return x.toISOString().slice(0, 10); };
+const money = (v) => new Intl.NumberFormat("es-CO", { style: "currency", currency: D.empresa.moneda || "COP", maximumFractionDigits: D.empresa.moneda === "COP" ? 0 : 2 }).format(v || 0);
+const fdate = (d) => d ? new Date(d + "T12:00").toLocaleDateString("es-CO", { day: "numeric", month: "short", year: "numeric" }) : "";
+const save = () => ap.store.set("facturas", D);
+
+/* ---------- cálculos ---------- */
+function calc(doc) {
+  let bruto = 0, desc = 0, iva = 0, porIva = {};
+  doc.items.forEach(it => { const q = +it.q || 0, p = +it.p || 0, b = q * p, d = b * (+it.desc || 0) / 100, base = b - d, v = base * (+it.iva || 0) / 100; bruto += b; desc += d; iva += v; const k = +it.iva || 0; porIva[k] = (porIva[k] || 0) + base; });
+  const base = bruto - desc, r = doc.ret || {}, rf = base * (+r.fuente || 0) / 100, ri = r.iva ? iva * 0.15 : 0, rc = base * (+r.ica || 0) / 1000;
+  const R = (x) => D.empresa.moneda === "COP" ? Math.round(x) : Math.round(x * 100) / 100;
+  const total = R(base + iva), ret = R(rf) + R(ri) + R(rc), neto = total - ret, pagado = (doc.pagos || []).reduce((s, p) => s + (+p.valor || 0), 0);
+  return { bruto: R(bruto), desc: R(desc), base: R(base), iva: R(iva), porIva, rf: R(rf), ri: R(ri), rc: R(rc), total, ret, neto, pagado, saldo: R(neto - pagado) };
+}
+function estado(doc) {
+  if (doc.anulada) return "anulada"; const c = calc(doc);
+  if (doc.tipo === "C") return doc.convertida ? "aceptada" : doc.vence && doc.vence < hoy() ? "vencida" : "abierta";
+  if (c.neto > 0 && c.saldo <= 0) return "pagada"; if (doc.vence && doc.vence < hoy()) return "vencida"; return "pendiente";
+}
+const ENAME = { pagada: "Pagada", vencida: "Vencida", pendiente: "Por cobrar", anulada: "Anulada", abierta: "Abierta", aceptada: "Aceptada" };
+const cliente = (id) => D.clientes.find(c => c.id === id);
+
+/* ---------- vistas ---------- */
+function nav() { document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === view)); $("#cDocs").textContent = D.docs.length || ""; $("#cCli").textContent = D.clientes.length || ""; $("#cProd").textContent = D.productos.length || ""; $("#emp").textContent = D.empresa.nombre ? `${D.empresa.nombre}${D.empresa.nit ? " · NIT " + D.empresa.nit : ""}` : ""; }
+function show(v) { view = v; editing = null; nav(); ({ docs: vDocs, clientes: vClientes, productos: vProductos, informe: vInforme, empresa: vEmpresa })[v](); }
+function vDocs() {
+  const vivos = D.docs.filter(d => !d.anulada && d.tipo !== "C"), mes = hoy().slice(0, 7);
+  const porCobrar = vivos.reduce((s, d) => s + Math.max(0, calc(d).saldo), 0), vencido = vivos.filter(d => estado(d) === "vencida").reduce((s, d) => s + calc(d).saldo, 0);
+  const cobrado = D.docs.flatMap(d => d.anulada ? [] : (d.pagos || [])).filter(p => (p.fecha || "").startsWith(mes)).reduce((s, p) => s + (+p.valor || 0), 0), abiertas = D.docs.filter(d => d.tipo === "C" && estado(d) === "abierta");
+  let list = D.docs.slice().sort((a, b) => (b.fecha + b.num).localeCompare(a.fecha + a.num));
+  if (filtro.tipo) list = list.filter(d => d.tipo === filtro.tipo); if (filtro.estado) list = list.filter(d => estado(d) === filtro.estado);
+  if (filtro.q) { const q = filtro.q.toLowerCase(); list = list.filter(d => (d.num + " " + (d.cli?.nombre || "") + " " + d.items.map(i => i.d).join(" ")).toLowerCase().includes(q)); }
+  const chips = (k, opts) => opts.map(([v, t]) => `<button class="chip ${filtro[k] === v ? "on" : ""}" data-f="${k}" data-v="${v}">${t}</button>`).join("");
+  $("#main").innerHTML = `<div class="kpis"><div class="ap-card kpi"><span>Por cobrar</span><b>${money(porCobrar)}</b></div><div class="ap-card kpi ${vencido > 0 ? "warn" : ""}"><span>Vencido</span><b>${money(vencido)}</b></div><div class="ap-card kpi"><span>Cobrado este mes</span><b>${money(cobrado)}</b></div><div class="ap-card kpi"><span>Cotizaciones abiertas</span><b>${abiertas.length} · ${money(abiertas.reduce((s, d) => s + calc(d).total, 0))}</b></div></div>
+    <div class="tools">${chips("tipo", [["", "Todos"], ["F", "Facturas"], ["C", "Cotizaciones"], ["R", "Cuentas de cobro"]])}<span style="width:10px"></span>${chips("estado", [["", "Cualquier estado"], ["pendiente", "Por cobrar"], ["vencida", "Vencidas"], ["pagada", "Pagadas"]])}<span class="sp" style="flex:1"></span>
+      <input class="ap-in" id="q" placeholder="Buscar número, cliente o concepto…" style="width:240px" value="${ap.esc(filtro.q)}"><button class="ap-btn" id="csv">Exportar para el contador</button></div>
+    ${list.length ? `<table class="list"><thead><tr><th>Número</th><th>Cliente</th><th>Fecha</th><th>Vence</th><th class="n">Total</th><th class="n">Saldo</th><th>Estado</th></tr></thead><tbody>${list.map(d => { const c = calc(d), e = estado(d);
+      return `<tr class="r" data-id="${d.id}"><td><b>${ap.esc(d.num)}</b><br><span class="ap-faint" style="font-size:11.5px">${CORTO[d.tipo]}</span></td><td>${ap.esc(d.cli?.nombre || "—")}</td><td>${fdate(d.fecha)}</td><td>${fdate(d.vence)}</td><td class="n">${money(c.neto)}</td><td class="n">${d.tipo === "C" ? "" : money(c.saldo)}</td><td><span class="badge b-${e}">${ENAME[e]}</span></td></tr>`; }).join("")}</tbody></table>`
+      : `<div class="ap-empty"><div><b>${D.docs.length ? "Nada con estos filtros" : "Aún no hay documentos"}</b><p class="ap-muted">${D.docs.length ? "" : "Empieza por «Mi empresa» para que tus datos salgan en el PDF, y luego crea una cotización o una factura."}</p></div></div>`}
+    <div class="note">Para la facturación electrónica ante la DIAN necesitas un proveedor tecnológico autorizado. Aquí llevas cotizaciones, cuentas de cobro y facturas para control interno y para enviar a tus clientes en PDF.</div>`;
+  $("#main").querySelectorAll("[data-f]").forEach(b => b.onclick = () => { filtro[b.dataset.f] = b.dataset.v; vDocs(); });
+  $("#main").querySelectorAll("tr.r").forEach(tr => tr.onclick = () => edit(D.docs.find(d => d.id === tr.dataset.id)));
+  let t; $("#q").oninput = (e) => { clearTimeout(t); t = setTimeout(() => { filtro.q = e.target.value; vDocs(); const q = $("#q"); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }, 250); };
+  $("#csv").onclick = exportCsv;
+}
+function nuevo(tipo, base) {
+  const d = { id: uid(), tipo, num: D.pref[tipo] + String(D.seq[tipo]).padStart(4, "0"), fecha: hoy(), vence: addDays(hoy(), tipo === "C" ? D.empresa.validez : D.empresa.plazo), cliId: "", cli: null, items: [{ d: "", q: 1, p: 0, desc: 0, iva: tipo === "R" ? 0 : 19 }], ret: { fuente: 0, iva: false, ica: 0 }, notas: "", pagos: [], nuevo: true };
+  if (base) Object.assign(d, { cliId: base.cliId, cli: base.cli, items: JSON.parse(JSON.stringify(base.items)), ret: { ...base.ret }, notas: base.notas, origen: base.num });
+  edit(d);
+}
+function edit(doc) {
+  editing = JSON.parse(JSON.stringify(doc)); const d = editing, e = estado(d);
+  $("#main").innerHTML = `<div class="tools"><button class="ap-btn ghost" id="back">← Documentos</button><h2 style="margin:0;font-size:18px">${TIPOS[d.tipo]} ${ap.esc(d.num)}</h2>${d.nuevo ? "" : `<span class="badge b-${e}">${ENAME[e]}</span>`}${d.origen ? `<span class="ap-faint">desde ${ap.esc(d.origen)}</span>` : ""}</div>
+    <div class="ed"><div style="display:grid;gap:14px">
+      <div class="ap-card card"><div class="grid">
+        <label class="f w2">Cliente<select class="ap-in" id="cli"><option value="">Elige un cliente…</option>${D.clientes.map(c => `<option value="${c.id}" ${c.id === d.cliId ? "selected" : ""}>${ap.esc(c.nombre)}</option>`).join("")}<option value="+">+ Cliente nuevo…</option></select></label>
+        <label class="f">Número<input class="ap-in" id="num" value="${ap.esc(d.num)}"></label><label class="f">Fecha<input class="ap-in" type="date" id="fecha" value="${d.fecha}"></label>
+        <label class="f">${d.tipo === "C" ? "Válida hasta" : "Vence"}<input class="ap-in" type="date" id="vence" value="${d.vence}"></label></div></div>
+      <div class="ap-card card"><table class="items"><thead><tr><th style="width:44%">Descripción</th><th>Cant.</th><th>Precio</th><th>Desc. %</th><th>IVA</th><th style="text-align:right">Total</th><th></th></tr></thead><tbody id="items"></tbody></table>
+        <datalist id="prods">${D.productos.map(p => `<option value="${ap.esc(p.nombre)}">`).join("")}</datalist>
+        <div class="tools"><button class="ap-btn" id="addIt">+ Agregar línea</button>${D.productos.length ? '<span class="ap-faint" style="font-size:12px">Escribe y elige de tu catálogo para llenar precio e IVA.</span>' : ""}</div></div>
+      <div class="ap-card card"><h3>Retenciones que te practica el cliente</h3><div class="grid">
+        <label class="f">Retención en la fuente<select class="ap-in" id="rf">${[[0, "No aplica"], [2.5, "2,5 % compras"], [4, "4 % servicios"], [6, "6 % arrendamientos"], [10, "10 % honorarios"], [11, "11 % honorarios y consultoría"]].map(([v, t]) => `<option value="${v}" ${+d.ret.fuente === v ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label class="f">ReteIVA (15 % del IVA)<select class="ap-in" id="ri"><option value="0">No aplica</option><option value="1" ${d.ret.iva ? "selected" : ""}>Sí</option></select></label>
+        <label class="f">ReteICA (por mil)<input class="ap-in" type="number" step="0.01" min="0" id="rc" value="${d.ret.ica || 0}"></label></div></div>
+      <div class="ap-card card"><label class="f">Notas y condiciones (salen en el PDF)<textarea class="ap-in" id="notas" rows="3" style="height:auto;padding:8px 10px">${ap.esc(d.notas || "")}</textarea></label></div>
+      ${!d.nuevo && d.tipo !== "C" ? `<div class="ap-card card"><h3>Pagos y abonos</h3><div id="pays"></div><div class="tools"><button class="ap-btn" id="pay">+ Registrar pago</button></div></div>` : ""}
+    </div>
+    <div style="display:grid;gap:12px;position:sticky;top:0"><div class="ap-card totals" id="tots"></div>
+      <div class="acts"><button class="ap-btn primary" id="save">Guardar</button><button class="ap-btn" id="pdf">Guardar PDF</button>
+        ${!d.nuevo ? `<button class="ap-btn" id="dup">Duplicar</button>` : ""}${!d.nuevo && d.tipo === "C" && !d.convertida ? `<button class="ap-btn" id="conv">Convertir en factura</button>` : ""}
+        ${!d.nuevo && !d.anulada ? `<button class="ap-btn" id="anular">Anular</button>` : ""}${!d.nuevo && (d.anulada || d.tipo === "C") ? `<button class="ap-btn" id="del" style="color:var(--bad)">Eliminar</button>` : ""}</div></div></div>`;
+  renderItems(); renderTotals(); renderPays();
+  const bind = (id, k, f = (v) => v) => { $(id).oninput = (ev) => { d[k] = f(ev.target.value); renderTotals(); }; };
+  bind("#num", "num"); bind("#fecha", "fecha"); bind("#vence", "vence"); bind("#notas", "notas");
+  $("#rf").onchange = (ev) => { d.ret.fuente = +ev.target.value; renderTotals(); }; $("#ri").onchange = (ev) => { d.ret.iva = ev.target.value === "1"; renderTotals(); }; $("#rc").oninput = (ev) => { d.ret.ica = +ev.target.value; renderTotals(); };
+  $("#cli").onchange = async (ev) => { if (ev.target.value === "+") { const c = await askCliente(); if (c) { D.clientes.push(c); save(); d.cliId = c.id; d.cli = { ...c }; } edit(d); return; } d.cliId = ev.target.value; d.cli = cliente(d.cliId) ? { ...cliente(d.cliId) } : null; };
+  $("#addIt").onclick = () => { d.items.push({ d: "", q: 1, p: 0, desc: 0, iva: d.tipo === "R" ? 0 : 19 }); renderItems(); renderTotals(); $("#items").lastElementChild.querySelector("input").focus(); };
+  $("#back").onclick = () => show("docs");
+  $("#save").onclick = () => guardar(true);
+  $("#pdf").onclick = async () => { if (!guardar(false)) return; await pdf(D.docs.find(x => x.id === d.id)); };
+  if ($("#dup")) $("#dup").onclick = () => nuevo(d.tipo, d);
+  if ($("#conv")) $("#conv").onclick = () => { const orig = D.docs.find(x => x.id === d.id); orig.convertida = true; save(); nuevo("F", orig); };
+  if ($("#anular")) $("#anular").onclick = async () => { if (!(await ap.confirm(`¿Anular ${d.num}? Queda en la lista como anulada y no cuenta en los totales.`, { ok: "Anular" }))) return; d.anulada = true; guardar(false); edit(d); };
+  if ($("#del")) $("#del").onclick = async () => { if (!(await ap.confirm(`¿Eliminar ${d.num} para siempre?`, { ok: "Eliminar" }))) return; D.docs = D.docs.filter(x => x.id !== d.id); save(); show("docs"); };
+  if ($("#pay")) $("#pay").onclick = async () => { const c = calc(d); const r = await ap.ask({ title: "Registrar pago", fields: [{ key: "f", label: "Fecha", type: "date", value: hoy() }, { key: "v", label: "Valor", type: "number", value: Math.max(0, c.saldo), min: 0 }, { key: "m", label: "Medio", type: "select", value: "Transferencia", options: ["Transferencia", "Efectivo", "Consignación", "Tarjeta", "Nequi o Daviplata", "Cheque", "Otro"].map(x => [x, x]) }, { key: "n", label: "Referencia (opcional)" }], ok: "Registrar" });
+    if (!r || !(+r.v > 0)) return; d.pagos.push({ fecha: r.f, valor: +r.v, medio: r.m, ref: r.n }); guardar(false); edit(d); ap.toast(calc(d).saldo <= 0 ? "Pagada por completo" : `Abono registrado. Saldo: ${money(calc(d).saldo)}`); };
+}
+function renderItems() {
+  const d = editing; $("#items").innerHTML = d.items.map((it, i) => `<tr data-i="${i}"><td><input class="ap-in" data-k="d" list="prods" value="${ap.esc(it.d)}" placeholder="Producto o servicio"></td><td><input class="ap-in" data-k="q" type="number" min="0" step="any" value="${it.q}" style="width:64px"></td>
+    <td><input class="ap-in" data-k="p" type="number" min="0" step="any" value="${it.p}" style="width:110px"></td><td><input class="ap-in" data-k="desc" type="number" min="0" max="100" step="any" value="${it.desc || 0}" style="width:60px"></td>
+    <td><select class="ap-in" data-k="iva" style="width:76px">${[0, 5, 19].map(v => `<option value="${v}" ${+it.iva === v ? "selected" : ""}>${v} %</option>`).join("")}</select></td><td class="tot" data-tot>${money((+it.q || 0) * (+it.p || 0) * (1 - (+it.desc || 0) / 100))}</td><td>${d.items.length > 1 ? '<button class="x" title="Quitar línea">✕</button>' : ""}</td></tr>`).join("");
+  $("#items").querySelectorAll("tr").forEach(tr => { const it = d.items[+tr.dataset.i];
+    tr.querySelectorAll("[data-k]").forEach(el => el.oninput = el.onchange = () => { const k = el.dataset.k; it[k] = k === "d" ? el.value : +el.value;
+      if (k === "d") { const p = D.productos.find(x => x.nombre === el.value); if (p) { it.p = p.precio; it.iva = p.iva; tr.querySelector('[data-k="p"]').value = p.precio; tr.querySelector('[data-k="iva"]').value = p.iva; } }
+      tr.querySelector("[data-tot]").textContent = money((+it.q || 0) * (+it.p || 0) * (1 - (+it.desc || 0) / 100)); renderTotals(); });
+    const x = tr.querySelector(".x"); if (x) x.onclick = () => { d.items.splice(+tr.dataset.i, 1); renderItems(); renderTotals(); }; });
+}
+function letras(v) { const ent = Math.floor(v), cent = Math.round((v - ent) * 100), m = D.empresa.moneda; const nom = m === "USD" ? "dólares" : m === "EUR" ? "euros" : "pesos";
+  let s = SotosPDF.letras(ent); s += (/(millón|millones|billón|billones)$/.test(s) ? " de " : " ") + nom; if (cent) s += ` con ${cent} centavos`; return s.charAt(0).toUpperCase() + s.slice(1) + (m === "COP" ? " m/cte." : ""); }
+function renderTotals() {
+  const d = editing, c = calc(d), row = (k, v, cls = "") => `<div class="kv ${cls}"><span>${k}</span><b>${money(v)}</b></div>`;
+  $("#tots").innerHTML = row("Subtotal", c.bruto) + (c.desc ? row("Descuentos", -c.desc) : "") + (c.desc ? row("Base", c.base) : "") + Object.entries(c.porIva).filter(([k]) => +k > 0).map(([k, b]) => row(`IVA ${k} %`, b * k / 100)).join("") +
+    row("Total", c.total) + (c.rf ? row(`Retención en la fuente ${d.ret.fuente} %`, -c.rf) : "") + (c.ri ? row("ReteIVA", -c.ri) : "") + (c.rc ? row(`ReteICA ${d.ret.ica} ‰`, -c.rc) : "") +
+    row(c.ret ? "Neto a pagar" : "Total a pagar", c.neto, "big") + `<div class="letras">${letras(c.neto)}</div>` + (d.pagos?.length ? row("Pagado", c.pagado) + row("Saldo", c.saldo) : "");
+}
+function renderPays() { const d = editing, el = $("#pays"); if (!el) return; el.innerHTML = d.pagos.length ? d.pagos.map((p, i) => `<div class="pay"><span>${fdate(p.fecha)} · ${ap.esc(p.medio)}${p.ref ? " · " + ap.esc(p.ref) : ""}</span><span><b>${money(p.valor)}</b> <button class="ap-btn ghost" data-dp="${i}" style="height:22px;padding:0 6px" title="Quitar">✕</button></span></div>`).join("") : '<span class="ap-faint">Sin pagos todavía.</span>';
+  el.querySelectorAll("[data-dp]").forEach(b => b.onclick = () => { d.pagos.splice(+b.dataset.dp, 1); guardar(false); edit(d); }); }
+function guardar(back) {
+  const d = editing; if (!d.cliId) { ap.toast("Elige el cliente"); return false; } if (!d.items.some(i => i.d.trim() && +i.q > 0)) { ap.toast("Agrega al menos una línea con descripción y cantidad"); return false; }
+  if (D.docs.some(x => x.id !== d.id && x.tipo === d.tipo && x.num === d.num)) { ap.toast(`Ya existe ${d.num}`); return false; }
+  d.items = d.items.filter(i => i.d.trim()); d.cli = cliente(d.cliId) ? { ...cliente(d.cliId) } : d.cli;
+  const i = D.docs.findIndex(x => x.id === d.id);
+  if (d.nuevo) { delete d.nuevo; const m = d.num.match(/(\d+)\s*$/); if (m && d.num.startsWith(D.pref[d.tipo])) D.seq[d.tipo] = Math.max(D.seq[d.tipo], +m[1] + 1); }
+  if (i >= 0) D.docs[i] = JSON.parse(JSON.stringify(d)); else D.docs.push(JSON.parse(JSON.stringify(d)));
+  save(); nav(); if (back) { ap.toast(`${d.num} guardado`); show("docs"); } return true;
+}
+
+/* ---------- PDF ---------- */
+async function pdf(d) {
+  const E = D.empresa, c = calc(d), p = new SotosPDF({ size: "letter" }), M = 46, W = p.W - 2 * M, ink = "#2a2520", soft = "#7a7064", acc = "#b8452f";
+  let y = 46;
+  if (E.logo) { try { const b = Uint8Array.from(atob(E.logo.b64), ch => ch.charCodeAt(0)), h = 54, w = Math.min(150, h * E.logo.w / E.logo.h); p.image(b, M, y, w, h, E.logo.w, E.logo.h); } catch {} }
+  const ex = E.logo ? M + 165 : M;
+  p.text(E.nombre || "Tu empresa", ex, y + 14, { size: 15, bold: true, color: ink });
+  let ey = y + 30; [E.nit && `NIT ${E.nit}`, E.regimen, [E.dir, E.ciudad].filter(Boolean).join(", "), [E.tel, E.correo].filter(Boolean).join(" · ")].filter(Boolean).forEach(l => { p.text(l, ex, ey, { size: 9, color: soft }); ey += 12; });
+  // recuadro del documento
+  const bx = p.W - M - 190; p.rect(bx, y, 190, 70, { stroke: "#cfc4b2", lineWidth: .8 }); p.rect(bx, y, 190, 22, { fill: acc });
+  p.text(TIPOS[d.tipo].toUpperCase(), bx + 95, y + 15, { size: 10, bold: true, color: "#ffffff", align: "center" });
+  p.text(d.num, bx + 95, y + 40, { size: 14, bold: true, color: ink, align: "center" });
+  p.text(`Fecha: ${fdate(d.fecha)}`, bx + 95, y + 54, { size: 8, color: soft, align: "center" }); p.text(`${d.tipo === "C" ? "Válida hasta" : "Vence"}: ${fdate(d.vence)}`, bx + 95, y + 64, { size: 8, color: soft, align: "center" });
+  y = Math.max(ey, y + 70) + 22;
+  // cliente
+  const C = d.cli || {}; p.rect(M, y, W, 58, { fill: "#f4efe6" }); p.text(d.tipo === "C" ? "COTIZADO A" : "CLIENTE", M + 12, y + 16, { size: 8, bold: true, color: soft });
+  p.text(C.nombre || "", M + 12, y + 32, { size: 12, bold: true, color: ink }); p.text([C.doc && `NIT/CC ${C.doc}`, [C.dir, C.ciudad].filter(Boolean).join(", ")].filter(Boolean).join("   ·   "), M + 12, y + 47, { size: 9, color: soft });
+  if (C.correo || C.tel) p.text([C.tel, C.correo].filter(Boolean).join(" · "), p.W - M - 12, y + 32, { size: 9, color: soft, align: "right" });
+  y += 78;
+  // tabla
+  const cols = [{ t: "Descripción", x: M + 8, w: W * 0.46 }, { t: "Cant.", x: M + W * 0.52, a: "right" }, { t: "Precio", x: M + W * 0.67, a: "right" }, { t: "Desc.", x: M + W * 0.75, a: "right" }, { t: "IVA", x: M + W * 0.82, a: "right" }, { t: "Total", x: M + W - 8, a: "right" }];
+  const head = () => { p.rect(M, y, W, 20, { fill: ink }); cols.forEach(cl => p.text(cl.t, cl.x, y + 13.5, { size: 8.5, bold: true, color: "#ffffff", align: cl.a })); y += 20; };
+  head();
+  d.items.forEach((it, k) => { const lines = p.lines(it.d, cols[0].w, { size: 9.5 }), h = Math.max(20, lines.length * 12.5 + 8);
+    if (y + h > p.H - 150) { p.addPage(); y = 46; head(); }
+    if (k % 2) p.rect(M, y, W, h, { fill: "#faf7f1" });
+    lines.forEach((l, j) => p.text(l, cols[0].x, y + 13.5 + j * 12.5, { size: 9.5, color: ink }));
+    const base = (+it.q || 0) * (+it.p || 0) * (1 - (+it.desc || 0) / 100);
+    [String(it.q).replace(".", ","), money(it.p), it.desc ? it.desc + " %" : "", (+it.iva || 0) + " %", money(base)].forEach((v, j) => p.text(v, cols[j + 1].x, y + 13.5, { size: 9.5, color: ink, align: "right" }));
+    y += h; });
+  p.line(M, y, M + W, y, { color: "#cfc4b2" }); y += 14;
+  if (y > p.H - 200) { p.addPage(); y = 46; }
+  // totales
+  const tx = p.W - M - 220, rows = [["Subtotal", c.bruto]]; if (c.desc) rows.push(["Descuentos", -c.desc], ["Base gravable", c.base]);
+  Object.entries(c.porIva).filter(([k]) => +k > 0).forEach(([k, b]) => rows.push([`IVA ${k} %`, b * k / 100])); rows.push(["Total", c.total]);
+  if (c.rf) rows.push([`Retención en la fuente ${String(d.ret.fuente).replace(".", ",")} %`, -c.rf]); if (c.ri) rows.push(["ReteIVA 15 %", -c.ri]); if (c.rc) rows.push([`ReteICA ${d.ret.ica} por mil`, -c.rc]);
+  const ty0 = y; rows.forEach(([k, v]) => { p.text(k, tx, y + 10, { size: 9.5, color: soft }); p.text(money(v), p.W - M, y + 10, { size: 9.5, color: ink, align: "right" }); y += 16; });
+  p.rect(tx - 8, y + 2, 228, 26, { fill: acc }); p.text(c.ret ? "NETO A PAGAR" : "TOTAL A PAGAR", tx, y + 19, { size: 10, bold: true, color: "#ffffff" }); p.text(money(c.neto), p.W - M - 4, y + 19, { size: 12, bold: true, color: "#ffffff", align: "right" }); y += 40;
+  if (c.pagado > 0 && d.tipo !== "C") { p.text("Pagado", tx, y + 4, { size: 9.5, color: soft }); p.text(money(c.pagado), p.W - M, y + 4, { size: 9.5, color: ink, align: "right" }); p.text("Saldo", tx, y + 20, { size: 9.5, bold: true, color: ink }); p.text(money(c.saldo), p.W - M, y + 20, { size: 9.5, bold: true, color: ink, align: "right" }); y += 32; }
+  // a la izquierda de los totales: en letras, notas, banco
+  let ly = ty0; p.text("SON:", M, ly + 10, { size: 8, bold: true, color: soft }); ly = p.para(letras(c.neto), M, ly + 23, tx - M - 30, { size: 9, color: ink }) + 6;
+  if (d.notas) { p.text("NOTAS", M, ly + 4, { size: 8, bold: true, color: soft }); ly = p.para(d.notas, M, ly + 17, tx - M - 30, { size: 9, color: ink }) + 6; }
+  if (E.banco && d.tipo !== "C") { p.text("PAGO", M, ly + 4, { size: 8, bold: true, color: soft }); ly = p.para(E.banco, M, ly + 17, tx - M - 30, { size: 9, color: ink }); }
+  if (d.anulada) p.text("ANULADA", p.W / 2, 400, { size: 60, bold: true, color: "#e0b4ac", align: "center" });
+  // pie
+  const fy = p.H - 40; p.line(M, fy - 14, p.W - M, fy - 14, { color: "#e3dacb" });
+  p.para(E.nota || (d.tipo === "R" ? "Declaro que no soy responsable de IVA." : ""), M, fy, W - 120, { size: 8, color: soft });
+  p.text("Hecho con Sotos", p.W - M, fy, { size: 8, color: "#b3a998", align: "right" });
+  await ap.save(`${d.num} ${(C.nombre || "").replace(/[\\/:*?"<>|]/g, "")}.pdf`.trim(), p.blob({ title: `${TIPOS[d.tipo]} ${d.num}`, author: E.nombre }));
+}
+
+/* ---------- clientes y productos ---------- */
+async function askCliente(c = {}) {
+  const r = await ap.ask({ title: c.id ? "Editar cliente" : "Cliente nuevo", fields: [{ key: "nombre", label: "Nombre o razón social", value: c.nombre }, { key: "doc", label: "NIT o cédula", value: c.doc }, { key: "dir", label: "Dirección", value: c.dir }, { key: "ciudad", label: "Ciudad", value: c.ciudad }, { key: "tel", label: "Teléfono", value: c.tel }, { key: "correo", label: "Correo", type: "email", value: c.correo }], ok: "Guardar" });
+  if (!r || !r.nombre.trim()) return null; return { id: c.id || uid(), ...Object.fromEntries(Object.entries(r).map(([k, v]) => [k, v.trim()])) };
+}
+function vClientes() {
+  $("#main").innerHTML = `<div class="tools"><h2 style="margin:0;font-size:18px">Clientes</h2><span class="sp" style="flex:1"></span><button class="ap-btn primary" id="add">+ Cliente</button></div>
+    ${D.clientes.length ? `<table class="list"><thead><tr><th>Nombre</th><th>NIT / CC</th><th>Ciudad</th><th>Contacto</th><th class="n">Facturado</th><th class="n">Por cobrar</th></tr></thead><tbody>${D.clientes.slice().sort((a, b) => a.nombre.localeCompare(b.nombre, "es")).map(c => { const ds = D.docs.filter(d => d.cliId === c.id && !d.anulada && d.tipo !== "C");
+      return `<tr class="r" data-id="${c.id}"><td><b>${ap.esc(c.nombre)}</b></td><td>${ap.esc(c.doc)}</td><td>${ap.esc(c.ciudad)}</td><td>${ap.esc([c.tel, c.correo].filter(Boolean).join(" · "))}</td><td class="n">${money(ds.reduce((s, d) => s + calc(d).neto, 0))}</td><td class="n">${money(ds.reduce((s, d) => s + Math.max(0, calc(d).saldo), 0))}</td></tr>`; }).join("")}</tbody></table>` : '<div class="ap-empty">Aún no tienes clientes</div>'}`;
+  $("#add").onclick = async () => { const c = await askCliente(); if (c) { D.clientes.push(c); save(); vClientes(); nav(); } };
+  $("#main").querySelectorAll("tr.r").forEach(tr => tr.onclick = async () => { const old = cliente(tr.dataset.id), c = await askCliente(old); if (c) { Object.assign(old, c); save(); vClientes(); } });
+}
+function vProductos() {
+  $("#main").innerHTML = `<div class="tools"><h2 style="margin:0;font-size:18px">Productos y servicios</h2><span class="sp" style="flex:1"></span><button class="ap-btn primary" id="add">+ Agregar</button></div>
+    ${D.productos.length ? `<table class="list"><thead><tr><th>Nombre</th><th class="n">Precio</th><th class="n">IVA</th><th class="n">Vendido</th><th></th></tr></thead><tbody>${D.productos.map((p, i) => { const q = D.docs.filter(d => d.tipo !== "C" && !d.anulada).flatMap(d => d.items).filter(it => it.d === p.nombre).reduce((s, it) => s + (+it.q || 0), 0);
+      return `<tr class="r" data-i="${i}"><td><b>${ap.esc(p.nombre)}</b></td><td class="n">${money(p.precio)}</td><td class="n">${p.iva} %</td><td class="n">${q.toLocaleString("es-CO")}</td><td class="n"><button class="ap-btn ghost" data-del="${i}" title="Quitar">✕</button></td></tr>`; }).join("")}</tbody></table>` : '<div class="ap-empty">Guarda aquí lo que vendes para llenar las facturas más rápido</div>'}`;
+  const ask = async (p = {}) => { const r = await ap.ask({ title: p.nombre ? "Editar" : "Producto o servicio", fields: [{ key: "n", label: "Nombre", value: p.nombre }, { key: "p", label: "Precio sin IVA", type: "number", value: p.precio ?? "", min: 0 }, { key: "i", label: "IVA", type: "select", value: p.iva ?? 19, options: [[0, "0 % (excluido o exento)"], [5, "5 %"], [19, "19 %"]] }], ok: "Guardar" }); return r && r.n.trim() ? { nombre: r.n.trim(), precio: +r.p || 0, iva: +r.i } : null; };
+  $("#add").onclick = async () => { const p = await ask(); if (p) { D.productos.push(p); save(); vProductos(); nav(); } };
+  $("#main").querySelectorAll("tr.r").forEach(tr => tr.onclick = async (e) => { const i = +tr.dataset.i; if (e.target.closest("[data-del]")) { D.productos.splice(i, 1); save(); vProductos(); nav(); return; } const p = await ask(D.productos[i]); if (p) { D.productos[i] = p; save(); vProductos(); } });
+}
+function vInforme() {
+  const year = new Date().getFullYear(), meses = [...Array(12)].map((_, m) => `${year}-${String(m + 1).padStart(2, "0")}`), fact = {}, cob = {}, iva = {}, ret = {};
+  D.docs.filter(d => !d.anulada && d.tipo !== "C").forEach(d => { const c = calc(d), m = d.fecha.slice(0, 7); fact[m] = (fact[m] || 0) + c.base; iva[m] = (iva[m] || 0) + c.iva; ret[m] = (ret[m] || 0) + c.ret; (d.pagos || []).forEach(p => { const pm = (p.fecha || "").slice(0, 7); cob[pm] = (cob[pm] || 0) + (+p.valor || 0); }); });
+  const mx = Math.max(1, ...meses.map(m => Math.max(fact[m] || 0, cob[m] || 0))), Wd = 760, Hd = 220, bw = (Wd - 40) / 12, Y = (v) => 180 - v / mx * 160;
+  const svg = `<svg viewBox="0 0 ${Wd} ${Hd}" width="100%">${meses.map((m, i) => { const x = 30 + i * bw; return `<rect x="${x + 4}" y="${Y(fact[m] || 0)}" width="${bw / 2 - 5}" height="${180 - Y(fact[m] || 0)}" rx="2" fill="#b8452f"><title>Facturado ${money(fact[m] || 0)}</title></rect><rect x="${x + bw / 2}" y="${Y(cob[m] || 0)}" width="${bw / 2 - 5}" height="${180 - Y(cob[m] || 0)}" rx="2" fill="#2f6b8a"><title>Cobrado ${money(cob[m] || 0)}</title></rect><text x="${x + bw / 2}" y="198" text-anchor="middle">${new Date(m + "-15").toLocaleDateString("es", { month: "short" })}</text>`; }).join("")}<line x1="28" x2="${Wd - 10}" y1="180" y2="180" stroke="var(--line-2)"/></svg>`;
+  const bims = [0, 1, 2, 3, 4, 5].map(b => ({ b, iva: meses.slice(b * 2, b * 2 + 2).reduce((s, m) => s + (iva[m] || 0), 0), base: meses.slice(b * 2, b * 2 + 2).reduce((s, m) => s + (fact[m] || 0), 0) }));
+  const tops = Object.values(D.docs.filter(d => !d.anulada && d.tipo !== "C" && d.fecha.startsWith(String(year))).reduce((a, d) => { const k = d.cli?.nombre || "—"; a[k] = a[k] || { k, v: 0 }; a[k].v += calc(d).base; return a; }, {})).sort((a, b) => b.v - a.v).slice(0, 8);
+  $("#main").innerHTML = `<div class="tools"><h2 style="margin:0;font-size:18px">Informe ${year}</h2><span class="ap-faint">Valores antes de IVA</span><span class="sp" style="flex:1"></span><button class="ap-btn" id="csv">Exportar para el contador</button></div>
+    <div class="ap-card card"><h3>Facturado y cobrado por mes</h3><div style="display:flex;gap:14px;font-size:12px"><span><b style="color:#b8452f">■</b> Facturado</span><span><b style="color:#2f6b8a">■</b> Cobrado</span></div>${svg}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px"><div class="ap-card card"><h3>IVA generado por bimestre</h3><table class="list"><thead><tr><th>Bimestre</th><th class="n">Base</th><th class="n">IVA</th></tr></thead><tbody>${bims.map(b => `<tr><td>${["Ene–feb", "Mar–abr", "May–jun", "Jul–ago", "Sep–oct", "Nov–dic"][b.b]}</td><td class="n">${money(b.base)}</td><td class="n"><b>${money(b.iva)}</b></td></tr>`).join("")}</tbody></table></div>
+      <div class="ap-card card"><h3>Mejores clientes del año</h3>${tops.length ? tops.map(t => `<div class="pay"><span>${ap.esc(t.k)}</span><b>${money(t.v)}</b></div>`).join("") : '<span class="ap-faint">Sin facturas este año.</span>'}</div></div>`;
+  $("#csv").onclick = exportCsv;
+}
+function exportCsv() {
+  const rows = [["Tipo", "Número", "Fecha", "Vence", "Cliente", "NIT/CC", "Subtotal", "Descuentos", "Base", "IVA", "Total", "ReteFuente", "ReteIVA", "ReteICA", "Neto", "Pagado", "Saldo", "Estado"]];
+  D.docs.forEach(d => { const c = calc(d); rows.push([CORTO[d.tipo], d.num, d.fecha, d.vence, d.cli?.nombre || "", d.cli?.doc || "", c.bruto, c.desc, c.base, c.iva, c.total, c.rf, c.ri, c.rc, c.neto, c.pagado, c.saldo, ENAME[estado(d)]]); });
+  const csv = "﻿" + rows.map(r => r.map(v => { const s = String(v ?? ""); return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }).join(";")).join("\r\n");
+  ap.save(`documentos-${hoy()}.csv`, new Blob([csv], { type: "text/csv" }));
+}
+function vEmpresa() {
+  const E = D.empresa, f = (k, label, extra = "") => `<label class="f ${extra}">${label}<input class="ap-in" data-e="${k}" value="${ap.esc(E[k] ?? "")}"></label>`;
+  $("#main").innerHTML = `<h2 style="margin:0;font-size:18px">Mi empresa</h2>
+    <div class="ap-card card"><div style="display:flex;gap:16px;align-items:center"><div class="logo" id="logo" title="Elegir logo">${E.logo ? `<img src="data:image/jpeg;base64,${E.logo.b64}" alt="Logo">` : '<span class="ap-faint" style="font-size:12px">Logo</span>'}</div><div class="ap-faint" style="font-size:12.5px">Toca el recuadro para elegir tu logo (sale en los PDF).${E.logo ? ' <button class="ap-btn ghost" id="nologo" style="height:24px">Quitar</button>' : ""}</div></div>
+      <div class="grid">${f("nombre", "Nombre o razón social", "w2")}${f("nit", "NIT")}<label class="f">Régimen<select class="ap-in" data-e="regimen">${["Responsable de IVA", "No responsable de IVA", "Régimen simple de tributación", "Gran contribuyente", "Persona natural"].map(x => `<option ${E.regimen === x ? "selected" : ""}>${x}</option>`).join("")}</select></label>
+        ${f("dir", "Dirección", "w2")}${f("ciudad", "Ciudad")}${f("tel", "Teléfono")}${f("correo", "Correo", "w2")}
+        <label class="f">Moneda<select class="ap-in" data-e="moneda">${[["COP", "Pesos colombianos"], ["USD", "Dólares"], ["EUR", "Euros"]].map(([v, t]) => `<option value="${v}" ${E.moneda === v ? "selected" : ""}>${t}</option>`).join("")}</select></label>
+        <label class="f">Plazo de pago (días)<input class="ap-in" type="number" min="0" data-e="plazo" value="${E.plazo}"></label></div>
+      <div class="grid"><label class="f w2">Datos para el pago (cuenta, banco, llave)<textarea class="ap-in" data-e="banco" rows="3" style="height:auto;padding:8px 10px">${ap.esc(E.banco)}</textarea></label><label class="f w2">Pie de página (resolución, aviso legal)<textarea class="ap-in" data-e="nota" rows="3" style="height:auto;padding:8px 10px">${ap.esc(E.nota)}</textarea></label></div>
+      <div class="grid">${["F", "C", "R"].map(t => `<label class="f">Prefijo de ${CORTO[t].toLowerCase()}<input class="ap-in" data-p="${t}" value="${ap.esc(D.pref[t])}"></label>`).join("")}<label class="f">Validez de cotizaciones (días)<input class="ap-in" type="number" min="1" data-e="validez" value="${E.validez}"></label></div>
+      <div class="ap-faint" style="font-size:12px">Los cambios se guardan solos.</div></div>`;
+  let t; const deb = () => { clearTimeout(t); t = setTimeout(() => { save(); nav(); }, 500); };
+  $("#main").querySelectorAll("[data-e]").forEach(el => el.oninput = el.onchange = () => { E[el.dataset.e] = ["plazo", "validez"].includes(el.dataset.e) ? +el.value : el.value; deb(); });
+  $("#main").querySelectorAll("[data-p]").forEach(el => el.oninput = () => { D.pref[el.dataset.p] = el.value; deb(); });
+  $("#logo").onclick = async () => { try { const [f] = await sotos.files.pick({ title: "Logo", types: ["img"] }); if (!f) return; const j = await SotosPDF.jpeg(await sotos.files.read(f), 500); let s = ""; j.bytes.forEach(b => s += String.fromCharCode(b)); E.logo = { b64: btoa(s), w: j.w, h: j.h }; save(); vEmpresa(); } catch (e) { ap.toast(e.message); } };
+  if ($("#nologo")) $("#nologo").onclick = () => { E.logo = null; save(); vEmpresa(); };
+}
+
+$("#nav").onclick = (e) => { const b = e.target.closest("button"); if (b) show(b.dataset.v); };
+document.querySelectorAll("[data-new]").forEach(b => b.onclick = () => { view = "docs"; nav(); nuevo(b.dataset.new); });
+(async () => { await ap.ready; const s = await ap.store.get("facturas"); if (s && s.docs) D = Object.assign(D, s, { empresa: Object.assign(D.empresa, s.empresa || {}) });
+  show("docs"); const v = D.docs.filter(d => estado(d) === "vencida" && d.tipo !== "C"); if (v.length) ap.toast(`Tienes ${v.length} ${v.length === 1 ? "factura vencida" : "facturas vencidas"} por cobrar`, 3500); })();
+</script>
+</body>
+</html>

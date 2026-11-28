@@ -3,6 +3,26 @@
 Todas las versiones de Sotos, de la más reciente a la más antigua.
 © 2026 Sebastian Sotomontes · Licencia MIT
 
+## 3.6.9 — 27 de noviembre de 2026
+
+### Nuevo: apps para el trabajo y para la casa
+- **Facturas**: cotizaciones, cuentas de cobro y facturas de venta con IVA (0, 5 y 19 %), descuentos, retención en la fuente, ReteIVA y ReteICA. Lleva abonos y saldos, marca las vencidas y convierte una cotización en factura. Genera el PDF con tu logo y el total en letras. Tiene clientes, catálogo de productos, informe de facturado y cobrado por mes, IVA por bimestre y exportación para el contador. Aclara que la factura electrónica ante la DIAN requiere un proveedor autorizado.
+- **Ventas** (CRM): contactos y empresas, embudo de negocios que se arrastra con el mouse o con el dedo y pronóstico ponderado. Las actividades (llamadas, reuniones, tareas) avisan con una notificación de Sotos al llegar la hora. Guarda el historial de cada cliente y los motivos de pérdida, e importa y exporta contactos.
+- **Horas**: cronómetro por proyecto y cliente que sigue corriendo aunque cierres la app. Incluye planilla semanal, tarifas por hora, horas presupuestadas con alerta, registros manuales e informe en PDF y CSV.
+- **Finanzas** personales: cuentas en pesos, dólares o euros con la tasa del día, y patrimonio de los últimos 12 meses. Presupuesto por categoría con sugerencia según tus últimos tres meses. Importa el extracto del banco en CSV, con columnas de débito y crédito y sin duplicados. Las reglas de categorías aprenden de tus cambios. También lleva gastos fijos que se registran solos y metas de ahorro.
+
+### Nuevo: más apps avanzadas
+- **Sismos**: sismos del mundo casi en vivo (USGS) en un mapa con filtro para Colombia, detalle con la energía liberada y búsqueda en el archivo desde 1900. Avisa de los sismos fuertes.
+- **Estación espacial**: la EEI en vivo cada 5 segundos, con su órbita pasada y futura, alcance visual, la noche sobre la Tierra y cuándo pasa más cerca de tu lugar.
+- **Ajedrez**: motor propio verificado con perft, con cuatro niveles o partida entre dos personas. Tiene pistas, barra de ventaja, deshacer, posición desde FEN y PGN.
+- **Datos**: tablas CSV, TSV o JSON con resumen de cada columna, filtros y orden. Crea columnas con fórmulas (intérprete propio, sin `eval`) y hace gráficas de barras, líneas, puntos con tendencia y torta en PNG o SVG.
+- **Pixel art**: la Gioconda ahora sale del cuadro real de Leonardo (foto de dominio público), reducida a 86 × 128 píxeles y a 64 colores de la misma pintura.
+
+### SDK
+- `sotos.net.fetch(url, { fresh: true })` pide siempre la respuesta nueva, para datos en vivo (las consultas iguales se reusan un minuto).
+- El almacenamiento de cada app sube de 2 MB a 8 MB.
+- Para las apps de la casa hay piezas comunes: `comun/pdf.js` (PDF propio con Helvetica, imágenes JPEG, varias páginas y números en letras) y `comun/mapa.js` (mapa mundial en Canvas que se arrastra y se acerca, con la sombra de la noche y círculos sobre la Tierra).
+
 ## 3.6.8 — 27 de noviembre de 2026
 
 ### SDK

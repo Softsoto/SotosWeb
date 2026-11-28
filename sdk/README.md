@@ -59,7 +59,7 @@ Instala el `.zip` en **Administración → Apps → Instalar una app (.zip)**. L
 |---|---|
 | `files.read` | Abrir los archivos **que la persona elija** en el selector (o le dé con «Abrir con»). La app nunca ve el resto del Drive. |
 | `files.write` | Guardar con «Guardar como» donde la persona elija, y reescribir archivos que ya le dio. |
-| `storage` | Guardar datos propios de la app en la cuenta de cada persona (hasta 2 MB). |
+| `storage` | Guardar datos propios de la app en la cuenta de cada persona (hasta 8 MB). |
 | `notify` | Mandar avisos a la campana de notificaciones. |
 | `user` | Ver el nombre y el idioma de quien usa la app. |
 | `net` | Conectarse a internet, **solo** a los sitios que la app declara en `hosts` (ej. `["api.open-meteo.com", "*.wikipedia.org"]`). Sotos hace la petición por la app: no hay problemas de CORS, solo se permite HTTPS y nunca llega a direcciones de la red privada. |
@@ -93,6 +93,8 @@ await sotos.storage.remove("ajustes"); const claves = await sotos.storage.keys()
 // internet (permiso «net» + «hosts»): mismo estilo que fetch
 const r = await sotos.net.fetch("https://api.open-meteo.com/v1/forecast?latitude=4.6&longitude=-74.1&current=temperature_2m");
 const clima = await r.json();                          // también r.text() y r.blob()
+// las consultas GET iguales se reusan durante un minuto; para datos en vivo:
+const iss = await (await sotos.net.fetch("https://api.wheretheiss.at/v1/satellites/25544", { fresh: true })).json();
 
 // avisos, ventana y eventos
 sotos.notify({ title: "Listo", body: "Se exportó tu lista" });

@@ -45,5 +45,23 @@ export const APPS_CASA = [
     desc: "Convierte entre más de 150 monedas con la tasa del día y su historia.", permissions: ["net", "storage"], hosts: ["open.er-api.com", "api.frankfurter.dev"] },
   { id: "wiki", name: "Enciclopedia", icon: "travel_explore", color: "#4a4a4a", cat: "Internet", size: { w: 1040, h: 760 },
     desc: "Busca en Wikipedia en español, lee artículos y mira qué pasó un día como hoy.", permissions: ["net", "storage", "files.write"], hosts: ["es.wikipedia.org", "api.wikimedia.org"] },
+  { id: "sismos", name: "Sismos", icon: "earthquake", color: "#8a4a2f", cat: "Internet", size: { w: 1180, h: 760 },
+    desc: "Los sismos del mundo en un mapa casi en vivo, con aviso de los fuertes y búsqueda en el archivo desde 1900.", permissions: ["net", "notify", "storage"], hosts: ["earthquake.usgs.gov", "cdn.jsdelivr.net"] },
+  { id: "orbita", name: "Estación espacial", icon: "satellite_alt", color: "#2c3e63", cat: "Internet", size: { w: 1180, h: 740 },
+    desc: "Dónde está la Estación Espacial Internacional ahora mismo, su órbita, la noche en la Tierra y cuándo pasa cerca de ti.", permissions: ["net", "storage"], hosts: ["api.wheretheiss.at", "cdn.jsdelivr.net"] },
+  // ---- trabajo y finanzas (para empresas y para uso personal) ----
+  { id: "facturas", name: "Facturas", icon: "receipt_long", color: "#b8452f", cat: "Negocios", size: { w: 1220, h: 800 },
+    desc: "Cotizaciones, cuentas de cobro y facturas con IVA, retenciones y abonos, en PDF con tu logo, e informe para el contador.", permissions: ["storage", "files.read", "files.write"] },
+  { id: "crm", name: "Ventas", icon: "handshake", color: "#2f6b8a", cat: "Negocios", size: { w: 1240, h: 800 },
+    desc: "CRM con embudo de negocios, pronóstico, actividades con recordatorios e historial de cada cliente.", permissions: ["storage", "notify", "files.read", "files.write"] },
+  { id: "horas", name: "Horas", icon: "timer", color: "#5a4a8a", cat: "Negocios", size: { w: 1080, h: 760 },
+    desc: "Cronómetro por proyecto y cliente, planilla semanal, tarifas, horas presupuestadas e informe en PDF.", permissions: ["storage", "files.write"] },
+  { id: "finanzas", name: "Finanzas", icon: "account_balance_wallet", color: "#3d7a3f", cat: "Personal", size: { w: 1180, h: 780 },
+    desc: "Tus cuentas en pesos y dólares, presupuesto, extractos del banco con reglas, gastos fijos y metas de ahorro.", permissions: ["storage", "files.read", "files.write", "net"], hosts: ["open.er-api.com"] },
+  // ---- avanzadas sin internet ----
+  { id: "ajedrez", name: "Ajedrez", icon: "chess", color: "#5b4630", cat: "Juegos", size: { w: 1080, h: 780 },
+    desc: "Ajedrez contra un motor propio de cuatro niveles o entre dos personas, con pistas, deshacer y PGN.", permissions: ["storage", "files.write"] },
+  { id: "datos", name: "Datos", icon: "table_chart", color: "#2f6b5a", cat: "Productividad", size: { w: 1180, h: 780 },
+    desc: "Abre tablas CSV o JSON: resumen de cada columna, filtros, columnas con fórmulas y gráficas en PNG o SVG.", permissions: ["files.read", "files.write"], opens: ["csv", "tsv", "json"] },
 ];
 export const CASA_IDS = APPS_CASA.map(a => a.id);

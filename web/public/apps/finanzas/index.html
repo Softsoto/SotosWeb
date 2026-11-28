@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finanzas</title>
+<!-- Sotos — Finanzas personales: cuentas, presupuesto, extractos del banco, reglas, gastos fijos y metas · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: 210px minmax(0, 1fr); }
+  .nav { border-right: 1px solid var(--line); background: var(--panel); padding: 10px; display: flex; flex-direction: column; gap: 2px; overflow: auto; }
+  .nav button { border: 0; background: none; text-align: left; padding: 9px 10px; border-radius: 8px; cursor: pointer; font-weight: 600; color: var(--ink-2); }
+  .nav button.on { background: color-mix(in srgb, var(--accent) 14%, transparent); color: var(--ink); } .nav button:hover { background: var(--panel-2); }
+  .accs { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 2px; } .accs h4 { margin: 0 4px 4px; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+  .acc { display: flex; justify-content: space-between; gap: 6px; font-size: 12.5px; padding: 6px 8px; border-radius: 6px; cursor: pointer; } .acc:hover { background: var(--panel-2); } .acc b { font-variant-numeric: tabular-nums; } .acc .neg { color: var(--bad); }
+  .main { overflow: auto; padding: 18px 22px; display: grid; gap: 14px; align-content: start; }
+  .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .tools h2 { margin: 0; font-size: 18px; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; } .kpi { padding: 12px 14px; } .kpi span { font-size: 11.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; } .kpi b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .pos { color: var(--ok); } .neg { color: var(--bad); }
+  .card { padding: 14px 16px; display: grid; gap: 10px; } .card h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-3); }
+  .two { display: grid; grid-template-columns: 1.2fr 1fr; gap: 14px; }
+  .bud { display: grid; grid-template-columns: 130px 1fr 150px; gap: 10px; align-items: center; font-size: 13px; } .bud .bar { height: 10px; border-radius: 5px; background: var(--panel-2); position: relative; overflow: hidden; } .bud .bar i { position: absolute; inset: 0 auto 0 0; border-radius: 5px; } .bud .v { text-align: right; font-variant-numeric: tabular-nums; font-size: 12.5px; }
+  table.list { width: 100%; border-collapse: collapse; font-size: 13.5px; font-variant-numeric: tabular-nums; }
+  table.list th { text-align: left; font-size: 11.5px; color: var(--ink-3); font-weight: 600; text-transform: uppercase; letter-spacing: .05em; padding: 8px 10px; border-bottom: 1px solid var(--line-2); position: sticky; top: 0; background: var(--bg); }
+  table.list td { padding: 8px 10px; border-bottom: 1px solid var(--line); } table.list tr.r { cursor: pointer; } table.list tr.r:hover td { background: var(--panel-2); }
+  .n { text-align: right; } .cat { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; } .cat i { width: 9px; height: 9px; border-radius: 50%; }
+  .goal { display: grid; gap: 6px; padding: 12px 14px; } .goal .bar { height: 12px; border-radius: 6px; background: var(--panel-2); overflow: hidden; } .goal .bar i { display: block; height: 100%; background: var(--ok); }
+  .rate { font-size: 11.5px; color: var(--ink-3); }
+  svg text { font: 11px var(--font); fill: var(--ink-3); }
+  @media (max-width: 860px) { .body { grid-template-columns: 1fr; } .nav { flex-direction: row; border-right: 0; border-bottom: 1px solid var(--line); } .accs { display: none; } .kpis { grid-template-columns: repeat(2, 1fr); } .two { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Finanzas</h1><select class="ap-in" id="mes" title="Mes"></select><span class="sp"></span>
+    <button class="ap-btn" id="imp">Importar extracto</button><button class="ap-btn primary" id="add">+ Movimiento</button></div>
+  <div class="body">
+    <div class="nav" id="nav"><button data-v="resumen" class="on">Resumen</button><button data-v="movs">Movimientos</button><button data-v="presu">Presupuesto</button><button data-v="fijos">Gastos fijos</button><button data-v="metas">Metas de ahorro</button><button data-v="reglas">Reglas</button>
+      <div class="accs" id="accs"></div></div>
+    <div class="main" id="main"></div>
+  </div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const PALETA = ["#c4532f", "#2f6b8a", "#3d7a3f", "#c27c0e", "#5a4a8a", "#8a3f5f", "#1f6f78", "#7a4e2a", "#9a8a3a", "#4a6a9a", "#a2562c", "#6b6b6b", "#2f6b5a", "#b23a2e"];
+const GASTOS = ["Mercado", "Arriendo o cuota", "Servicios públicos", "Internet y celular", "Transporte", "Restaurantes y domicilios", "Salud", "Educación", "Entretenimiento", "Suscripciones", "Ropa", "Mascotas", "Deudas e intereses", "Impuestos", "Regalos", "Otros gastos"];
+const INGRESOS = ["Salario", "Honorarios", "Ventas", "Intereses y rendimientos", "Arriendos recibidos", "Otros ingresos"];
+let D = { cuentas: [], movs: [], cats: [...GASTOS.map((n, i) => ({ n, t: "g", c: PALETA[i % PALETA.length], p: 0 })), ...INGRESOS.map((n, i) => ({ n, t: "i", c: PALETA[(i + 3) % PALETA.length], p: 0 }))], reglas: [], fijos: [], metas: [] };
+let view = "resumen", mes = new Date().toISOString().slice(0, 7), fCuenta = "", fCat = "", fq = "", tasas = { COP: 1 };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const hoy = () => new Date().toISOString().slice(0, 10);
+const money = (v, cur = "COP") => new Intl.NumberFormat("es-CO", { style: "currency", currency: cur, maximumFractionDigits: cur === "COP" ? 0 : 2 }).format(v || 0);
+const short = (v) => Math.abs(v) >= 1e6 ? "$" + (v / 1e6).toLocaleString("es-CO", { maximumFractionDigits: 1 }) + " M" : Math.abs(v) >= 1e3 ? "$" + Math.round(v / 1e3).toLocaleString("es-CO") + " mil" : money(v);
+const save = () => ap.store.set("finanzas", D);
+const cuenta = (id) => D.cuentas.find(c => c.id === id);
+const catOf = (n) => D.cats.find(c => c.n === n) || { n: n || "Sin categoría", c: "#9a9087", t: "g" };
+const toCOP = (v, cur) => cur && cur !== "COP" ? (tasas[cur] ? v / tasas[cur] : NaN) : v;
+const fdate = (d) => new Date(d + "T12:00").toLocaleDateString("es-CO", { day: "numeric", month: "short" });
+const mesNombre = (m) => { const s = new Date(m + "-15").toLocaleDateString("es-CO", { month: "long", year: "numeric" }); return s.charAt(0).toUpperCase() + s.slice(1); };
+
+/* saldo de una cuenta: inicial + ingresos − gastos ± transferencias */
+function saldo(c, hasta) { let s = +c.inicial || 0; D.movs.forEach(m => { if (hasta && m.fecha > hasta) return; if (m.cuenta === c.id) s += m.tipo === "i" ? m.valor : -m.valor; if (m.tipo === "t" && m.destino === c.id) s += m.recibido ?? m.valor; }); return s; }
+function patrimonio(hasta) { return D.cuentas.reduce((s, c) => s + toCOP(saldo(c, hasta), c.moneda), 0); }
+const delMes = (m) => D.movs.filter(x => x.fecha.startsWith(m));
+const enCOP = (m) => toCOP(m.valor, cuenta(m.cuenta)?.moneda);
+
+function nav() {
+  document.querySelectorAll("#nav button").forEach(b => b.classList.toggle("on", b.dataset.v === view));
+  const total = patrimonio();
+  $("#accs").innerHTML = `<h4>Cuentas</h4>${D.cuentas.map(c => { const s = saldo(c); return `<div class="acc" data-acc="${c.id}" title="Ver movimientos"><span>${ap.esc(c.nombre)}</span><b class="${s < 0 ? "neg" : ""}">${c.moneda === "COP" ? short(s) : money(s, c.moneda)}</b></div>`; }).join("")}
+    <div class="acc" style="border-top:1px solid var(--line);margin-top:4px;padding-top:8px"><span><b>Patrimonio</b></span><b>${isNaN(total) ? "—" : short(total)}</b></div>
+    <button class="ap-btn ghost" id="newAcc" style="margin-top:4px">+ Cuenta</button>${D.cuentas.some(c => c.moneda !== "COP") ? `<div class="rate" style="padding:4px 8px">${tasas.USD ? `1 USD = ${money(1 / tasas.USD)}` : "Sin tasa del día"}</div>` : ""}`;
+  $("#accs").querySelectorAll("[data-acc]").forEach(el => el.onclick = () => { fCuenta = el.dataset.acc; show("movs"); });
+  $("#newAcc").onclick = () => editCuenta();
+}
+function meses() { const set = new Set(D.movs.map(m => m.fecha.slice(0, 7))); set.add(new Date().toISOString().slice(0, 7)); return [...set].sort().reverse(); }
+function fillMes() { $("#mes").innerHTML = meses().map(m => `<option value="${m}" ${m === mes ? "selected" : ""}>${mesNombre(m)}</option>`).join(""); }
+function show(v) { view = v; nav(); fillMes(); ({ resumen: vResumen, movs: vMovs, presu: vPresu, fijos: vFijos, metas: vMetas, reglas: vReglas })[v](); }
+
+function vResumen() {
+  if (!D.cuentas.length) { $("#main").innerHTML = `<div class="ap-empty"><div style="display:grid;gap:10px;justify-items:center;max-width:460px;text-align:center"><b style="font-size:17px">Lleva tus cuentas sin hojas de cálculo</b><span class="ap-muted">Crea tus cuentas (efectivo, banco, tarjeta, ahorros, dólares) y registra o importa tus movimientos. Verás en qué se va la plata, tu presupuesto y tu patrimonio mes a mes.</span><button class="ap-btn primary" id="first">Crear mi primera cuenta</button></div></div>`; $("#first").onclick = () => editCuenta(); return; }
+  const ms = delMes(mes).filter(m => m.tipo !== "t"), ing = ms.filter(m => m.tipo === "i").reduce((s, m) => s + enCOP(m), 0), gas = ms.filter(m => m.tipo === "g").reduce((s, m) => s + enCOP(m), 0), ahorro = ing - gas;
+  const porCat = {}; ms.filter(m => m.tipo === "g").forEach(m => porCat[m.cat] = (porCat[m.cat] || 0) + enCOP(m));
+  const cats = Object.entries(porCat).sort((a, b) => b[1] - a[1]), mx = Math.max(1, ...cats.map(c => Math.max(c[1], catOf(c[0]).p || 0)));
+  // 12 meses
+  const last = [...Array(12)].map((_, i) => { const d = new Date(mes + "-15"); d.setMonth(d.getMonth() - 11 + i); return d.toISOString().slice(0, 7); });
+  const serie = last.map(m => { const x = delMes(m).filter(y => y.tipo !== "t"); return { m, i: x.filter(y => y.tipo === "i").reduce((s, y) => s + enCOP(y), 0), g: x.filter(y => y.tipo === "g").reduce((s, y) => s + enCOP(y), 0) }; });
+  const top = Math.max(1, ...serie.map(s => Math.max(s.i, s.g))), W = 640, H = 200, bw = (W - 30) / 12, Y = (v) => 165 - v / top * 145;
+  const pat = last.map(m => { const end = new Date(m + "-15"); end.setMonth(end.getMonth() + 1, 0); return patrimonio(end.toISOString().slice(0, 10)); }), pmin = Math.min(...pat), pmax = Math.max(...pat), PY = (v) => 150 - (pmax === pmin ? 0.5 : (v - pmin) / (pmax - pmin)) * 120;
+  $("#main").innerHTML = `<div class="tools"><h2>${mesNombre(mes)}</h2></div>
+    <div class="kpis"><div class="ap-card kpi"><span>Ingresos</span><b class="pos">${money(ing)}</b></div><div class="ap-card kpi"><span>Gastos</span><b class="neg">${money(gas)}</b></div>
+      <div class="ap-card kpi"><span>Ahorro del mes</span><b class="${ahorro < 0 ? "neg" : ""}">${money(ahorro)}</b></div><div class="ap-card kpi"><span>Tasa de ahorro</span><b>${ing ? Math.round(ahorro / ing * 100) + " %" : "—"}</b></div></div>
+    <div class="two"><div class="ap-card card"><h3>En qué se fue la plata</h3>${cats.length ? cats.map(([n, v]) => { const c = catOf(n), over = c.p && v > c.p;
+      return `<div class="bud"><span class="cat"><i style="background:${c.c}"></i>${ap.esc(n)}</span><div class="bar"><i style="width:${v / mx * 100}%;background:${over ? "var(--bad)" : c.c}"></i>${c.p ? `<i style="left:${c.p / mx * 100}%;width:2px;background:var(--ink)" title="Presupuesto"></i>` : ""}</div><span class="v">${money(v)}${c.p ? `<br><span class="${over ? "neg" : "ap-faint"}" style="font-size:11px">${over ? "se pasó " + short(v - c.p) : "de " + short(c.p)}</span>` : ""}</span></div>`; }).join("") : '<span class="ap-faint">No hay gastos este mes.</span>'}</div>
+      <div class="ap-card card"><h3>Patrimonio, últimos 12 meses</h3><svg viewBox="0 0 ${W} 170" width="100%"><path d="M${pat.map((v, i) => `${15 + i * bw + bw / 2} ${PY(v)}`).join("L")}" fill="none" stroke="var(--accent)" stroke-width="2.5"/>${pat.map((v, i) => `<circle cx="${15 + i * bw + bw / 2}" cy="${PY(v)}" r="3.5" fill="var(--accent)"><title>${money(v)}</title></circle>`).join("")}${last.map((m, i) => i % 2 ? "" : `<text x="${15 + i * bw + bw / 2}" y="168" text-anchor="middle">${new Date(m + "-15").toLocaleDateString("es", { month: "short" })}</text>`).join("")}</svg>
+        <div style="display:flex;justify-content:space-between;font-size:13px"><span class="ap-faint">Hoy</span><b>${money(patrimonio())}</b></div></div></div>
+    <div class="ap-card card"><h3>Ingresos y gastos por mes</h3><div style="display:flex;gap:14px;font-size:12px"><span><b class="pos">■</b> Ingresos</span><span><b class="neg">■</b> Gastos</span></div>
+      <svg viewBox="0 0 ${W} ${H}" width="100%">${serie.map((s, i) => { const x = 15 + i * bw; return `<rect x="${x + 3}" y="${Y(s.i)}" width="${bw / 2 - 4}" height="${165 - Y(s.i)}" rx="2" fill="var(--ok)"><title>Ingresos ${money(s.i)}</title></rect><rect x="${x + bw / 2}" y="${Y(s.g)}" width="${bw / 2 - 4}" height="${165 - Y(s.g)}" rx="2" fill="var(--bad)"><title>Gastos ${money(s.g)}</title></rect><text x="${x + bw / 2}" y="184" text-anchor="middle" ${s.m === mes ? 'style="font-weight:700;fill:var(--ink)"' : ""}>${new Date(s.m + "-15").toLocaleDateString("es", { month: "short" })}</text>`; }).join("")}<line x1="12" x2="${W - 5}" y1="165" y2="165" stroke="var(--line-2)"/></svg></div>`;
+}
+function vMovs() {
+  let list = D.movs.filter(m => m.fecha.startsWith(mes)); if (fCuenta) list = list.filter(m => m.cuenta === fCuenta || m.destino === fCuenta); if (fCat) list = list.filter(m => m.cat === fCat);
+  if (fq) { const q = fq.toLowerCase(); list = list.filter(m => (m.desc || "").toLowerCase().includes(q)); }
+  list.sort((a, b) => b.fecha.localeCompare(a.fecha) || (b.creado || 0) - (a.creado || 0));
+  $("#main").innerHTML = `<div class="tools"><h2>Movimientos</h2><select class="ap-in" id="fc"><option value="">Todas las cuentas</option>${D.cuentas.map(c => `<option value="${c.id}" ${fCuenta === c.id ? "selected" : ""}>${ap.esc(c.nombre)}</option>`).join("")}</select>
+    <select class="ap-in" id="fk"><option value="">Todas las categorías</option>${D.cats.map(c => `<option ${fCat === c.n ? "selected" : ""}>${ap.esc(c.n)}</option>`).join("")}</select><input class="ap-in" id="fq" placeholder="Buscar…" value="${ap.esc(fq)}" style="width:150px"><span class="sp" style="flex:1"></span><button class="ap-btn" id="exp">Exportar CSV</button></div>
+    ${list.length ? `<table class="list"><thead><tr><th>Fecha</th><th>Descripción</th><th>Categoría</th><th>Cuenta</th><th class="n">Valor</th></tr></thead><tbody>${list.map(m => { const c = cuenta(m.cuenta), k = catOf(m.cat), sign = m.tipo === "i" ? 1 : -1;
+      return `<tr class="r" data-id="${m.id}"><td>${fdate(m.fecha)}</td><td>${ap.esc(m.desc || "")}${m.fijo ? ' <span class="ap-faint" style="font-size:11px">· fijo</span>' : ""}</td><td>${m.tipo === "t" ? '<span class="ap-faint">Transferencia</span>' : `<span class="cat"><i style="background:${k.c}"></i>${ap.esc(k.n)}</span>`}</td><td>${ap.esc(c?.nombre || "")}${m.tipo === "t" ? " → " + ap.esc(cuenta(m.destino)?.nombre || "") : ""}</td><td class="n ${m.tipo === "i" ? "pos" : m.tipo === "g" ? "" : "ap-faint"}">${m.tipo === "t" ? "" : sign > 0 ? "+" : "−"}${money(m.valor, c?.moneda)}</td></tr>`; }).join("")}</tbody></table>` : '<div class="ap-empty">No hay movimientos con estos filtros</div>'}`;
+  $("#fc").onchange = (e) => { fCuenta = e.target.value; vMovs(); }; $("#fk").onchange = (e) => { fCat = e.target.value; vMovs(); };
+  let t; $("#fq").oninput = (e) => { clearTimeout(t); t = setTimeout(() => { fq = e.target.value; vMovs(); const q = $("#fq"); q.focus(); q.setSelectionRange(q.value.length, q.value.length); }, 250); };
+  $("#exp").onclick = () => { const rows = [["Fecha", "Tipo", "Descripción", "Categoría", "Cuenta", "Destino", "Valor", "Moneda"], ...D.movs.slice().sort((a, b) => a.fecha.localeCompare(b.fecha)).map(m => [m.fecha, { g: "Gasto", i: "Ingreso", t: "Transferencia" }[m.tipo], m.desc, m.cat || "", cuenta(m.cuenta)?.nombre, cuenta(m.destino)?.nombre || "", m.valor, cuenta(m.cuenta)?.moneda])];
+    ap.save(`movimientos-${hoy()}.csv`, new Blob(["﻿" + rows.map(r => r.map(v => { const s = String(v ?? ""); return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }).join(";")).join("\r\n")], { type: "text/csv" })); };
+  $("#main").querySelectorAll("tr.r").forEach(tr => tr.onclick = () => editMov(D.movs.find(m => m.id === tr.dataset.id)));
+}
+function vPresu() {
+  const ms = delMes(mes).filter(m => m.tipo === "g"), porCat = {}; ms.forEach(m => porCat[m.cat] = (porCat[m.cat] || 0) + enCOP(m));
+  const g = D.cats.filter(c => c.t === "g"), totP = g.reduce((s, c) => s + (+c.p || 0), 0), totG = g.reduce((s, c) => s + (porCat[c.n] || 0), 0);
+  const prom = (n) => { const ms3 = [1, 2, 3].map(k => { const d = new Date(mes + "-15"); d.setMonth(d.getMonth() - k); return d.toISOString().slice(0, 7); }); return ms3.reduce((s, m) => s + delMes(m).filter(x => x.tipo === "g" && x.cat === n).reduce((a, x) => a + enCOP(x), 0), 0) / 3; };
+  $("#main").innerHTML = `<div class="tools"><h2>Presupuesto mensual</h2><span class="ap-faint">${mesNombre(mes)}</span><span class="sp" style="flex:1"></span><button class="ap-btn" id="sug">Sugerir según los últimos 3 meses</button><button class="ap-btn" id="newCat">+ Categoría</button></div>
+    <div class="kpis" style="grid-template-columns:repeat(3,1fr)"><div class="ap-card kpi"><span>Presupuestado</span><b>${money(totP)}</b></div><div class="ap-card kpi"><span>Gastado</span><b>${money(totG)}</b></div><div class="ap-card kpi"><span>Disponible</span><b class="${totP - totG < 0 ? "neg" : "pos"}">${money(totP - totG)}</b></div></div>
+    <div class="ap-card card">${g.map((c, i) => { const v = porCat[c.n] || 0, pct = c.p ? v / c.p : 0;
+      return `<div class="bud" style="grid-template-columns:170px 1fr 120px 130px"><span class="cat"><i style="background:${c.c}"></i>${ap.esc(c.n)}</span><div class="bar"><i style="width:${Math.min(100, pct * 100)}%;background:${pct > 1 ? "var(--bad)" : pct > .85 ? "#c27c0e" : c.c}"></i></div><span class="v">${money(v)}</span><input class="ap-in" type="number" min="0" step="10000" data-p="${D.cats.indexOf(c)}" value="${c.p || ""}" placeholder="Sin límite" style="width:130px;text-align:right"></div>`; }).join("")}</div>`;
+  $("#main").querySelectorAll("[data-p]").forEach(el => el.onchange = () => { D.cats[+el.dataset.p].p = +el.value || 0; save(); vPresu(); });
+  $("#sug").onclick = () => { g.forEach(c => { const p = prom(c.n); if (p > 0) c.p = Math.ceil(p / 10000) * 10000; }); save(); vPresu(); ap.toast("Presupuesto sugerido con tu promedio de los últimos 3 meses"); };
+  $("#newCat").onclick = async () => { const r = await ap.ask({ title: "Categoría nueva", fields: [{ key: "n", label: "Nombre" }, { key: "t", label: "Tipo", type: "select", value: "g", options: [["g", "Gasto"], ["i", "Ingreso"]] }], ok: "Crear" }); if (r && r.n.trim() && !D.cats.some(c => c.n === r.n.trim())) { D.cats.push({ n: r.n.trim(), t: r.t, c: PALETA[D.cats.length % PALETA.length], p: 0 }); save(); vPresu(); } };
+}
+function vFijos() {
+  $("#main").innerHTML = `<div class="tools"><h2>Gastos e ingresos fijos</h2><span class="sp" style="flex:1"></span><button class="ap-btn primary" id="nf">+ Agregar</button></div>
+    <div class="ap-muted" style="font-size:13px">Se registran solos cada mes en el día que indiques (al abrir la app). Útil para arriendo, salario, servicios y suscripciones.</div>
+    ${D.fijos.length ? `<table class="list"><thead><tr><th>Día</th><th>Descripción</th><th>Categoría</th><th>Cuenta</th><th class="n">Valor</th><th></th></tr></thead><tbody>${D.fijos.map((f, i) => `<tr class="r" data-i="${i}"><td>${f.dia}</td><td>${ap.esc(f.desc)}</td><td><span class="cat"><i style="background:${catOf(f.cat).c}"></i>${ap.esc(f.cat)}</span></td><td>${ap.esc(cuenta(f.cuenta)?.nombre || "")}</td><td class="n ${f.tipo === "i" ? "pos" : ""}">${f.tipo === "i" ? "+" : "−"}${money(f.valor, cuenta(f.cuenta)?.moneda)}</td><td class="n"><button class="ap-btn ghost" data-del="${i}">✕</button></td></tr>`).join("")}</tbody></table>
+      <div class="ap-card card" style="font-size:13.5px"><div style="display:flex;justify-content:space-between"><span>Gastos fijos al mes</span><b class="neg">${money(D.fijos.filter(f => f.tipo === "g").reduce((s, f) => s + toCOP(f.valor, cuenta(f.cuenta)?.moneda), 0))}</b></div><div style="display:flex;justify-content:space-between"><span>Ingresos fijos al mes</span><b class="pos">${money(D.fijos.filter(f => f.tipo === "i").reduce((s, f) => s + toCOP(f.valor, cuenta(f.cuenta)?.moneda), 0))}</b></div></div>` : '<div class="ap-empty">Sin gastos fijos</div>'}`;
+  const ask = async (f = {}) => { if (!D.cuentas.length) { ap.toast("Primero crea una cuenta"); return null; } const r = await ap.ask({ title: "Movimiento fijo", fields: [{ key: "d", label: "Descripción", value: f.desc }, { key: "t", label: "Tipo", type: "select", value: f.tipo || "g", options: [["g", "Gasto"], ["i", "Ingreso"]] }, { key: "v", label: "Valor", type: "number", value: f.valor ?? "", min: 0 }, { key: "c", label: "Categoría", type: "select", value: f.cat || "Arriendo o cuota", options: D.cats.map(c => [c.n, c.n]) }, { key: "a", label: "Cuenta", type: "select", value: f.cuenta, options: D.cuentas.map(c => [c.id, c.nombre]) }, { key: "dia", label: "Día del mes", type: "number", value: f.dia ?? 1, min: 1, max: 28 }], ok: "Guardar" });
+    return r && r.d.trim() && +r.v > 0 ? { desc: r.d.trim(), tipo: r.t, valor: +r.v, cat: r.c, cuenta: r.a, dia: Math.min(28, Math.max(1, +r.dia || 1)), desde: f.desde || hoy().slice(0, 7) } : null; };
+  $("#nf").onclick = async () => { const f = await ask(); if (f) { D.fijos.push(f); aplicarFijos(); save(); vFijos(); } };
+  $("#main").querySelectorAll("tr.r").forEach(tr => tr.onclick = async (e) => { const i = +tr.dataset.i; if (e.target.closest("[data-del]")) { D.fijos.splice(i, 1); save(); vFijos(); return; } const f = await ask(D.fijos[i]); if (f) { D.fijos[i] = { ...f, hechos: D.fijos[i].hechos }; save(); vFijos(); } });
+}
+/* registra los fijos que ya tocaron este mes (y los meses que no se abrió la app) */
+function aplicarFijos() {
+  const now = hoy(); let n = 0;
+  D.fijos.forEach(f => { f.hechos = f.hechos || []; let d = new Date((f.desde || now.slice(0, 7)) + "-01T12:00");
+    while (d.toISOString().slice(0, 7) <= now.slice(0, 7)) { const m = d.toISOString().slice(0, 7), fecha = `${m}-${String(f.dia).padStart(2, "0")}`;
+      if (fecha <= now && !f.hechos.includes(m) && cuenta(f.cuenta)) { D.movs.push({ id: uid(), fecha, tipo: f.tipo, valor: f.valor, cat: f.cat, cuenta: f.cuenta, desc: f.desc, fijo: true, creado: Date.now() }); f.hechos.push(m); n++; }
+      d.setMonth(d.getMonth() + 1); } });
+  return n;
+}
+function vMetas() {
+  $("#main").innerHTML = `<div class="tools"><h2>Metas de ahorro</h2><span class="sp" style="flex:1"></span><button class="ap-btn primary" id="nm">+ Meta</button></div>
+    ${D.metas.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px">${D.metas.map((m, i) => { const pct = Math.min(1, (m.ahorrado || 0) / m.objetivo), falta = Math.max(0, m.objetivo - (m.ahorrado || 0)), mesesF = m.fecha ? Math.max(1, Math.round((new Date(m.fecha) - new Date()) / (30.4 * 864e5))) : 0;
+      return `<div class="ap-card goal"><div style="display:flex;justify-content:space-between"><b>${ap.esc(m.nombre)}</b><span class="ap-faint">${Math.round(pct * 100)} %</span></div><div class="bar"><i style="width:${pct * 100}%"></i></div>
+        <div style="font-size:13px">${money(m.ahorrado || 0)} de ${money(m.objetivo)}</div>${falta && mesesF ? `<div class="ap-faint" style="font-size:12.5px">Para llegar el ${new Date(m.fecha + "T12:00").toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })} ahorra <b>${money(Math.ceil(falta / mesesF))}</b> al mes.</div>` : falta ? "" : '<div class="pos" style="font-size:13px"><b>¡Meta cumplida!</b></div>'}
+        <div style="display:flex;gap:6px"><button class="ap-btn" data-ab="${i}">Abonar</button><button class="ap-btn ghost" data-ed="${i}">Editar</button><button class="ap-btn ghost" data-dm="${i}">Quitar</button></div></div>`; }).join("")}</div>` : '<div class="ap-empty">Ponle nombre a eso por lo que estás ahorrando: viaje, carro, cuota inicial, fondo de emergencia…</div>'}`;
+  const ask = async (m = {}) => { const r = await ap.ask({ title: m.nombre ? "Editar meta" : "Meta nueva", fields: [{ key: "n", label: "Nombre", value: m.nombre }, { key: "o", label: "Objetivo", type: "number", value: m.objetivo ?? "", min: 0 }, { key: "f", label: "Fecha objetivo (opcional)", type: "date", value: m.fecha }], ok: "Guardar" }); return r && r.n.trim() && +r.o > 0 ? { nombre: r.n.trim(), objetivo: +r.o, fecha: r.f, ahorrado: m.ahorrado || 0 } : null; };
+  $("#nm").onclick = async () => { const m = await ask(); if (m) { D.metas.push(m); save(); vMetas(); } };
+  $("#main").querySelectorAll("[data-ab]").forEach(b => b.onclick = async () => { const m = D.metas[+b.dataset.ab], r = await ap.ask({ title: `Abonar a «${m.nombre}»`, fields: [{ key: "v", label: "Valor (negativo para retirar)", type: "number", value: "" }], ok: "Abonar" }); if (r && +r.v) { m.ahorrado = Math.max(0, (m.ahorrado || 0) + +r.v); save(); vMetas(); } });
+  $("#main").querySelectorAll("[data-ed]").forEach(b => b.onclick = async () => { const i = +b.dataset.ed, m = await ask(D.metas[i]); if (m) { D.metas[i] = m; save(); vMetas(); } });
+  $("#main").querySelectorAll("[data-dm]").forEach(b => b.onclick = async () => { if (await ap.confirm("¿Quitar esta meta?", { ok: "Quitar" })) { D.metas.splice(+b.dataset.dm, 1); save(); vMetas(); } });
+}
+function vReglas() {
+  $("#main").innerHTML = `<div class="tools"><h2>Reglas de categorías</h2><span class="sp" style="flex:1"></span><button class="ap-btn primary" id="nr">+ Regla</button></div>
+    <div class="ap-muted" style="font-size:13px">Al importar un extracto, si la descripción contiene el texto, el movimiento toma esa categoría. También se crean solas cuando cambias la categoría de un movimiento importado.</div>
+    ${D.reglas.length ? `<table class="list"><thead><tr><th>Si la descripción contiene</th><th>Categoría</th><th></th></tr></thead><tbody>${D.reglas.map((r, i) => `<tr><td><code>${ap.esc(r.t)}</code></td><td><span class="cat"><i style="background:${catOf(r.c).c}"></i>${ap.esc(r.c)}</span></td><td class="n"><button class="ap-btn ghost" data-del="${i}">✕</button></td></tr>`).join("")}</tbody></table>` : '<div class="ap-empty">Sin reglas todavía</div>'}`;
+  $("#nr").onclick = async () => { const r = await ap.ask({ title: "Regla nueva", fields: [{ key: "t", label: "Si la descripción contiene", placeholder: "Ej.: EXITO, UBER, NETFLIX" }, { key: "c", label: "Categoría", type: "select", value: "Mercado", options: D.cats.map(c => [c.n, c.n]) }], ok: "Guardar" }); if (r && r.t.trim()) { D.reglas.push({ t: r.t.trim().toUpperCase(), c: r.c }); save(); vReglas(); } };
+  $("#main").querySelectorAll("[data-del]").forEach(b => b.onclick = () => { D.reglas.splice(+b.dataset.del, 1); save(); vReglas(); });
+}
+const regla = (desc) => { const d = String(desc || "").toUpperCase(); const r = D.reglas.find(x => d.includes(x.t)); return r ? r.c : null; };
+
+/* ---------- editar ---------- */
+async function editCuenta(c = {}) {
+  const r = await ap.ask({ title: c.id ? "Editar cuenta" : "Cuenta nueva", fields: [{ key: "n", label: "Nombre", value: c.nombre, placeholder: "Ej.: Bancolombia ahorros, Nequi, Efectivo" }, { key: "t", label: "Tipo", type: "select", value: c.tipo || "banco", options: [["banco", "Cuenta bancaria"], ["efectivo", "Efectivo"], ["tarjeta", "Tarjeta de crédito"], ["ahorro", "Ahorro o CDT"], ["inversion", "Inversión"], ["prestamo", "Préstamo o deuda"]] },
+    { key: "m", label: "Moneda", type: "select", value: c.moneda || "COP", options: [["COP", "Pesos colombianos"], ["USD", "Dólares"], ["EUR", "Euros"]] }, { key: "s", label: "Saldo inicial (negativo si es deuda)", type: "number", value: c.inicial ?? 0 }], ok: "Guardar" });
+  if (!r || !r.n.trim()) return; const obj = { id: c.id || uid(), nombre: r.n.trim(), tipo: r.t, moneda: r.m, inicial: +r.s || 0 };
+  if (c.id) Object.assign(c, obj); else D.cuentas.push(obj); save(); if (obj.moneda !== "COP") cargarTasas(); show(view);
+}
+async function editMov(m) {
+  if (!D.cuentas.length) { ap.toast("Primero crea una cuenta"); return editCuenta(); }
+  const nuevo = !m; m = m || { tipo: "g", fecha: hoy(), cuenta: fCuenta || D.cuentas[0].id, cat: "Mercado" };
+  const r = await ap.ask({ title: nuevo ? "Movimiento nuevo" : "Editar movimiento", fields: [{ key: "t", label: "Tipo", type: "select", value: m.tipo, options: [["g", "Gasto"], ["i", "Ingreso"], ["t", "Transferencia entre mis cuentas"]] }, { key: "v", label: "Valor", type: "number", value: m.valor ?? "", min: 0, step: "any" }, { key: "d", label: "Descripción", value: m.desc },
+    { key: "c", label: "Categoría (gasto o ingreso)", type: "select", value: m.cat, options: D.cats.map(c => [c.n, (c.t === "i" ? "Ingreso · " : "") + c.n]) }, { key: "a", label: "Cuenta", type: "select", value: m.cuenta, options: D.cuentas.map(c => [c.id, c.nombre]) }, { key: "x", label: "Destino (solo transferencias)", type: "select", value: m.destino || "", options: [["", "—"], ...D.cuentas.map(c => [c.id, c.nombre])] }, { key: "f", label: "Fecha", type: "date", value: m.fecha }],
+    ok: "Guardar", cancel: nuevo ? "Cancelar" : "Cerrar" });
+  if (!r) return; if (!(+r.v > 0)) { ap.toast("Escribe el valor"); return; } if (r.t === "t" && (!r.x || r.x === r.a)) { ap.toast("Elige una cuenta de destino distinta"); return; }
+  const prevCat = m.cat;
+  Object.assign(m, { tipo: r.t, valor: +r.v, desc: r.d.trim(), cat: r.t === "t" ? "" : r.c, cuenta: r.a, destino: r.t === "t" ? r.x : undefined, fecha: r.f || hoy() });
+  if (r.t === "t") { const a = cuenta(r.a), b = cuenta(r.x); if (a.moneda !== b.moneda) { const rr = await ap.ask({ title: "Cambio de moneda", text: `Salen ${money(m.valor, a.moneda)}. ¿Cuánto llegó a ${b.nombre}?`, fields: [{ key: "v", label: `Recibido en ${b.moneda}`, type: "number", value: (tasas[a.moneda] && tasas[b.moneda]) ? +(m.valor / tasas[a.moneda] * tasas[b.moneda]).toFixed(2) : "" }], ok: "Guardar" }); m.recibido = rr ? +rr.v || 0 : 0; } else delete m.recibido; }
+  if (nuevo) { m.id = uid(); m.creado = Date.now(); D.movs.push(m); }
+  if (!nuevo && m.importado && prevCat !== m.cat && m.desc && r.t !== "t") { const key = m.desc.toUpperCase().replace(/[0-9*#]+/g, " ").trim().split(/\s+/).slice(0, 2).join(" "); if (key.length >= 3 && !D.reglas.some(x => x.t === key)) { D.reglas.push({ t: key, c: m.cat }); ap.toast(`Regla creada: «${key}» → ${m.cat}`); } }
+  save(); mes = m.fecha.slice(0, 7); show(view === "resumen" ? "resumen" : "movs");
+}
+
+/* ---------- importar extracto del banco (CSV) ---------- */
+function parseCsv(text) { text = text.replace(/^﻿/, ""); const first = text.split(/\r?\n/).slice(0, 5).join("\n"); const delim = [";", ",", "\t", "|"].map(d => [d, first.split(d).length]).sort((a, b) => b[1] - a[1])[0][0];
+  const out = []; let row = [], cell = "", q = false; for (let i = 0; i < text.length; i++) { const c = text[i]; if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; } else if (c === '"' && cell === "") q = true; else if (c === delim) { row.push(cell.trim()); cell = ""; } else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; row.push(cell.trim()); out.push(row); row = []; cell = ""; } else cell += c; }
+  if (cell || row.length) { row.push(cell.trim()); out.push(row); } return out.filter(r => r.some(Boolean)); }
+function num(s) { s = String(s || "").replace(/[\s$]/g, ""); if (!s) return NaN; const neg = /^-|^\(.*\)$/.test(s); s = s.replace(/[()+-]/g, ""); const lc = s.lastIndexOf(","), ld = s.lastIndexOf(".");
+  if (lc >= 0 && ld >= 0) s = lc > ld ? s.replace(/\./g, "").replace(",", ".") : s.replace(/,/g, ""); else if (lc >= 0) s = /,\d{3}$/.test(s) && !/,\d{1,2}$/.test(s) ? s.replace(/,/g, "") : s.replace(",", "."); else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, ""); const v = parseFloat(s); return neg ? -v : v; }
+function fecha(s) { s = String(s || "").trim(); let m; if ((m = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})/))) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`; if ((m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/))) { const y = m[3].length === 2 ? "20" + m[3] : m[3]; return `${y}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`; } return null; }
+$("#imp").onclick = async () => {
+  if (!D.cuentas.length) { ap.toast("Primero crea la cuenta a la que pertenece el extracto"); return editCuenta(); }
+  let f; try { [f] = await sotos.files.pick({ title: "Extracto en CSV", exts: ["csv", "txt", "tsv"] }); } catch (e) { return ap.toast(e.message); } if (!f) return;
+  const rows = parseCsv(await (await sotos.files.read(f)).text()); if (rows.length < 2) return ap.toast("No se encontraron filas");
+  let h = 0; for (let i = 0; i < Math.min(10, rows.length); i++) if (rows[i].filter(c => /fecha|descrip|valor|monto|d[ée]bito|cr[ée]dito|concepto|referencia/i.test(c)).length >= 2) { h = i; break; }
+  const head = rows[h], opt = head.map((c, i) => [String(i), c || `Columna ${i + 1}`]), find = (re) => String(Math.max(0, head.findIndex(c => re.test(c))));
+  const hasDebCred = head.some(c => /d[ée]bito|retiro|cargo/i.test(c)) && head.some(c => /cr[ée]dito|abono|dep[óo]sito/i.test(c));
+  const r = await ap.ask({ title: `Importar ${f.name}`, text: `${rows.length - h - 1} filas. Indica qué columna es cada cosa.`, ok: "Importar", fields: [
+    { key: "a", label: "Cuenta", type: "select", value: D.cuentas[0].id, options: D.cuentas.map(c => [c.id, c.nombre]) },
+    { key: "f", label: "Fecha", type: "select", value: find(/fecha/i), options: opt }, { key: "d", label: "Descripción", type: "select", value: find(/descrip|concepto|detalle/i), options: opt },
+    { key: "modo", label: "Valores", type: "select", value: hasDebCred ? "dc" : "uno", options: [["uno", "Una columna (negativo = gasto)"], ["dc", "Débito y crédito en columnas separadas"]] },
+    { key: "v", label: "Valor (o débito)", type: "select", value: find(hasDebCred ? /d[ée]bito|retiro|cargo/i : /valor|monto|importe/i), options: opt }, { key: "c", label: "Crédito (si están separadas)", type: "select", value: find(/cr[ée]dito|abono|dep[óo]sito/i), options: opt }] });
+  if (!r) return; let n = 0, dup = 0, bad = 0;
+  const sig = new Set(D.movs.map(m => `${m.cuenta}|${m.fecha}|${m.valor}|${(m.desc || "").toUpperCase()}`));
+  rows.slice(h + 1).forEach(row => { const fe = fecha(row[+r.f]); let v; if (r.modo === "dc") { const db = num(row[+r.v]), cr = num(row[+r.c]); v = (cr > 0 ? cr : 0) - (Math.abs(db) > 0 ? Math.abs(db) : 0); } else v = num(row[+r.v]);
+    if (!fe || !v || isNaN(v)) { bad++; return; } const desc = (row[+r.d] || "").replace(/\s+/g, " ").trim(), tipo = v > 0 ? "i" : "g", valor = Math.abs(v), s = `${r.a}|${fe}|${valor}|${desc.toUpperCase()}`;
+    if (sig.has(s)) { dup++; return; } sig.add(s);
+    D.movs.push({ id: uid(), fecha: fe, tipo, valor, desc, cat: regla(desc) || (tipo === "i" ? "Otros ingresos" : "Otros gastos"), cuenta: r.a, importado: true, creado: Date.now() }); n++; });
+  save(); if (n) { mes = D.movs[D.movs.length - 1].fecha.slice(0, 7); }
+  ap.toast(`${n} movimientos importados${dup ? `, ${dup} repetidos omitidos` : ""}${bad ? `, ${bad} filas sin fecha o valor` : ""}`, 4000); fCuenta = r.a; show("movs");
+};
+
+/* tasa del día para cuentas en otras monedas (permiso «net») */
+async function cargarTasas() {
+  try { const r = await sotos.net.fetch("https://open.er-api.com/v6/latest/COP"); if (!r.ok) throw 0; const j = await r.json(); tasas = j.rates || { COP: 1 }; ap.store.set("tasas", { at: Date.now(), rates: tasas }); }
+  catch { const c = await ap.store.get("tasas"); if (c?.rates) tasas = c.rates; }
+  nav(); if (view === "resumen") vResumen();
+}
+
+$("#nav").onclick = (e) => { const b = e.target.closest("button[data-v]"); if (b) { if (b.dataset.v === "movs") fCuenta = ""; show(b.dataset.v); } };
+$("#mes").onchange = (e) => { mes = e.target.value; show(view); };
+$("#add").onclick = () => editMov();
+(async () => { await ap.ready; const s = await ap.store.get("finanzas"); if (s && s.cuentas) D = Object.assign(D, s);
+  const n = aplicarFijos(); if (n) { save(); ap.toast(`Se registraron ${n} movimientos fijos`); }
+  show("resumen"); if (D.cuentas.some(c => c.moneda !== "COP")) cargarTasas(); })();
+</script>
+</body>
+</html>

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Horas</title>
+<!-- Sotos — Horas: cronómetro por proyecto, planilla semanal, tarifas, presupuestos de horas e informes en PDF · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .timer { display: grid; grid-template-columns: minmax(0, 1fr) 220px 110px auto; gap: 8px; align-items: center; padding: 10px 14px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .timer .clock { font: 700 26px/1 var(--mono); font-variant-numeric: tabular-nums; text-align: center; }
+  .timer .clock.run { color: var(--accent); }
+  .go { width: 46px; height: 46px; border-radius: 50%; border: 0; cursor: pointer; background: var(--accent); color: #fff; font-size: 18px; display: grid; place-items: center; } .go.stop { background: var(--bad); }
+  .tabs { display: flex; gap: 2px; padding: 0 12px; background: var(--panel); border-bottom: 1px solid var(--line); }
+  .tabs button { border: 0; background: none; padding: 9px 14px; cursor: pointer; border-bottom: 2px solid transparent; color: var(--ink-2); font-weight: 600; } .tabs button.on { color: var(--ink); border-color: var(--accent); }
+  .main { flex: 1; min-height: 0; overflow: auto; padding: 16px 20px; display: grid; gap: 14px; align-content: start; }
+  .tools { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; } .tools h2 { margin: 0; font-size: 17px; }
+  .day h3 { margin: 6px 0; font-size: 13px; display: flex; justify-content: space-between; color: var(--ink-2); } .day h3 b { font-variant-numeric: tabular-nums; }
+  .ent { display: grid; grid-template-columns: 10px minmax(0, 1fr) 150px 90px 70px auto; gap: 10px; align-items: center; padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--panel); font-size: 13.5px; }
+  .ent:first-of-type { border-radius: 8px 8px 0 0; } .ent:last-child { border-radius: 0 0 8px 8px; border-bottom: 0; } .ent i { width: 10px; height: 10px; border-radius: 50%; }
+  .ent .t { font-variant-numeric: tabular-nums; text-align: right; font-weight: 600; } .ent .h { color: var(--ink-3); font-size: 12px; font-variant-numeric: tabular-nums; } .ent .pj { color: var(--ink-2); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ent button { border: 0; background: none; cursor: pointer; color: var(--ink-3); padding: 4px 6px; border-radius: 6px; } .ent button:hover { background: var(--panel-2); color: var(--ink); }
+  .box { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+  table.sheet { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; } .sheet th, .sheet td { padding: 8px 10px; border-bottom: 1px solid var(--line); text-align: right; } .sheet th:first-child, .sheet td:first-child { text-align: left; } .sheet th { font-size: 11.5px; color: var(--ink-3); font-weight: 600; } .sheet tfoot td { font-weight: 700; border-top: 1px solid var(--line-2); } .sheet td.z { color: var(--line-2); } .sheet th.today { color: var(--accent); }
+  .pjs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; } .pj { padding: 14px; display: grid; gap: 6px; font-size: 13px; } .pj .top { display: flex; align-items: center; gap: 8px; } .pj .top i { width: 12px; height: 12px; border-radius: 50%; }
+  .bar { height: 8px; border-radius: 4px; background: var(--panel-2); overflow: hidden; } .bar i { display: block; height: 100%; }
+  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; } .kpi { padding: 12px 14px; } .kpi span { font-size: 11.5px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; } .kpi b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  @media (max-width: 760px) { .timer { grid-template-columns: 1fr auto; } .timer select, .timer .clock { grid-column: 1; } .ent { grid-template-columns: 10px 1fr 70px auto; } .ent .pj, .ent .h { display: none; } .kpis { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Horas</h1><span class="sp"></span><button class="ap-btn" id="manual">+ Registro manual</button><button class="ap-btn" id="newPj">+ Proyecto</button></div>
+  <div class="timer"><input class="ap-in" id="what" placeholder="¿En qué estás trabajando?"><select class="ap-in" id="pj"></select><div class="clock" id="clock">0:00:00</div><button class="go" id="go" title="Empezar">▶</button></div>
+  <div class="tabs" id="tabs"><button data-v="hoy" class="on">Registros</button><button data-v="semana">Semana</button><button data-v="proyectos">Proyectos</button><button data-v="informe">Informe</button></div>
+  <div class="main" id="main"></div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script src="../comun/pdf.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const COLORS = ["#c4532f", "#2f6b8a", "#3d7a3f", "#c27c0e", "#5a4a8a", "#8a3f5f", "#1f6f78", "#7a4e2a"];
+let D = { proyectos: [], regs: [], run: null, perfil: { nombre: "", doc: "" } }, view = "hoy", wk = 0, rango = { a: "", b: "", pj: "" };
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const save = () => ap.store.set("horas", D);
+const pj = (id) => D.proyectos.find(p => p.id === id) || { nombre: "Sin proyecto", color: "#9a9087", tarifa: 0, cliente: "" };
+const hms = (ms) => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`; };
+const hm = (ms) => { const m = Math.round(ms / 60000); return `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`; };
+const hdec = (ms) => (ms / 3600000).toLocaleString("es-CO", { maximumFractionDigits: 2 });
+const money = (v, cur = "COP") => new Intl.NumberFormat("es-CO", { style: "currency", currency: cur || "COP", maximumFractionDigits: cur === "COP" || !cur ? 0 : 2 }).format(v || 0);
+const ymd = (t) => { const d = new Date(t); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
+const clock = (t) => new Date(t).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+const dur = (r) => (r.fin || Date.now()) - r.ini;
+const valor = (r) => r.facturable !== false ? dur(r) / 3600000 * (+pj(r.pj).tarifa || 0) : 0;
+
+/* ---------- cronómetro (el inicio se guarda: sigue contando aunque cierres la app) ---------- */
+function fillPj() { $("#pj").innerHTML = `<option value="">Sin proyecto</option>` + D.proyectos.filter(p => !p.archivado).map(p => `<option value="${p.id}">${ap.esc(p.nombre)}${p.cliente ? " · " + ap.esc(p.cliente) : ""}</option>`).join(""); if (D.run) $("#pj").value = D.run.pj || ""; }
+function tick() { const r = D.run; $("#clock").textContent = r ? hms(Date.now() - r.ini) : "0:00:00"; $("#clock").classList.toggle("run", !!r); $("#go").textContent = r ? "■" : "▶"; $("#go").classList.toggle("stop", !!r); $("#go").title = r ? "Detener" : "Empezar"; document.title = r ? `${hms(Date.now() - r.ini)} · Horas` : "Horas"; }
+$("#go").onclick = () => {
+  if (D.run) { const r = D.run; r.fin = Date.now(); r.desc = $("#what").value.trim() || r.desc; r.pj = $("#pj").value; D.run = null; if (r.fin - r.ini >= 30000) { D.regs.push(r); ap.toast(`Registrado: ${hm(r.fin - r.ini)}`); } else ap.toast("Menos de 30 segundos: no se registró"); $("#what").value = ""; }
+  else D.run = { id: uid(), ini: Date.now(), pj: $("#pj").value, desc: $("#what").value.trim(), facturable: true };
+  save(); tick(); render(); };
+$("#what").oninput = () => { if (D.run) { D.run.desc = $("#what").value; clearTimeout(window._s); window._s = setTimeout(save, 600); } };
+$("#what").onkeydown = (e) => { if (e.key === "Enter" && !D.run) $("#go").click(); };
+$("#pj").onchange = () => { if (D.run) { D.run.pj = $("#pj").value; save(); } };
+
+/* ---------- vistas ---------- */
+function render() { document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("on", b.dataset.v === view)); ({ hoy: vRegs, semana: vSemana, proyectos: vProyectos, informe: vInforme })[view](); }
+function entRow(r) { const p = pj(r.pj); return `<div class="ent" data-id="${r.id}"><i style="background:${p.color}"></i><span>${ap.esc(r.desc || "(sin descripción)")}${r.facturable === false ? ' <span class="ap-faint" style="font-size:11px">· no facturable</span>' : ""}</span><span class="pj">${ap.esc(p.nombre)}</span><span class="h">${clock(r.ini)}–${clock(r.fin)}</span><span class="t">${hms(dur(r))}</span><span><button data-cont title="Continuar">▶</button><button data-ed title="Editar">✎</button></span></div>`; }
+function vRegs() {
+  const regs = D.regs.slice().sort((a, b) => b.ini - a.ini).slice(0, 400), byDay = {}; regs.forEach(r => (byDay[ymd(r.ini)] = byDay[ymd(r.ini)] || []).push(r));
+  const today = ymd(Date.now()), yest = ymd(Date.now() - 864e5);
+  $("#main").innerHTML = Object.keys(byDay).length ? Object.entries(byDay).map(([d, rs]) => `<div class="day"><h3><span>${d === today ? "Hoy" : d === yest ? "Ayer" : new Date(d + "T12:00").toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "long" })}</span><b>${hms(rs.reduce((s, r) => s + dur(r), 0))}</b></h3><div class="box">${rs.map(entRow).join("")}</div></div>`).join("")
+    : `<div class="ap-empty"><div style="max-width:420px;text-align:center;display:grid;gap:8px"><b style="font-size:16px">Mide en qué se te va el tiempo</b><span class="ap-muted">Escribe en qué trabajas, elige el proyecto y dale ▶. El cronómetro sigue corriendo aunque cierres la app. Con la tarifa por hora de cada proyecto verás cuánto facturar.</span></div></div>`;
+  $("#main").querySelectorAll(".ent").forEach(el => { const r = D.regs.find(x => x.id === el.dataset.id);
+    el.querySelector("[data-ed]").onclick = () => editReg(r);
+    el.querySelector("[data-cont]").onclick = () => { if (D.run) $("#go").click(); $("#what").value = r.desc || ""; $("#pj").value = r.pj || ""; $("#go").click(); }; });
+}
+function weekStart(off) { const d = new Date(); d.setHours(0, 0, 0, 0); const dow = (d.getDay() + 6) % 7; d.setDate(d.getDate() - dow + off * 7); return d; }
+function vSemana() {
+  const s = weekStart(wk), days = [...Array(7)].map((_, i) => { const d = new Date(s); d.setDate(d.getDate() + i); return ymd(d); }), today = ymd(Date.now());
+  const regs = D.regs.filter(r => days.includes(ymd(r.ini))), ids = [...new Set(regs.map(r => r.pj || ""))], cell = (id, d) => regs.filter(r => (r.pj || "") === id && ymd(r.ini) === d).reduce((a, r) => a + dur(r), 0);
+  const tot = regs.reduce((a, r) => a + dur(r), 0), val = regs.reduce((a, r) => a + valor(r), 0);
+  $("#main").innerHTML = `<div class="tools"><button class="ap-btn icon" id="prev">‹</button><h2>Semana del ${new Date(days[0] + "T12:00").toLocaleDateString("es-CO", { day: "numeric", month: "long" })}</h2><button class="ap-btn icon" id="next">›</button>${wk ? '<button class="ap-btn ghost" id="now">Esta semana</button>' : ""}<span class="sp" style="flex:1"></span><b>${hm(tot)}</b>${val ? `<span class="ap-faint">· ${money(val)}</span>` : ""}</div>
+    <div class="ap-card" style="overflow:auto"><table class="sheet"><thead><tr><th>Proyecto</th>${days.map(d => `<th class="${d === today ? "today" : ""}">${new Date(d + "T12:00").toLocaleDateString("es-CO", { weekday: "short", day: "numeric" })}</th>`).join("")}<th>Total</th></tr></thead>
+      <tbody>${ids.length ? ids.map(id => { const p = pj(id); return `<tr><td><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${p.color};margin-right:6px"></span>${ap.esc(p.nombre)}</td>${days.map(d => { const v = cell(id, d); return `<td class="${v ? "" : "z"}">${v ? hdec(v) : "—"}</td>`; }).join("")}<td><b>${hdec(days.reduce((a, d) => a + cell(id, d), 0))}</b></td></tr>`; }).join("") : `<tr><td colspan="9" class="z" style="text-align:center">Sin registros esta semana</td></tr>`}</tbody>
+      <tfoot><tr><td>Total</td>${days.map(d => `<td>${hdec(regs.filter(r => ymd(r.ini) === d).reduce((a, r) => a + dur(r), 0)) || "0"}</td>`).join("")}<td>${hdec(tot)}</td></tr></tfoot></table></div>
+    <div class="ap-faint" style="font-size:12px">Horas en decimal (1,5 = una hora y media).</div>`;
+  $("#prev").onclick = () => { wk--; vSemana(); }; $("#next").onclick = () => { wk++; vSemana(); }; if ($("#now")) $("#now").onclick = () => { wk = 0; vSemana(); };
+}
+function vProyectos() {
+  const mes = ymd(Date.now()).slice(0, 7);
+  $("#main").innerHTML = D.proyectos.length ? `<div class="pjs">${D.proyectos.map(p => { const rs = D.regs.filter(r => r.pj === p.id), total = rs.reduce((a, r) => a + dur(r), 0), mesT = rs.filter(r => ymd(r.ini).startsWith(mes)).reduce((a, r) => a + dur(r), 0), pct = p.presupuesto ? total / 3600000 / p.presupuesto : 0;
+    return `<div class="ap-card pj" style="${p.archivado ? "opacity:.55" : ""}"><div class="top"><i style="background:${p.color}"></i><b>${ap.esc(p.nombre)}</b><span class="sp" style="flex:1"></span><button class="ap-btn ghost" data-ed="${p.id}" style="height:26px">Editar</button></div>
+      ${p.cliente ? `<div class="ap-faint">${ap.esc(p.cliente)}</div>` : ""}<div style="display:flex;justify-content:space-between"><span class="ap-faint">Este mes</span><b>${hm(mesT)}</b></div><div style="display:flex;justify-content:space-between"><span class="ap-faint">Total</span><b>${hm(total)}</b></div>
+      ${p.tarifa ? `<div style="display:flex;justify-content:space-between"><span class="ap-faint">${money(p.tarifa, p.moneda)} / hora</span><b>${money(rs.reduce((a, r) => a + valor(r), 0), p.moneda)}</b></div>` : ""}
+      ${p.presupuesto ? `<div class="bar"><i style="width:${Math.min(100, pct * 100)}%;background:${pct > 1 ? "var(--bad)" : pct > .85 ? "#c27c0e" : p.color}"></i></div><div class="ap-faint" style="font-size:12px">${hdec(total)} de ${p.presupuesto} horas presupuestadas${pct > 1 ? " · <b style='color:var(--bad)'>excedido</b>" : ""}</div>` : ""}</div>`; }).join("")}</div>`
+    : '<div class="ap-empty">Crea tus proyectos con su cliente y tarifa por hora</div>';
+  $("#main").querySelectorAll("[data-ed]").forEach(b => b.onclick = () => editPj(D.proyectos.find(p => p.id === b.dataset.ed)));
+}
+function inRange() { return D.regs.filter(r => { const d = ymd(r.ini); return d >= rango.a && d <= rango.b && (!rango.pj || r.pj === rango.pj); }); }
+function vInforme() {
+  if (!rango.a) { const d = new Date(); rango.a = ymd(new Date(d.getFullYear(), d.getMonth(), 1)); rango.b = ymd(d); }
+  const rs = inRange(), tot = rs.reduce((a, r) => a + dur(r), 0), fac = rs.filter(r => r.facturable !== false).reduce((a, r) => a + dur(r), 0), val = rs.reduce((a, r) => a + valor(r), 0), dias = new Set(rs.map(r => ymd(r.ini))).size;
+  const byPj = {}; rs.forEach(r => { const k = r.pj || ""; byPj[k] = byPj[k] || { ms: 0, v: 0 }; byPj[k].ms += dur(r); byPj[k].v += valor(r); });
+  const list = Object.entries(byPj).sort((a, b) => b[1].ms - a[1].ms), mx = Math.max(1, ...list.map(x => x[1].ms));
+  const presets = [["mes", "Este mes"], ["ant", "Mes pasado"], ["sem", "Esta semana"], ["anio", "Este año"]];
+  $("#main").innerHTML = `<div class="tools"><input class="ap-in" type="date" id="ra" value="${rango.a}"><span>a</span><input class="ap-in" type="date" id="rb" value="${rango.b}">${presets.map(([k, t]) => `<button class="ap-btn ghost" data-pr="${k}">${t}</button>`).join("")}
+      <select class="ap-in" id="rp"><option value="">Todos los proyectos</option>${D.proyectos.map(p => `<option value="${p.id}" ${rango.pj === p.id ? "selected" : ""}>${ap.esc(p.nombre)}</option>`).join("")}</select><span class="sp" style="flex:1"></span><button class="ap-btn" id="csv">CSV</button><button class="ap-btn primary" id="pdf">Informe PDF</button></div>
+    <div class="kpis"><div class="ap-card kpi"><span>Horas</span><b>${hdec(tot)}</b></div><div class="ap-card kpi"><span>Facturables</span><b>${hdec(fac)}</b></div><div class="ap-card kpi"><span>Por facturar</span><b>${money(val)}</b></div><div class="ap-card kpi"><span>Promedio por día trabajado</span><b>${dias ? hdec(tot / dias) : "0"} h</b></div></div>
+    <div class="ap-card" style="padding:14px 16px;display:grid;gap:10px">${list.length ? list.map(([id, x]) => { const p = pj(id); return `<div style="display:grid;grid-template-columns:200px 1fr 90px 120px;gap:10px;align-items:center;font-size:13px"><span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${p.color};margin-right:6px"></span>${ap.esc(p.nombre)}</span><div class="bar" style="height:12px"><i style="width:${x.ms / mx * 100}%;background:${p.color}"></i></div><b style="text-align:right">${hdec(x.ms)} h</b><span style="text-align:right" class="ap-faint">${x.v ? money(x.v, p.moneda) : ""}</span></div>`; }).join("") : '<span class="ap-faint">Sin registros en este rango.</span>'}</div>`;
+  $("#ra").onchange = (e) => { rango.a = e.target.value; vInforme(); }; $("#rb").onchange = (e) => { rango.b = e.target.value; vInforme(); }; $("#rp").onchange = (e) => { rango.pj = e.target.value; vInforme(); };
+  $("#main").querySelectorAll("[data-pr]").forEach(b => b.onclick = () => { const d = new Date(), k = b.dataset.pr; if (k === "mes") { rango.a = ymd(new Date(d.getFullYear(), d.getMonth(), 1)); rango.b = ymd(d); } if (k === "ant") { rango.a = ymd(new Date(d.getFullYear(), d.getMonth() - 1, 1)); rango.b = ymd(new Date(d.getFullYear(), d.getMonth(), 0)); } if (k === "sem") { rango.a = ymd(weekStart(0)); rango.b = ymd(d); } if (k === "anio") { rango.a = `${d.getFullYear()}-01-01`; rango.b = ymd(d); } vInforme(); });
+  $("#csv").onclick = () => { const rows = [["Fecha", "Inicio", "Fin", "Proyecto", "Cliente", "Descripción", "Horas", "Facturable", "Valor"], ...inRange().sort((a, b) => a.ini - b.ini).map(r => [ymd(r.ini), clock(r.ini), clock(r.fin), pj(r.pj).nombre, pj(r.pj).cliente || "", r.desc || "", (dur(r) / 3600000).toFixed(2).replace(".", ","), r.facturable !== false ? "Sí" : "No", Math.round(valor(r))])];
+    ap.save(`horas-${rango.a}-a-${rango.b}.csv`, new Blob(["﻿" + rows.map(r => r.map(v => { const s = String(v ?? ""); return /[";\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; }).join(";")).join("\r\n")], { type: "text/csv" })); };
+  $("#pdf").onclick = informePdf;
+}
+async function informePdf() {
+  if (!D.perfil.nombre) { const r = await ap.ask({ title: "Tus datos para el informe", fields: [{ key: "n", label: "Nombre o empresa", value: D.perfil.nombre }, { key: "d", label: "NIT o cédula (opcional)", value: D.perfil.doc }], ok: "Seguir" }); if (!r) return; D.perfil = { nombre: r.n.trim(), doc: r.d.trim() }; save(); }
+  const rs = inRange().sort((a, b) => a.ini - b.ini); if (!rs.length) return ap.toast("No hay registros en este rango");
+  const p = new SotosPDF(), M = 46, W = p.W - 2 * M, ink = "#2a2520", soft = "#7a7064", acc = "#b8452f"; let y = 50;
+  const titulo = rango.pj ? pj(rango.pj).nombre : "Todos los proyectos", cli = rango.pj ? pj(rango.pj).cliente : "";
+  p.text("INFORME DE HORAS", M, y, { size: 9, bold: true, color: acc }); p.text(D.perfil.nombre, p.W - M, y, { size: 11, bold: true, color: ink, align: "right" }); if (D.perfil.doc) p.text(D.perfil.doc, p.W - M, y + 14, { size: 9, color: soft, align: "right" });
+  p.text(titulo, M, y + 22, { size: 18, bold: true, color: ink }); y += 40; if (cli) { p.text("Cliente: " + cli, M, y, { size: 10, color: soft }); y += 14; }
+  p.text(`Del ${new Date(rango.a + "T12:00").toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })} al ${new Date(rango.b + "T12:00").toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}`, M, y, { size: 10, color: soft }); y += 24;
+  const cols = [M + 8, M + 78, M + 118, M + W - 150, M + W - 70, M + W - 8], head = () => { p.rect(M, y, W, 20, { fill: ink }); ["Fecha", "Horas", "Descripción", "Proyecto", "", "Valor"].forEach((t, i) => p.text(t, cols[i], y + 13.5, { size: 8.5, bold: true, color: "#fff", align: i === 1 || i === 5 ? "right" : "left" })); y += 20; };
+  cols[1] = M + 104; head();
+  rs.forEach((r, k) => { const lines = p.lines(r.desc || "—", W - 300, { size: 9 }), h = Math.max(18, lines.length * 11.5 + 7); if (y + h > p.H - 120) { p.addPage(); y = 50; head(); } if (k % 2) p.rect(M, y, W, h, { fill: "#faf7f1" });
+    p.text(new Date(r.ini).toLocaleDateString("es-CO", { day: "2-digit", month: "short" }), cols[0], y + 12.5, { size: 9, color: ink }); p.text(hdec(dur(r)), cols[1], y + 12.5, { size: 9, color: ink, align: "right" });
+    lines.forEach((l, j) => p.text(l, cols[2], y + 12.5 + j * 11.5, { size: 9, color: ink })); p.text(pj(r.pj).nombre.slice(0, 22), cols[3], y + 12.5, { size: 8.5, color: soft }); const v = valor(r); if (v) p.text(money(v, pj(r.pj).moneda), cols[5], y + 12.5, { size: 9, color: ink, align: "right" }); y += h; });
+  const tot = rs.reduce((a, r) => a + dur(r), 0), val = rs.reduce((a, r) => a + valor(r), 0); y += 12; if (y > p.H - 110) { p.addPage(); y = 50; }
+  p.rect(p.W - M - 240, y, 240, val ? 54 : 30, { fill: "#f4efe6" }); p.text("Total de horas", p.W - M - 228, y + 19, { size: 10, color: soft }); p.text(hdec(tot) + " h", p.W - M - 12, y + 19, { size: 11, bold: true, color: ink, align: "right" });
+  if (val) { p.text("Valor a facturar", p.W - M - 228, y + 42, { size: 10, color: soft }); p.text(money(val, rango.pj ? pj(rango.pj).moneda : "COP"), p.W - M - 12, y + 42, { size: 12, bold: true, color: acc, align: "right" }); }
+  p.text("Hecho con Sotos", p.W - M, p.H - 30, { size: 8, color: "#b3a998", align: "right" });
+  await ap.save(`Informe de horas ${titulo} ${rango.a} a ${rango.b}.pdf`.replace(/[\\/:*?"<>|]/g, ""), p.blob({ title: "Informe de horas", author: D.perfil.nombre }));
+}
+
+/* ---------- editar ---------- */
+async function editPj(p = {}) {
+  const r = await ap.ask({ title: p.id ? "Editar proyecto" : "Proyecto nuevo", fields: [{ key: "n", label: "Nombre", value: p.nombre }, { key: "c", label: "Cliente (opcional)", value: p.cliente }, { key: "t", label: "Tarifa por hora (0 si no se cobra)", type: "number", value: p.tarifa ?? 0, min: 0 },
+    { key: "m", label: "Moneda", type: "select", value: p.moneda || "COP", options: [["COP", "Pesos"], ["USD", "Dólares"], ["EUR", "Euros"]] }, { key: "b", label: "Horas presupuestadas (opcional)", type: "number", value: p.presupuesto || "", min: 0 }, { key: "a", label: "Estado", type: "select", value: p.archivado ? "1" : "0", options: [["0", "Activo"], ["1", "Archivado"]] }], ok: "Guardar" });
+  if (!r || !r.n.trim()) return; const o = { nombre: r.n.trim(), cliente: r.c.trim(), tarifa: +r.t || 0, moneda: r.m, presupuesto: +r.b || 0, archivado: r.a === "1" };
+  if (p.id) Object.assign(p, o); else D.proyectos.push({ id: uid(), color: COLORS[D.proyectos.length % COLORS.length], ...o }); save(); fillPj(); render();
+}
+const local = (t) => { const d = new Date(t); return `${ymd(t)}T${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+async function editReg(r) {
+  const nuevo = !r; r = r || { id: uid(), ini: Date.now() - 3600000, fin: Date.now(), pj: $("#pj").value, desc: "", facturable: true };
+  const res = await ap.ask({ title: nuevo ? "Registro manual" : "Editar registro", fields: [{ key: "d", label: "Descripción", value: r.desc }, { key: "p", label: "Proyecto", type: "select", value: r.pj || "", options: [["", "Sin proyecto"], ...D.proyectos.map(p => [p.id, p.nombre])] },
+    { key: "i", label: "Inicio", type: "datetime-local", value: local(r.ini) }, { key: "f", label: "Fin", type: "datetime-local", value: local(r.fin) }, { key: "b", label: "Facturable", type: "select", value: r.facturable === false ? "0" : "1", options: [["1", "Sí"], ["0", "No"]] }, ...(nuevo ? [] : [{ key: "x", label: "¿Eliminar?", type: "select", value: "0", options: [["0", "No"], ["1", "Sí, eliminar este registro"]] }])], ok: "Guardar" });
+  if (!res) return; if (res.x === "1") { D.regs = D.regs.filter(x => x.id !== r.id); save(); render(); return; }
+  const ini = new Date(res.i).getTime(), fin = new Date(res.f).getTime(); if (!(fin > ini)) return ap.toast("El fin debe ser después del inicio");
+  Object.assign(r, { desc: res.d.trim(), pj: res.p, ini, fin, facturable: res.b === "1" }); if (nuevo) D.regs.push(r); save(); render();
+}
+$("#newPj").onclick = () => editPj(); $("#manual").onclick = () => editReg();
+$("#tabs").onclick = (e) => { const b = e.target.closest("button"); if (b) { view = b.dataset.v; render(); } };
+(async () => { await ap.ready; const s = await ap.store.get("horas"); if (s && s.regs) D = Object.assign(D, s); fillPj(); if (D.run) $("#what").value = D.run.desc || ""; tick(); render(); setInterval(tick, 1000); })();
+</script>
+</body>
+</html>

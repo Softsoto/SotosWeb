@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sismos</title>
+<!-- Sotos — Sismos (Servicio Geológico de EE. UU., por el permiso «net» del SDK) · © 2026 Sebastian Sotomontes -->
+<link rel="stylesheet" href="../comun/apps.css">
+<style>
+  .body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 340px; }
+  .mapw { position: relative; min-height: 0; } canvas { width: 100%; height: 100%; display: block; }
+  .zoom { position: absolute; right: 10px; top: 10px; display: grid; gap: 4px; } .zoom .ap-btn { width: 32px; padding: 0; justify-content: center; background: var(--panel); }
+  .legend { position: absolute; left: 10px; bottom: 10px; padding: 8px 10px; font-size: 11.5px; display: grid; gap: 3px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+  .side { border-left: 1px solid var(--line); background: var(--panel); display: flex; flex-direction: column; min-height: 0; }
+  .stats { padding: 12px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 8px; }
+  .nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; } .nums div { background: var(--panel-2); border-radius: 8px; padding: 6px 8px; } .nums b { display: block; font-size: 18px; } .nums span { font-size: 11px; color: var(--ink-3); }
+  .hist { height: 46px; display: flex; align-items: flex-end; gap: 2px; } .hist i { flex: 1; background: var(--accent); opacity: .75; border-radius: 2px 2px 0 0; min-height: 1px; }
+  .sort { display: flex; gap: 4px; padding: 8px 14px; border-bottom: 1px solid var(--line); align-items: center; font-size: 12px; color: var(--ink-3); }
+  .list { overflow: auto; flex: 1; }
+  .q { display: grid; grid-template-columns: 46px 1fr; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); cursor: pointer; align-items: center; }
+  .q:hover { background: var(--panel-2); } .q.on { background: color-mix(in srgb, var(--accent) 12%, transparent); }
+  .mag { font: 700 17px/1 var(--font); text-align: center; padding: 8px 0; border-radius: 8px; color: #fff; }
+  .q .pl { font-size: 13px; font-weight: 600; } .q small { color: var(--ink-3); font-size: 11.5px; }
+  .det { position: absolute; left: 10px; top: 10px; width: 300px; padding: 12px 14px; font-size: 13px; display: grid; gap: 4px; }
+  .det h3 { margin: 0 0 4px; font-size: 15px; } .det .row2 { display: flex; justify-content: space-between; gap: 8px; } .det .row2 span { color: var(--ink-3); }
+  .tag { display: inline-block; padding: 1px 7px; border-radius: 10px; font-size: 11px; background: var(--panel-2); margin-right: 4px; } .tag.warn { background: #b23a2e; color: #fff; }
+  .src { font-size: 11px; color: var(--ink-3); padding: 8px 14px; border-top: 1px solid var(--line); }
+  @media (max-width: 760px) { .body { grid-template-columns: 1fr; grid-template-rows: 55% 45%; } .side { border-left: 0; border-top: 1px solid var(--line); } .det { width: auto; right: 54px; } }
+</style>
+</head>
+<body>
+<div class="ap">
+  <div class="ap-bar"><h1>Sismos</h1>
+    <select class="ap-in" id="feed" title="Qué sismos ver">
+      <option value="significant_month">Significativos del mes</option><option value="4.5_month">Magnitud 4,5 o más · 30 días</option>
+      <option value="2.5_week" selected>Magnitud 2,5 o más · 7 días</option><option value="all_day">Todos · últimas 24 horas</option><option value="buscar">Buscar en el archivo…</option></select>
+    <button class="ap-btn" id="col" title="Ver solo Colombia y sus alrededores">Colombia</button>
+    <span class="sp"></span><span class="ap-faint" id="upd"></span><button class="ap-btn" id="ref">Actualizar</button></div>
+  <div class="body">
+    <div class="mapw"><canvas id="map"></canvas>
+      <div class="zoom"><button class="ap-btn" id="zin" title="Acercar">+</button><button class="ap-btn" id="zout" title="Alejar">−</button><button class="ap-btn" id="zall" title="Ver el mundo">⤢</button></div>
+      <div class="legend ap-card"><b style="margin-bottom:2px">Profundidad</b><span><i style="background:#c9422c"></i>Menos de 70 km</span><span><i style="background:#df9a2b"></i>70 a 300 km</span><span><i style="background:#3b76ad"></i>Más de 300 km</span><span class="ap-faint">El tamaño indica la magnitud</span></div>
+      <div class="det ap-card" id="det" hidden></div></div>
+    <div class="side">
+      <div class="stats" id="stats"></div>
+      <div class="sort">Ordenar: <button class="ap-btn ghost on" data-s="t">Recientes</button><button class="ap-btn ghost" data-s="m">Más fuertes</button><span class="sp" style="flex:1"></span><input class="ap-in" id="f" placeholder="Filtrar lugar…" style="width:110px;height:28px"></div>
+      <div class="list" id="list"><div class="ap-empty">Cargando…</div></div>
+      <div class="src">Datos del Servicio Geológico de los Estados Unidos (USGS), dominio público. Mapa: Natural Earth.</div>
+    </div>
+  </div>
+</div>
+<script src="/sdk/sotos-sdk.js"></script>
+<script src="../comun/apps.js"></script>
+<script src="../comun/mapa.js"></script>
+<script>
+"use strict";
+const $ = (s) => document.querySelector(s);
+const API = "https://earthquake.usgs.gov";
+const COL = { minlatitude: -6, maxlatitude: 15, minlongitude: -83, maxlongitude: -64 };
+let quakes = [], shown = [], sel = null, sort = "t", onlyCol = false, map, timer, seen = new Set(), feedName = "2.5_week";
+const depthColor = (d) => d < 70 ? "#c9422c" : d < 300 ? "#df9a2b" : "#3b76ad";
+const radius = (m) => Math.max(2.5, 1.6 * Math.pow(Math.max(m, 0) , 1.35));
+const ago = (t) => { const s = (Date.now() - t) / 1000; if (s < 3600) return `hace ${Math.max(1, Math.round(s / 60))} min`; if (s < 86400) return `hace ${Math.round(s / 3600)} h`; return `hace ${Math.round(s / 86400)} d`; };
+const fmtMag = (m) => m == null ? "—" : m.toFixed(1).replace(".", ",");
+const lugar = (p) => (p || "Sin nombre").replace(/^(\d+) km (N|S|E|W|NE|NW|SE|SW|NNE|NNW|ENE|ESE|SSE|SSW|WSW|WNW) of /, (_, k, d) => `A ${k} km al ${{ N: "norte", S: "sur", E: "este", W: "oeste", NE: "noreste", NW: "noroeste", SE: "sureste", SW: "suroeste", NNE: "nornoreste", NNW: "nornoroeste", ENE: "estenoreste", ESE: "estesureste", SSE: "sursureste", SSW: "sursuroeste", WSW: "oestesuroeste", WNW: "oestenoroeste" }[d]} de `);
+const inCol = (q) => q.lat >= COL.minlatitude && q.lat <= COL.maxlatitude && q.lon >= COL.minlongitude && q.lon <= COL.maxlongitude;
+
+async function get(url, fresh) { const r = await sotos.net.fetch(url, { fresh }); if (!r.ok) throw new Error(r.status === 413 ? "Son demasiados sismos para una consulta; acota las fechas o sube la magnitud" : "El servicio respondió " + r.status); return r.json(); }
+const parse = (g) => g.features.map(f => ({ id: f.id, mag: f.properties.mag ?? 0, place: f.properties.place, t: f.properties.time, url: f.properties.url, felt: f.properties.felt, tsunami: f.properties.tsunami, alert: f.properties.alert, type: f.properties.type, sig: f.properties.sig, lon: f.geometry.coordinates[0], lat: f.geometry.coordinates[1], depth: f.geometry.coordinates[2] }));
+
+async function load(fresh) {
+  const v = $("#feed").value; if (v === "buscar") return buscar();
+  feedName = v; $("#list").innerHTML = '<div class="ap-empty">Consultando…</div>';
+  try { const g = await get(`${API}/earthquakes/feed/v1.0/summary/${v}.geojson`, fresh); quakes = parse(g); $("#upd").textContent = "Actualizado " + new Date().toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" }); avisar(); render(); }
+  catch (e) { $("#list").innerHTML = `<div class="ap-empty"><div><b>No se pudo consultar</b><p class="ap-muted">${ap.esc(e.message)}</p></div></div>`; }
+}
+/* aviso cuando aparece un sismo fuerte nuevo (con la app abierta) */
+function avisar() {
+  const nuevos = quakes.filter(q => !seen.has(q.id)); const first = !seen.size; quakes.forEach(q => seen.add(q.id));
+  if (first) return; nuevos.filter(q => q.mag >= 6 || (inCol(q) && q.mag >= 4.5)).forEach(q => sotos.notify({ title: `Sismo de magnitud ${fmtMag(q.mag)}`, body: lugar(q.place) }).catch(() => {}));
+}
+async function buscar() {
+  const hoy = new Date().toISOString().slice(0, 10), mes = new Date(Date.now() - 30 * 864e5).toISOString().slice(0, 10);
+  const r = await ap.ask({ title: "Buscar en el archivo de sismos", text: "El USGS guarda sismos desde 1900. Se devuelven hasta 2.000, los más recientes primero.", ok: "Buscar", fields: [
+    { key: "a", label: "Desde", type: "date", value: mes }, { key: "b", label: "Hasta", type: "date", value: hoy }, { key: "m", label: "Magnitud mínima", type: "number", value: "4", min: 0, max: 9, step: 0.1 },
+    { key: "z", label: "Zona", type: "select", value: "col", options: [["col", "Colombia y alrededores"], ["vista", "Lo que se ve en el mapa"], ["mundo", "Todo el mundo"]] }] });
+  if (!r) { $("#feed").value = feedName; return; }
+  const p = new URLSearchParams({ format: "geojson", starttime: r.a, endtime: r.b + "T23:59:59", minmagnitude: String(Number(r.m) || 0), limit: "2000", orderby: "time" });
+  if (r.z === "col") Object.entries(COL).forEach(([k, v]) => p.set(k, v));
+  if (r.z === "vista") { const b = map.bounds(); if (!b.whole) { p.set("minlatitude", Math.max(-90, b.south).toFixed(2)); p.set("maxlatitude", Math.min(90, b.north).toFixed(2)); p.set("minlongitude", b.west.toFixed(2)); p.set("maxlongitude", b.east.toFixed(2)); } }
+  $("#list").innerHTML = '<div class="ap-empty">Buscando en el archivo…</div>';
+  try { quakes = parse(await get(`${API}/fdsnws/event/1/query?${p}`)); feedName = "buscar"; $("#upd").textContent = `${r.a} a ${r.b}`; render(); if (r.z === "col") map.center(-74, 4.5, 6); }
+  catch (e) { $("#list").innerHTML = `<div class="ap-empty"><div><b>No se pudo buscar</b><p class="ap-muted">${ap.esc(e.message)}</p></div></div>`; }
+}
+
+function render() {
+  const f = $("#f").value.trim().toLowerCase();
+  shown = quakes.filter(q => (!onlyCol || inCol(q)) && (!f || (q.place || "").toLowerCase().includes(f)));
+  shown.sort(sort === "m" ? (a, b) => b.mag - a.mag : (a, b) => b.t - a.t);
+  // cifras y sismos por día
+  const max = shown.reduce((a, q) => q.mag > (a?.mag ?? -9) ? q : a, null), days = {};
+  shown.forEach(q => { const d = new Date(q.t).toISOString().slice(0, 10); days[d] = (days[d] || 0) + 1; });
+  const keys = Object.keys(days).sort().slice(-31), top = Math.max(1, ...keys.map(k => days[k]));
+  $("#stats").innerHTML = `<div class="nums"><div><b>${shown.length.toLocaleString("es")}</b><span>sismos</span></div><div><b>${max ? fmtMag(max.mag) : "—"}</b><span>el más fuerte</span></div><div><b>${shown.filter(q => q.mag >= 5).length}</b><span>de 5 o más</span></div></div>
+    ${keys.length > 1 ? `<div class="hist" title="Sismos por día">${keys.map(k => `<i style="height:${days[k] / top * 100}%" title="${k}: ${days[k]}"></i>`).join("")}</div>` : ""}`;
+  $("#list").innerHTML = shown.length ? shown.slice(0, 600).map((q, i) => `<div class="q ${sel === q ? "on" : ""}" data-i="${i}"><div class="mag" style="background:${depthColor(q.depth)}">${fmtMag(q.mag)}</div><div><div class="pl">${ap.esc(lugar(q.place))}</div><small>${ago(q.t)} · ${Math.round(q.depth)} km de profundidad</small></div></div>`).join("") + (shown.length > 600 ? `<div class="ap-empty ap-faint">y ${shown.length - 600} más en el mapa</div>` : "")
+    : '<div class="ap-empty">No hay sismos con estos filtros</div>';
+  map && map.draw();
+}
+function select(q, center) {
+  sel = q; render(); if (!q) { $("#det").hidden = true; return; }
+  if (center) map.center(q.lon, q.lat, Math.max(map.view.z, 5));
+  const pais = map.countryAt(q.lon, q.lat);
+  $("#det").hidden = false;
+  $("#det").innerHTML = `<div class="row2"><h3>Magnitud ${fmtMag(q.mag)}</h3><button class="ap-btn ghost icon" id="cl" title="Cerrar">✕</button></div>
+    <div>${ap.esc(lugar(q.place))}</div>
+    <div class="row2"><span>Fecha</span><b>${new Date(q.t).toLocaleString("es", { dateStyle: "medium", timeStyle: "short" })}</b></div>
+    <div class="row2"><span>Profundidad</span><b>${q.depth.toFixed(1).replace(".", ",")} km</b></div>
+    <div class="row2"><span>Coordenadas</span><b>${q.lat.toFixed(3)}, ${q.lon.toFixed(3)}</b></div>
+    ${pais ? `<div class="row2"><span>Sobre</span><b>${ap.esc(pais)}</b></div>` : `<div class="row2"><span>Sobre</span><b>el mar</b></div>`}
+    ${q.felt ? `<div class="row2"><span>Lo reportaron</span><b>${q.felt.toLocaleString("es")} personas</b></div>` : ""}
+    <div style="margin-top:4px">${q.tsunami ? '<span class="tag warn">Zona con posible tsunami</span>' : ""}${q.alert ? `<span class="tag">Alerta ${{ green: "verde", yellow: "amarilla", orange: "naranja", red: "roja" }[q.alert] || q.alert}</span>` : ""}${q.type !== "earthquake" ? `<span class="tag">${ap.esc(q.type)}</span>` : ""}</div>
+    <div class="ap-faint" style="font-size:11.5px">Energía liberada ≈ ${energia(q.mag)}</div>`;
+  $("#cl").onclick = () => select(null);
+}
+/* energía de Gutenberg–Richter: log10 E = 1,5 M + 4,8 (julios) → toneladas de TNT */
+function energia(m) { const tnt = Math.pow(10, 1.5 * m + 4.8) / 4.184e9; return tnt < 1 ? `${Math.round(tnt * 1000)} kg de TNT` : tnt < 1000 ? `${Math.round(tnt).toLocaleString("es")} toneladas de TNT` : tnt < 1e6 ? `${(tnt / 1000).toFixed(1).replace(".", ",")} kilotones de TNT` : `${(tnt / 1e6).toFixed(1).replace(".", ",")} megatones de TNT`; }
+
+$("#list").onclick = (e) => { const el = e.target.closest(".q"); if (el) select(shown[+el.dataset.i], true); };
+document.querySelectorAll("[data-s]").forEach(b => b.onclick = () => { sort = b.dataset.s; document.querySelectorAll("[data-s]").forEach(x => x.classList.toggle("on", x === b)); render(); });
+$("#f").oninput = render;
+$("#feed").onchange = () => load(false);
+$("#ref").onclick = () => load(true);
+$("#col").onclick = () => { onlyCol = !onlyCol; $("#col").classList.toggle("on", onlyCol); if (onlyCol) map.center(-74, 4.5, 6); render(); };
+$("#zin").onclick = () => map.zoom(1.6); $("#zout").onclick = () => map.zoom(1 / 1.6); $("#zall").onclick = () => map.center(0, 0, 1);
+
+(async () => {
+  await ap.ready;
+  map = await SotosMapa($("#map"), { lon: -40, lat: 10, zoom: 1,
+    onDraw(ctx, m) {
+      if (onlyCol) { const a = m.proj(COL.minlongitude, COL.maxlatitude), b = m.proj(COL.maxlongitude, COL.minlatitude); ctx.setLineDash([4, 4]); ctx.strokeStyle = "rgba(120,100,80,.7)"; ctx.strokeRect(a[0], a[1], b[0] - a[0], b[1] - a[1]); ctx.setLineDash([]); }
+      const list = shown.slice().sort((a, b) => a.mag - b.mag); // los fuertes encima
+      ctx.globalAlpha = .78; list.forEach(q => m.dot(q.lon, q.lat, radius(q.mag), depthColor(q.depth), "rgba(0,0,0,.35)")); ctx.globalAlpha = 1;
+      if (sel) { const p = m.proj(sel.lon, sel.lat); ctx.strokeStyle = document.documentElement.dataset.sotosTheme === "dark" ? "#fff" : "#000"; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p[0], p[1], radius(sel.mag) + 5, 0, 7); ctx.stroke(); }
+    },
+    onClick(ll, e) { // el sismo más cercano al clic
+      let best = null, bd = 14; shown.forEach(q => { const p = map.proj(q.lon, q.lat), d = Math.hypot(p[0] - e.offsetX, p[1] - e.offsetY) - radius(q.mag); if (d < bd) { bd = d; best = q; } }); select(best, false); },
+  });
+  if (map.error) ap.toast("No se pudo cargar el mapa: " + map.error.message);
+  await load(false);
+  timer = setInterval(() => { if ($("#feed").value !== "buscar" && !document.hidden) load(true); }, 5 * 60_000);
+})();
+</script>
+</body>
+</html>
